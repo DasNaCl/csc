@@ -13,6 +13,7 @@ Any files emitted by the compilation process are put into a `build/` directory, 
 
 - `main.tex` is, as the name might imply, the main development file.
 - `glossary.tex` is a collection of various definitions; especially (hyper-)security properties, found among existing work.
-- `acronyms.tex` list of acronyms
+- `acronyms.tex` list of acronyms.
 - `library.bib` contains any reference whatsoever.
+- `mmmacros.sty` is a collection of macros used in this work.
 

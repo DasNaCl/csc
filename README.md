@@ -5,9 +5,9 @@ This repository contains all files related to work "Compositional Secure Compila
 
 ## Building
 
-This repository uses `latexmk`.
-Thus, to build, simply run `latexmk -pdf`.
-The script creates a `build/` directory that contains all files resulting from a TeX compilation.
+This repository uses `latexmk`, so there is no need to re-run your latex compiler, `makeglossaries`, or `bibtex`/`biber`.
+To build, simply run `latexmk -pdf`.
+Any files emitted by the compilation process are put into a `build/` directory, including the final `pdf`.
 
 ## Structure
 

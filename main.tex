@@ -1,14 +1,88 @@
-\documentclass[utf8]{article}
+\documentclass[a4paper,names,dvipsnames]{article}
 
+\usepackage[T1]{fontenc}
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage[inference]{semantic}
+\usepackage{mathtools}
+\usepackage{xcolor}
 \usepackage{hyperref}
 \usepackage{glossaries}
+\usepackage{enumerate}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{amssymb}
+\usepackage{stmaryrd}
+\usepackage[capitalize]{cleveref}
+\usepackage{bm}
+\usepackage{xspace}
+\usepackage{etoolbox}
+
+\usepackage{mmmacros}
+
+\newtheorem{definition}{Definition}
 
 \loadglsentries{acronyms}
 \makeglossaries
 
+\newcommand{\MK}[1]{\todo[color=orange!30]{TODO: #1}}
+\newcommand{\MP}[1]{\todo[color=blue!30]{TODO: #1}}
+
+
 \begin{document}
 
-\gls{rtp}
-stub
+Let $\propositions$ be the set of propositions.
+
+\begin{definition}\label{def:events}
+  $\events$ is the set of atomic propositions hereby called events or actions.
+  The internal action is $\emptyevent$.
+  The action $\terminationevent$ is program termination.
+\end{definition}
+
+\begin{definition}\label{def:pl}
+A programming language is a quintuple $\left(\partials,\wellf,\singlestep,\linker\right)$ s.t.:
+
+\begin{itemize}
+  \item[$\partials$] : Set - is a set of admissible, partial programs.
+  \item[$\wellf$] : $\partials\to\propositions$ - a judgement that holds iff a program is not partial.
+  \item[$\singlestep$] : $\wholes\to\events\to\wholes$ - a step relation, where $\wholes=\{w\in\partials\ |\ \wellf w\}$.
+        For $e\in\events$ and $p,p'\in\wholes$ we say for $\estep{p}{e}{p'}$ that program $p$ performs a step with action $e$ to program $p'$.
+        If $e=\emptyevent$, we write $\step{p}{p'}$.
+        In case $e=\terminationevent$, we write $\terminates{p}$.
+  \item[$\linker$] : $\partials\to\partials\to\partials$ - links two partial programs together in some way, resulting in a new partial program.
+\end{itemize}
+\end{definition}
+Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
+
+\begin{definition}
+  A trace $\trace$ is an infinite sequence of events that results from the relation $\singlestep$.
+  That is, we obtain the trace $\trace=e_{0}e_{1}\dots$ for the execution sequence $\estep{p}{e_{0}}{\estep{p'}{e_{1}}{\dots}}$ and write $\mktrace{p}{\trace}$.
+\end{definition}
+\noindent
+We assume $\lightning$ to occur at most once in the trace and if it does occur, an infinite sequence of $\emptyevent$ follows.
+
+\begin{definition}
+  A finite sequence of events $m$ is a finite trace prefix of $\trace$ iff it satisfies the following judgement.
+  We write the empty, finite trace prefix as $\cdot$.
+
+  $$
+\inference{}{\cdot\le\trace}\inference{m\le\trace}{em\le e\trace}
+  $$
+\end{definition}
+
+\begin{definition}
+  The behavior of a whole program $p$ is a set of all traces it produces, i.e. $\behav{p}=\{\trace\ |\ \mktrace{p}{\trace}\}$.
+\end{definition}
+
+\begin{definition}
+  A property $\prop$ is a set of admissible traces. Thus, if $p$ satisfies $\prop$ (written $\sat{p}{\prop}$), then $\behav{p}\subseteq\prop$
+\end{definition}
+
+\begin{definition}
+  A program $p$ robustly satisfies a property $\prop$, written $\rsat{p}{\prop}$, iff $\forall C\in\partials,\sat{C\linker p}{\prop}$
+\end{definition}
+
+\begin{definition}
+A compiler between languages $\S$ and $\T$ is a partial function $\scomp$ from $\src{\partials}$ to $\trg{\partials}$.
+\end{definition}
 
 \end{document}

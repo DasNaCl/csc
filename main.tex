@@ -20,6 +20,7 @@
 \usepackage{mmmacros}
 
 \newtheorem{definition}{Definition}
+\newtheorem{lemma}{Lemma}
 
 \loadglsentries{acronyms}
 \makeglossaries
@@ -56,6 +57,7 @@ Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
 \begin{definition}
   A trace $\trace$ is an infinite sequence of events that results from the relation $\singlestep$.
   That is, we obtain the trace $\trace=e_{0}e_{1}\dots$ for the execution sequence $\estep{p}{e_{0}}{\estep{p'}{e_{1}}{\dots}}$ and write $\mktrace{p}{\trace}$.
+  The set of all traces is $\traces$.
 \end{definition}
 \noindent
 We assume $\lightning$ to occur at most once in the trace and if it does occur, an infinite sequence of $\emptyevent$ follows.
@@ -74,15 +76,54 @@ We assume $\lightning$ to occur at most once in the trace and if it does occur, 
 \end{definition}
 
 \begin{definition}
-  A property $\prop$ is a set of admissible traces. Thus, if $p$ satisfies $\prop$ (written $\sat{p}{\prop}$), then $\behav{p}\subseteq\prop$
+  A property $\prop$ is a set of admissible traces. Thus, if $p$ satisfies $\prop$ (written $\sat{p}{\prop}$), then $\behav{p}\subseteq\prop$.
 \end{definition}
 
 \begin{definition}
-  A program $p$ robustly satisfies a property $\prop$, written $\rsat{p}{\prop}$, iff $\forall C\in\partials,\sat{C\linker p}{\prop}$
+  A hyperproperty $H$ is a set of sets of admissible traces. Thus, if $p$ satisfies $\prop$ (also written $\sat{p}{H}$), then $\behav{p}\in H$.
 \end{definition}
 
 \begin{definition}
-A compiler between languages $\S$ and $\T$ is a partial function $\scomp$ from $\src{\partials}$ to $\trg{\partials}$.
+  A program $p$ robustly satisfies a property $\prop$, written $\rsat{p}{\prop}$, iff $\forall C\in\partials,\sat{C\linker p}{\prop}$. The same notation is used for robust hyperproperty satisfaction.
 \end{definition}
+
+\begin{definition}
+  A (hyper-)property class is a set of (hyper-)properties.
+\end{definition}
+
+\begin{definition}
+  The class of safety properties contains all properties that can be refuted with a finite trace prefix:
+  $$
+  \text{Safety} = \left\{\pi\ |\ \forall \trace\in\traces, t\not\in\pi \text{ iff } \exists m\ge\trace,\forall \trace'\in\traces,m\le\trace'\implies\trace'\not\in\pi\right\}
+  $$
+\end{definition}
+
+\begin{definition}
+  A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
+\end{definition}
+
+\begin{definition}
+  For a given class $\mathbb{C}$, a compiler from language $\S$ to $\T$ robustly preserves $\mathbb{C}$ iff
+  $$
+  \forall\pi\in\mathbb{C},\forall\src{p}\in\src{\partials},\sat{\src{p}}{\pi}\implies\sat{\stcomp{\src{p}}}{\pi}
+  $$
+  We write $\vdash\stcomp{\bullet}:\mathbb{C}$.
+\end{definition}
+
+\begin{definition}
+  Given two compilers $\sicomp{\bullet}$ and $\itcomp{\bullet}$, their composition is $\sitcomp{\bullet}=\itcompN{\sicomp{\bullet}}$.
+\end{definition}
+
+\begin{definition}
+  The conjunctive composition of two properties $\pi_{1},\pi_{2}$ is the set-intersection $\pi_{1}\cap\pi_{2}$
+\end{definition}
+
+\begin{definition}
+  The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is the set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
+\end{definition}
+
+\begin{lemma}
+  Given $\rtp{\sicomp{\bullet}}{\mathbb{C}_{1}}$ and $\rtp{\itcomp{\bullet}}{\mathbb{C}_{2}}$, then $\rtp{\sitcomp{\bullet}}{\mathbb{C}_{1}\cap\mathbb{C}_{2}}$.
+\end{lemma}
 
 \end{document}

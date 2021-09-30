@@ -3,6 +3,7 @@
 \usepackage[T1]{fontenc}
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[inference]{semantic}
+\usepackage{mathrsfs}
 \usepackage{mathtools}
 \usepackage{xcolor}
 \usepackage{hyperref}
@@ -16,6 +17,7 @@
 \usepackage{bm}
 \usepackage{xspace}
 \usepackage{etoolbox}
+\usepackage{cite}
 
 \usepackage{mmmacros}
 
@@ -55,8 +57,13 @@ A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\ri
 Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
 
 \begin{definition}
+  For any sequence of events, let $\seqnil$ denote the empty sequence and $\seqcons{e}{\bar{t}}$ the sequence that starts with $e$ and continues with $\bar{t}$.
+  Hereby, it does not matter whether $\bar{t}$ is finite or infinite, it's merely syntactic sugar to work on sequences of events.
+\end{definition}
+
+\begin{definition}
   A trace $\trace$ is an infinite sequence of events that results from the relation $\singlestep$.
-  That is, we obtain the trace $\trace=e_{0}e_{1}\dots$ for the execution sequence $\estep{p}{e_{0}}{\estep{p'}{e_{1}}{\dots}}$ and write $\mktrace{p}{\trace}$.
+  That is, we obtain the trace $\trace=\seqcons{e_{0}}{\seqcons{e_{1}}{\dots}}$ for the execution sequence $\estep{p}{e_{0}}{\estep{p'}{e_{1}}{\dots}}$ and write $\mktrace{p}{\trace}$.
   The set of all traces is $\traces$.
 \end{definition}
 \noindent
@@ -64,10 +71,9 @@ We assume $\lightning$ to occur at most once in the trace and if it does occur, 
 
 \begin{definition}
   A finite sequence of events $m$ is a finite trace prefix of $\trace$ iff it satisfies the following judgement.
-  We write the empty, finite trace prefix as $\cdot$.
 
   $$
-\inference{}{\cdot\le\trace}\inference{m\le\trace}{e::m\le e::\trace}
+    \inference{}{\cdot\le\trace}\hspace{2em}\inference{m\le\trace}{\seqcons{e}{m}\le \seqcons{e}{\trace}}
   $$
 \end{definition}
 
@@ -76,12 +82,38 @@ We assume $\lightning$ to occur at most once in the trace and if it does occur, 
 \end{definition}
 
 \begin{definition}
-  A property $\prop$ is a set of admissible traces. Thus, if $p$ satisfies $\prop$ (written $\sat{p}{\prop}$), then $\behav{p}\subseteq\prop$.
+  A property $\prop$ is a set of admissible traces. For a program $p$ to satisfy $\prop$ it must not produce a trace that is not part of $\prop$. Thus, $p$ satisfies $\prop$ iff $\behav{p}\subseteq\prop$ and we write $\sat{p}{\prop}$.
 \end{definition}
 
 \begin{definition}
   A hyperproperty $H$ is a set of sets of admissible traces. Thus, if $p$ satisfies $\prop$ (also written $\sat{p}{H}$), then $\behav{p}\in H$.
 \end{definition}
+
+\begin{lemma}
+  Given a property $\pi$, there exists a unique hyperproperty $\lift{\pi}$ that satisfies the exact same policy.
+\end{lemma}
+\begin{proof}
+  \begin{align*}
+                    && \forall p\in\partials,\sat{p}{\prop}&\equiv&\sat{p}{\lift{\prop}} \\
+    \Leftrightarrow && \forall p\in\partials,\behav{p}\subseteq{\prop}&\equiv&\behav{p}\in\lift{\prop} \\
+    \Leftrightarrow && \lift{\prop}&=&\left\{p\in\partials\ |\ \behav{p}\subseteq\prop\right\} \\
+    \Leftrightarrow && \lift{\prop}&=&\powerset{\prop}
+  \end{align*}
+  Hereby, $\powerset{\prop}$ is the powerset of $\prop$.
+\end{proof}
+
+\begin{lemma}
+  For a property $\prop$ that refines $\prop'$, i.e. $\prop\subseteq\prop'$, if any $p\in\partials$ satisfies $\sat{p}{\prop'}$, then $\sat{p}{\prop}$.
+\end{lemma}
+\begin{proof}
+  Pick any property $\prop'$ and $p\in\partials$ such that $\sat{p}{\prop}$ and assume $\prop\subseteq\prop'$.
+  Simple unfolding reveals $\behav{p}\subseteq\prop\implies\behav{p}\subseteq\prop'$.
+\end{proof}
+\noindent
+For lifted properties, this refinement property also holds on the hyperproperty level.
+However, it does not work for any hyperproperty~\cite{clarkson08}.
+
+
 
 \begin{definition}
   A program $p$ robustly satisfies a property $\prop$, written $\rsat{p}{\prop}$, iff $\forall C\in\partials,\sat{C\linker p}{\prop}$. The same notation is used for robust hyperproperty satisfaction.
@@ -127,5 +159,10 @@ We assume $\lightning$ to occur at most once in the trace and if it does occur, 
 \begin{lemma}
   Given $\rtp{\sicomp{\bullet}}{\mathbb{C}_{1}}$ and $\rtp{\itcomp{\bullet}}{\mathbb{C}_{2}}$, then $\rtp{\sitcomp{\bullet}}{\mathbb{C}_{1}\cap\mathbb{C}_{2}}$.
 \end{lemma}
+
+
+
+\bibliographystyle{plain}
+\bibliography{library}
 
 \end{document}

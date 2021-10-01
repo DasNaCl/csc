@@ -86,7 +86,7 @@ We assume $\lightning$ to occur at most once in the trace and if it does occur, 
 \end{definition}
 
 \begin{definition}
-  A hyperproperty $H$ is a set of sets of admissible traces. Thus, if $p$ satisfies $\prop$ (also written $\sat{p}{H}$), then $\behav{p}\in H$.
+  A hyperproperty $H$ is a set of admissible sets of traces. Thus, if $p$ satisfies $\prop$ (also written $\sat{p}{H}$), then $\behav{p}\in H$.
 \end{definition}
 
 \begin{lemma}
@@ -113,52 +113,74 @@ We assume $\lightning$ to occur at most once in the trace and if it does occur, 
 For lifted properties, this refinement property also holds on the hyperproperty level.
 However, it does not work for any hyperproperty~\cite{clarkson08}.
 
-
-
 \begin{definition}
   A program $p$ robustly satisfies a property $\prop$, written $\rsat{p}{\prop}$, iff $\forall C\in\partials,\sat{C\linker p}{\prop}$. The same notation is used for robust hyperproperty satisfaction.
 \end{definition}
 
 \begin{definition}
-  A (hyper-)property class $\mathcal{C}$ is a set of (hyper-)properties.
+  A class of hyperproperties $\cC$ is a set of hyperproperties.
+  Likewise, a class of properties $\cC$ is a set of hyperproperties, where every property is lifted to the hyperproperty level.
+  From now on, we use $\nu$ for elements of any class $\cC$ in case it does not matter whether it is a lifted property or any hyperproperty.
 \end{definition}
 
 \begin{definition}
-  The class of safety properties contains all properties that can be refuted with a finite trace prefix:
+  The class of safety properties contains the lifting of all properties that can be refuted with a finite trace prefix:
   $$
-  \text{Safety} = \left\{\pi\ |\ \forall \trace\in\traces, t\not\in\pi \text{ iff } \exists m\ge\trace,\forall \trace'\in\traces,m\le\trace'\implies\trace'\not\in\pi\right\}
+  \cSafety = \left\{\lift{\prop}\ |\ \forall \trace\in\traces, t\not\in\prop \text{ iff } \exists m\ge\trace,\forall \trace'\in\traces,m\le\trace'\implies\trace'\not\in\prop\right\}
   $$
 \end{definition}
+
 
 \begin{definition}
   A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
 \end{definition}
 
 \begin{definition}
-  For a given class $\mathbb{C}$, a compiler from language $\S$ to $\T$ robustly preserves $\mathbb{C}$ iff
+  For a given class $\cC$, a compiler from languages $\S$ to $\T$ robustly preserves $\cC$ iff
   $$
-  \forall\pi\in\mathbb{C},\forall\src{p}\in\src{\partials},\sat{\src{p}}{\pi}\implies\sat{\stcomp{\src{p}}}{\pi}
+  \forall\lift{\pi}\in\cC,\forall\src{p}\in\src{\partials},\sat{\src{p}}{\pi}\implies\sat{\stcomp{\src{p}}}{\pi}
   $$
-  We write $\vdash\stcomp{\bullet}:\mathbb{C}$.
+  We write $\rtp{\stcomp{\bullet}}{\cC}$.
 \end{definition}
 
 \begin{definition}
   Given two compilers $\sicomp{\bullet}$ and $\itcomp{\bullet}$, their sequential composition is $\sitcomp{\bullet}=\itcompN{\sicomp{\bullet}}$.
 \end{definition}
 
-\begin{definition}
-  The conjunctive composition of two properties $\pi_{1},\pi_{2}$ is the set-intersection $\pi_{1}\cap\pi_{2}$
+\begin{lemma}
+  Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, we have $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+\end{lemma}
+\begin{proof}
+  Let $\prop\in\cC_{1}$, since $\cC_{1}\subseteq\cC_{2}$ we also know that $\prop\in\cC_{2}$.
+  Let $\src{p}\in\src{\partials}$ such that $\sat{\src{p}}{\prop}$, we need to prove $\sat{\stcomp{\src{p}}}{\prop}$.
+  This follows immediately from the assumption $\rtp{\stcomp{\bullet}}{\cC_{2}}$.
+\end{proof}
 
-  {\Large\color{red}Do the lifting}
-\end{definition}
-
 \begin{definition}
-  The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is the set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
+  The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is their set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
 \end{definition}
 
 \begin{lemma}
-  Given $\rtp{\sicomp{\bullet}}{\mathbb{C}_{1}}$ and $\rtp{\itcomp{\bullet}}{\mathbb{C}_{2}}$, then $\rtp{\sitcomp{\bullet}}{\mathbb{C}_{1}\cap\mathbb{C}_{2}}$.
+  Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
+\begin{proof}
+  $\;$\\
+  \begin{tabular}{clcrl}
+           &Have & \hspace{3cm} & Want&\\\hline
+           & &  &     &\\[-0.2cm]
+    $H_{1}$:& $\rtp{\sicomp{\src{\bullet}}}{\cC_{1}}$    &  &  &\\
+    $H_{2}$:& $\rtp{\sicomp{\irl{\bullet}}}{\cC_{2}}$    &  & $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$ &\\\hline
+    &&''unfold''&&\\[-0.2cm]
+           &$\src{p}\in\src{\partials}$             &  & &\\
+           &$\lift{\prop}\in\cC_{1}\cap\cC_{2}$       &  & &\\
+    H: &$\sat{\src{p}}{\pi}$                    &  & $\sat{\sitcomp{\src{p}}}{\prop}$ &\\\hline
+    &&''by $H_{2}$''&&\\[-0.2cm]
+    &$\sicomp{\src{p}}\in\trg{\partials}$&&$\sat{\sicomp{\src{p}}}{\prop}$&\\\hline
+    &&''by $H_{1}$''&&\\[-0.2cm]
+    &&&$\sat{\src{p}}{\prop}$ &$\checkmark_{\tiny \text{by }H}$\\\hline
+  \end{tabular}
+  $\;$\\
+\end{proof}
 
 
 

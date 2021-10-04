@@ -131,7 +131,7 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 \begin{definition}[Robust Trace-Property Preservation]
   For a given class $\cC$, a compiler from languages $\S$ to $\T$ robustly preserves $\cC$ iff
   $$
-  \forall\lift{\pi}\in\cC,\forall\src{p}\in\src{\partials},\sat{\src{p}}{\pi}\implies\sat{\stcomp{\src{p}}}{\pi}
+  \forall\lift{\pi}\in\cC,\forall\src{p}\in\src{\partials},\rsat{\src{p}}{\pi}\implies\rsat{\stcomp{\src{p}}}{\pi}
   $$
   We write $\rtp{\stcomp{\bullet}}{\cC}$.
 \end{definition}
@@ -144,9 +144,22 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, we have $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
 \end{lemma}
 \begin{proof}
-  Let $\prop\in\cC_{1}$, since $\cC_{1}\subseteq\cC_{2}$ we also know that $\prop\in\cC_{2}$.
-  Let $\src{p}\in\src{\partials}$ such that $\sat{\src{p}}{\prop}$, we need to prove $\sat{\stcomp{\src{p}}}{\prop}$.
-  This follows immediately from the assumption $\rtp{\stcomp{\bullet}}{\cC_{2}}$.
+  $\;$\\
+  \begin{tabular}{clcrl}
+           &Have & \hspace{3cm} & Want&\\\hline
+           & &  &     &\\[-0.2cm]
+    $H_{1}$:& $\rtp{\stcomp{\src{\bullet}}}{\cC_{2}}$    &  &  &\\
+    $H_{2}$:& $\cC_{1}\subseteq\cC_{2}$    &  & $\rtp{\stcomp{\bullet}}{\cC_{1}}$ &\\\hline
+    &&''unfold''&&\\[-0.2cm]
+           &$\src{p}\in\src{\partials}$             &  & &\\
+           &$\lift{\prop}\in\cC_{1}$       &  & &\\
+    H: &$\rsat{\src{p}}{\pi}$                    &  & $\rsat{\stcomp{\src{p}}}{\prop}$ &\\\hline
+    &&''by $H_{2}$''&&\\[-0.2cm]
+    $H_3$&$\lift{\prop}\in\cC_{2}$&&&\\\hline
+    &&''by $H_{1}$''&&\\[-0.2cm]
+    &&&$\rsat{\src{p}}{\prop}$ &$\checkmark_{\tiny \text{by }H}$\\\hline
+  \end{tabular}
+  $\;$\\
 \end{proof}
 
 \begin{lemma}[Hyperproperty Lattice]
@@ -160,7 +173,7 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is their set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
 \end{definition}
 
-\begin{lemma}[Sequential Composition of RTP]
+\begin{lemma}[Sequential Composition of RTP]\label{lem:seqcompo}
   Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \begin{proof}
@@ -169,18 +182,19 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
            &Have & \hspace{3cm} & Want&\\\hline
            & &  &     &\\[-0.2cm]
     $H_{1}$:& $\rtp{\sicomp{\src{\bullet}}}{\cC_{1}}$    &  &  &\\
-    $H_{2}$:& $\rtp{\sicomp{\irl{\bullet}}}{\cC_{2}}$    &  & $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$ &\\\hline
+    $H_{2}$:& $\rtp{\itcomp{\irl{\bullet}}}{\cC_{2}}$    &  & $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$ &\\\hline
     &&''unfold''&&\\[-0.2cm]
            &$\src{p}\in\src{\partials}$             &  & &\\
            &$\lift{\prop}\in\cC_{1}\cap\cC_{2}$       &  & &\\
-    H: &$\sat{\src{p}}{\pi}$                    &  & $\sat{\sitcomp{\src{p}}}{\prop}$ &\\\hline
+    H: &$\rsat{\src{p}}{\pi}$                    &  & $\rsat{\sitcomp{\src{p}}}{\prop}$ &\\\hline
     &&''by $H_{2}$''&&\\[-0.2cm]
-    &$\sicomp{\src{p}}\in\trg{\partials}$&&$\sat{\sicomp{\src{p}}}{\prop}$&\\\hline
+    &$\sicomp{\src{p}}\in\trg{\partials}$&&$\rsat{\sicomp{\src{p}}}{\prop}$&\\\hline
     &&''by $H_{1}$''&&\\[-0.2cm]
-    &&&$\sat{\src{p}}{\prop}$ &$\checkmark_{\tiny \text{by }H}$\\\hline
+    &&&$\rsat{\src{p}}{\prop}$ &$\checkmark_{\tiny \text{by }H}$\\\hline
   \end{tabular}
   $\;$\\
 \end{proof}
+\MK{This feels kind of wrong. Imagine runnig $C_{1} (C_{2} \src{p})$ where $C_{1}$ robustly preserves $\cSafety$ and $C_{2}$ robustly preserves $\cSS$.}
 
 \begin{definition}[Upper Composition]
   Given two compilers $\stcomp{\bullet}$ and $\itcomp{\bullet}$, their upper composition is
@@ -193,10 +207,26 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cup\cC_{2}}$.
 \end{lemma}
 \begin{proof}
-  Consider any program $\src{p}$.
-  The result of $\uhcsitcomp{\src{p}}$ is exactly the same as of $\stcomp{p}$ and since $\rtp{\stcomp{\bullet}}{\cC_{1}}$, we have that $\rtp{\uhcsitcomp{\src{p}}}{\cC_{1}}$.
-  By a completely analogous argument for $\irl{p}$, we get $\rtp{\uhcsitcomp{\irl{p}}}{\cC_{2}}$.
-  Since $\uhcsitcomp{\bullet}$ preserves both $\cC_{1}$ and $\cC_{2}$, we know that $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cup\cC_{2}}$.
+  $\;$\\
+  \begin{tabular}{clcrl}
+           &Have & \hspace{3cm} & Want&\\\hline
+           & &  &     &\\[-0.2cm]
+    $H_{1}$:& $\rtp{\stcomp{\src{\bullet}}}{\cC_{1}}$    &  &  &\\
+    $H_{2}$:& $\rtp{\itcomp{\irl{\bullet}}}{\cC_{2}}$    &  & $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cup\cC_{2}}$ &\\\hline\hline
+    &&case analysis (a)&&\\[-0.2cm]
+           &$\src{p}\in\src{\partials}$             &  & &\\
+           &$\lift{\prop}\in\cC_{1}\cup\cC_{2}$       &  & &\\
+    H: &$\rsat{\src{p}}{\pi}$                    &  & $\rsat{\uhcsitcomp{\src{p}}}{\prop}$ &\\\hline
+    &&by def.&&\\[-0.2cm]
+     &                    &  & $\rsat{\stcomp{\src{p}}}{\prop}$ &\checkmark_{\tiny \text{by }H_1,H}\\\hline\hline
+    &&case analysis (b)&&\\[-0.2cm]
+           &$\irl{p}\in\irl{\partials}$             &  & &\\
+           &$\lift{\prop}\in\cC_{1}\cup\cC_{2}$       &  & &\\
+    H: &$\rsat{\irl{p}}{\pi}$                    &  & $\rsat{\uhcsitcomp{\src{p}}}{\prop}$ &\\\hline
+    &&by def.&&\\[-0.2cm]
+     &                    &  & $\rsat{\itcomp{\irl{p}}}{\prop}$ &\checkmark_{\tiny \text{by }H_2,H}\\\hline
+  \end{tabular}
+  $\;$\\
 \end{proof}
 
 \begin{definition}[Lower Composition]
@@ -219,6 +249,42 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   \cSS = \left\{H\ |\ \forall X\in H, \forall Y\subseteq X, Y \in H\right\}
   $$
 \end{definition}
+
+\begin{lemma}[Swappable]
+  Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{1}\cap\cC_{2}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Both follow from \Cref{lem:seqcompo}.
+\end{proof}
+
+\clearpage
+Experimental
+\begin{definition}[Encoders]
+  An encoder $\tenc{\src{\bullet}}$ from language $\S$ to $\T$ is a function that constructs an abstract representation of the given $\S$ program as a $\T$ program.
+\end{definition}
+\noindent
+Think of encoders as parsers.
+
+\begin{definition}[Interpreters]
+  An interpreter $\stinterp$ is a $\T$ program that faithfully implements the semantics of $\S$.
+  That is, given $\src{p}\in\src{\partials}$ and some encoding function $\tenc{\src{\bullet}}$, then $\mktrace{\stinterp \trg{\linker} \lfloor\src{p}\rfloor}{\tau} \Leftrightarrow \mktrace{\src{p}}{\tau}$.
+\end{definition}
+
+\begin{definition}[Specializers]
+  A monopass compiler $\ttcomp{\bullet}$ can be viewed as a program specializer.
+  So, given two partial programs $\trg{p},\trg{x}\in\trg{\partials}$, $\ttcomp{p \linker x}$ is another (possibly partial) $\T$ program with equivalent behavior as $\trg{p\linker x}$.
+\end{definition}
+\noindent
+
+\begin{definition}[2nd Futamura Projection]
+  Given a monopass compiler $\ttcomp{\bullet}$, an interpreter $\stinterp$, and an encoding $\tenc{\src{\bullet}}$, we can compose them to a compiler $\stcomp{\bullet} = \ttcomp{\stinterp \tenc{\src{\bullet}}}$.~\cite{Futamura1999}
+\end{definition}
+
+\clearpage
+
+Next up:
+
+compositionality of different robust preservation properties (?)
 
 
 \bibliographystyle{plain}

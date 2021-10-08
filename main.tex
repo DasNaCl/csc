@@ -19,7 +19,9 @@
 \usepackage{etoolbox}
 \usepackage{cite}
 
-% \usepackage{./../mmmacros}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+
 \usepackage{mmmacros}
 
 \newtheorem{definition}{Definition}
@@ -32,10 +34,14 @@
 \newcommand{\MK}[1]{\todo[color=orange!30]{TODO: #1}}
 \newcommand{\MP}[1]{\todo[color=blue!30]{TODO: #1}}
 
+% Definition of Ddots
+\makeatletter
+\def\Ddots{\mathinner{\mkern1mu\raise\p@
+\vbox{\kern7\p@\hbox{.}}\mkern2mu
+\raise4\p@\hbox{.}\mkern2mu\raise7\p@\hbox{.}\mkern1mu}}
+\makeatother
 
 \begin{document}
-
-Let $\propositions$ be the set of propositions.
 
 \begin{definition}[Events]\label{def:events}
   $\events$ is the set of atomic propositions hereby called events or actions.
@@ -48,7 +54,7 @@ A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\ri
 
 \begin{itemize}
   \item[$\partials$] : Set - is a set of admissible, partial programs.
-  \item[$\wellf$] : $\partials\to\propositions$ - a judgement that holds iff a program is not partial.
+  \item[$\wellf$] : $\partials$ - a judgement that holds iff a program is not partial.
   \item[$\singlestep$] : $\wholes\to\events\to\wholes$ - a step relation, where $\wholes=\{w\in\partials\ |\ \wellf w\}$.
         For $e\in\events$ and $p,p'\in\wholes$ we say for $\estep{p}{e}{p'}$ that program $p$ performs a step with action $e$ to program $p'$.
         If $e=\emptyevent$, we write $\step{p}{p'}$.
@@ -69,7 +75,7 @@ Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
   The set of all traces is $\traces$.
 \end{definition}
 \noindent
-We assume $\lightning$ to occur at most once in the trace and if it does occur, an infinite sequence of $\emptyevent$ follows.
+We assume $\lightning$ to occur in traces representing terminating programs such that it occurs infinitely often in a one-by-one sequence.
 
 \begin{definition}[Finite Trace Prefixes]
   A finite sequence of events $m$ is a finite trace prefix of $\trace$ iff it satisfies the following judgement.
@@ -93,21 +99,21 @@ We assume $\lightning$ to occur at most once in the trace and if it does occur, 
 \end{definition}
 
 \begin{definition}[Hyperproperties]
-  A hyperproperty $H$ is a set of admissible sets of traces. Thus, if $p$ satisfies $\prop$ (also written $\sat{p}{H}$), then $\behav{p}\in H$.
+  A hyperproperty $H$ is a set of admissible sets of traces. Thus, if $p$ satisfies $H$ (also written $\sat{p}{H}$), then $\behav{p}\in H$.
 \end{definition}
 
 \begin{lemma}[Lifting Properties]
   Given a property $\pi$, there exists a unique hyperproperty $\lift{\pi}$ that satisfies the exact same policy.
 \end{lemma}
 \begin{proof}
-  \begin{align*}
-                    && \forall p\in\partials,\sat{p}{\prop}&\equiv&\sat{p}{\lift{\prop}} \\
-    \Leftrightarrow && \forall p\in\partials,\behav{p}\subseteq{\prop}&\equiv&\behav{p}\in\lift{\prop} \\
-    \Leftrightarrow && \lift{\prop}&=&\left\{p\in\partials\ |\ \behav{p}\subseteq\prop\right\} \\
-    \Leftrightarrow && \lift{\prop}&=&\powerset{\prop}
-  \end{align*}
-  Hereby, $\powerset{\prop}$ is the powerset of $\prop$.
+  We want $\forall p \in\partials, \sat{p}{\prop}\equiv\sat{p}{\lift{\prop}}$.
+  Henceforth, given a $p\in\partials$, we have $\behav{p}\subseteq\prop$ iff $\behav{p}\in\lift{\prop}$.
+  Note that if $\behav{p}\subseteq\prop$, we have $\behav{p}\in\left\{\Pi\ |\ \Pi=\behav{p}\subseteq\prop\right\}$.
+  Thus, $\lift{\prop}$ is the set of all possible program behaviors that are a subset of $\prop$.
+  This is exactly the powerset of $\prop$ and we conclude $\lift{\prop}=\powerset{\prop}$.
 \end{proof}
+\noindent
+The lifting of properties to a singleton set does not suffice, since the empty behavior trivially satisfies any property $\emptyset\subseteq\prop=\{\trace\}$, but if we would define $\lift{\trace}=\{\{\trace\}\}$, then $\emptyset\not\in\lift{\trace}$.
 
 \begin{lemma}[Property Satisfaction Refinement]
   For a property $\prop$ that refines $\prop'$, i.e. $\prop\subseteq\prop'$, if any $p\in\partials$ satisfies $\sat{p}{\prop'}$, then $\sat{p}{\prop}$.
@@ -127,7 +133,7 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 \begin{definition}[Classes]
   A class of hyperproperties $\cC$ is a set of hyperproperties.
   Likewise, a class of properties $\cC$ is a set of hyperproperties, where every property is lifted to the hyperproperty level.
-  From now on, we use $\nu$ for elements of any class $\cC$ in case it does not matter whether it is a lifted property or any hyperproperty.
+  From now on, we use $\Pi$ for elements of any class $\cC$ in case it does not matter whether it is a lifted property or any hyperproperty.
 \end{definition}
 
 
@@ -151,96 +157,11 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, we have $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
 \end{lemma}
 \begin{proof}
-  $\;$\\
-  \begin{tabular}{clcrl}
-           &Have & \hspace{3cm} & Want&\\\hline
-           & &  &     &\\[-0.2cm]
-    $H_{1}$:& $\rtp{\stcomp{\src{\bullet}}}{\cC_{2}}$    &  &  &\\
-    $H_{2}$:& $\cC_{1}\subseteq\cC_{2}$    &  & $\rtp{\stcomp{\bullet}}{\cC_{1}}$ &\\\hline
-    &&''unfold''&&\\[-0.2cm]
-           &$\src{p}\in\src{\partials}$             &  & &\\
-           &$\lift{\prop}\in\cC_{1}$       &  & &\\
-    H: &$\rsat{\src{p}}{\pi}$                    &  & $\rsat{\stcomp{\src{p}}}{\prop}$ &\\\hline
-    &&''by $H_{2}$''&&\\[-0.2cm]
-    $H_3$&$\lift{\prop}\in\cC_{2}$&&&\\\hline
-    &&''by $H_{1}$''&&\\[-0.2cm]
-    &&&$\rsat{\src{p}}{\prop}$ &$\checkmark_{\tiny \text{by }H}$\\\hline
-  \end{tabular}
-  $\;$\\
+  We need to show $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+  Let $\Pi\in\cC_{1}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$, so what's left to prove is $\rsat{\stcomp{p}}{\Pi}$.
+  Since $\cC_{1}\subseteq\cC_{2}$ and $\Pi\in\cC_{1}$, we know that $\Pi\in\cC_{2}$.
+  Thus, we can apply the assumption $\rtp{\stcomp{\bullet}}{\cC_{2}}$ to our goal, leaving us with $\rsat{\src{p}}{\Pi}$ to show, which was an assumption we made.
 \end{proof}
-
-\begin{lemma}[Hyperproperty Lattice]
-  Hyperproperties with $\subseteq$ form a lattice.
-\end{lemma}
-\begin{proof}
-  Obviously, a partial order. $\cap$ is least upper and $\cup$ greatest lower bound.
-\end{proof}
-
-\begin{definition}[Conjunctive Class Composition]
-  The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is their set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
-\end{definition}
-
-\begin{lemma}[Sequential Composition of RTP]\label{lem:seqcompo}
-  Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
-\end{lemma}
-\begin{proof}
-  $\;$\\
-  \begin{tabular}{clcrl}
-           &Have & \hspace{3cm} & Want&\\\hline
-           & &  &     &\\[-0.2cm]
-    $H_{1}$:& $\rtp{\sicomp{\src{\bullet}}}{\cC_{1}}$    &  &  &\\
-    $H_{2}$:& $\rtp{\itcomp{\irl{\bullet}}}{\cC_{2}}$    &  & $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$ &\\\hline
-    &&''unfold''&&\\[-0.2cm]
-           &$\src{p}\in\src{\partials}$             &  & &\\
-           &$\lift{\prop}\in\cC_{1}\cap\cC_{2}$       &  & &\\
-    H: &$\rsat{\src{p}}{\pi}$                    &  & $\rsat{\sitcomp{\src{p}}}{\prop}$ &\\\hline
-    &&''by $H_{2}$''&&\\[-0.2cm]
-    &$\sicomp{\src{p}}\in\trg{\partials}$&&$\rsat{\sicomp{\src{p}}}{\prop}$&\\\hline
-    &&''by $H_{1}$''&&\\[-0.2cm]
-    &&&$\rsat{\src{p}}{\prop}$ &$\checkmark_{\tiny \text{by }H}$\\\hline
-  \end{tabular}
-  $\;$\\
-\end{proof}
-\MK{This feels kind of wrong. Imagine runnig $C_{1} (C_{2} \src{p})$ where $C_{1}$ robustly preserves $\cSafety$ and $C_{2}$ robustly preserves $\cSS$.}
-
-\begin{definition}[Upper Composition]
-  Given two compilers $\stcomp{\bullet}$ and $\itcomp{\bullet}$, their upper composition is
-
-  $$\uhcsitcomp{\bullet}=\lambda p.\begin{cases}\stcomp{p} &\text{if }p\in\src{\partials}\\
-                                                \itcomp{p} &\text{if }p\in\irl{\partials}\end{cases}$$.
-\end{definition}
-
-\begin{lemma}[Upper Composition of RTP]
-  Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cup\cC_{2}}$.
-\end{lemma}
-\begin{proof}
-  $\;$\\
-  \begin{tabular}{clcrl}
-           &Have & \hspace{3cm} & Want&\\\hline
-           & &  &     &\\[-0.2cm]
-    $H_{1}$:& $\rtp{\stcomp{\src{\bullet}}}{\cC_{1}}$    &  &  &\\
-    $H_{2}$:& $\rtp{\itcomp{\irl{\bullet}}}{\cC_{2}}$    &  & $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cup\cC_{2}}$ &\\\hline\hline
-    &&case analysis (a)&&\\[-0.2cm]
-           &$\src{p}\in\src{\partials}$             &  & &\\
-           &$\lift{\prop}\in\cC_{1}\cup\cC_{2}$       &  & &\\
-    H: &$\rsat{\src{p}}{\pi}$                    &  & $\rsat{\uhcsitcomp{\src{p}}}{\prop}$ &\\\hline
-    &&by def.&&\\[-0.2cm]
-     &                    &  & $\rsat{\stcomp{\src{p}}}{\prop}$ &$\checkmark_{\tiny \text{by }H_1,H}$\\\hline\hline
-    &&case analysis (b)&&\\[-0.2cm]
-           &$\irl{p}\in\irl{\partials}$             &  & &\\
-           &$\lift{\prop}\in\cC_{1}\cup\cC_{2}$       &  & &\\
-    H: &$\rsat{\irl{p}}{\pi}$                    &  & $\rsat{\uhcsitcomp{\src{p}}}{\prop}$ &\\\hline
-    &&by def.&&\\[-0.2cm]
-     &                    &  & $\rsat{\itcomp{\irl{p}}}{\prop}$ &$\checkmark_{\tiny \text{by }H_2,H}$\\\hline
-  \end{tabular}
-  $\;$\\
-\end{proof}
-
-\begin{definition}[Lower Composition]
-  Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
-\end{definition}
-\MK{this is a bit nonsensical. what should the compiler compile to?}
-
 
 
 \begin{definition}[Safety Properties]
@@ -257,6 +178,10 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   $$
 \end{definition}
 
+\begin{lemma}[Safety is entailed in Hypersafety]
+  $\cSafety\subseteq\cHSafety$.
+\end{lemma}
+
 \begin{definition}[Subset Closed Hyperproperties]
   The class of hyperproperties that are closed with respect to the subset relation is
   $$
@@ -264,12 +189,122 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   $$
 \end{definition}
 
+\begin{lemma}[Hypersafety is entailed in SSC]
+  $\cHSafety\subseteq\cSS$.
+\end{lemma}
+
+
+\begin{lemma}[Classes Lattice]
+  Classes with $\subseteq$ form a lattice.
+\end{lemma}
+\begin{proof}
+  The class with all hyperproperties is the top element $\top$, while the class with no hyperproperties whatsoever is $\bot$.
+  Obviously, a partial order due to set inclusion.
+  $\cap$ is least upper and $\cup$ greatest lower bound of any given pair of subsets of a given class.
+\end{proof}
+
+\begin{center}
+\begin{tikzpicture}
+  \node (top) at (0,0) {$\top$};
+  \node[below left=0.125cm of top,rotate=45,anchor=center] (sub_top_ssc0) {$\subseteq$};
+  \node[below left=-0.125cm of sub_top_ssc0] (dots_top_ssc) {$\Ddots$};
+  \node[below left=0.125cm of dots_top_ssc,rotate=45,anchor=center] (sub_top_ssc1) {$\subseteq$};
+  \node[below left=0.125cm of sub_top_ssc1] (ssc) {$\cSS$};
+  \node[below left=0.125cm of ssc,rotate=45,anchor=center] (sub_ssc_hsafe0) {$\subseteq$};
+  \node[below left=0.125cm of sub_ssc_hsafe0] (dots_ssc_hsafe) {$\Ddots$};
+  \node[below left=0.125cm of dots_ssc_hsafe,rotate=45,anchor=center] (sub_ssc_hsafe1) {$\subseteq$};
+  \node[below left=0.125cm of sub_ssc_hsafe1] (hsafe) {$\cHSafety$};
+  \node[below left=0.125cm of hsafe,rotate=45,anchor=center] (sub_hsafe_safe0) {$\subseteq$};
+  \node[below left=0.125cm of sub_hsafe_safe0] (dots_hsafe_safe) {$\Ddots$};
+  \node[below left=0.125cm of dots_hsafe_safe,rotate=45,anchor=center] (sub_hsafe_safe1) {$\subseteq$};
+  \node[below left=0.125cm of sub_hsafe_safe1] (safe) {$\cSafety$};
+  \node[below left=0.125cm of safe,rotate=45,anchor=center] (sub_safe_nowhere) {$\subseteq$};
+  \node[below left=0.125cm of sub_safe_nowhere] (dots_safe_nowhere) {$\Ddots$};
+  \node[below =0.125cm of dots_safe_nowhere,rotate=-45,anchor=center] (sub_lnowhere0) {$\supseteq$};
+  \node[below right=0.125cm of sub_lnowhere0] (dots_nowhere_bot) {$\ddots$};
+  \node[below right=0.125cm of dots_nowhere_bot,rotate=-45,anchor=center] (sub_lnowhere1) {$\supseteq$};
+  \node (bot) at (0,-10) {$\bot$};
+  \node[above right=1.25cm of bot] (dots_rnowhere_bot) {$\Ddots$};
+  \node[below right=0.5cm of top,rotate=-45,anchor=center] (sub_top_rnowhere0) {$\supseteq$};
+  \node[below right=0.125cm of sub_top_rnowhere0] (top_nowhere) {$\ddots$};
+  \node[below =2.5cm of top,rotate=90,anchor=center] (sub_top_mid0) {$\subseteq$};
+  \node[below =2cm of sub_top_mid0] (dots_middle) {$\vdots$};
+  \node[below =2.75cm of dots_middle,rotate=90,anchor=center] (sub_top_mid1) {$\subseteq$};
+  \node[below left=0.75cm of dots_rnowhere_bot,rotate=45,anchor=center] (sub_top_rnowhere1) {$\subseteq$};
+  \node[below right =0.25cm and 2cm of sub_lnowhere1] (hdots_bot) {$\dots$};
+\end{tikzpicture}
+\end{center}
+
+\begin{definition}[Conjunctive Class Composition]
+  The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is their set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
+\end{definition}
+
+\begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
+  Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  We need to show $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+  By definition, assume $\Pi\in\cC_{1}\cap\cC_{2}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$.
+  What is left to show is $\rsat{\sitcomp{\src{p}}}{\prop}$.
+  Note that $\Pi\in\cC_{2}$ and that $\sicomp{\src{p}}\in\irl{\partials}$, allowing us to apply $\rtp{\itcomp{\bullet}}{\cC_{2}}$ changing our goal to $\rsat{\sicomp{\src{p}}}{\Pi}$.
+  Since $\Pi\in\cC_{1}$ also holds, we can this time apply $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+  What is left to show is $\rsat{\src{p}}{\Pi}$, which is an assumption of ours.
+\end{proof}
+
+\begin{definition}[Upper Composition]
+  Given two compilers $\stcomp{\bullet}$ and $\itcomp{\bullet}$, their upper composition is
+
+  $$\uhcsitcomp{\bullet}=\lambda p.\begin{cases}\stcomp{p} &\text{if }p\in\src{\partials}\\
+                                                \itcomp{p} &\text{if }p\in\irl{\partials}\end{cases}$$.
+\end{definition}
+
+\begin{lemma}[Upper Composition with RTP]
+  Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Analogous argument as in \Cref{lem:seqcompo}, but with a case distinction on whether the source program is element of $\S$ or $\I$.
+\end{proof}
+
+\begin{definition}[Lower Composition]
+  Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
+\end{definition}
+
+\begin{lemma}[Lower Composition with RTP]
+  Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\sicomp{\bullet}}{\cC_{2}}$, then $\rtp{\lhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Analogous argument as in \Cref{lem:seqcompo}, but with a case distinction on whether the compiled source program is element of $\I$ or $\T$.
+\end{proof}
+
+% spectre : compile one part to v4, the other to v5
+
+% is it - are we always just preserving the lub? can we preserve something stronger?
+% goal is to make target class stronger
+
+% hypersafety implies safety    prove safety preservation, implies hypersafety
+%
+
+% can we place extra (minor) assumptions with potentially great benefits?
+%
+%
+
+% going a level deeper: what can we say about individual properties? composing individual props
+% e.g. prop for spec safety and memsafety, how does their conjunction work out?
+%
+% speculative safety encompasses hypersafety
+
+% constant time : assumes memsafety, then somethings, thus crypto const time
+%
+
 \begin{lemma}[Swappable]
   Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{1}\cap\cC_{2}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \begin{proof}
   Both follow from \Cref{lem:seqcompo}.
 \end{proof}
+
+% free theorems...?
+% how do optimizations preserve this?
 
 \clearpage
 Experimental
@@ -281,17 +316,24 @@ Think of encoders as parsers.
 
 \begin{definition}[Interpreters]
   An interpreter $\stinterp$ is a $\T$ program that faithfully implements the semantics of $\S$.
-  That is, given $\src{p}\in\src{\partials}$ and some encoding function $\tenc{\src{\bullet}}$, then $\mktrace{\stinterp \trg{\linker} \lfloor\src{p}\rfloor}{\tau} \Leftrightarrow \mktrace{\src{p}}{\tau}$.
+  That is, given $\src{p}\in\src{\partials}$ and some encoding function $\tenc{\src{\bullet}}$, then $\mktrace{\stinterp \trg{\linker} \tenc{\src{p}}}{\tau} \Leftrightarrow \mktrace{\src{p}}{\tau}$.
 \end{definition}
+Note: For an interpreter to \textit{faithfully} realize the semantics of $\S$, we really need the equivalence.
+Say we only consider the $\Leftarrow$ direction as defining characteristic, then an interpreter that e.g. tosses a coin and thus $\behav{\stinterp\trg{\linker}\tenc{\src{p}}}=\{\trace_{1},\trace_{2}\}$ given $\behav{\src{p}}=\{\trace_{1}\}$ would be acceptable.
+However, an interpreter that 99\% of the time emits $\trace_{2}$ is certainly not what we want.
+Consider the converse, so $\Rightarrow$ as defining characteristic.
+Then, swapping the behaviors from the previous example, the interpreter does not \textit{faithfully} simulate non-determinism that is present in the source language.
+% Due to this, interpreters in our world always robustly satisfy relational hyperproperties
 
 \begin{definition}[Specializers]
-  A monopass compiler $\ttcomp{\bullet}$ can be viewed as a program specializer.
-  So, given two partial programs $\trg{p},\trg{x}\in\trg{\partials}$, $\ttcomp{p \linker x}$ is another (possibly partial) $\T$ program with equivalent behavior as $\trg{p\linker x}$.
+  A specializer $\ttspec{\bullet}$ is a $\T$ program that, given an encoding of another $\T$ program as input, emits a specialized version of that $\T$ program.
+  So, given a partial program $\trg{p}$ and some set of inputs $\trg{x}\in\trg{\partials}$, $\ttspec{\tenc{p \linker x}}$ always terminates with a residual program $\trg{p'}$ such that $\behav{\trg{p\linker x}}=\behav{\trg{p'}}$.
 \end{definition}
 \noindent
 
+% nanopass compilers lookup
 \begin{definition}[2nd Futamura Projection]
-  Given a monopass compiler $\ttcomp{\bullet}$, an interpreter $\stinterp$, and an encoding $\tenc{\src{\bullet}}$, we can compose them to a compiler $\stcomp{\bullet} = \ttcomp{\stinterp \tenc{\src{\bullet}}}$.~\cite{Futamura1999}
+  Given a specializer $\ttspec{\bullet}$, an interpreter $\stinterp$, and an encoding $\tenc{\src{\bullet}}$, we can compose them to a compiler $\stcomp{\bullet} = \ttspec{\stinterp \tenc{\src{\bullet}}}$.~\cite{Futamura1999}
 \end{definition}
 
 \clearpage

@@ -17,4 +17,3 @@ sub makeglossaries {
   popd;
   return $return;
 }
-

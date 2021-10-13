@@ -5,7 +5,7 @@ $pdflatex = "pdflatex -interaction=nonstopmode %O %S";
 $out_dir = 'build';
 $bibtex_use = 2;
 $pdf_previewer = 'start zathura %O %S';
-@default_files = ('main.tex');
+@default_files = ('main.tex', 'prisc.tex');
 
 add_cus_dep( 'acn', 'acr', 0, 'makeglossaries' );
 add_cus_dep( 'glo', 'gls', 0, 'makeglossaries' );

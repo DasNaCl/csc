@@ -64,6 +64,12 @@ A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\ri
 \end{definition}
 Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
 
+% if we get τ1 and τ2, then there is aontehr program that does τ3 which does τ1 and τ2 in parallel
+% define self-composition. and then define it with respect to low-equivalent programs
+%
+
+% compilation of n compilers can b e reduced to compilation of two compilers
+
 \begin{definition}[Notation for Sequences]
   For any sequence of events, let $\seqnil$ denote the empty sequence and $\seqcons{e}{\bar{t}}$ the sequence that starts with $e$ and continues with $\bar{t}$.
   Hereby, it does not matter whether $\bar{t}$ is finite or infinite, it's merely syntactic sugar to work on sequences of events.
@@ -203,37 +209,50 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   $\cap$ is least upper and $\cup$ greatest lower bound of any given pair of subsets of a given class.
 \end{proof}
 
-\begin{center}
-\begin{tikzpicture}
-  \node (top) at (0,0) {$\top$};
-  \node[below left=0.125cm of top,rotate=45,anchor=center] (sub_top_ssc0) {$\subseteq$};
-  \node[below left=-0.125cm of sub_top_ssc0] (dots_top_ssc) {$\Ddots$};
-  \node[below left=0.125cm of dots_top_ssc,rotate=45,anchor=center] (sub_top_ssc1) {$\subseteq$};
-  \node[below left=0.125cm of sub_top_ssc1] (ssc) {$\cSS$};
-  \node[below left=0.125cm of ssc,rotate=45,anchor=center] (sub_ssc_hsafe0) {$\subseteq$};
-  \node[below left=0.125cm of sub_ssc_hsafe0] (dots_ssc_hsafe) {$\Ddots$};
-  \node[below left=0.125cm of dots_ssc_hsafe,rotate=45,anchor=center] (sub_ssc_hsafe1) {$\subseteq$};
-  \node[below left=0.125cm of sub_ssc_hsafe1] (hsafe) {$\cHSafety$};
-  \node[below left=0.125cm of hsafe,rotate=45,anchor=center] (sub_hsafe_safe0) {$\subseteq$};
-  \node[below left=0.125cm of sub_hsafe_safe0] (dots_hsafe_safe) {$\Ddots$};
-  \node[below left=0.125cm of dots_hsafe_safe,rotate=45,anchor=center] (sub_hsafe_safe1) {$\subseteq$};
-  \node[below left=0.125cm of sub_hsafe_safe1] (safe) {$\cSafety$};
-  \node[below left=0.125cm of safe,rotate=45,anchor=center] (sub_safe_nowhere) {$\subseteq$};
-  \node[below left=0.125cm of sub_safe_nowhere] (dots_safe_nowhere) {$\Ddots$};
-  \node[below =0.125cm of dots_safe_nowhere,rotate=-45,anchor=center] (sub_lnowhere0) {$\supseteq$};
-  \node[below right=0.125cm of sub_lnowhere0] (dots_nowhere_bot) {$\ddots$};
-  \node[below right=0.125cm of dots_nowhere_bot,rotate=-45,anchor=center] (sub_lnowhere1) {$\supseteq$};
-  \node (bot) at (0,-10) {$\bot$};
-  \node[above right=1.25cm of bot] (dots_rnowhere_bot) {$\Ddots$};
-  \node[below right=0.5cm of top,rotate=-45,anchor=center] (sub_top_rnowhere0) {$\supseteq$};
-  \node[below right=0.125cm of sub_top_rnowhere0] (top_nowhere) {$\ddots$};
-  \node[below =2.5cm of top,rotate=90,anchor=center] (sub_top_mid0) {$\subseteq$};
-  \node[below =2cm of sub_top_mid0] (dots_middle) {$\vdots$};
-  \node[below =2.75cm of dots_middle,rotate=90,anchor=center] (sub_top_mid1) {$\subseteq$};
-  \node[below left=0.75cm of dots_rnowhere_bot,rotate=45,anchor=center] (sub_top_rnowhere1) {$\subseteq$};
-  \node[below right =0.25cm and 2cm of sub_lnowhere1] (hdots_bot) {$\dots$};
+\begin{figure}[h]
+  \centering
+\begin{tikzpicture}[node distance=4mm,every node/.style={align=center}]
+  \node (top) {$\top$};
+  \node[below = of top.south] (SSC) {$\cSS$};
+  \node[below = of SSC.south] (HSafe) {$\cHSafety$};
+  \node[below = of HSafe.south] (HKSafe) {$\cKHSafety$};
+  \node[left = of HKSafe.west] (H2Safe) {$\cTwoHSafety$};
+  \node[right = of HKSafe.east] (Safe) {$\cSafety$};
+
+  % Specialized classes
+  \node[below left = of Safe.south] (Mutex) {$\mutex$};
+  \node[below right = of Safe.south] (NonTerm) {$\nonterm$};
+
+  \node[below left = of H2Safe.south] (Determ) {$\determ$};
+  \node[below right = of H2Safe.south] (NI) {$\Ni$};
+
+  \node[below = of HKSafe.south] (emptyspace) {};
+  \node[below = of emptyspace.south] (Bot) {$\bot$};
+
+  % edges
+  \draw[-] (top.south) to (SSC.north);
+  \draw[-] (SSC.south) to (HSafe.north);
+  \draw[-] (HSafe.south) to (HKSafe.north);
+  \draw[-] (HSafe.south) to (H2Safe.north);
+  \draw[-] (HSafe.south) to (Safe.north);
+  \draw[-] (H2Safe.south) to (Determ.north);
+  \draw[-] (H2Safe.south) to (NI.north);
+  \draw[-] (Safe.south) to (Mutex.north);
+  \draw[-] (Safe.south) to (NonTerm.north);
+  \draw[-] (Determ.south) to (Bot.north);
+  \draw[-] (NI.south) to (Bot.north);
+  \draw[-] (HKSafe.south) to (Bot.north);
+  \draw[-] (Mutex.south) to (Bot.north);
+  \draw[-] (NonTerm.south) to (Bot.north);
 \end{tikzpicture}
-\end{center}
+\caption{Sketch of a fraction of the infinitely sized lattice of classes.}
+\end{figure}
+
+% get rid of units
+% draw similarily as with journey, do the subseteq on a slope
+
+% two instances of safety and hypersafety
+% add 2-safety
 
 \begin{definition}[Conjunctive Class Composition]
   The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is their set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
@@ -366,6 +385,9 @@ Note that $=$ may not be strict equality, but some suitable trace equivalence th
   What is left to show is $\rsat{\src{p}}{\Pi}$, which is an assumption of ours.
 \end{proof}
 
+
+% if language has a form of parallel self-composition and the compiler preserves RTP(Safety), then it also preserves k-RSHP
+%   -> self composition is on the program graph level. we can always write an interpreter that allows this
 
 \clearpage
 Experimental

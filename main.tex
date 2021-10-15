@@ -178,7 +178,7 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   $$
 \end{definition}
 
-\begin{definition}[Hypersafety Properties]
+\begin{definition}[Hypersafety Properties]\label{def:hsafety}
   The class of hypersafety properties contains all hyperpropert that can be refuted with an observation:
   $$
   \cHSafety = \left\{\Pi\ |\ \forall b\in 2^{\traces},b\not\in\Pi\text{ iff  }\exists o\ge b,\forall b'\in 2^{\traces},o\le b'\implies b'\not\in\Pi\right\}
@@ -200,6 +200,22 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   $\cHSafety\subseteq\cSS$.
 \end{lemma}
 
+\begin{definition}[K-Hypersafety]
+  Exactly the same as \cRef{def:hsafety}, but the observations $o$ are restricted to cardinality $k$.
+  2-Hypersafety is simply $k=2$. \cRef{def:ni} gives an example instance of a classic 2-hypersafe property.
+\end{definition}
+
+\begin{definition}[Nontermination]
+  Nontermination is a safety property: Any finite trace prefix with $\terminationevent$ violates this property.
+\end{definition}
+
+\begin{definition}[Mutual Exclusion]
+  Mutual Exclusion (MutEx) means that no two processes during a program execution enter the same critical section.
+\end{definition}
+
+\begin{definition}[Determinism]
+  Determinism is a 2-hypersafety property, since any two program executions with the same input must yield the same output.
+\end{definition}
 
 \begin{lemma}[Classes Lattice]
   Classes with $\subseteq$ form a lattice.
@@ -212,41 +228,80 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 
 \begin{figure}[h]
   \centering
-\begin{tikzpicture}[node distance=4mm,every node/.style={align=center}]
-  \node (top) {$\top$};
-  \node[below = of top.south] (SSC) {$\cSS$};
-  \node[below = of SSC.south] (HSafe) {$\cHSafety$};
-  \node[below = of HSafe.south] (HKSafe) {$\cKHSafety$};
-  \node[left = of HKSafe.west] (H2Safe) {$\cTwoHSafety$};
-  \node[right = of HKSafe.east] (Safe) {$\cSafety$};
+  \begin{tikzpicture}[node distance=4mm,every node/.style={align=center}]
+    \node (top) {$\top$};
+    \node[below = of top.south] (SSC) {$\cSS$};
+    \node[below = of SSC.south] (HSafe) {$\cHSafety$};
+    \node[below = of HSafe.south] (HKSafe) {$\cKHSafety$};
+    \node[left = of HKSafe.west] (H2Safe) {$\cTwoHSafety$};
+    \node[right = of HKSafe.east] (Safe) {$\cSafety$};
 
-  % Specialized classes
-  \node[below left = of Safe.south] (Mutex) {$\mutex$};
-  \node[below right = of Safe.south] (NonTerm) {$\nonterm$};
+    % Specialized classes
+    \node[below left = of Safe.south] (Mutex) {$\mutex$};
+    \node[below right = of Safe.south] (NonTerm) {$\nonterm$};
 
-  \node[below left = of H2Safe.south] (Determ) {$\determ$};
-  \node[below right = of H2Safe.south] (NI) {$\Ni$};
+    \node[below left = of H2Safe.south] (Determ) {$\determ$};
+    \node[below right = of H2Safe.south] (NI) {$\Ni$};
 
-  \node[below = of HKSafe.south] (emptyspace) {};
-  \node[below = of emptyspace.south] (Bot) {$\bot$};
+    \node[below = of HKSafe.south] (emptyspace) {};
+    \node[below = of emptyspace.south] (Bot) {$\bot$};
 
-  % edges
-  \draw[-] (top.south) to (SSC.north);
-  \draw[-] (SSC.south) to (HSafe.north);
-  \draw[-] (HSafe.south) to (HKSafe.north);
-  \draw[-] (HSafe.south) to (H2Safe.north);
-  \draw[-] (HSafe.south) to (Safe.north);
-  \draw[-] (H2Safe.south) to (Determ.north);
-  \draw[-] (H2Safe.south) to (NI.north);
-  \draw[-] (Safe.south) to (Mutex.north);
-  \draw[-] (Safe.south) to (NonTerm.north);
-  \draw[-] (Determ.south) to (Bot.north);
-  \draw[-] (NI.south) to (Bot.north);
-  \draw[-] (HKSafe.south) to (Bot.north);
-  \draw[-] (Mutex.south) to (Bot.north);
-  \draw[-] (NonTerm.south) to (Bot.north);
-\end{tikzpicture}
-\caption{Sketch of a fraction of the infinitely sized lattice of classes.}
+    % edges
+    \draw[-] (top.south) to (SSC.north);
+    \draw[-] (SSC.south) to (HSafe.north);
+    \draw[-] (HSafe.south) to (HKSafe.north);
+    \draw[-] (HSafe.south) to (H2Safe.north);
+    \draw[-] (HSafe.south) to (Safe.north);
+    \draw[-] (H2Safe.south) to (Determ.north);
+    \draw[-] (H2Safe.south) to (NI.north);
+    \draw[-] (Safe.south) to (Mutex.north);
+    \draw[-] (Safe.south) to (NonTerm.north);
+    \draw[-] (Determ.south) to (Bot.north);
+    \draw[-] (NI.south) to (Bot.north);
+    \draw[-] (HKSafe.south) to (Bot.north);
+    \draw[-] (Mutex.south) to (Bot.north);
+    \draw[-] (NonTerm.south) to (Bot.north);
+  \end{tikzpicture}
+  \caption{Sketch of a fraction of the infinitely sized lattice of classes. The diagram should be read from top to bottom. A connecting edge between two nodes means that the bottom one is a subset of the top one.}
+\end{figure}
+
+\begin{figure}[h]
+  \centering
+  \begin{tikzpicture}[node distance=6mm,every node/.style={align=center}]
+    \node (top) {$\top$};
+    \node[below = of top.south] (SSC) {$\cSS$};
+    \node[below = of SSC.south] (HSafe) {$\cHSafety$};
+    \node[below = of HSafe.south] (HKSafe) {$\cKHSafety$};
+    \node[left = of HKSafe.west] (H2Safe) {$\cTwoHSafety$};
+    \node[right = of HKSafe.east] (Safe) {$\cSafety$};
+
+    % Specialized classes
+    \node[below left = of Safe.south] (Mutex) {$\mutex$};
+    \node[below right = of Safe.south] (NonTerm) {$\nonterm$};
+
+    \node[below left = of H2Safe.south] (Determ) {$\determ$};
+    \node[below right = of H2Safe.south] (NI) {$\Ni$};
+
+    \node[below = of HKSafe.south] (emptyspace) {};
+    \node[below = of emptyspace.south] (Bot) {$\bot$};
+
+    % edges
+    \path (top.south) edge node[fill=white,rotate=90] {$\subseteq$} (SSC.north);
+    \path (SSC.south) edge node[fill=white,rotate=90] {$\subseteq$} (HSafe.north);
+    \path (HSafe.south) edge node[fill=white,rotate=90] {$\subseteq$} (HKSafe.north);
+    \path (HSafe.south west) edge node[fill=white,rotate=13] {$\subseteq$} (H2Safe.north);
+    \path (HSafe.south east) edge node[fill=white,rotate=-17] {$\supseteq$} (Safe.north);
+    \path (H2Safe.south west) edge node[fill=white,rotate=33] {$\subseteq$} (Determ.north);
+    \path (H2Safe.south) edge node[fill=white,rotate=-39] {$\supseteq$} (NI.north);
+    \path (Safe.south west) edge node[fill=white,rotate=45] {$\subseteq$} (Mutex.north);
+    \path (Safe.south east) edge node[fill=white,rotate=-27] {$\supseteq$} (NonTerm.north);
+    \path (HKSafe.south) edge node[fill=white,rotate=90] {$\subseteq$} (Bot.north);
+    \path (Determ.south) edge node[fill=white,rotate=-4] {$\supseteq$} (Bot.north);
+    \path (NI.south east) edge node[fill=white,rotate=-17] {$\supseteq$} (Bot.north);
+    \path (NonTerm.south west) edge node[fill=white,rotate=11] {$\subseteq$} (Bot.north);
+    \path (Mutex.south west) edge node[fill=white,rotate=33] {$\subseteq$} (Bot.north);
+  \end{tikzpicture}
+  \caption{Sketch of a fraction of the infinitely sized lattice of classes. The diagram should be read from top to bottom. A connecting edge between two nodes means that the bottom one is a subset of the top one. (version with subseteq signs)}
 \end{figure}
 
 % get rid of units
@@ -331,7 +386,7 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   Two traces $\trace_{1}$,$\trace_{2}$ are low-equivalent $\loweq{\trace_{1}}{\trace_{2}}$ iff all their public events coincide.
 \end{definition}
 
-\begin{definition}[Non-Interference ($\Ni$)]
+\begin{definition}[Non-Interference ($\Ni$)]\label{def:ni}
   We define the class containing the non-interference hyperproperty as:
   $$
   \Ni = \left\{ H | \forall \trace_{1},\trace_{2}\in H. \loweq{\trace_{1}}{\trace_{2}}\implies\trace_{1}=\trace_{2} \right\}

@@ -9,6 +9,7 @@
 \usepackage{hyperref}
 \usepackage{glossaries}
 \usepackage{enumerate}
+\usepackage{enumitem}
 \usepackage{amsmath}
 \usepackage{amsthm}
 \usepackage{amssymb}
@@ -143,32 +144,59 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   From now on, we use $\Pi$ for elements of any class $\cC$ in case it does not matter whether it is a lifted property or any hyperproperty.
 \end{definition}
 
+\begin{lemma}[Classes Collapse to Hyperproperties]\label{lem:classcollapse}
+  Any class $\cC_{1}$ of hyperproperties collapses to a single hyperproperty denoted $\collapse{\cC_{1}}$.
+\end{lemma}
+\begin{proof}
+  Given a class $\cC_{1}$, let $\displaystyle \collapse{\cC_{1}}=\bigcap_{\Pi\in\cC_{1}}\Pi$.
+
+  \noindent
+  We show that given $p\in\partials$, it holds that $\sat{\cC_{1}}{p}\Leftrightarrow \sat{\collapse{\cC_{1}}}{p}$.
+  Direction ``$\Rightarrow$'' assumes $\forall\Pi\in\cC_{1}.\behav{p}\in\Pi$ and we need to prove $\sat{\collapse{\cC_{1}}}{p}$.
+  That is, $\displaystyle\behav{p}\in\bigcap_{\Pi\in\cC_{1}}\Pi$. The claim follows by an induction on the cardinality of $\cC_{1}$.
+
+  \noindent
+  Direction ``$\Leftarrow$'' assumes $\sat{\collapse{\cC_{1}}}{p}$ and we need to show $\forall\Pi\in\cC_{1}.\behav{p}\in\Pi$.
+  So, pick any such $\Pi\in\cC_{1}$. Weaking the assumption $\behav{p}\in\bigcap_{\Pi'\in\cC_{1}}\Pi'$ ($\sat{\collapse{\cC_{1}}}{p}$) to $\behav{p}\in\bigcap_{\Pi'\in\{\Pi\}}\Pi'$ directly yields what we wanted to prove.
+\end{proof}
+Despite the collapse, for notational pleasure, we choose to stick with classes in some parts of the development in order to quantify over the (hyper-)properties represented by it.
+Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem:classcollapse} for brevity.
 
 \begin{definition}[Compilers]
   A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
 \end{definition}
 
-\begin{definition}[Robust Trace-Hyperproperty Preservation]
+\begin{definition}[Robust Trace-Hyperproperty Preservation]\label{def:rtp}
   For a given class $\cC$, a compiler from languages $\S$ to $\T$ robustly preserves $\cC$ iff
   $$
   \forall\Pi\in\cC,\forall\src{p}\in\src{\partials},\rsat{\src{p}}{\Pi}\implies\rsat{\stcomp{\src{p}}}{\Pi}
   $$
   We write $\rtp{\stcomp{\bullet}}{\cC}$.
+  In case we write $\rtp{\stcomp{\bullet}}{\collapse{\cC}}$, substitute the $\cC$ in above definition with $\left\{ \collapse{\cC} \right\}$.
 \end{definition}
 
 \begin{definition}[Sequential Composition of Compilers]
   Given two compilers $\sicomp{\bullet}$ and $\itcomp{\bullet}$, their sequential composition is $\sitcomp{\bullet}=\itcompN{\sicomp{\bullet}}$.
 \end{definition}
 
-\begin{lemma}[Weakening RTP]
-  Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, we have $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+\begin{lemma}[Weakening RTP]\label{lem:weaken}
+  Given classes $\cC_{1}, \cC_{2}$ such that
+  \begin{assumptions}
+    \item $\cC_{1}\subseteq\cC_{2}$
+    \item $\rtp{\stcomp{\bullet}}{\cC_{2}}$
+  \end{assumptions}
+  We show
+  \begin{goals}
+    \item $\rtp{\stcomp{\bullet}}{\cC_{1}}$
+  \end{goals}
 \end{lemma}
 \begin{proof}
-  We need to show $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
-  Let $\Pi\in\cC_{1}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$, so what's left to prove is $\rsat{\stcomp{p}}{\Pi}$.
+  Using \Cref{def:rtp} on the goal, let $\Pi\in\cC_{1}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$, so what's left to prove is $\rsat{\stcomp{p}}{\Pi}$.
   Since $\cC_{1}\subseteq\cC_{2}$ and $\Pi\in\cC_{1}$, we know that $\Pi\in\cC_{2}$.
   Thus, we can apply the assumption $\rtp{\stcomp{\bullet}}{\cC_{2}}$ to our goal, leaving us with $\rsat{\src{p}}{\Pi}$ to show, which was an assumption we made.
 \end{proof}
+
+% refinement of \collapse{\cC} only works for subset closed props
 
 
 \begin{definition}[Safety Properties]
@@ -201,8 +229,8 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 \end{lemma}
 
 \begin{definition}[K-Hypersafety]
-  Exactly the same as \cRef{def:hsafety}, but the observations $o$ are restricted to cardinality $k$.
-  2-Hypersafety is simply $k=2$. \cRef{def:ni} gives an example instance of a classic 2-hypersafe property.
+  Exactly the same as \Cref{def:hsafety}, but the observations $o$ are restricted to cardinality $k$.
+  2-Hypersafety is simply $k=2$. \Cref{def:ni} gives an example instance of a classic 2-hypersafe property.
 \end{definition}
 
 \begin{definition}[Nontermination]

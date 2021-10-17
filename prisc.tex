@@ -7,14 +7,14 @@
 %% For single-blind review submission, w/ CCS and ACM Reference
 %\documentclass[sigplan,review]{acmart}\settopmatter{printfolios=true}
 %% For final camera-ready submission, w/ required CCS and ACM Reference
-\documentclass[sigplan]{acmart}\settopmatter{}
+\documentclass[sigplan,dvipsnames]{acmart}\settopmatter{}
 %% "not anonymous"
 
 %% Conference information
 %% Supplied to authors by publisher for camera-ready submission;
 %% use defaults for review submission.
-\acmConference[PL'18]{ACM SIGPLAN Conference on Programming Languages}{January 01--03, 2018}{New York, NY, USA}
-\acmYear{2018}
+\acmConference[PL'22]{ACM SIGPLAN Workshop on Principles of Secure Compilation}{January 22nd, 2022}{Philadelphia, PA, USA}
+\acmYear{2022}
 \acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
 \acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
 \startPage{1}
@@ -27,7 +27,7 @@
 %\setcopyright{acmcopyright}
 %\setcopyright{acmlicensed}
 %\setcopyright{rightsretained}
-%\copyrightyear{2018}           %% If different from \acmYear
+%\copyrightyear{2022}           %% If different from \acmYear
 
 %% Bibliography style
 \bibliographystyle{ACM-Reference-Format}
@@ -52,13 +52,30 @@
 %% 'acmart-pacmpl-template.tex'.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+\newcommand\hmmax{0}
+\newcommand\bmmax{0}
 
 %% Some recommended packages.
+\usepackage[colorinlistoftodos]{todonotes}
+\newcommand{\MK}[1]{\todo[color=orange!30]{TODO: #1}}
+\newcommand{\MP}[1]{\todo[color=blue!30]{TODO: #1}}
+
 \usepackage{booktabs}   %% For formal tables:
                         %% http://ctan.org/pkg/booktabs
 \usepackage{subcaption} %% For complex figures with subfigures/subcaptions
                         %% http://ctan.org/pkg/subcaption
-
+\usepackage{stmaryrd}
+\usepackage{mathrsfs}
+\usepackage{mathtools}
+\usepackage{xcolor}
+\usepackage{amsmath}
+\usepackage{amsthm}
+\usepackage{bm}
+\usepackage{cleveref}
+\usepackage{mmmacros}
+\usepackage[switch]{lineno}
+%\modulolinenumbers[2]
+\renewcommand{\linenumberfont}{\normalfont\bfseries\small\color{red}}
 
 \begin{document}
 
@@ -122,36 +139,36 @@
 %% Abstract
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
-\begin{abstract}
-Text of abstract \ldots.
-\end{abstract}
+%\begin{abstract}
+%Text of abstract \ldots.
+%\end{abstract}
 
 
 %% 2012 ACM Computing Classification System (CSS) concepts
 %% Generate at 'http://dl.acm.org/ccs/ccs.cfm'.
-\begin{CCSXML}
-<ccs2012>
-<concept>
-<concept_id>10011007.10011006.10011008</concept_id>
-<concept_desc>Software and its engineering~General programming languages</concept_desc>
-<concept_significance>500</concept_significance>
-</concept>
-<concept>
-<concept_id>10003456.10003457.10003521.10003525</concept_id>
-<concept_desc>Social and professional topics~History of programming languages</concept_desc>
-<concept_significance>300</concept_significance>
-</concept>
-</ccs2012>
-\end{CCSXML}
+%\begin{CCSXML}
+%<ccs2012>
+%<concept>
+%<concept_id>10011007.10011006.10011008</concept_id>
+%<concept_desc>Software and its engineering~General programming languages</concept_desc>
+%<concept_significance>500</concept_significance>
+%</concept>
+%<concept>
+%<concept_id>10003456.10003457.10003521.10003525</concept_id>
+%<concept_desc>Social and professional topics~History of programming languages</concept_desc>
+%<concept_significance>300</concept_significance>
+%</concept>
+%</ccs2012>
+%\end{CCSXML}
 
-\ccsdesc[500]{Software and its engineering~General programming languages}
-\ccsdesc[300]{Social and professional topics~History of programming languages}
+%\ccsdesc[500]{Software and its engineering~General programming languages}
+%\ccsdesc[300]{Social and professional topics~History of programming languages}
 %% End of generated code
 
 
 %% Keywords
 %% comma separated list
-\keywords{keyword1, keyword2, keyword3}  %% \keywords are mandatory in final camera-ready submission
+%\keywords{compilers, security}  %% \keywords are mandatory in final camera-ready submission
 
 
 %% \maketitle
@@ -160,32 +177,168 @@ Text of abstract \ldots.
 %% environment and commands, and keywords command.
 \maketitle
 
+\linenumbers
 
 \section{Introduction}
 
-Text of paper \ldots
+Compilers translate from a source to a target programming language.
+Despite their importance when programming and thus for day-to-day programs in general, there are fundamental gaps regarding their preservation of security.
+Secure Compilation studies the preservation of security properties and hyperproperties when compiling a source to a target program.
+Some existing, security-preserving compilers are fully-abstract.
+That is, they reflect and preserve observational equivalence.
+However, fully-abstract compilers may instrument the target code with unnecessary countermeasures not relevant for security.
+Robust Compilation~\cite{abate2019} is a novel compiler property that does not require the compiler to add such unnecessary measures.
+Informally, if a given (partial) source program linked with an arbitrary source context satisfies some properties of interest, so should its compiled version linked with an arbitrary target context satisfy them.
+Even though there exist robust safety-property preserving compilers, they are far from practical.
+Real-world compilers consist of several smaller compilers that are composed with each other in a certain way.
+A prominent example would be any compiler based on the LLVM toolchain~\cite{lattner04}, whose optimization pipeline consists of many passes, which one can view as independent compilers composed to achieve speedups.
+To the best of our knowledge, current work does not discuss which properties are preserved by compilers that use other compilers in their pipeline.
 
+This talk will investigate how different compiler compositions preserve properties, given that the compilers involved in the composition fulfil certain assumptions.
+We define classes of hyperproperties and identify their lattice.
+We prove that our chosen compositions preserve at least the least upper bound within the lattice of such classes.
+Consequently, the order of optimizations in a compilation pipeline does not matter for property preservation, assuming that each such pass preserves the class of interest.
+
+\section{Section II}
+
+\begin{definition}[Classes]
+  A class of hyperproperties $\cC$ is a set of hyperproperties.
+\end{definition}
+\noindent
+From now on, we use $\Pi$ for elements of any class $\cC$.
+\noindent
+\begin{definition}[Programming Languages]\label{def:pl}
+A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\right)$ s.t.:
+
+\begin{itemize}
+  \item[$\partials$] : Set - is a set of admissible, partial programs.
+  \item[$\wellf$] : $\partials$ - a judgement that holds iff a program is not partial.
+  \item[$\singlestep$] : $\wholes\to\events\to\wholes$ - a step relation, where $\wholes=\{w\in\partials\ |\ \wellf w\}$.
+        For $e\in\events$ and $p,p'\in\wholes$ we say for $\estep{p}{e}{p'}$ that program $p$ performs a step with action $e$ to program $p'$.
+        If $e=\emptyevent$, we write $\step{p}{p'}$.
+        $\terminationevent$ is the termination event.
+  \item[$\linker$] : $\partials\to\partials\to\partials$ - links two partial programs together in some way, resulting in a new partial program.
+\end{itemize}
+\end{definition}
+\begin{definition}[Traces]
+  A trace $\trace$ is an infinite sequence of events that results from the relation $\singlestep$.
+  That is, we obtain the trace $\trace=\seqcons{e_{0}}{\seqcons{e_{1}}{\dots}}$ for the execution sequence $\estep{p}{e_{0}}{\estep{p'}{e_{1}}{\dots}}$ and write $\mktrace{p}{\trace}$.
+  The set of all traces is $\traces$.
+\end{definition}
+\begin{definition}[Behavior]
+  The behavior of a whole program $p$ is a set of all traces it produces, i.e. $\behav{p}=\{\trace\ |\ \mktrace{p}{\trace}\}$.
+\end{definition}
+\begin{definition}[Hyperproperties]
+  A hyperproperty $H$ is a set of admissible sets of traces. Thus, if $p$ satisfies $H$ (written $\sat{p}{H}$), then $\behav{p}\in H$.
+\end{definition}
+\begin{definition}[Robust Property Satisfaction]
+  A program $p$ robustly satisfies a hyperproperty $\Pi$, written $\rsat{p}{\Pi}$, iff $\forall C\in\partials,\sat{C\linker p}{\Pi}$. The same notation is used for robust hyperproperty satisfaction.
+\end{definition}
+\begin{lemma}[Property Satisfaction Refinement]
+  For a property $\prop$ that refines $\prop'$, i.e. $\prop\subseteq\prop'$, if any $p\in\partials$ satisfies $\sat{p}{\prop'}$, then $\sat{p}{\prop}$.
+\end{lemma}
+
+
+\begin{definition}[Compilers]
+  A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
+\end{definition}
+
+\begin{definition}[Robust Trace-Hyperproperty Preservation]\label{def:rtp}
+  For a given class $\cC$, a compiler from languages $\S$ to $\T$ robustly preserves $\cC$ iff
+  $$
+  \forall\Pi\in\cC,\forall\src{p}\in\src{\partials},\rsat{\src{p}}{\Pi}\implies\rsat{\stcomp{\src{p}}}{\Pi}
+  $$
+  We write $\rtp{\stcomp{\bullet}}{\cC}$.
+\end{definition}
+\noindent
+We can, finally, discuss various forms of compositions.
+We begin with the most straightforward one, which coincides with ordinary function composition.
+From a practical perspective, this means plugging the result of one compiler into another one.
+Such pipelines happen when optimizing source code, so at the level of a suitable intermediate representation, but also on a higher level:
+Consider as an example a typical TypeScript compilation pipeline.
+First, it translates TypeScript code to JavaScript, which V8 compiles to Ignition bytecode that, after some runtime-performance analysis, is just-in-time compiled via TurboFan to machine code such as x86.
+
+\begin{definition}[Sequential Composition of Compilers]
+  Given two compilers $\sicomp{\bullet}$ and $\itcomp{\bullet}$, their sequential composition is $\sitcomp{\bullet}=\itcompN{\sicomp{\bullet}}$.
+\end{definition}
+\begin{lemma}[Weakening RTP]\label{lem:weaken}
+  Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, it holds that $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+\end{lemma}
+\begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
+  Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+
+We now consider a compiler that invokes two other compilers.
+HTML, CSS, and JavaScript are the most obvious example of such a composition.
+One writes down some code of any of these three languages embedded in the same file, but different compiler toolchains process them.
+
+\begin{definition}[Upper Composition]
+  Given two compilers $\stcomp{\bullet}$ and $\itcomp{\bullet}$, their upper composition is
+
+  $$\uhcsitcomp{\bullet}=\lambda p.\begin{cases}\stcomp{p} &\text{if }p\in\src{\partials}\\
+                                                \itcomp{p} &\text{if }p\in\irl{\partials}\end{cases}$$.
+\end{definition}
+\begin{lemma}[Upper Composition with RTP]
+  Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+
+With the same idea, we define a dual composition that goes from a single source language to multiple target languages.
+Any compiler used in production is defined that way since one can, as an example, compile C code to both x86 and MIPS assembly.
+We view frameworks such as RubyOnRails also as an example that can emit two different target languages, in this case, HTML and JS, at once.
+\begin{definition}[Lower Composition]
+  Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
+\end{definition}
+
+\begin{lemma}[Lower Composition with RTP]
+  Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\sicomp{\bullet}}{\cC_{2}}$, then $\rtp{\lhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+
+Using the upper and lower composition, we may end up with a diamond situation, which the following lemma describes.
+Especially from a security researcher perspective, the diamond lemma is attractive as it says that there is no harm to prove compiler passes robust property preserving in a modular way.
+That is, consider some program instrumented against SPECTRE v1 attacks and, in parallel to that, against SPECTRE v4.
+If the compiler instrumentation for v1 does not violate v4, the lemma tells us that combining both instrumentations in some way yields an instrumentation that protects against both v1 and v4.
+
+\begin{lemma}[Diamond]\label{lem:diamond}
+  Given $\rtp{\lhcsiocomp{\bullet}}{\cC_{1}}$ and $\rtp{\uhciotcomp{\bullet}}{\cC_{2}}$ with $\stcomp{\bullet} = \lambda\src{p}.\uhciotcomp{\lhcsiocomp{p}}$, then $\rtp{\stcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+
+The following free theorem is a direct consequence of \Cref{lem:seqcompo} where the involved compilers' input and output are both partial programs in the same language.
+Given that some set of optimization passes is robustly preserving properties, we can combine them in an arbitrary order and preserve the same least upper bound.
+A compilers optimization pipeline ordering is difficult and often hand-tuned.
+The lemma allows us to not care about the particular order of optimizations regarding their robust property preservation.
+So, the compiler developer is free to swap around.
+\begin{lemma}[Swappable]
+  Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{1}\cap\cC_{2}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\MK{This shouldn't work with relational hyperproperties, right?}
+
+{\color{red}\Large TODO: Miro compo}
+
+\section{Conclusion}
+
+We presented some practically relevant compiler compositions and their respective implications for security.
+Furthermore, compiler developers need not worry about optimization order constraints if the involved optimizations are proven to preserve properties of interest robustly.
 
 %% Acknowledgments
-\begin{acks}                            %% acks environment is optional
-                                        %% contents suppressed with 'anonymous'
-  %% Commands \grantsponsor{<sponsorID>}{<name>}{<url>} and
-  %% \grantnum[<url>]{<sponsorID>}{<number>} should be used to
-  %% acknowledge financial support and will be used by metadata
-  %% extraction tools.
-  This material is based upon work supported by the
-  \grantsponsor{GS100000001}{National Science
-    Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
-  No.~\grantnum{GS100000001}{nnnnnnn} and Grant
-  No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
-  conclusions or recommendations expressed in this material are those
-  of the author and do not necessarily reflect the views of the
-  National Science Foundation.
-\end{acks}
+%\begin{acks}                            %% acks environment is optional
+%                                        %% contents suppressed with 'anonymous'
+%  %% Commands \grantsponsor{<sponsorID>}{<name>}{<url>} and
+%  %% \grantnum[<url>]{<sponsorID>}{<number>} should be used to
+%  %% acknowledge financial support and will be used by metadata
+%  %% extraction tools.
+%  This material is based upon work supported by the
+%  \grantsponsor{GS100000001}{National Science
+%    Foundation}{http://dx.doi.org/10.13039/100000001} under Grant
+%  No.~\grantnum{GS100000001}{nnnnnnn} and Grant
+%  No.~\grantnum{GS100000001}{mmmmmmm}.  Any opinions, findings, and
+%  conclusions or recommendations expressed in this material are those
+%  of the author and do not necessarily reflect the views of the
+%  National Science Foundation.
+%\end{acks}
 
 
 %% Bibliography
-%\bibliography{bibfile}
+\bibliography{library}
 
 
 %% Appendix

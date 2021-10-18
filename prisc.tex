@@ -9,15 +9,17 @@
 %% For final camera-ready submission, w/ required CCS and ACM Reference
 \documentclass[sigplan,dvipsnames]{acmart}\settopmatter{}
 %% "not anonymous"
+\settopmatter{printacmref=false} % Removes citation information below abstract
+\renewcommand\footnotetextcopyrightpermission[1]{}
 
 %% Conference information
 %% Supplied to authors by publisher for camera-ready submission;
 %% use defaults for review submission.
-\acmConference[PL'22]{ACM SIGPLAN Workshop on Principles of Secure Compilation}{January 22nd, 2022}{Philadelphia, PA, USA}
-\acmYear{2022}
-\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
-\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
-\startPage{1}
+%\acmConference[PL'22]{ACM SIGPLAN Workshop on Principles of Secure Compilation}{January 22nd, 2022}{Philadelphia, PA, USA}
+%\acmYear{2022}
+%\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
+%\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
+%\startPage{1}
 
 %% Copyright information
 %% Supplied to authors (based on authors' rights management selection;
@@ -181,67 +183,25 @@
 
 \section{Introduction}
 
-Compilers translate from a source to a target programming language.
-Despite their importance when programming and thus for day-to-day programs in general, there are fundamental gaps regarding their preservation of security.
+Compilers translate programs from a source to a target programming language.
 Secure Compilation studies the preservation of security properties and hyperproperties when compiling a source to a target program.
-Some existing, security-preserving compilers are fully-abstract.
-That is, they reflect and preserve observational equivalence.
-However, fully-abstract compilers may instrument the target code with unnecessary countermeasures not relevant for security.
 Robust Compilation~\cite{abate2019} is a novel compiler property that does not require the compiler to add such unnecessary measures.
-Informally, if a given (partial) source program linked with an arbitrary source context satisfies some properties of interest, so should its compiled version linked with an arbitrary target context satisfy them.
-Even though there exist robust safety-property preserving compilers, they are far from practical.
+Informally, if a given (partial) source program linked with an arbitrary source context satisfies some properties of interest, so should its compiled version linked with an arbitrary target context.
+Even though there exist robust compilers, they are far from practical.
 Real-world compilers consist of several smaller compilers that are composed with each other in a certain way.
 A prominent example would be any compiler based on the LLVM toolchain~\cite{lattner04}, whose optimization pipeline consists of many passes, which one can view as independent compilers composed to achieve speedups.
-To the best of our knowledge, current work does not discuss which properties are preserved by compilers that use other compilers in their pipeline.
+To the best of our knowledge, current work does not discuss which properties are preserved by compilation chains.
 
-This talk will investigate how different compiler compositions preserve properties, given that the compilers involved in the composition fulfil certain assumptions.
-We define classes of hyperproperties and identify their lattice.
-We prove that our chosen compositions preserve at least the least upper bound within the lattice of such classes.
-Consequently, the order of optimizations in a compilation pipeline does not matter for property preservation, assuming that each such pass preserves the class of interest.
+This paper investigates how different compiler compositions preserve hyperproperties, given that the compilers involved in the composition fulfil certain assumptions.
+To reason about hyperproperty preservation, we will look at the lattice of classes of hyperproperties.
+Within the lattice of such classes, we examine whether at least the least upper bound is preserved by our chosen compositions.
+We conclude with a preliminary result: We show that the order of optimizations in a compilation pipeline does not matter for property preservation, assuming that each such pass preserves the class of interest.
 
-\section{Section II}
-
-\begin{definition}[Classes]
-  A class of hyperproperties $\cC$ is a set of hyperproperties.
-\end{definition}
-\noindent
-From now on, we use $\Pi$ for elements of any class $\cC$.
-\noindent
-\begin{definition}[Programming Languages]\label{def:pl}
-A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\right)$ s.t.:
-
-\begin{itemize}
-  \item[$\partials$] : Set - is a set of admissible, partial programs.
-  \item[$\wellf$] : $\partials$ - a judgement that holds iff a program is not partial.
-  \item[$\singlestep$] : $\wholes\to\events\to\wholes$ - a step relation, where $\wholes=\{w\in\partials\ |\ \wellf w\}$.
-        For $e\in\events$ and $p,p'\in\wholes$ we say for $\estep{p}{e}{p'}$ that program $p$ performs a step with action $e$ to program $p'$.
-        If $e=\emptyevent$, we write $\step{p}{p'}$.
-        $\terminationevent$ is the termination event.
-  \item[$\linker$] : $\partials\to\partials\to\partials$ - links two partial programs together in some way, resulting in a new partial program.
-\end{itemize}
-\end{definition}
-\begin{definition}[Traces]
-  A trace $\trace$ is an infinite sequence of events that results from the relation $\singlestep$.
-  That is, we obtain the trace $\trace=\seqcons{e_{0}}{\seqcons{e_{1}}{\dots}}$ for the execution sequence $\estep{p}{e_{0}}{\estep{p'}{e_{1}}{\dots}}$ and write $\mktrace{p}{\trace}$.
-  The set of all traces is $\traces$.
-\end{definition}
-\begin{definition}[Behavior]
-  The behavior of a whole program $p$ is a set of all traces it produces, i.e. $\behav{p}=\{\trace\ |\ \mktrace{p}{\trace}\}$.
-\end{definition}
-\begin{definition}[Hyperproperties]
-  A hyperproperty $H$ is a set of admissible sets of traces. Thus, if $p$ satisfies $H$ (written $\sat{p}{H}$), then $\behav{p}\in H$.
-\end{definition}
-\begin{definition}[Robust Property Satisfaction]
-  A program $p$ robustly satisfies a hyperproperty $\Pi$, written $\rsat{p}{\Pi}$, iff $\forall C\in\partials,\sat{C\linker p}{\Pi}$. The same notation is used for robust hyperproperty satisfaction.
-\end{definition}
-\begin{lemma}[Property Satisfaction Refinement]
-  For a property $\prop$ that refines $\prop'$, i.e. $\prop\subseteq\prop'$, if any $p\in\partials$ satisfies $\sat{p}{\prop'}$, then $\sat{p}{\prop}$.
-\end{lemma}
-
-
-\begin{definition}[Compilers]
-  A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
-\end{definition}
+\section{Content}
+Programs are written in some programming language.
+In this work, programs are elements of $\partials$, which is the set of partial programs of a given programming language.
+A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
+To reason about preservation of program behavior (hyperproperties~\cite{clarkson08}), we have to define a suitable compiler property.
 
 \begin{definition}[Robust Trace-Hyperproperty Preservation]\label{def:rtp}
   For a given class $\cC$, a compiler from languages $\S$ to $\T$ robustly preserves $\cC$ iff
@@ -251,7 +211,12 @@ A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\ri
   We write $\rtp{\stcomp{\bullet}}{\cC}$.
 \end{definition}
 \noindent
-We can, finally, discuss various forms of compositions.
+So, given any restriction on a program's behavior $\Pi$ and a source program $\src{p}$ that robustly satisfies $\Pi$ ($\rsat{\src{p}}{\Pi}$), the compiled program $\stcomp{\src{p}}$ also needs to robustly satisfy $\Pi$.
+The intuition of \Cref{def:rtp} is as follows: If the programmer makes certain assumptions on what a program does, these assumptions should also hold for the compiled program.
+% example (?)
+Practical compilers are composed of multiple others.
+Therefore, we now investigate compositionality of robust compilers.
+
 We begin with the most straightforward one, which coincides with ordinary function composition.
 From a practical perspective, this means plugging the result of one compiler into another one.
 Such pipelines happen when optimizing source code, so at the level of a suitable intermediate representation, but also on a higher level:
@@ -261,12 +226,15 @@ First, it translates TypeScript code to JavaScript, which V8 compiles to Ignitio
 \begin{definition}[Sequential Composition of Compilers]
   Given two compilers $\sicomp{\bullet}$ and $\itcomp{\bullet}$, their sequential composition is $\sitcomp{\bullet}=\itcompN{\sicomp{\bullet}}$.
 \end{definition}
-\begin{lemma}[Weakening RTP]\label{lem:weaken}
-  Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, it holds that $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
-\end{lemma}
+Now, assuming that two compilers preserve certain classes, we know that their sequential composition preserves the least upper bound:
 \begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
   Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
+
+%% TODO: not sure where to put this
+%\begin{lemma}[Weakening RTP]\label{lem:weaken}
+%  Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, it holds that $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+%\end{lemma}
 
 We now consider a compiler that invokes two other compilers.
 HTML, CSS, and JavaScript are the most obvious example of such a composition.
@@ -278,13 +246,15 @@ One writes down some code of any of these three languages embedded in the same f
   $$\uhcsitcomp{\bullet}=\lambda p.\begin{cases}\stcomp{p} &\text{if }p\in\src{\partials}\\
                                                 \itcomp{p} &\text{if }p\in\irl{\partials}\end{cases}$$.
 \end{definition}
+\noindent
+We can derive a similar result to \Cref{lem:seqcompo}:
 \begin{lemma}[Upper Composition with RTP]
   Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 
 With the same idea, we define a dual composition that goes from a single source language to multiple target languages.
 Any compiler used in production is defined that way since one can, as an example, compile C code to both x86 and MIPS assembly.
-We view frameworks such as RubyOnRails also as an example that can emit two different target languages, in this case, HTML and JS, at once.
+We view frameworks such as RubyOnRails also as an example that can emit two different target languages at once, in this case, HTML and JS.
 \begin{definition}[Lower Composition]
   Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
 \end{definition}
@@ -293,6 +263,7 @@ We view frameworks such as RubyOnRails also as an example that can emit two diff
   Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\sicomp{\bullet}}{\cC_{2}}$, then $\rtp{\lhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 
+\MP{Confusing and possibly wrong}
 Using the upper and lower composition, we may end up with a diamond situation, which the following lemma describes.
 Especially from a security researcher perspective, the diamond lemma is attractive as it says that there is no harm to prove compiler passes robust property preserving in a modular way.
 That is, consider some program instrumented against SPECTRE v1 attacks and, in parallel to that, against SPECTRE v4.
@@ -310,14 +281,9 @@ So, the compiler developer is free to swap around.
 \begin{lemma}[Swappable]
   Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{1}\cap\cC_{2}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
-\MK{This shouldn't work with relational hyperproperties, right?}
+% This shouldn't work with relational hyperproperties, right?
 
 {\color{red}\Large TODO: Miro compo}
-
-\section{Conclusion}
-
-We presented some practically relevant compiler compositions and their respective implications for security.
-Furthermore, compiler developers need not worry about optimization order constraints if the involved optimizations are proven to preserve properties of interest robustly.
 
 %% Acknowledgments
 %\begin{acks}                            %% acks environment is optional

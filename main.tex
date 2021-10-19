@@ -18,7 +18,7 @@
 \usepackage{bm}
 \usepackage{xspace}
 \usepackage{etoolbox}
-\usepackage{cite}
+\usepackage{natbib}
 
 \usepackage{tikz}
 \usetikzlibrary{positioning}
@@ -50,6 +50,11 @@
   The internal action is $\emptyevent$.
   The action $\terminationevent$ is program termination.
 \end{definition}
+
+
+We assume that any programming language can be enriched with a self-composition operator in the style of \citet{barthe11}.
+Furthermore, we also assume the existence of a low-equivalence relation that distinguishes program states only by their public memory.
+Two traces $\trace_{1}$,$\trace_{2}$ are low-equivalent $\loweq{\trace_{1}}{\trace_{2}}$ iff all their public events coincide.
 
 \begin{definition}[Programming Languages]\label{def:pl}
 A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\right)$ s.t.:
@@ -159,8 +164,12 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   Direction ``$\Leftarrow$'' assumes $\sat{\collapse{\cC_{1}}}{p}$ and we need to show $\forall\Pi\in\cC_{1}.\behav{p}\in\Pi$.
   So, pick any such $\Pi\in\cC_{1}$. Weaking the assumption $\behav{p}\in\bigcap_{\Pi'\in\cC_{1}}\Pi'$ ($\sat{\collapse{\cC_{1}}}{p}$) to $\behav{p}\in\bigcap_{\Pi'\in\{\Pi\}}\Pi'$ directly yields what we wanted to prove.
 \end{proof}
-Despite the collapse, for notational pleasure, we choose to stick with classes in some parts of the development in order to quantify over the (hyper-)properties represented by it.
-Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem:classcollapse} for brevity.
+%Despite the collapse, for notational pleasure, we choose to stick with classes in some parts of the development in order to quantify over the (hyper-)properties represented by it.
+%Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem:classcollapse} for brevity.
+\MK{This is weird. Consider $\cC=\{\emptyset,\{\trace\}\}\subseteq\cSafety$. There are $\cSafety$ preserving compilers, but $\emptyset\cap\{\trace\}=\emptyset$}
+% one program has empty behavior
+% another one produces the \trace
+% a compiler can very well preserve this
 
 \begin{definition}[Compilers]
   A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
@@ -195,9 +204,6 @@ Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem
   Since $\cC_{1}\subseteq\cC_{2}$ and $\Pi\in\cC_{1}$, we know that $\Pi\in\cC_{2}$.
   Thus, we can apply the assumption $\rtp{\stcomp{\bullet}}{\cC_{2}}$ to our goal, leaving us with $\rsat{\src{p}}{\Pi}$ to show, which was an assumption we made.
 \end{proof}
-
-% refinement of \collapse{\cC} only works for subset closed props
-
 
 \begin{definition}[Safety Properties]
   The class of safety properties contains the lifting of all properties that can be refuted with a finite trace prefix:
@@ -244,6 +250,20 @@ Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem
 \begin{definition}[Determinism]
   Determinism is a 2-hypersafety property, since any two program executions with the same input must yield the same output.
 \end{definition}
+
+\begin{definition}[Non-Interference ($\Ni$)]\label{def:ni}
+  We define the class containing the non-interference hyperproperty as:
+  $$
+  \Ni = \left\{ H | \forall \trace_{1},\trace_{2}\in H. \loweq{\trace_{1}}{\trace_{2}}\implies\trace_{1}=\trace_{2} \right\}
+  $$
+\end{definition}
+Note that $=$ may not be strict equality, but some suitable trace equivalence that checks both public and private actions, instead of just public.
+
+\begin{definition}[Average Response Time (ART)]
+  The average response time over all executions less than some arbitrary constant~\cite{clarkson08} is a practically useful hyperproperty that is not subset closed.
+\end{definition}
+Consider the behavior $\{\trace_{1},\trace_{2},\trace_{3}\}$ where $\trace_{1},\trace_{2}$ each take 1 second and $\trace_{3}$ 4 seconds to run.
+If the chosen constant is 2, the hyperproperty would be fulfilled. However, the subset behavior $\{\trace_{3}\}$ has an average time of 4, double the bound set by the property.
 
 \begin{lemma}[Classes Lattice]
   Classes with $\subseteq$ form a lattice.
@@ -332,12 +352,6 @@ Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem
   \caption{Sketch of a fraction of the infinitely sized lattice of classes. The diagram should be read from top to bottom. A connecting edge between two nodes means that the bottom one is a subset of the top one. (version with subseteq signs)}
 \end{figure}
 
-% get rid of units
-% draw similarily as with journey, do the subseteq on a slope
-
-% two instances of safety and hypersafety
-% add 2-safety
-
 \begin{definition}[Conjunctive Class Composition]
   The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is their set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
 \end{definition}
@@ -410,17 +424,56 @@ Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem
   Both follow from \Cref{lem:seqcompo}.
 \end{proof}
 
-\begin{definition}[Low-Equivalence]
-  Two traces $\trace_{1}$,$\trace_{2}$ are low-equivalent $\loweq{\trace_{1}}{\trace_{2}}$ iff all their public events coincide.
-\end{definition}
+\begin{lemma}[Weaker Weaken]
+  Given
+  \begin{assumptions}
+  \item\label[ass]{lem:sandwich:ass:a} $\forall\src{p}\in\src{\partials}.\rsat{\src{p}}{\cC_{2}}\implies\rsat{\src{p}}{\cC_{1}}$
+  \item\label[ass]{lem:sandwich:ass:b} $\forall\trg{p}\in\trg{\partials}.\rsat{\trg{p}}{\cC_{1}}\implies\rsat{\trg{p}}{\cC_{2}}$
+  \item\label[ass]{lem:sandwich:ass:c} $\rtp{\stcomp{\bullet}}{\cC_{1}}$
+  \end{assumptions}
+  we have
+  \begin{goals}
+  \item\label[goal]{lem:sandwich:goal:i} $\rtp{\stcomp{\bullet}}{\cC_{2}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Unfolding \Cref{lem:sandwich:goal:i}; Let $\Pi\in\cC_{1}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$, leaving us with $\rsat{\stcomp{\src{p}}}{\Pi}$ to prove.
 
-\begin{definition}[Non-Interference ($\Ni$)]\label{def:ni}
-  We define the class containing the non-interference hyperproperty as:
-  $$
-  \Ni = \left\{ H | \forall \trace_{1},\trace_{2}\in H. \loweq{\trace_{1}}{\trace_{2}}\implies\trace_{1}=\trace_{2} \right\}
-  $$
-\end{definition}
-Note that $=$ may not be strict equality, but some suitable trace equivalence that checks both public and private actions, instead of just public.
+  Apply \Cref{lem:sandwich:ass:b}, giving us $\sat{\stcomp{\src{p}}}{\Pi}$.
+
+  Now apply \Cref{lem:sandwich:ass:c} to obtain $\sat{\src{p}}{\Pi}$ as remaining goal, which is an assumption.
+\end{proof}
+
+first try:
+\begin{proof}
+  By \Cref{lem:weaken}, we can zap the goal to $\rtp{\stcomp{\bullet}}{\cC_{1}}$, which is proven by \Cref{lem:sandwich:ass:c}.
+  What is left to show is $\cC_{1}\subseteq\cC_{2}$. {\color{red}\Large doesn't follow}
+  Only works if $\rsat{\trg{p}}{\cC_{1}}$ is ``surjective'' in the sense that $\T$ programs produce all behaviors present in $\cC_{2}$. That also means we don't need \Cref{lem:sandwich:ass:a}.
+\end{proof}
+
+\begin{lemma}[RSP may imply k-RSHP]
+  Given
+  \begin{assumptions}
+  \item\label[ass]{lem:rspimplkrshp:ass:a} $\S$ and $\T$ have $\loweq{}{}$ and $\selfcompo{}{}$ operators
+  \item\label[ass]{lem:rspimplkrshp:ass:b} $\Pi\in\cSafety$
+  \item\label[ass]{lem:rspimplkrshp:ass:c} $\src{p}\in\src{\partials}$ with $\rsat{\src{p}}{\Pi}$
+  \item\label[ass]{lem:rspimplkrshp:ass:d} $\rtp{\stcomp{\bullet}}{\cSafety}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item\label[goal]{lem:rspimplkrshp:goal:i} $\exists\stcomp{\bullet}.\sat{\stcomp{\src{p}}}{\text{k-RSHP}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  (intuition)
+
+  Take $\src{p}\in\src{\partials}$ and construct the k-product program according to \citet{barthe11}.
+  Feed the input into the compiler from \Cref{lem:rspimplkrshp:ass:d}.
+  Instantiate the existential in \Cref{lem:rspimplkrshp:goal:i} with the modified compiler.
+  Since the product program reflects the behavior of $\src{p}$, the transformation does not interfere with robust property satisfaction.
+  Furthermore, \Cref{lem:rspimplkrshp:ass:d} guarantees us that the compiled k-product program of $\src{p}$ is safe.
+  Since the k-product construction soundly embeds $k-RSHP$ properties into $\cSafety$, the claim follows.
+\end{proof}
 
 % TODO: glossaries....? :^)
 \begin{definition}[Speculative Safety~\cite{exorcisingSpectres}]
@@ -469,10 +522,6 @@ Note that $=$ may not be strict equality, but some suitable trace equivalence th
   What is left to show is $\rsat{\src{p}}{\Pi}$, which is an assumption of ours.
 \end{proof}
 
-
-% if language has a form of parallel self-composition and the compiler preserves RTP(Safety), then it also preserves k-RSHP
-%   -> self composition is on the program graph level. we can always write an interpreter that allows this
-
 \clearpage
 Experimental
 \begin{definition}[Encoders]
@@ -506,10 +555,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 Next up:
 
-compositionality of different robust preservation properties (?)
+  compositionality of different robust preservation properties (?)
 
 
-\bibliographystyle{plain}
+\bibliographystyle{plainnat}
 \bibliography{library}
 
 \end{document}

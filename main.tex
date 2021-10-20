@@ -167,7 +167,7 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 %Despite the collapse, for notational pleasure, we choose to stick with classes in some parts of the development in order to quantify over the (hyper-)properties represented by it.
 %Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem:classcollapse} for brevity.
 \MK{This is weird. Consider $\cC=\{\emptyset,\{\trace\}\}\subseteq\cSafety$. There are $\cSafety$ preserving compilers, but $\emptyset\cap\{\trace\}=\emptyset$}
-% one program has empty behavior
+% one program has empty behavior      - how can it have an empty behavior?
 % another one produces the \trace
 % a compiler can very well preserve this
 
@@ -269,7 +269,7 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
   Classes with $\subseteq$ form a lattice.
 \end{lemma}
 \begin{proof}
-  The class with all hyperproperties is the top element $\top$, while the class with no hyperproperties whatsoever is $\bot$.
+  The class with all hyperproperties is the top element $\top=\powerset{\traces}$, while the class with no hyperproperties whatsoever is $\bot=\{\emptyset\}$.
   Obviously, a partial order due to set inclusion.
   $\cap$ is least upper and $\cup$ greatest lower bound of any given pair of subsets of a given class.
 \end{proof}
@@ -476,7 +476,7 @@ first try:
 \end{proof}
 
 % TODO: glossaries....? :^)
-\begin{definition}[Speculative Safety~\cite{exorcisingSpectres}]
+\begin{definition}[Speculative Safety~\citep{exorcisingSpectres}]
   Given a set $\policy$, we define speculative safety as follows:
 
   $$
@@ -484,7 +484,7 @@ first try:
   $$
 \end{definition}
 
-\begin{lemma}[$\ss$ over-approximates $\RNi$~\cite{exorcisingSpectres}]
+\begin{lemma}[$\ss$ over-approximates $\RNi$~\citep{exorcisingSpectres}]
   Provided that a suitable language $\T$ fulfills the overapproximation lemma $\forall\trg{p}\in\trg{\partials}.\rsat{\trg{p}}{\rss}\implies\rsat{\trg{p}}{\RNi}$, it holds that,
   given $\rtp{\sicomp{\bullet}}{\RNi}$ and $\rtp{\itcomp{\bullet}}{\rss}$, $\rtp{\sitcomp{\bullet}}{\RNi}$.
 \end{lemma}
@@ -521,6 +521,38 @@ first try:
   Since $\cC_{1}$ is also subset closed, we know that $\Pi\in\cC_{1}$ and, thus, can apply $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
   What is left to show is $\rsat{\src{p}}{\Pi}$, which is an assumption of ours.
 \end{proof}
+
+
+\begin{definition}[Instrumentation]\label{def:instrumentation}
+  A source code instrumentation done by a compiler takes a program in language $\T$ and emits an altered version of the same program in $\T$ such that it does not go wrong for some class of security relevant (hyper-)properties.
+  Formally, given a $\cC$ the instrumentation done by $\ttcomp{\bullet}$ ensures:
+
+  $$
+  \forall \trg{p}\in\trg{\partials}, \rsat{\trg{p}}{\emptyset} \implies \rsat{\ttcomp{p}}{\cC}
+  $$
+\end{definition}
+
+\begin{definition}[Secure Instrumentation with Respect to $\cC$]\label{def:secure-instrumentation}
+  A secure instrumentation with respect to some class $\cC$ ensures (hyper-)properties described by some class $\cC'$ without violating $\cC$-satisfying programs.
+  Thus, in addition to the condition presented in \Cref{def:instrumentation}, we require:
+
+  $$
+  \forall \trg{p}\in\trg{\partials}, \rsat{\trg{p}}{\cC} \implies \rsat{\ttcomp{p}}{\cC\cup\cC'}
+  $$
+\end{definition}
+
+Consider $\ttcomp{\bullet}_{1}$ which ensures no SPECTRE v1 attacks happen and $\ttcomp{\bullet}_{4}$ which ensures that no SPECTRE v4 attacks happen.
+Suppose both compilers only satisfy \Cref{def:instrumentation}.
+That is, we cannot reasonably combine them, since one instrumentation might break the other.% v1 might be instrumented with load/store ops which breaks v4
+Now suppose $\ttcomp{\bullet}_{1}$ satisfies \Cref{def:secure-instrumentation} such that $\cC$ is precisely the class of hyperproperties that ensure no SPECTRE v4 attacks are possible.
+Thus, we can safely run $\ttcomp{\bullet}_{1}$ \textit{after} applying $\ttcomp{\bullet}_{4}$.
+The symmetrical argument is similar.
+The last case, where both instrumentations do not violate the other class of security properties allows us to interchange the instrumentations with each other: They are vertically composable, since they do not depend on information from another compilation pass.
+
+
+\begin{definition}[Vertical Composability]
+  We define vertical composability as such that two compilation passes satisfy commutativity.
+\end{definition}
 
 \clearpage
 Experimental

@@ -26,6 +26,7 @@
 \usepackage{mmmacros}
 % \usepackage{./../mmmacros}
 
+\newtheorem{example}{Example}
 \newtheorem{definition}{Definition}
 \newtheorem{lemma}{Lemma}
 
@@ -143,33 +144,28 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   A program $p$ robustly satisfies a property $\prop$, written $\rsat{p}{\prop}$, iff $\forall C\in\partials,\sat{C\linker p}{\prop}$. The same notation is used for robust hyperproperty satisfaction.
 \end{definition}
 
+\begin{lemma}[Weakening Robust Satisfaction]\label{lem:weaken-rsat}
+  Given classes $\cC_{1}, \cC_{2}$ and any program $p$ such that
+  \begin{assumptions}
+    \item\label{lem:weaken-rsat:ass:a} $\cC_{1}\subseteq\cC_{2}$
+    \item\label{lem:weaken-rsat:ass:b} $\rsat{p}{\cC_{2}}$
+  \end{assumptions}
+  We show
+  \begin{goals}
+    \item\label{lem:weaken-rsat:goal:i} $\rsat{p}{\cC_{1}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Unfolding \Cref{lem:weaken-rsat:goal:i}, let $\Pi\in\cC_{2}$ and $p$ be a program, we want to show that $\rsat{p}{\Pi}$.
+  By \Cref{lem:weaken-rsat:ass:a}, we also know that $\Pi\in\cC_{1}$.
+  Thus, we can use \Cref{lem:weaken-rsat:ass:b} to conclude.
+\end{proof}
+
 \begin{definition}[Classes]
   A class of hyperproperties $\cC$ is a set of hyperproperties.
   Likewise, a class of properties $\cC$ is a set of hyperproperties, where every property is lifted to the hyperproperty level.
   From now on, we use $\Pi$ for elements of any class $\cC$ in case it does not matter whether it is a lifted property or any hyperproperty.
 \end{definition}
-
-\begin{lemma}[Classes Collapse to Hyperproperties]\label{lem:classcollapse}
-  Any class $\cC_{1}$ of hyperproperties collapses to a single hyperproperty denoted $\collapse{\cC_{1}}$.
-\end{lemma}
-\begin{proof}
-  Given a class $\cC_{1}$, let $\displaystyle \collapse{\cC_{1}}=\bigcap_{\Pi\in\cC_{1}}\Pi$.
-
-  \noindent
-  We show that given $p\in\partials$, it holds that $\sat{\cC_{1}}{p}\Leftrightarrow \sat{\collapse{\cC_{1}}}{p}$.
-  Direction ``$\Rightarrow$'' assumes $\forall\Pi\in\cC_{1}.\behav{p}\in\Pi$ and we need to prove $\sat{\collapse{\cC_{1}}}{p}$.
-  That is, $\displaystyle\behav{p}\in\bigcap_{\Pi\in\cC_{1}}\Pi$. The claim follows by an induction on the cardinality of $\cC_{1}$.
-
-  \noindent
-  Direction ``$\Leftarrow$'' assumes $\sat{\collapse{\cC_{1}}}{p}$ and we need to show $\forall\Pi\in\cC_{1}.\behav{p}\in\Pi$.
-  So, pick any such $\Pi\in\cC_{1}$. Weaking the assumption $\behav{p}\in\bigcap_{\Pi'\in\cC_{1}}\Pi'$ ($\sat{\collapse{\cC_{1}}}{p}$) to $\behav{p}\in\bigcap_{\Pi'\in\{\Pi\}}\Pi'$ directly yields what we wanted to prove.
-\end{proof}
-%Despite the collapse, for notational pleasure, we choose to stick with classes in some parts of the development in order to quantify over the (hyper-)properties represented by it.
-%Nevertheless, when dealing with e.g. the composition of classes we use \Cref{lem:classcollapse} for brevity.
-\MK{This is weird. Consider $\cC=\{\emptyset,\{\trace\}\}\subseteq\cSafety$. There are $\cSafety$ preserving compilers, but $\emptyset\cap\{\trace\}=\emptyset$}
-% one program has empty behavior      - how can it have an empty behavior?
-% another one produces the \trace
-% a compiler can very well preserve this
 
 \begin{definition}[Compilers]
   A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
@@ -312,49 +308,6 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
   \caption{Sketch of a fraction of the infinitely sized lattice of classes. The diagram should be read from top to bottom. A connecting edge between two nodes means that the bottom one is a subset of the top one.}
 \end{figure}
 
-\begin{figure}[h]
-  \centering
-  \begin{tikzpicture}[node distance=6mm,every node/.style={align=center}]
-    \node (top) {$\top$};
-    \node[below = of top.south] (SSC) {$\cSS$};
-    \node[below = of SSC.south] (HSafe) {$\cHSafety$};
-    \node[below = of HSafe.south] (HKSafe) {$\cKHSafety$}; % make this a chain
-    \node[left = of HKSafe.west] (H2Safe) {$\cTwoHSafety$};
-    \node[right = of HKSafe.east] (Safe) {$\cSafety$};
-
-    % Specialized classes
-    \node[below left = of Safe.south] (Mutex) {$\mutex$};
-    \node[below right = of Safe.south] (NonTerm) {$\nonterm$};
-
-    \node[below left = of H2Safe.south] (Determ) {$\determ$};
-    \node[below right = of H2Safe.south] (NI) {$\Ni$};
-
-    \node[below = of HKSafe.south] (emptyspace) {};
-    \node[below = of emptyspace.south] (Bot) {$\bot$};
-
-    % edges
-    \path (top.south) edge node[fill=white,sloped] {$\supseteq$} (SSC.north);
-    \path (SSC.south) edge node[fill=white,sloped] {$\supseteq$} (HSafe.north);
-    \path (HSafe.south) edge node[fill=white,rotate=90] {$\subseteq$} (HKSafe.north);
-    \path (HSafe.south west) edge node[fill=white,rotate=13] {$\subseteq$} (H2Safe.north);
-    \path (HSafe.south east) edge node[fill=white,rotate=-17] {$\supseteq$} (Safe.north);
-    \path (H2Safe.south west) edge node[fill=white,rotate=33] {$\subseteq$} (Determ.north);
-    \path (H2Safe.south) edge node[fill=white,rotate=-39] {$\supseteq$} (NI.north);
-    \path (Safe.south west) edge node[fill=white,rotate=45] {$\subseteq$} (Mutex.north);
-    \path (Safe.south east) edge node[fill=white,rotate=-27] {$\supseteq$} (NonTerm.north);
-    \path (HKSafe.south) edge node[fill=white,rotate=90] {$\subseteq$} (Bot.north);
-    \path (Determ.south) edge node[fill=white,rotate=-4] {$\supseteq$} (Bot.west);
-    \path (NI.south east) edge node[fill=white,rotate=-17] {$\supseteq$} (Bot.north west);
-    \path (NonTerm.south west) edge node[fill=white,rotate=11] {$\subseteq$} (Bot.east);
-    \path (Mutex.south west) edge node[fill=white,rotate=33] {$\subseteq$} (Bot.north east);
-  \end{tikzpicture}
-  \caption{Sketch of a fraction of the infinitely sized lattice of classes. The diagram should be read from top to bottom. A connecting edge between two nodes means that the bottom one is a subset of the top one. (version with subseteq signs)}
-\end{figure}
-
-\begin{definition}[Conjunctive Class Composition]
-  The conjunctive composition of two classes of properties $\mathbb{C}_{1},\mathbb{C}_{2}$ is their set-intersection $\mathbb{C}_{1}\cap\mathbb{C}_{2}$.
-\end{definition}
-
 \begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
   Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
@@ -416,18 +369,18 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
   Straightforward using \Cref{lem:seqcompo}.
 \end{proof}
 
-\begin{lemma}[Swappable]
+\begin{lemma}[Swappable]\label{lem:swappable}
   Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{1}\cap\cC_{2}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \begin{proof}
   Both follow from \Cref{lem:seqcompo}.
 \end{proof}
 
-\begin{lemma}[Weaker Weaken]
+\begin{lemma}[Mingle]
   Given
   \begin{assumptions}
-  \item\label[ass]{lem:sandwich:ass:a} $\forall\src{p}\in\src{\partials}.\rsat{\src{p}}{\cC_{2}}\implies\rsat{\src{p}}{\cC_{1}}$
-  \item\label[ass]{lem:sandwich:ass:b} $\forall\trg{p}\in\trg{\partials}.\rsat{\trg{p}}{\cC_{1}}\implies\rsat{\trg{p}}{\cC_{2}}$
+  \item\label[ass]{lem:sandwich:ass:a} $\forall\Pi\in\cC_{2}.\forall\src{p}\in\src{\partials}.\rsat{\src{p}}{\Pi}\implies \Pi\in\cC_{1}$
+  \item\label[ass]{lem:sandwich:ass:b} $\forall\Pi\in\cC_{1}.\forall\trg{p}\in\trg{\partials}.\rsat{\trg{p}}{\Pi}\implies \Pi\in\cC_{2}$ (not needed)
   \item\label[ass]{lem:sandwich:ass:c} $\rtp{\stcomp{\bullet}}{\cC_{1}}$
   \end{assumptions}
   we have
@@ -436,18 +389,14 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Unfolding \Cref{lem:sandwich:goal:i}; Let $\Pi\in\cC_{1}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$, leaving us with $\rsat{\stcomp{\src{p}}}{\Pi}$ to prove.
+  Unfolding \Cref{lem:sandwich:goal:i}; Let $\Pi\in\cC_{2}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$, leaving us with $\rsat{\stcomp{\src{p}}}{\Pi}$ to prove.
 
-  Apply \Cref{lem:sandwich:ass:b}, giving us $\sat{\stcomp{\src{p}}}{\Pi}$.
+  Apply \Cref{lem:sandwich:ass:c}, giving us as new goals $\Pi\in\cC_{1}$ and $\rsat{\src{p}}{\Pi}$, the latter following easily by the exact same assumption made before.
 
-  Now apply \Cref{lem:sandwich:ass:c} to obtain $\sat{\src{p}}{\Pi}$ as remaining goal, which is an assumption.
-\end{proof}
+  However, we still need to argue that $\Pi\in\cC_{1}$.
 
-first try:
-\begin{proof}
-  By \Cref{lem:weaken}, we can zap the goal to $\rtp{\stcomp{\bullet}}{\cC_{1}}$, which is proven by \Cref{lem:sandwich:ass:c}.
-  What is left to show is $\cC_{1}\subseteq\cC_{2}$. {\color{red}\Large doesn't follow}
-  Only works if $\rsat{\trg{p}}{\cC_{1}}$ is ``surjective'' in the sense that $\T$ programs produce all behaviors present in $\cC_{2}$. That also means we don't need \Cref{lem:sandwich:ass:a}.
+  Instatiate the universal quantifications in \Cref{lem:sandwich:ass:a} with $\Pi$ and $\src{p}$. Apply that to our goal.
+  What is left to show is $\rsat{\src{p}}{\Pi}$, which we've proven before already.
 \end{proof}
 
 \begin{lemma}[RSP may imply k-RSHP]
@@ -474,84 +423,99 @@ first try:
   Since the k-product construction soundly embeds $k-RSHP$ properties into $\cSafety$, the claim follows.
 \end{proof}
 
-% TODO: glossaries....? :^)
-\begin{definition}[Speculative Safety~\citep{exorcisingSpectres}]
-  Given a set $\policy$, we define speculative safety as follows:
-
-  $$
-  \ss = \left\{ \lift{\prop}\ |\ \forall\trace\in \prop.\trace=e_{0}e_{1}\dots\implies e_{0}\in\policy\wedge e_{1}\in\policy\wedge\dots\right\}
-  $$
-\end{definition}
-
-\begin{lemma}[$\ss$ over-approximates $\RNi$~\citep{exorcisingSpectres}]
-  Provided that a suitable language $\T$ fulfills the overapproximation lemma $\forall\trg{p}\in\trg{\partials}.\rsat{\trg{p}}{\rss}\implies\rsat{\trg{p}}{\RNi}$, it holds that,
-  given $\rtp{\sicomp{\bullet}}{\RNi}$ and $\rtp{\itcomp{\bullet}}{\rss}$, $\rtp{\sitcomp{\bullet}}{\RNi}$.
-\end{lemma}
-\begin{proof}
-
-  {\large\color{red} doesn't work}, we need at some point show that given $\prop\in\RNi$ we have $\prop\in\rss$, which isn't true.
-  Proving $\rtp{\sitcomp{\bullet}}{\rss}$ is easy, thought, it's just the lub again...
-
-
-\end{proof}
-
-
-\begin{definition}[Finer Conjunctive Class Composition]
-  The finer conjunctive class composition of two classes $\cC_{1},\cC_{2}$ is
-  $$
-  \fccomp{\cC_{1}}{\cC_{2}} := \left\{H\ |\ \forall H_{1}\in\cC_{1},H_{2}\in\cC_{2}.H=H_{1}\cap H_{2}\right\} \cup (\cC_{1}\cap\cC_{2})
-  $$
-\noindent
-  Likewhise, we define a new less-than operation for the lattice as follows
-  $$
-  \fcleq{\cC_{1}}{\cC_{2}} := \cC_{1}\subseteq\fccomp{\cC_{1}}{\cC_{2}}
-  $$
-\end{definition}
-
-\begin{lemma}[Finer Sequential Composition with RTP]\label{lem:fseqcompo}
-  Given $\cC_{1}$ and $\cC_{2}$ are subset-closed with respect to $\subseteq$, $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\fccomp{\cC_{1}}{\cC_{2}}}$.
-\end{lemma}
-\begin{proof}
-  We need to show $\rtp{\sitcomp{\bullet}}{\fccomp{\cC_{1}}{\cC_{2}}}$.
-  By definition, assume $\Pi\in\fccomp{\cC_{1}}{\cC_{2}}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$.
-  By definition of $\fccomp{}{}$, $\Pi\in\cC_{1}\cap\cC_{2}$, which is analogous case as with \Cref{lem:seqcompo}, or $\Pi\in\left\{H\ |\ \forall H_{1}\in\cC_{1},H_{2}\in\cC_{2}.H=H_{1}\cap H_{2}\right\}$.
-  So, pick any $H_{1}\in\cC_{1},H_{2}\in\cC_{2}$, such that $\Pi=H_{1}\cap H_{2}$.
-  Since $\cC_{2}$ is subset closed, we can apply $\rtp{\itcomp{\bullet}}{\cC_{2}}$ to our goal, leaving us with $\rsat{\sicomp{\src{p}}}{\Pi}$.
-  Since $\cC_{1}$ is also subset closed, we know that $\Pi\in\cC_{1}$ and, thus, can apply $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
-  What is left to show is $\rsat{\src{p}}{\Pi}$, which is an assumption of ours.
-\end{proof}
-
 
 \begin{definition}[Instrumentation]\label{def:instrumentation}
   A source code instrumentation done by a compiler takes a program in language $\T$ and emits an altered version of the same program in $\T$ such that it does not go wrong for some class of security relevant (hyper-)properties.
   Formally, given a $\cC$ the instrumentation done by $\ttcomp{\bullet}$ ensures:
 
   $$
-  \forall \trg{p}\in\trg{\partials}, \rsat{\trg{p}}{\emptyset} \implies \rsat{\ttcomp{p}}{\cC}
+  \forall \trg{p}\in\trg{\partials}, \rsat{\ttcomp{p}}{\cC}
   $$
+
+  We write $\instr{\ttcomp{\bullet}}{\cC}$.
 \end{definition}
 
 \begin{definition}[Secure Instrumentation with Respect to $\cC$]\label{def:secure-instrumentation}
-  A secure instrumentation with respect to some class $\cC$ ensures (hyper-)properties described by some class $\cC'$ without violating $\cC$-satisfying programs.
+  A secure instrumentation with respect to some class $\cC$ ensures (hyper-)properties described by some class $\cC'$ without violating $\cC$-satisfying programs. We write $\sinstr{\ttcomp{\bullet}}{\cC}{\cC'}$.
   Thus, in addition to the condition presented in \Cref{def:instrumentation}, we require:
 
   $$
-  \forall \trg{p}\in\trg{\partials}, \rsat{\trg{p}}{\cC} \implies \rsat{\ttcomp{p}}{\cC\cup\cC'}
+  \forall\Pi\in\cC.\forall \trg{p}\in\trg{\partials}, \rsat{\trg{p}}{\Pi} \implies \rsat{\ttcomp{p}}{\Pi} \wedge \Pi\in\cC\cap\cC'
+  $$
+
+\end{definition}
+
+\begin{definition}[No-v* Classes]
+  Let $\nvOne$ denote the singleton-class such that no SPECTRE v1 attack can happen.
+  Analgously, define $\nvFour$ as a singleton-class that disallows SPECTRE v4 attacks and $\nvOneFour$ as the class that disallows both v1 and v4 attacks, i.e. $\nvOneFour=\nvOne\cap\nvFour$.
+\end{definition}
+
+\begin{example}
+  Consider a compiler $\ttcomp{\bullet}_{1}$ such that $\sinstr{\ttcomp{\bullet}_{1}}{\nvOne}{\nvFour}$ and, similarily,
+  $\ttcomp{\bullet}_{4}$ such that $\sinstr{\ttcomp{\bullet}_{4}}{\nvFour}{\nvOne}$.
+
+  \begin{lemma}\label{lem:vOnevFourSafe}
+    Using above compilers, we now show that $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$.
+  \end{lemma}
+  \begin{proof}
+    By \Cref{lem:seqcompo} we get two goals, $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ and $\rtp{\ttcomp{\bullet}_{4}}{\nvOneFour}$.
+
+    Since both cases are symmetrical, we only consider $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ now.
+
+    Unfolding the definition of the goal, suppose there is a $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, while our new goal is $\rsat{\ttcomp{p}_{1}}{\Pi}$.
+
+    Strengthen the goal so that we need to show $\rsat{\ttcomp{p}_{1}}{\Pi}\wedge\Pi\in\nvOneFour$. Now, apply \Cref{def:secure-instrumentation}, so the only things left to show are $\Pi\in\nvOne$ and $\rsat{\trg{p}}{\Pi}$.
+    Both follow easily from our assumptions.
+  \end{proof}
+  \begin{lemma}
+    $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOneFour}$
+  \end{lemma}
+  \begin{proof}
+    By \Cref{lem:vOnevFourSafe} and \Cref{lem:swappable}.
+  \end{proof}
+
+  We now consider what happens if one of the two instrumentations is not secure with respect to the respective other class.
+  However, we focus on the case where the v1-instrumentation is insecure with respect to v4, due to symmetry.
+
+  \begin{lemma}
+    $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$
+  \end{lemma}
+  \begin{proof}
+    Note that $\ttcomp{p}_{1}$ is a secure $\T$ program with respect to SPECTRE v1 attacks, given any $\trg{p}\in\trg{\partials}$.
+
+    Unfolding, let $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, our goal changes to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}$.
+
+    Strengthen what we want to prove to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}\wedge\Pi\in\nvOneFour$.
+    Apply \Cref{def:secure-instrumentation}, giving us proof-obligations that are already part of our assumptions.
+  \end{proof}
+
+  \begin{lemma}
+    $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOne}$
+  \end{lemma}
+  \begin{proof}
+    Let $\trg{p}=\ttcomp{p'}_{4}$ be some program that is the result of plugging $\trg{p'}\in\trg{\partials}$ into $\ttcomp{\bullet}_{4}$.
+
+    Our goal becomes $\rtp{\ttcomp{p}_{1}}{\nvOne}$. Unfolding it, let $\Pi\in\nvOne$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, where what is left to prove is $\rsat{\ttcomp{p}_{1}}{\nvOne}$.
+
+    The goal follows immediately by \Cref{def:instrumentation}, since $\ttcomp{p}_{1}$ is an instrumentation for $\nvOne$.
+  \end{proof}
+
+  Finally, if both are insecure instrumentations, the strongest result one can get is either the robust preservation of $\nvOne$ or $\nvFour$, depending on which compiler is run last.
+\end{example}
+
+We have seen that we can already swap robust compilers with same input and output language in a compilation pipeline.
+Now, we want to formalize this idea of ``being able to swap things around'' for source code instrumentations.
+
+\begin{definition}[Swappable Instrumentations]
+  We define vertical compositionality as follows.
+  Let $\bar{\cC}$ be a set of classes that are eventually used in the compilation pipeline.
+  Given a class $\cC\in\bar{\cC}$ the particular instrumentation $\ttcomp{\bullet}$ ensures any program to robustly satisfy, we can swap the instrumentation in the pipeline \textit{freely} around iff:
+
+  $$
+  \forall\cC'\in\bar{\cC}. \sinstr{\ttcomp{\bullet}}{\cC}{\cC'}
   $$
 \end{definition}
-
-Consider $\ttcomp{\bullet}_{1}$ which ensures no SPECTRE v1 attacks happen and $\ttcomp{\bullet}_{4}$ which ensures that no SPECTRE v4 attacks happen.
-Suppose both compilers only satisfy \Cref{def:instrumentation}.
-That is, we cannot reasonably combine them, since one instrumentation might break the other.% v1 might be instrumented with load/store ops which breaks v4
-Now suppose $\ttcomp{\bullet}_{1}$ satisfies \Cref{def:secure-instrumentation} such that $\cC$ is precisely the class of hyperproperties that ensure no SPECTRE v4 attacks are possible.
-Thus, we can safely run $\ttcomp{\bullet}_{1}$ \textit{after} applying $\ttcomp{\bullet}_{4}$.
-The symmetrical argument is similar.
-The last case, where both instrumentations do not violate the other class of security properties allows us to interchange the instrumentations with each other: They are vertically composable, since they do not depend on information from another compilation pass.
-
-
-\begin{definition}[Vertical Composability]
-  We define vertical composability as such that two compilation passes satisfy commutativity.
-\end{definition}
+\MK{it'd be nice to have a property-free version of this, since this here is TEDIOUS to prove in real-world}
 
 \clearpage
 Experimental
@@ -588,6 +552,32 @@ Next up:
 
   compositionality of different robust preservation properties (?)
 
+
+
+\begin{definition}[Finer Conjunctive Class Composition]
+  The finer conjunctive class composition of two classes $\cC_{1},\cC_{2}$ is
+  $$
+  \fccomp{\cC_{1}}{\cC_{2}} := \left\{H\ |\ \forall H_{1}\in\cC_{1},H_{2}\in\cC_{2}.H=H_{1}\cap H_{2}\right\} \cup (\cC_{1}\cap\cC_{2})
+  $$
+\noindent
+  Likewhise, we define a new less-than operation for the lattice as follows
+  $$
+  \fcleq{\cC_{1}}{\cC_{2}} := \cC_{1}\subseteq\fccomp{\cC_{1}}{\cC_{2}}
+  $$
+\end{definition}
+
+\begin{lemma}[Finer Sequential Composition with RTP]\label{lem:fseqcompo}
+  Given $\cC_{1}$ and $\cC_{2}$ are subset-closed with respect to $\subseteq$, $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\fccomp{\cC_{1}}{\cC_{2}}}$.
+\end{lemma}
+\begin{proof}
+  We need to show $\rtp{\sitcomp{\bullet}}{\fccomp{\cC_{1}}{\cC_{2}}}$.
+  By definition, assume $\Pi\in\fccomp{\cC_{1}}{\cC_{2}}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$.
+  By definition of $\fccomp{}{}$, $\Pi\in\cC_{1}\cap\cC_{2}$, which is analogous case as with \Cref{lem:seqcompo}, or $\Pi\in\left\{H\ |\ \forall H_{1}\in\cC_{1},H_{2}\in\cC_{2}.H=H_{1}\cap H_{2}\right\}$.
+  So, pick any $H_{1}\in\cC_{1},H_{2}\in\cC_{2}$, such that $\Pi=H_{1}\cap H_{2}$.
+  Since $\cC_{2}$ is subset closed, we can apply $\rtp{\itcomp{\bullet}}{\cC_{2}}$ to our goal, leaving us with $\rsat{\sicomp{\src{p}}}{\Pi}$.
+  Since $\cC_{1}$ is also subset closed, we know that $\Pi\in\cC_{1}$ and, thus, can apply $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+  What is left to show is $\rsat{\src{p}}{\Pi}$, which is an assumption of ours.
+\end{proof}
 
 \bibliographystyle{plain}
 \bibliography{library}

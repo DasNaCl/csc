@@ -15,8 +15,8 @@
 %% Conference information
 %% Supplied to authors by publisher for camera-ready submission;
 %% use defaults for review submission.
-%\acmConference[PL'22]{ACM SIGPLAN Workshop on Principles of Secure Compilation}{January 22nd, 2022}{Philadelphia, PA, USA}
-%\acmYear{2022}
+\acmConference[PL'22]{ACM SIGPLAN Workshop on Principles of Secure Compilation}{January 22nd, 2022}{Philadelphia, PA, USA}
+\acmYear{2022}
 %\acmISBN{} % \acmISBN{978-x-xxxx-xxxx-x/YY/MM}
 %\acmDOI{} % \acmDOI{10.1145/nnnnnnn.nnnnnnn}
 %\startPage{1}
@@ -74,6 +74,7 @@
 \usepackage{amsthm}
 \usepackage{bm}
 \usepackage{cleveref}
+\usepackage{listings}
 \usepackage{mmmacros}
 \usepackage[switch]{lineno}
 %\modulolinenumbers[2]
@@ -82,7 +83,7 @@
 \begin{document}
 
 %% Title information
-\title{Composing Secure Compilers}         %% [Short Title] is optional;
+\title{Composing Compilers}         %% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
 %\titlenote{with title note}             %% \titlenote is optional;
@@ -197,7 +198,7 @@ To reason about hyperproperty preservation, we will look at the lattice of class
 Within the lattice of such classes, we examine whether at least the least upper bound is preserved by our chosen compositions.
 We conclude with a preliminary result: We show that the order of optimizations in a compilation pipeline does not matter for property preservation, assuming that each such pass preserves the class of interest.
 
-\section{Content}
+\section{Compositionality}
 Programs are written in some programming language.
 In this work, programs are elements of $\partials$, which is the set of partial programs of a given programming language.
 A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
@@ -230,11 +231,12 @@ Now, assuming that two compilers preserve certain classes, we know that their se
 \begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
   Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
+The lemma also generalizes to $n$ robust compilers, each preserving one of $n$ classes.
 
-%% TODO: not sure where to put this
-%\begin{lemma}[Weakening RTP]\label{lem:weaken}
-%  Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, it holds that $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
-%\end{lemma}
+An intuitive lemma that also follows is that a robust compiler preserving some class $\cC_{2}\supseteq\cC_{1}$ also preserves $\cC_{1}$.
+\begin{lemma}[Weakening RTP]\label{lem:weaken}
+  Given classes $\cC_{1}, \cC_{2}$ such that $\cC_{1}\subseteq\cC_{2}$ and $\rtp{\stcomp{\bullet}}{\cC_{2}}$, it holds that $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
+\end{lemma}
 
 We now consider a compiler that invokes two other compilers.
 HTML, CSS, and JavaScript are the most obvious example of such a composition.
@@ -248,13 +250,13 @@ One writes down some code of any of these three languages embedded in the same f
 \end{definition}
 \noindent
 We can derive a similar result to \Cref{lem:seqcompo}:
-\begin{lemma}[Upper Composition with RTP]
+\begin{lemma}[Upper Composition with RTP]\label{lem:useqcompo}
   Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
+\Cref{lem:useqcompo} also generalizes to a number of compilers and classes, as expected.
 
 With the same idea, we define a dual composition that goes from a single source language to multiple target languages.
-Any compiler used in production is defined that way since one can, as an example, compile C code to both x86 and MIPS assembly.
-We view frameworks such as RubyOnRails also as an example that can emit two different target languages at once, in this case, HTML and JS.
+RubyOnRails is a framework where the processed code is emitted to different target languages at once, in this case, HTML and JavaScript.
 \begin{definition}[Lower Composition]
   Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
 \end{definition}
@@ -263,27 +265,92 @@ We view frameworks such as RubyOnRails also as an example that can emit two diff
   Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\sicomp{\bullet}}{\cC_{2}}$, then $\rtp{\lhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 
-\MP{Confusing and possibly wrong}
-Using the upper and lower composition, we may end up with a diamond situation, which the following lemma describes.
-Especially from a security researcher perspective, the diamond lemma is attractive as it says that there is no harm to prove compiler passes robust property preserving in a modular way.
-That is, consider some program instrumented against SPECTRE v1 attacks and, in parallel to that, against SPECTRE v4.
-If the compiler instrumentation for v1 does not violate v4, the lemma tells us that combining both instrumentations in some way yields an instrumentation that protects against both v1 and v4.
+%\MP{Confusing and possibly wrong}
+%Using the upper and lower composition, we may end up with a diamond situation, which the following lemma describes.
+%Especially from a security researcher perspective, the diamond lemma is attractive as it says that there is no harm to prove compiler passes robust property preserving in a modular way.
+%That is, consider some program instrumented against SPECTRE v1 attacks and, in parallel to that, against SPECTRE v4.
+%If the compiler instrumentation for v1 does not violate v4, the lemma tells us that combining both instrumentations in some way yields an instrumentation that protects against both v1 and v4.
 
-\begin{lemma}[Diamond]\label{lem:diamond}
-  Given $\rtp{\lhcsiocomp{\bullet}}{\cC_{1}}$ and $\rtp{\uhciotcomp{\bullet}}{\cC_{2}}$ with $\stcomp{\bullet} = \lambda\src{p}.\uhciotcomp{\lhcsiocomp{p}}$, then $\rtp{\stcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
-\end{lemma}
+%\begin{lemma}[Diamond]\label{lem:diamond}
+%  Given $\rtp{\lhcsiocomp{\bullet}}{\cC_{1}}$ and $\rtp{\uhciotcomp{\bullet}}{\cC_{2}}$ with $\stcomp{\bullet} = \lambda\src{p}.\uhciotcomp{\lhcsiocomp{p}}$, then $\rtp{\stcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+%\end{lemma}
 
 The following free theorem is a direct consequence of \Cref{lem:seqcompo} where the involved compilers' input and output are both partial programs in the same language.
-Given that some set of optimization passes is robustly preserving properties, we can combine them in an arbitrary order and preserve the same least upper bound.
-A compilers optimization pipeline ordering is difficult and often hand-tuned.
+Given that some set of compiler passes is robustly preserving properties, we can combine them in an arbitrary order and preserve the same least upper bound.
+A compiler's pipeline ordering is difficult and often hand-tuned.
 The lemma allows us to not care about the particular order of optimizations regarding their robust property preservation.
-So, the compiler developer is free to swap around.
+So, the compiler developer is free to swap passes around.
 \begin{lemma}[Swappable]
   Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{1}\cap\cC_{2}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
-% This shouldn't work with relational hyperproperties, right?
 
-{\color{red}\Large TODO: Miro compo}
+However in practice, compiler passes are not necessarily robustly preserving.
+Consider the following C code snippet that performs an infinite loop if an invalid pointer is given:
+\begin{lstlisting}[language=c]
+int something(int* ptr) {
+  while(!ptr);
+  return *ptr;
+}
+\end{lstlisting}
+Compiling such code with optimizations turned on yields an x86-program where the potentially infinite loop has been removed:
+\begin{lstlisting}[language={[x86masm]Assembler}]
+something(int*):
+  mov eax, DWORD PTR [rdi]
+  ret
+\end{lstlisting}
+Not only does the program terminate given an invalid pointer, it violates memory safety, which it did not before.
+
+There exist several memory-safety instrumentations, both for target level~\cite{watson15,aurajo16,vassena19,kouwe17} and source level~\cite{nagarakatte10,akritidis09,rigger17,tarditi2018}.
+These compilation passes \textit{enforce} memory safety by adding dynamic checks to the program and crashing appropriately.
+So, even though the programmer has written a memory-insecure program, we might still be interested in a memory-safe binary.
+
+We plan to extend our work with such source-code instrumentations which enforce classes of trace hyperproperties.
+A sketch of the theory is as follows.
+
+\begin{definition}[Secure Instrumentation for Preserving $\cC$]\label{def:secure-instrumentation}
+  A secure instrumentation with respect to some class $\cC$ ensures hyperproperties described by some class $\cC'$ without violating $\cC$-satisfying programs:
+
+  \begin{enumerate}
+  \item $\rtp{\stcomp{\bullet}}{\cC}$
+  \item $\rtp{\stcomp{\bullet}}{\cC}\implies\rtp{\stcomp{\bullet}}{\cC\cup\cC'}$
+  \end{enumerate}
+
+\noindent
+  We write $\sinstr{\stcomp{\bullet}}{\cC'}{\cC}$.
+\end{definition}
+We can now investigate an insecure compilation chain from e.g.\ memory-safe Rust to optimized, insecure C, to memory-safe CheckedC.
+The intuition that a secure instrumentation saves the day does indeed hold and is captured by the following lemma.
+\begin{lemma}[Final Enforcement]
+  Given classes $\cC_{1},\cC_{2}$ and compilers $\sicomp{\bullet}$,$\itcomp{\bullet}$, we assume:
+
+  \begin{itemize}
+  \item $\rtp{\sicomp{\bullet}}{\cC_{1}}$
+  \item $\sinstr{\itcomp{\bullet}}{\cC_{2}}{\cC_{1}}$
+  \end{itemize}
+\noindent
+  Then, $\rtp{\sitcomp{\bullet}}{\cC_{1}\cup\cC_{2}}$.
+\end{lemma}
+
+Likewhise, running a compiler that does not respect e.g.\ memory-safety after a memory-safety instrumentation nullifies the preservation of memory-safety:
+\begin{lemma}[Final Destination]
+  Given classes $\cC_{1},\cC_{2}$ and compilers $\sicomp{\bullet}$,$\itcomp{\bullet}$, we assume:
+
+  \begin{itemize}
+  \item $\sinstr{\sicomp{\bullet}}{\cC_{2}}{\cC_{1}}$
+  \item $\rtp{\itcomp{\bullet}}{\cC_{1}}$
+  \end{itemize}
+\noindent
+  Then, $\rtp{\sitcomp{\bullet}}{\cC_{1}}$.
+\end{lemma}
+
+Now, consider any stereotypical compilation pipeline.
+The security researcher has a strong interest to ensure that properties at source level are preserved at target level.
+Thus, if source programs robustly satsify some property, so should the target.
+However, it might not be necessary for compilation passes from one intermediate reperesentation to the other to preserve properties robustly, since compiler intermediate representations are outside the considered attack vector.
+So, there might be some weaker property a pass should satisfy in order to render the whole compilation pipeline secure.
+
+We intend to study property-free characterizations of the presented material.
+Another area is the specialization of it to specific classes, such as $\cSafety$, and subsets thereof.
 
 %% Acknowledgments
 %\begin{acks}                            %% acks environment is optional

@@ -86,7 +86,7 @@
 \begin{document}
 
 %% Title information
-\title{Composing Compilers}         %% [Short Title] is optional;
+\title{Composing Secure Compilers}         %% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
 %\titlenote{with title note}             %% \titlenote is optional;
@@ -190,97 +190,101 @@
 % a recent theory of secure compilation is robust ...
 
 Compilers translate programs from a source to a target programming language.
-A secure compiler preserves source level properties at the target level under arbitrary program contexts.
-Different such criteria exist.
-
-A recent theory of secure compilation is \gls{rc}, which is a collection of criteria for secure compilers, that have become accepted~\cite{abate19,abate20,patrignani21}.
-Informally, a compiler is robustly preserving a property if source and target program linked with an arbitrary source and target context, respectively, satisfy that property.
-Hereby, the target program is the compiled version of the source program.
+A secure compiler preserves source level properties at the target level when interoperating with arbitrary program contexts (which are considered attackers).
+% Different such criteria exist.
+A recent theory of secure compilation is \gls{rc}, which is a collection of criteria for secure compilers~\cite{abate19,abate20,patrignani21}.
+Informally, a compiler is \gls{rc} if a source program and its compiled counterpart, linked with an arbitrary source and target context respectively, satisfy that property.
+% Hereby, the target program is the compiled version of the source program.
 
 Even though there exist robust compilers, they are far from practical.
-Real-world compilers consist of several smaller compilers that are composed with each other in a certain way.
-An example would be any compiler based on the LLVM toolchain~\cite{lattner04}, whose optimisation pipeline consists of many passes, which one can view as independent compilers composed to achieve speedups.
-Also, any lowering steps, such as from a frontend language to LLVM IR and subsequently to machine Assembly, are compilers.
-To the best of our knowledge, current work on robust compilation does not discuss the preservation of source-level properties for compilation chains such as the one above.
+Real-world compilers consist of several smaller compilers that are composed with each other in different ways.
+An example would be any compiler based on the LLVM toolchain~\cite{lattner04}, whose optimisation pipeline consists of many passes, which one can view as independent compilers composed with each others.
+Also, any lowering steps, such as from a frontend language to LLVM IR and subsequently to assembly, are compilers.
+To the best of our knowledge, current work on robust compilation does not discuss the preservation of source-level properties for compilers such as the ones above.
 
-This paper investigates how different compiler compositions preserve hyperproperties, given that these compilers attain some form of \gls{rc}.
-To reason about hyperproperty preservation, we look at sets of hyperproperties, which we call classes.
-This is an idea taken from~\citet{abate19} but made explicit.
-We examine whether at least the set intersection of classes is preserved by our chosen compositions.
-We present a preliminary result: We show that the order of optimisations in a robustly preserving compilation pipeline does not matter for property preservation.
-We conclude with a discussion on what happens if compilers in the chain do not attain RC for classes of interest.
+This paper investigates how different compiler compositions preserve different classes of hyperproperties, given that these compilers attain some form of \gls{rc}.
+% To reason about hyperproperty preservation, we look at classes of hyperproperties, which we call classes.
+% This is an idea taken from~\citet{abate19} but made explicit.
+We examine whether these compositions preserve at least the set intersection of classes.
+We then show that the order of optimisations in a \gls{rc} pipeline does not matter for property preservation.
+Finally, we conclude with a discussion on what happens if some compilers in the pipeline do not attain \gls{rc} for some classes of interest.
+
+
 
 \section{Compositionality}
 % to reason about compilers, we need to ....
-In this work, programs are elements of $\partials$, the set of partial programs of a given programming language.
-A compiler is a partial function $\stcomp{\bullet}$ from programs $\src{\partials}$ of some source language $\S$ to programs $\trg{\partials}$ of some target language $\T$.
-Compilers satisfying \Cref{def:rtp} attain \gls{rc}.
-We rely on existing theory on hyperproperties~\cite{clarkson08}, but view them abstractly as elements of sets that we call \textit{classes}.
-If all hyperproperties from a class $\cC$ are satisfied by some program $p$ that is linked with an arbitrary context, then we write $\rsat{p}{\cC}$.
-Accordingly, for some $\Pi\in\cC$, we also write $\rsat{p}{\Pi}$ whenever $p$ robustly satisfies $\Pi$.
-
+In this work, programs $\com{p}$ are elements of $\partials$, the set of partial programs of a given programming language.
+A compiler is a partial function $\stcomp{\bullet}$ from programs $\src{p}$ of some source language $\S$ to programs $\trg{p}$ of some target language $\T$.
+Compilers satisfying \Cref{def:rtp} below attain \gls{rc}~\cite{abate19}, the intuition there is that if the programmer makes certain assumptions on what a program does, these assumptions also hold for the compiled program.
+In that definition, indicate hyperproperties~\cite{clarkson08} with $\Pi$ and classes of hyperproperties (i.e., sets of $\Pi$) as $\cC$.
+A program $p$ robustly satisfies class $\cC$ (written $\rsat{p}{\cC}$) if its behaviour is included in an element of $\cC$ when linked with an arbitrary program context.
+Similarly, for some $\Pi\in\cC$, we write $\rsat{p}{\Pi}$ whenever $p$ robustly satisfies $\Pi$.
+% 
 \begin{definition}[Robust Compilation]\label{def:rtp}
   For a given class $\cC$, a compiler from languages $\S$ to $\T$ robustly preserves $\cC$ ($\rtp{\stcomp{\bullet}}{\cC}$) iff
   $$
   \forall\Pi\in\cC,\forall\src{p}\in\src{\partials},\rsat{\src{p}}{\Pi}\implies\rsat{\stcomp{\src{p}}}{\Pi}
   $$
 \end{definition}
-\noindent
+% \noindent
 %So, given a hyperproperty $\Pi$ from some class $\cC$ and a source program $\src{p}$ that robustly satisfies $\Pi$ ($\rsat{\src{p}}{\Pi}$), the compiled program $\stcomp{\src{p}}$ also needs to robustly satisfy $\Pi$.
-The intuition of \Cref{def:rtp} is as follows: If the programmer makes certain assumptions on what a program does, these assumptions should also hold for the compiled program.
-
 In practice, (robust) compilers are composed of numerous others.
 Therefore, we now investigate their compositionality.
 
 \subsection{Simple Compositionality}
-We first consider function composition, i.e.\ plugging the result of one compiler into another one.
+We first consider function composition, i.e., plugging the result of one compiler into another one.
 Such pipelines happen when optimising source code (so, at the level of a suitable intermediate representation), but also on a higher level:
 Consider as an example a typical $\src{TypeScript}$ compilation pipeline.
-First, the compiler translates $\src{TypeScript}$ code to $\irl{JavaScript}$, which a part of V8 eventually, but also partially, compiles the code just-in-time to $\trg{Assembly}$.
-
+First, the compiler translates $\src{TypeScript}$ code to $\irl{JavaScript}$, which a part of V8 eventually compiles the code just-in-time to $\trg{assembly}$.
+% 
 \begin{definition}[Sequential Composition of Compilers]
-  Given two compilers $\sicomp{\bullet}$ and $\itcomp{\bullet}$, their sequential composition is $\sitcomp{\bullet}=\itcompN{\sicomp{\bullet}}$.
+  Given two compilers $\sicomp{\bullet}$ and $\itcomp{\bullet}$, their sequential composition is $\stcomp{\bullet}=\itcompN{\sicomp{\bullet}}$.
 \end{definition}
-Now, assuming that two compilers preserve certain classes, we know that their sequential composition preserves the least upper bound; the set intersection of those classes:
-\begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
+Assuming that two compilers preserve certain classes, their sequential composition preserves the least upper bound, i.e., the set intersection of those classes:
+\begin{lemma}[Sequential Composition with \gls{rc}]\label{lem:seqcompo}
   Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
-Using an inductive argument, \Cref{lem:seqcompo} generalises to $n$ robust compilers, each preserving one of $n$ classes.
-To do so, one has to generalise the composition of two robust compilers to a set of $n$ robust compilers.
+Using an inductive argument, \Cref{lem:seqcompo} generalises to $n$ \gls{rc} compilers, each preserving one of $n$ classes.
+To do so, one has to generalise the composition of two \gls{rc} compilers to a set of $n$ ones.
 A real-world example for such deeply nested compositions is the $\src{TypeScript}$ compilation mentioned above.
 When compiling $\irl{JavaScript}$, V8 translates the code to $\trg{Ignition\ Bytecode}$.
 At runtime, the Ignition interpreter does some performance measurements and particular parts of the code are eventually compiled to machine code.
 
 We now consider a compiler that invokes two other compilers.
-$\src{Erlang}$ and $\irl{Elixir}$ are languages used in industry (e.g.\ by Discord) that are one example of such a composition.
-Both compile to $\trg{BEAM\ Bytecode}$.
+$\src{Java}$ and $\irl{Kotlin}$ are popular languages used in industry that are one example of such a composition and they both compile to $\trg{JVM\ Bytecode}$.
 
 \begin{definition}[Upper Composition]
   Given two compilers $\stcomp{\bullet}$ and $\itcomp{\bullet}$, their upper composition is
 
-  $$\uhcsitcomp{\bullet}=\lambda p.\begin{cases}\stcomp{p} &\text{if }p\in\src{\partials}\\
-                                                \itcomp{p} &\text{if }p\in\irl{\partials}\end{cases}$$
+  \[
+    \uhcsitcomp{\bullet}=\lambda p. 
+      \begin{cases}
+        \stcomp{p} &\text{if }p\in\src{\partials}
+        \\
+        \itcomp{p} &\text{if }p\in\irl{\partials}
+      \end{cases}
+  \]
 \end{definition}
 We can derive a similar result to \Cref{lem:seqcompo} here, too:
-\begin{lemma}[Upper Composition with RC]\label{lem:useqcompo}
+\begin{lemma}[Upper Composition with \gls{rc}]\label{lem:useqcompo}
   Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \Cref{lem:useqcompo} also generalises inductively to a number of compilers and classes.
 A practical example of why that might be useful is the Java Virtual Machine with its $\trg{JVM\ Bytecode}$, which has numerous frontends: $\src{Java}$, $\irl{Kotlin}$, $\src{Scala}$, and $\irl{Clojure}$, to list a few examples.
 
 With the same idea, we define a dual composition that goes from a single source language to multiple target languages.
-\texttt{dune} is a build system which can be used to compile $\src{OCaml}$ code to both $\irl{Assembly}$ and $\trg{Caml\ Bytecode}$.
+\texttt{dune} is a build system which can be used to compile $\src{OCaml}$ code to both $\irl{assembly}$ and $\trg{Caml\ Bytecode}$.
 \begin{definition}[Lower Composition]
   Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
 \end{definition}
 
-\begin{lemma}[Lower Composition with RC]
+\begin{lemma}[Lower Composition with \gls{rc}]
   Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\sicomp{\bullet}}{\cC_{2}}$, then $\rtp{\lhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
-As before, this can be generalized to an arbitrary number, which also has a connection to the real-world, given by the diverse set of Assembly language dialects.
+As before, this can be generalized to an arbitrary number of compilers, which also has a connection to the real-world, given by the diverse set of assembly language dialects.
 
 The following free theorem (\Cref{lem:swappable}) is a direct consequence of \Cref{lem:seqcompo} where the involved compilers' input and output are both partial programs in the same language.
-Given that some compiler passes are attaining \gls{rc}, we can combine them in an arbitrary order and preserve the same least upper bound.
+Given that some compiler passes attain \gls{rc}, they can be combined in an arbitrary order and the result preserves the same least upper bound.
 A compiler's pipeline ordering is difficult and often hand-tuned.
 The lemma allows us to not care about the particular order of optimisations regarding their robust property preservation.
 So, the compiler developer is free to swap passes around.
@@ -290,10 +294,11 @@ So, the compiler developer is free to swap passes around.
 
 However, in practice, compiler passes are not necessarily attaining \gls{rc}.
 Consider any stereotypical compilation pipeline.
-The security researcher has a strong interest to ensure that properties at the source level are preserved at the target level.
-Thus, if source programs robustly satisfy some property, so should the target ones.
-But, it might not be necessary for compilation passes from one intermediate representation to the other to preserve properties robustly since compiler intermediate representations are outside the considered attack vector.
-So, there might be some stronger property a pass has to satisfy in order to render the whole compilation pipeline secure.
+Programmers want properties at the source level to be preserved at the target level.
+Thus, if source programs robustly satisfy some property, so should their compiled counterparts.
+Unfortunately, it might not be necessary for compilation passes from one intermediate representation to the other to preserve properties robustly.
+This also has a security justification since compiler intermediate representations are not where typical attackers reside (i.e., the target language).
+So, there might be some stronger property a pass has to satisfy in order to render the whole compilation pipeline secure: this is what we study next.
 
 \subsection{Advanced Compositionality}
 Consider the following C code snippet that performs an infinite loop if an invalid pointer is given:
@@ -309,22 +314,24 @@ something(int*):
   mov eax, DWORD PTR [rdi]
   ret
 \end{lstlisting}
-We now have an attack to violate memory safety: call the function with an invalid pointer.
+We now have an attack to violate memory safety: call the function with an invalid pointer and the program dereferences an invalid pointer.
 
-To prevent such issues we can use instrumentation passes that \textit{enforce} memory safety by adding dynamic checks to the program and crashing appropriately.
-There exist several memory-safety instrumentations, both for target level~\cite{watson15,aurajo16,vassena19,kouwe17,tarditi2018,sammler21} and source level~\cite{nagarakatte10,akritidis09,rigger17}.
+To prevent such issues we can use instrumentation passes that \textit{enforce} memory safety by adding dynamic checks to the program and crashing appropriately when a violation is detected.
+There exist several memory-safety instrumentations, both for target~\cite{watson15,aurajo16,vassena19,kouwe17,tarditi2018,sammler21} and source languages~\cite{nagarakatte10,akritidis09,rigger17}.
 %So, even though the programmer has written a memory-insecure program, we might still be interested in a memory-safe binary.
 
-We plan to extend our work with code instrumentations, which enforce classes.
-A sketch of the theory is as follows.
+We now sketch how to extend our work with instrumentations, which enforce specific classes of hyperproperties.
+% A sketch of the theory is as follows.
 
 \begin{definition}[Secure Instrumentation for Preserving $\cC$]\label{def:secure-instrumentation}
-  A secure instrumentation with respect to some class $\cC$ enforces hyperproperties described by some class $\cC'$ without violating $\cC$-satisfying programs.
-  We write $\sinstr{\stcomp{\bullet}}{\cC'}{\cC}$.
+  A secure instrumentation with respect to some class $\cC$ is a pass that enforces hyperproperties described by some other class $\cC'$ without violating $\cC$-satisfying programs.
+  We denote such a secure instrumentation as: $\sinstr{\stcomp{\bullet}}{\cC'}{\cC}$.
 \end{definition}
-Using this, we firstly want to inspect an insecure compilation chain from e.g.\ memory-safe $\src{Rust}$ to optimised, insecure $\irl{C}$, to memory-safe $\trg{CheckedC}$:
+Using this, we firstly want to inspect an compilation pipeline from memory-safe $\src{Rust}$ to optimised, insecure $\irl{C}$, to memory-safe $\trg{CheckedC}$.
+Intuitively, we want to be able to state that this pipeline preserves memory safety, despite the fact that the pass to $\irl{C}$ does not.
+% We want to be able to reconstruct memory safety for $\trg{CheckedC}$ despite the fact that $\irl{C}$ did not have it.
 \begin{example}[Enforcement may preserve...]
-  Given classes $\cC_{1},\cC_{2}$ and compilers $\sicomp{\bullet}$,$\itcomp{\bullet}$, we assume:
+  Given classes $\cC_{1}, \cC_{2}$ (resp. no property and memory safety, in our $\src{Rust}$ to $\trg{CheckedC}$ example) and compilers $\sicomp{\bullet}$,$\itcomp{\bullet}$, if:
 
   \begin{itemize}
   \item $\rtp{\sicomp{\bullet}}{\cC_{1}}$
@@ -334,9 +341,9 @@ Using this, we firstly want to inspect an insecure compilation chain from e.g.\ 
   Then, $\rtp{\sitcomp{\bullet}}{\cC_{1}\cup\cC_{2}}$.
 \end{example}
 
-Likewise, running a compiler that does not respect e.g.\ memory-safety after a memory-safety instrumentation nullifies the preservation of it:
+Dually, running a compiler that does not respect memory-safety after a memory-safety instrumentation nullifies its preservation:
 \begin{example}[...but, order matters!]
-  Given classes $\cC_{1},\cC_{2}$ and compilers $\sicomp{\bullet}$,$\itcomp{\bullet}$, we assume:
+  Given classes $\cC_{1},\cC_{2}$ and compilers $\sicomp{\bullet}$,$\itcomp{\bullet}$, if:
 
   \begin{itemize}
   \item $\sinstr{\sicomp{\bullet}}{\cC_{2}}{\cC_{1}}$
@@ -348,12 +355,12 @@ Likewise, running a compiler that does not respect e.g.\ memory-safety after a m
 
 %We also intend to study property-free characterisations of the presented material.
 %Another area is its specialisation to instances, such as $\cHSafety$, and subsets thereof.
-We intend to study the compositionality aspects of concrete instances, such as SPECTRE~\cite{exorcisingSpectres,guarnieri19}, memory safety~\cite{azevedodeamorim18,azevedodeamorim15,dhawan15}, or cryptographic constant-time~\cite{barthe18}.
+Beyond this general theory, we also intend to study the compositionality aspects of concrete hyperproperties, such as Speculative Non-Interference~\cite{guarnieri19}, memory safety~\cite{azevedodeamorim18,azevedodeamorim15,dhawan15}, and cryptographic constant-time~\cite{barthe18}.
 
 %
 % use british english!
 %
-% uppercase after semicolon
+% uppercase after semicolon 
 %
 
 %% Acknowledgments
@@ -378,6 +385,7 @@ We intend to study the compositionality aspects of concrete instances, such as S
 
 %% Bibliography
 \bibliography{library}
+% \bibliography{./../library}
 
 
 %% Appendix

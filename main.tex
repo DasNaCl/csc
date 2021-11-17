@@ -785,7 +785,7 @@ Furthermore, variables uniquely occur in $\Gammas$ and $\Deltas$ and are unguess
   \\
   \typerule{$e-get$}{
     \exprevals{e}{\Delta}{\src{\widehat{n}}} &
-    lookup\ \src{H}\ \widehat{n} = Some\ \widehat{v}
+    lookup\ \src{H}\ \widehat{l + n} = Some\ \widehat{v}
   }{
     \evals{H}{A,x\mapsto\widehat{l}}{\Delta}{let\ y := x[e]}{Read\ x\ \widehat{n}}{skip}{H}{A,x\mapsto\widehat{l}}{\Delta,y\mapsto\widehat{v}}
   }{w-e-get}
@@ -794,7 +794,7 @@ Furthermore, variables uniquely occur in $\Gammas$ and $\Deltas$ and are unguess
   \typerule{$e-set$}{
     \exprevals{e_1}{\Delta}{\widehat{n}} &
     \exprevals{e_2}{\Delta}{\widehat{m}} &
-    \src{H'} = replace\ \src{H}\ \widehat{n}\ \src{\widehat{m}}
+    \src{H'} = replace\ \src{H}\ \widehat{l + n}\ \src{\widehat{m}}
   }{
     \evals{H}{A,x\mapsto\widehat{l}}{\Delta}{x[e_1] := e_2}{Write\ x\ \widehat{n}\  \widehat{m}}{skip}{H'}{A,x\mapsto\widehat{l}}{\Delta}
   }{w-e-set}
@@ -854,15 +854,63 @@ $\evals{H_{0}}{A_{0}}{\Delta_{0}}{p_{0}}{}{p_{1}}{H_{1}}{A_{1}}{\Delta_{1}}$.
 \end{proof}
 
 We define the following coinductive step relation to represent program executions that take an infinite number of steps.
-% TODO
+\myfig{
+  \typerule{$ce-more$}{
+    \evals{H}{A}{\Delta}{p}{b}{p'}{H'}{A'}{\Delta'} &
+    \Downarrow_\infty \src{p'}
+	}{
+    \Downarrow_\infty \src{p}
+	}{w-infsteps-more}
+}{while-arr-manysteps}{A \textit{coinductive} definition of $While_{\arr}$ programs taking an infinite amount of steps.}
 
-Using this, we can get a trace from an execution as follows.
-% TODO
+Using this, we can get a trace from an execution by defining $exec\ \src{p}$ as follows.
+$$
+\begin{array}{rll}
+  mk\_trace\ \src{p}\ (H : \Downarrow_{\infty}\src{p}) &=& match\ H\ with\\
+                                                       &|& (\evals{H}{A}{\Delta}{p}{b}{p'}{H'}{A'}{\Delta'},\  \Downarrow_{\infty}\src{p'}) \Rightarrow \seqcons{\src{b}}{(mk\_trace\ \src{p}\ (\Downarrow_{\infty}\src{p')})}\\
+                                                      &end&
+\end{array}
+$$
+\vspace{0.5cm}
+$$
+\begin{array}{rlcl}
+  mk\_steps\ \src{p}\ \src{\Gamma}\ \src{\Gamma'}& (H:\typechecks{\Gamma}{p}{\Gamma'}) &=&\\
+                                                 & let\ H' := progress\ H\ &in&match\ H'\ with\\
+                                                 &                        &| &\exists \src{p'\ b\ H\ H\ A\ A'\ \Delta\ \Delta'}. H_{1} \Rightarrow\\
+                                                 &                        &  & let\ H'' := preservation\ H_{1}\ H\ in\\
+                                                 &                        &  & match\ H''\ with \\
+                                                 &                        &  &|\ \exists \src{\Gamma_{0}}. H'''\Rightarrow more\ H_{1}\ (mk\_steps\ \src{p'}\ \src{\Gamma'}\ \src{\Gamma_{0}}\ H''') \\
+                                                 &                        &  & end\\
+                                                 &                        &end&
 
+\end{array}
+$$
+\vspace{0.5cm}
+$$
+\begin{array}{rcl}
+execute\ \src{p\ \Gamma\ \Gamma'} (H : \typechecks{\Gamma}{p}{\Gamma'}) := mk\_trace(mk\_steps\ H)
+\end{array}
+$$
 
 We now define temporal memory safety in terms of traces on events $\src{e}$.
-% TODO
 
+\begin{definition}[Unicity]
+  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs exactly once iff
+
+  $\exists n, \trace[n]=\src{e} \wedge \not\exists m, n\not= m \wedge \trace[m] = \src{e}$
+\end{definition}
+
+\begin{definition}[Sequentiality]
+  Given two events $\src{e_{0},e_{1}}$ and a trace $\trace$, event $\src{e_{0}}$ occurs before $\src{e_{1}}$ iff
+
+  $\exists n, \trace[n] = \src{e_{0}}\implies \exists m, \trace[m] = \src{e_{1}} \wedge n<m$
+\end{definition}
+
+\begin{definition}[Temporal Memory Safety]
+  Given any trace $\trace$, we say it is temporal memory safe iff
+
+  $\forall v s, (\exists n, \trace[n] = \src{Alloc\ x\ \widehat{n}}) \implies one\_event\ (\src{Alloc\ v\ s})\ \trace\wedge one\_event\ (\src{Dealloc\ v})\ \trace\wedge after\_another\_event\ (\src{Alloc\ v\ s})\ (\src{Dealloc\ v})\ \trace$
+\end{definition}
 
 \begin{lemma}[$While_{\arr}$ is temporal memory safe]
   $\rsat{\src{p}}{\src{tsafe}}$

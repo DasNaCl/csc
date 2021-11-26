@@ -555,13 +555,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \clearpage
 
-Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. references.
+Let $\refs$ be the set of unguessable memory location identifiers, i.e. references.
 
 \myfig{
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Expressions}~\src{e} &\hspace{0.5cm} \text{side-effect free operation leading a value}\\
+  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e \oplus e} \hspace{3cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{*}\}\\
   %
   \mi{Commands}~\src{c} \bnfdef&\ \src{skip} \mid \src{c_{1};c_{2}} \mid \src{let\ v := e} \mid \src{while\ e \{c\}} \mid \src{let\ x := new\ e} \mid \\
                                &\ \src{delete\ x} \mid \src{let\ v := x[e]} \mid \src{x[e_{1}] := e_{2}}\\
@@ -569,9 +569,9 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{\arr} \hspace{0.5cm}
   %
   \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \hspace{0.5cm}
-  \mi{References}~\src{\ell}\in\mathbb{K} \\
+  \mi{References}~\src{\ell}\in\refs \\
   %
-  \mi{Variables}~\src{V} \bnfdef&\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
+  \mi{Variables}~&\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
   \mi{Contexts}~\src{C} \bnfdef\ \src{c_{1};\hole{\cdot};c_{2}} \hspace{0.5cm}
   \mi{Programs}~\src{p} \bnfdef\ \src{prog\ c} \\
   %
@@ -581,7 +581,9 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   \mi{Location\ Mappings}~\src{A}\bnfdef\ \src{\hole{\cdot}} \mid \src{A,x\mapsto \loc} \\
   %
-  \mi{Configs}~\configs \bnfdef&\ \config{H}{A}{\Delta}{c}
+  \mi{Configs}~\configs \bnfdef&\ \config{H}{A}{\Delta}{c} \\
+  %
+  %\mi{Eval.\ Contexts}~\src{K} \bnfdef&\ \src{\hole{\cdot}} \mid \src{while\ K} \mid \src{}
   \end{aligned}
   \end{gather*}
 }{while-syntax}{Syntax of $\whileA$}
@@ -591,11 +593,6 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   \judgbox{\typechecks{\Gamma_1}{c}{\Gamma_2}}{,,Under context $\src{\Gamma_{1}}$, the command $\src{c}$ is ok and produces context $\src{\Gamma_{2}}$.''}
 
   \begin{center}
-  \typerule{$t-\src{skip}$}{
-	}{
-  \typechecks{\Gamma}{skip}{\Gamma}
-	}{w-t-skip}
-  %
   \typerule{$t-\src{Seq}$}{
     \typechecks{\Gamma_1}{p_1}{\Gamma_2}&
     \typechecks{\Gamma_2}{p_2}{\Gamma_3}
@@ -658,14 +655,38 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   \end{gather*}
 }{w-events}{Events of $\whileA$.}
 
+
+\myfig{
+  \judgbox{\exprevals{e}{\Delta}{v}}{,,Expression $\src{e}$ evaluates under environment $\src{\Delta}$ to value $\src{v}$.''}
+  %
+  \typerule{$e-var$}{
+    \src{x\mapsto v}\in\Deltas
+  }{
+    \exprevals{x}{\Delta}{v}
+  }{w-e-var}
+  %
+  \typerule{$e-val$}{
+  }{
+    \exprevals{v}{\Delta}{v}
+  }{w-e-val}
+  %
+  \typerule{$e-binop$}{
+    \exprevals{e_1}{\Delta}{v_1} &
+    \exprevals{e_2}{\Delta}{v_2} &
+    v = v_1 \oplus v_2
+  }{
+    \exprevals{e_1\oplus e_2}{\Delta}{v}
+  }{w-e-binop}
+}{w-expr-eval}{Evaluation of $\whileA$ expressions.}
+
 \myfig{
   \judgbox{\evals{\configs}{b}{\configs'}}{,,Make a step from configuration $\configs$ emitting event $\src{b}$ to configuration $\src{\configs'}$.''}
   %
-  \typerule{$e-ctx$}{
-    \evals{\config{H}{A}{\Delta}{c}}{b}{\config{H'}{A'}{\Delta'}{c'}}
-  }{
-    \ctxevals{\config{H}{A}{\Delta}{K[c]}}{b}{\config{H'}{A'}{\Delta'}{K[c']}}
-  }{w-t-ctx}
+%  \typerule{$e-ctx$}{
+%    \evals{\config{H}{A}{\Delta}{c}}{b}{\config{H'}{A'}{\Delta'}{c'}}
+%  }{
+%    \ctxevals{\config{H}{A}{\Delta}{K[c]}}{b}{\config{H'}{A'}{\Delta'}{K[c']}}
+%  }{w-t-ctx}
   %
   \typerule{$e-skip$}{
   }{
@@ -691,22 +712,24 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   }{w-e-assign}
   %
   \typerule{$e-loopcont$}{
-    \exprevals{e}{\Delta}{v} & v \not = \src{0}
+    \exprevals{e}{\Delta}{v} &
+    v \not = \src{0}
   }{
     \evals{\config{H}{A}{\Delta}{while\ e\ \{c\}}}{\emptyevent}{\config{H}{A}{\Delta}{c;while\ e\ \{c\}}}
   }{w-e-loopcont}
   %
   \typerule{$e-loopstop$}{
-    \exprevals{e}{\Delta}{v} & v = \src{0}
+    \exprevals{e}{\Delta}{v} &
+    v = \src{0}
   }{
     \evals{\config{H}{A}{\Delta}{while\ e\ \{c\}}}{\emptyevent}{\config{H}{A}{\Delta}{skip}}
   }{w-e-loopstop}
   %
   \\
   \typerule{$e-new$}{
-    \text{fresh }\src{\loc\in\mathbb{K}}&
+    \text{fresh }\src{\loc}\in\refs&
     \exprevals{e}{\Delta}{n} &
-    \src{H'} = grow\ \src{H}\ n
+    \src{H'} = \src{H}\triangle n
   }{
     \evals{\config{H}{A}{\Delta}{let\ x:= new\ e}}{Alloc\ x\ n}{\config{H'}{A,x\mapsto\loc}{\Delta,\loc\mapsto|H|}{skip}}
   }{w-e-new}
@@ -718,8 +741,8 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   %
   \\
   \typerule{$e-get$}{
-    \exprevals{e}{\Delta}{\src{m}} &
-    lookup\ \src{H}\ (n_\loc + m) = Some\ \src{v}
+    \exprevals{e}{\Delta}{m} &
+    \src{H}\ (n_\loc + m) = Some\ \src{v}
   }{
     \evals{\config{H}{A,x\mapsto\loc}{\Delta,\loc\mapsto n_\loc}{let\ y := x[e]}}{Read\ x\ m}{\config{H}{A,x\mapsto\loc}{\Delta,\loc\mapsto n_\loc,y\mapsto v}{skip}}
   }{w-e-get}
@@ -728,7 +751,7 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   \typerule{$e-set$}{
     \exprevals{e_1}{\Delta}{n} &
     \exprevals{e_2}{\Delta}{m} &
-    \src{H'} = replace\ \src{H}\ (n_\loc + n)\ \src{m}
+    \src{H'} = \src{H}\ (n_\loc + n\mapsto \src{m})
   }{
     \evals{\config{H}{A,x\mapsto\loc}{\Delta,\loc\mapsto n_\loc}{x[e_1] := e_2}}{Write\ x\ n\  m}{\config{H'}{A,x\mapsto\loc}{\Delta}{skip}}
   }{w-e-set}
@@ -737,30 +760,30 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
 \myfig{
   $$
   \begin{array}{lllcl}
-    grow & H & n & = & match\ n\ with \\
+    H & \triangle & n & = & match\ n\ with \\
          &   &   & | & 0 \Rightarrow H \\
-         &   &   & | & S m \Rightarrow 0 :: (grow\ H\ m) \\
+         &   &   & | & S m \Rightarrow (H\triangle m) :: 0 \\
   \end{array}
   $$
   \vspace{0.5cm}
 
   $$
   \begin{array}{lllcl}
-    lookup & H & n & = & match\ n,H\ with \\
+           & H & n & = & match\ n,H\ with \\
            &   &   & | & \_,[\ ] \Rightarrow None \\
            &   &   & | & 0,x :: \_ \Rightarrow Some\ x \\
-           &   &   & | & S m,x :: xs \Rightarrow lookup\ xs \ m \\
+           &   &   & | & S m,x :: xs \Rightarrow xs \ m \\
   \end{array}
   $$
   \vspace{0.5cm}
 
   $$
   \begin{array}{lllcrl}
-    replace & H & n & v = & match\ H\        & with  \\
+    H & (n & \mapsto & v) = & match\ H\        & with  \\
            &   &   & | & [\ ] \Rightarrow    & [\ ] \\
            &   &   & | & x :: xs \Rightarrow & match\ n\ with \\
            &   &   &   &                   | & 0 \Rightarrow v :: xs \\
-           &   &   &   &                   | & S m \Rightarrow x :: (replace\ xs\ m\ v) \\
+           &   &   &   &                   | & S m \Rightarrow x :: (xs\ (m\mapsto v)) \\
   \end{array}
   $$
 }{w-step-util}{Helper functions for heap manipulation.}
@@ -771,7 +794,9 @@ Let $\mathbb{K}$ be the set of unguessable memory location identifiers, i.e. ref
   Given $\typechecks{\Gamma}{p}{\Gamma'}$ there exist $\src{p'}, \src{b}, \src{H}, \src{H'}, \src{A}, \src{A'}, \src{\Delta}, \src{\Delta'}$ such that $\evals{\config{H}{A}{\Delta}{p}}{b}{\config{p'}{H'}{A'}{\Delta'}}$.
 \end{lemma}
 \begin{proof}
-  Straightforward induction on $\typechecks{\Gamma}{p}{\Gamma'}$.
+  %Straightforward induction on $\typechecks{\Gamma}{p}{\Gamma'}$.
+
+ {\color{red}\Cref{tr:w-e-get} might fail!}
 \end{proof}
 
 \begin{lemma}[$\whileA$ preservation]
@@ -825,28 +850,30 @@ $$
 We now define temporal memory safety in terms of traces on events $\src{e}$.
 
 \begin{definition}[Unicity]
-  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs exactly once iff
+  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs exactly once written $\src{e}!_{\trace}$ iff
 
   $\exists n, \trace[n]=\src{e} \wedge \nexists m, n\not= m \wedge \trace[m] = \src{e}$
 \end{definition}
 
 \begin{definition}[Sequentiality]
-  Given two events $\src{e_{0},e_{1}}$ and a trace $\trace$, event $\src{e_{0}}$ occurs before $\src{e_{1}}$ iff
+  Given two events $\src{e_{0},e_{1}}$ and a trace $\trace$, event $\src{e_{0}}$ occurs before $\src{e_{1}}$ written
+  $\src{e_{0}}\le_{\trace}\src{e_{1}}$ iff
 
   $\exists n, \trace[n] = \src{e_{0}}\implies \exists m, \trace[m] = \src{e_{1}} \wedge n<m$
 \end{definition}
 
-\begin{definition}[Temporal Memory Safety]
+\begin{definition}[Temporal Memory Safety]\label{def:tempmemsafe}
+  We define the property $\src{tsafe}$ as follows:
   Given any trace $\trace$, we say it is temporal memory safe iff
 
-  $\forall v s, (\exists n, \trace[n] = \src{Alloc\ x\ n}) \implies one\_event\ (\src{Alloc\ v\ s})\ \trace\wedge one\_event\ (\src{Dealloc\ v})\ \trace\wedge after\_another\_event\ (\src{Alloc\ v\ s})\ (\src{Dealloc\ v})\ \trace$
+  $\forall \src{v\ s}, (\src{Alloc\ v\ s})!_{\trace}\ \implies (\src{Dealloc\ v})!_{\trace}\ \wedge (\src{Alloc\ v\ s})\le_{\trace} (\src{Dealloc\ v})$
 \end{definition}
 
 \begin{lemma}[$\whileA$ is temporal memory safe]
-  $\rsat{\src{p}}{\src{tsafe}}$
+  For any $\whileA$ program $\src{p}$, it robustly satisfies \Cref{def:tempmemsafe}: $\rsat{\src{p}}{\src{tsafe}}$
 \end{lemma}
 \begin{proof}
-  % TODO
+   TODO
 \end{proof}
 
 \clearpage

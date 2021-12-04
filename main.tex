@@ -561,208 +561,204 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e \oplus e} \hspace{3cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{*}\}\\
+    \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x := e_{1}\ in\ e_{2}}\mid \src{if\ e_{1}\ then\ e_{2}\ else\ e_{3}} \mid\src{x[e_{1}]\leftarrow e_{2}} \\
+    & \mid \src{new\ e} \mid \src{delete\ x}
+  \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
-  \mi{Commands}~\src{c} \bnfdef&\ \src{skip} \mid \src{c_{1};c_{2}} \mid \src{let\ v := e} \mid \src{while\ e \{c\}} \mid \src{let\ x := new\ e} \mid \\
-                               &\ \src{delete\ x} \mid \src{let\ v := x[e]} \mid \src{x[e_{1}] := e_{2}}\\
+  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref\ \nat} \hspace{0.5cm}
   %
-  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{\arr} \hspace{0.5cm}
-  %
-  \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \hspace{0.5cm}
-  \mi{References}~\src{\ell}\in\refs \\
+  \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \mid\src{\ell}\in\refs \\
   %
   \mi{Variables}~&\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
-  \mi{Contexts}~\src{C} \bnfdef\ \src{c_{1};\hole{\cdot};c_{2}} \hspace{0.5cm}
-  \mi{Programs}~\src{p} \bnfdef\ \src{prog\ c} \\
+  \mi{Contexts}~\src{C} \bnfdef\ \src{let\ y=let\ x=\hole{\cdot}\ in\ e_{1}\ in\ e_{2}}\\
+  \mi{Context\ Types}~\src{\tau_{C}}~\bnfdef&\ \src{\nat\to\nat}\\
   %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
-  \mi{Eval. Env.}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \Deltas,\src{x\mapsto v} \mid \Deltas,\src{\loc\mapsto n}\\
+  \mi{Eval. Env.}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \Deltas,\src{x\mapsto v} \mid \Deltas,\src{x\mapsto\loc}\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
-  \mi{Location\ Mappings}~\src{A}\bnfdef\ \src{\hole{\cdot}} \mid \src{A,x\mapsto \loc} \\
+  \mi{Location\ Mappings}~\src{A}\bnfdef\ \src{\hole{\cdot}} \mid \src{A,\loc\mapsto n} \\
   %
-  \mi{Configs}~\configs \bnfdef&\ \config{H}{A}{\Delta}{c} \\
+  \mi{Configs}~\configs \bnfdef&\ \config{H}{A}{\Delta} \\
   %
   %\mi{Eval.\ Contexts}~\src{K} \bnfdef&\ \src{\hole{\cdot}} \mid \src{while\ K} \mid \src{}
   \end{aligned}
   \end{gather*}
-}{while-syntax}{Syntax of $\whileA$}
+}{while-syntax}{Syntax of $\mmlA$}
 
+% move the x -> L to Δ and L -> n to A
+% assign should not have the universal quantification
+% add an assignment operation
 
 \myfig{
-  \judgbox{\typechecks{\Gamma_1}{c}{\Gamma_2}}{,,Under context $\src{\Gamma_{1}}$, the command $\src{c}$ is ok and produces context $\src{\Gamma_{2}}$.''}
+  \judgbox{\typechecks{\Gamma}{e}{\taus}{\Gamma'}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\taus$ and yields typing env. $\src{\Gamma'}$.''}
 
   \begin{center}
-  \typerule{$t-\src{Seq}$}{
-    \typechecks{\Gamma_1}{p_1}{\Gamma_2}&
-    \typechecks{\Gamma_2}{p_2}{\Gamma_3}
+  \typerule{$t-\src{var}$}{
+    \src{x}:\taus\in\Gammas
 	}{
-  \typechecks{\Gamma_1}{p_1;p_2}{\Gamma_3}
+    \typechecks{\Gamma}{x}{\tau}{\Gamma}
 	}{w-t-seq}
   %
-  \typerule{$t-\src{ExprAssign}$}{
-    \forall\src{\tau},\src{v:\tau}\not\in\src{\Gamma}
-	}{
-  \typechecks{\Gamma}{let\ v := e}{\Gamma,v:\nat}
-	}{w-t-exprassign}
+  \typerule{$t-\src{n}$}{
+  }{
+    \typechecks{\Gamma}{n}{\nat}{\Gamma}
+  }{w-t-nat}
   %
-  \typerule{$t-\src{Loop}$}{
-  \typechecks{\Gamma}{c}{\Gamma}
-	}{
-  \typechecks{\Gamma}{while\ e\ \{c\}}{\Gamma}
-	}{w-t-loop}
+  \typerule{$t-\src{\oplus}$}{
+    \typechecks{\Gamma}{e_1}{\nat}{\Gamma'} &
+    \typechecks{\Gamma'}{e_2}{\nat}{\Gamma''}
+  }{
+    \typechecks{\Gamma}{e_1\oplus e_2}{\nat}{\Gamma''}
+  }{w-t-binop}
+  %
+  \typerule{$t-get$}{
+    \typechecks{\Gamma}{x}{ref\ \nat}{\Gamma} &
+    \typechecks{\Gamma}{x}{\nat}{\Gamma}
+  }{
+    \typechecks{\Gamma}{x[e]}{\nat}{\Gamma}
+  }{w-t-get}
+  %
+  \typerule{$t-set$}{
+    \typechecks{\Gamma}{x}{ref\ \nat}{\Gamma} &
+    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
+    \typechecks{\Gamma}{e_2}{\nat}{\Gamma}
+  }{
+    \typechecks{\Gamma}{x[e_1]\leftarrow e_2}{\nat}{\Gamma}
+  }{w-t-set}
+  %
+  \typerule{$t-\src{let}$}{
+    \typechecks{\Gamma}{e_1}{\tau}{\Gamma} &
+    \typechecks{\Gamma,x:\tau}{e_2}{\tau}{\Gamma'} &
+    \src{x:\tau}\notin\src{\Gamma'}\vee \src{x:\nat}\in\src{\Gamma'}
+  }{
+    \typechecks{\Gamma}{let\ x:=e_1\ in\ e_2}{\tau}{\Gamma}
+  }{w-t-let}
   %
   \typerule{$t-\src{new}$}{
-	}{
-  \typechecks{\Gamma}{let\ v := new\ e}{\Gamma,v:\arr}
-	}{w-t-new}
+    \typechecks{\Gamma}{e}{\nat}{\Gamma} &
+  }{
+    \typechecks{\Gamma}{new\ e}{ref\ \nat}{\Gamma}
+  }{w-t-new}
   %
   \typerule{$t-\src{delete}$}{
-	}{
-  \typechecks{\Gamma,v:\arr}{delete\ v}{\Gamma}
-	}{w-t-delete}
+    \src{\Gamma'}=\Gammas\setminus\{\src{x:ref\ \nat}\}
+  }{
+    \typechecks{\Gamma}{delete\ x}{\nat}{\Gamma'}
+  }{w-t-delete}
   %
-  \typerule{$t-\src{read}$}{
-	}{
-  \typechecks{\Gamma,x:\arr}{let\ v := x[e]}{\Gamma,x:\arr,v:\nat}
-	}{w-t-read}
+  \typerule{$t-\src{if}$}{
+    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
+    \typechecks{\Gamma}{e_2}{\tau}{\Gamma} &
+    \typechecks{\Gamma}{e_3}{\tau}{\Gamma}
+  }{
+    \typechecks{\Gamma}{if\ e_1\ then\ e_2\ else\ e_3}{\nat}{\Gamma}
+  }{w-t-if}
   %
-  \typerule{$t-\src{write}$}{
-	}{
-  \typechecks{\Gamma,x:\arr}{x[e_1] := e_2}{\Gamma,x:\arr}
-	}{w-t-write}
   \end{center}
-}{w-command-ty}{Checking of $\whileA$ commands.}
+}{w-expr-ty}{Checking of $\mmlA$ expressions.}
 
 \myfig{
-  \judgbox{\typechecks{}{p}{\Gamma}}{,,The program $\src{p}$ is ok and produces context $\src{\Gamma}$.''}
+  \judgbox{\typechecks{}{C}{\tau_C}}{,,The context $\src{C}$ has type $\src{\tau_{C}}$.''}
 
   \begin{center}
-  \typerule{$t-\src{prog}$}{
-    \typechecks{\hole{\cdot}}{c}{\Gamma} &
-    \forall \src{x},\src{x:\arr}\not\in\src{\Gamma}
+  \typerule{$t-ctx$}{
+    \typechecks{x:\nat}{e_1}{\nat}&
+    \typechecks{y:\nat}{e_2}{\nat}
 	}{
-  \typechecks{\hole{\cdot}}{prog\ c}{\Gamma}
+  \typechecks{}{let\ y=let\ x=\hole{\cdot}\ in\ e_1\ in\ e_2}{\nat\to\nat}
 	}{w-t-prog}
   \end{center}
-}{w-program-ty}{Checking of $\whileA$ programs.}
+}{w-program-ty}{Checking of $\mmlA$ programs.}
 
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\src{b} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ x\ n} \mid \src{Dealloc\ x} \mid \src{Read\ x\ n} \mid \src{Write\ x\ n\ m}
+  \mi{Events}~\src{b} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Write\ \loc\ n\ m}
   \end{aligned}
   \end{gather*}
-}{w-events}{Events of $\whileA$.}
-
+}{w-events}{Events of $\mmlA$.}
 
 \myfig{
-  \judgbox{\exprevals{e}{\Delta}{v}}{,,Expression $\src{e}$ evaluates under environment $\src{\Delta}$ to value $\src{v}$.''}
+  \begin{gather*}
+    \begin{aligned}
+      \src{E}\bnfdef &\ \src{\hole{\cdot}}\mid \src{E\oplus e}\mid \src{v\oplus E}\mid \src{x[e]}\mid
+                        \src{let\ x:=E\ in\ e}\mid \src{x\leftarrow E}\mid \src{new\ E}\mid \src{if\ E\ then\ e_{1}\ else\ e_{2}}
+    \end{aligned}
+  \end{gather*}
+}{w-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
+
+\myfig{
+  \judgbox{\exprevals{\configs}{E[e]}{\configs'}{E[e']}}{,,Given an evaluation context $\src{E}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{E}$.''}
+  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$.''}
+  %
+  \typerule{$e-ctx$}{
+    \exprevals{\configs}{e}{\configs'}{e'}
+  }{
+    \exprevals{\configs}{E[e]}{\configs'}{E[e']}
+  }{w-e-ectx}
   %
   \typerule{$e-var$}{
     \src{x\mapsto v}\in\Deltas
   }{
-    \exprevals{x}{\Delta}{v}
+    \exprevals{\configs}{x}{\configs}{v}
   }{w-e-var}
   %
-  \typerule{$e-val$}{
+  \typerule{$e-\src{\oplus}$}{
+    \src{n_1}+\src{n_2}=\src{n_3}
   }{
-    \exprevals{v}{\Delta}{v}
-  }{w-e-val}
+    \exprevals{\configs}{n_1+n_2}{\configs}{n_3}
+  }{w-e-oplus}
   %
-  \typerule{$e-binop$}{
-    \exprevals{e_1}{\Delta}{v_1} &
-    \exprevals{e_2}{\Delta}{v_2} &
-    v = v_1 \oplus v_2
+  \typerule{$e-\src{get}$}{
+    \src{x\mapsto\loc}\in\Deltas&
+    \src{\loc\mapsto n_\loc}\in \src{A}&
+    \src{n_\loc+n\mapsto v}\in \src{H}
   }{
-    \exprevals{e_1\oplus e_2}{\Delta}{v}
-  }{w-e-binop}
-}{w-expr-eval}{Evaluation of $\whileA$ expressions.}
-
-\myfig{
-  \judgbox{\evals{\configs}{b}{\configs'}}{,,Make a step from configuration $\configs$ emitting event $\src{b}$ to configuration $\src{\configs'}$.''}
-  %
-%  \typerule{$e-ctx$}{
-%    \evals{\config{H}{A}{\Delta}{c}}{b}{\config{H'}{A'}{\Delta'}{c'}}
-%  }{
-%    \ctxevals{\config{H}{A}{\Delta}{K[c]}}{b}{\config{H'}{A'}{\Delta'}{K[c']}}
-%  }{w-t-ctx}
-  %
-  \typerule{$e-skip$}{
-  }{
-    \evals{\config{H}{A}{\Delta}{skip}}{\emptyevent}{\config{H}{A}{\Delta}{skip}}
-  }{w-e-skip}
-  %
-  \typerule{$e-lseq$}{
-    \evals{\config{H}{A}{\Delta}{p_0}}{b}{\config{H'}{A'}{\Delta'}{p_0'}}
-  }{
-    \evals{\config{H}{A}{\Delta}{p_0;p_1}}{b}{\config{H'}{A'}{\Delta'}{p_0';p_1}}
-  }{w-e-lseq}
-  %
-  \typerule{$e-rseq$}{
-  }{
-    \evals{\config{H}{A}{\Delta}{skip;p_1}}{\emptyevent}{\config{H}{A}{\Delta}{p_1}}
-  }{w-e-rseq}
-  %
-  \typerule{$e-assign$}{
-    \forall\src{v},\src{x\mapsto v}\not\in\Deltas&
-    \exprevals{e}{\Delta}{v}
-  }{
-    \evals{\config{H}{A}{\Delta}{let\ x := e}}{\emptyevent}{\config{H}{A}{\Delta,x\mapsto v}{skip}}
-  }{w-e-assign}
-  %
-  \typerule{$e-loopcont$}{
-    \exprevals{e}{\Delta}{v} &
-    v \not = \src{0}
-  }{
-    \evals{\config{H}{A}{\Delta}{while\ e\ \{c\}}}{\emptyevent}{\config{H}{A}{\Delta}{c;while\ e\ \{c\}}}
-  }{w-e-loopcont}
-  %
-  \typerule{$e-loopstop$}{
-    \exprevals{e}{\Delta}{v} &
-    v = \src{0}
-  }{
-    \evals{\config{H}{A}{\Delta}{while\ e\ \{c\}}}{\emptyevent}{\config{H}{A}{\Delta}{skip}}
-  }{w-e-loopstop}
-  %
-  \\
-  \typerule{$e-new$}{
-    \text{fresh }\src{\loc}\in\refs&
-    \exprevals{e}{\Delta}{n} &
-    \src{H'} = \src{H}\triangle n
-  }{
-    \evals{\config{H}{A}{\Delta}{let\ x:= new\ e}}{Alloc\ x\ n}{\config{H'}{A,x\mapsto\loc}{\Delta,\loc\mapsto|H|}{skip}}
-  }{w-e-new}
-  %
-  \typerule{$e-delete$}{
-  }{
-    \evals{\config{H}{A,x\mapsto \loc}{\Delta,\loc\mapsto n_\loc}{delete\ x}}{Dealloc\ x}{\config{H}{A,x\mapsto\loc}{\Delta}{skip}}
-  }{w-e-delete}
-  %
-  \\
-  \typerule{$e-get$}{
-    \exprevals{e}{\Delta}{m} &
-    \src{H}\ (n_\loc + m) = Some\ \src{v}
-  }{
-    \evals{\config{H}{A,x\mapsto\loc}{\Delta,\loc\mapsto n_\loc}{let\ y := x[e]}}{Read\ x\ m}{\config{H}{A,x\mapsto\loc}{\Delta,\loc\mapsto n_\loc,y\mapsto v}{skip}}
+    \exprevals{\config{H}{A}{\Delta}}{x[n]}{\config{H}{A}{\Delta}}{v}
   }{w-e-get}
   %
-  \\
-  \typerule{$e-set$}{
-    \exprevals{e_1}{\Delta}{n} &
-    \exprevals{e_2}{\Delta}{m} &
-    \src{H'} = \src{H}\ (n_\loc + n\mapsto \src{m})
+  \typerule{$e-\src{let}$}{
+    \src{\Delta'} = \Deltas\uplus \{\src{x\mapsto v}\}
   }{
-    \evals{\config{H}{A,x\mapsto\loc}{\Delta,\loc\mapsto n_\loc}{x[e_1] := e_2}}{Write\ x\ n\  m}{\config{H'}{A,x\mapsto\loc}{\Delta}{skip}}
-  }{w-e-set}
-}{w-step}{Evaluation Relation of $\whileA$.}
+    \exprevals{\config{H}{A}{\Delta}}{let\ x:=v\ in\ e}{\config{H}{A}{\Delta'}}{e}
+  }{w-e-let}
+  %
+  \typerule{$e-\src{delete}$}{
+    \src{\Delta'} = \Deltas \setminus \{\src{x\mapsto\loc}\}
+  }{
+    \exprevals{\config{H}{A}{\Delta}}{delete\ x}{\config{H}{A}{\Delta'}}{0}
+  }{w-e-let-new}
+  %
+  \typerule{$e-\src{new}$}{
+    \src{H'} = \grows{H}{n} &
+    \text{fresh}\ \src{\loc}&
+    \src{A'} = \src{A} \uplus \{\src{\loc\mapsto |H|}\} &
+  }{
+    \exprevals{\config{H}{A}{\Delta}}{new\ n}{\config{H'}{A'}{\Delta}}{\loc}
+  }{w-e-let-new}
+  %
+  \typerule{$e-\src{if}-\bot$}{
+  }{
+    \exprevals{\configs}{if\ 0\ then\ e_1\ else\ e_2}{\configs}{e_2}
+  }{w-e-if-false}
+  %
+  \typerule{$e-\src{if}-\top$}{
+    \src{v}\neq\src{0}
+  }{
+    \exprevals{\configs}{if\ v\ then\ e_1\ else\ e_2}{\configs}{e_1}
+  }{w-e-if-true}
+  %
+}{w-expr-eval}{Evaluation of $\mmlA$ expressions.}
+
+% use A(x) instead of A,x->L
 
 \myfig{
   $$
   \begin{array}{lllcl}
-    H & \triangle & n & = & match\ n\ with \\
+    H & \ll & n & = & match\ n\ with \\
          &   &   & | & 0 \Rightarrow H \\
-         &   &   & | & S m \Rightarrow (H\triangle m) :: 0 \\
+         &   &   & | & S m \Rightarrow (\grow{H}{m}) :: 0 \\
   \end{array}
   $$
   \vspace{0.5cm}
@@ -790,90 +786,61 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 
 \clearpage
 
-\begin{lemma}[$\whileA$ progress]
-  Given $\typechecks{\Gamma}{p}{\Gamma'}$ there exist $\src{p'}, \src{b}, \src{H}, \src{H'}, \src{A}, \src{A'}, \src{\Delta}, \src{\Delta'}$ such that $\evals{\config{H}{A}{\Delta}{p}}{b}{\config{p'}{H'}{A'}{\Delta'}}$.
-\end{lemma}
-\begin{proof}
-  %Straightforward induction on $\typechecks{\Gamma}{p}{\Gamma'}$.
 
- {\color{red}\Cref{tr:w-e-get} might fail!}
-\end{proof}
-
-\begin{lemma}[$\whileA$ preservation]
-  Given $\typechecks{\Gamma}{p}{\Gamma'}$ and %
-  $\evals{\config{H}{A}{\Delta}{p}}{b}{\config{p'}{H'}{A'}{\Delta'}}$ we have %
-  $\exists \src{\Gamma''}, \typechecks{\Gamma'}{p'}{\Gamma''}$
-\end{lemma}
-\begin{proof}
-  {\color{red} TODO}
-\end{proof}
-
-We define the following coinductive step relation to represent program executions that take an infinite number of steps.
-\myfig{
-  \typerule{$ce-more$}{
-    \evals{\config{H}{A}{\Delta}{p}}{b}{\config{p'}{H'}{A'}{\Delta'}} &
-    \Downarrow_\infty \src{p'}
-	}{
-    \Downarrow_\infty \src{p}
-	}{w-infsteps-more}
-}{while-arr-manysteps}{A \textit{coinductive} definition of $\whileA$ programs taking an infinite amount of steps.}
-
-Using this, we can get a trace from an execution by defining $exec\ \src{p}$ as follows.
-$$
-\begin{array}{rll}
-  mk\_trace\ \src{p}\ (H : \Downarrow_{\infty}\src{p}) &=& match\ H\ with\\
-                                                       &|& (\evals{\configs}{b}{\configs'},\  \Downarrow_{\infty}\src{p'}) \Rightarrow \seqcons{\src{b}}{(mk\_trace\ \src{p}\ (\Downarrow_{\infty}\src{p')})}\\
-                                                      &end&
-\end{array}
-$$
-\vspace{0.5cm}
-$$
-\begin{array}{rlcl}
-  mk\_steps\ \src{p}\ \src{\Gamma}\ \src{\Gamma'}& (H:\typechecks{\Gamma}{p}{\Gamma'}) &=&\\
-                                                 & let\ H' := progress\ H\ &in&match\ H'\ with\\
-                                                 &                        &| &\exists \src{p'\ b\ H\ H\ A\ A'\ \Delta\ \Delta'}. H_{1} \Rightarrow\\
-                                                 &                        &  & let\ H'' := preservation\ H_{1}\ H\ in\\
-                                                 &                        &  & match\ H''\ with \\
-                                                 &                        &  &|\ \exists \src{\Gamma_{0}}. H'''\Rightarrow more\ H_{1}\ (mk\_steps\ \src{p'}\ \src{\Gamma'}\ \src{\Gamma_{0}}\ H''') \\
-                                                 &                        &  & end\\
-                                                 &                        &end&
-
-\end{array}
-$$
-\vspace{0.5cm}
-$$
-\begin{array}{rcl}
-execute\ \src{p\ \Gamma\ \Gamma'} (H : \typechecks{\Gamma}{p}{\Gamma'}) := mk\_trace(mk\_steps\ H)
-\end{array}
-$$
+% add spatial memsafety
+% have some connection between Γ and Δ
 
 We now define temporal memory safety in terms of traces on events $\src{e}$.
 
+\begin{definition}[Occurence]
+  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs in $\trace$, written $\src{e}\in\trace$, iff
+
+  $\exists n, \trace[n]=\src{e}$
+\end{definition}
+
 \begin{definition}[Unicity]
-  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs exactly once written $\src{e}!_{\trace}$ iff
+  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs exactly once in $\trace$, written $\src{e}!_{\trace}$, iff
 
   $\exists n, \trace[n]=\src{e} \wedge \nexists m, n\not= m \wedge \trace[m] = \src{e}$
 \end{definition}
 
 \begin{definition}[Sequentiality]
-  Given two events $\src{e_{0},e_{1}}$ and a trace $\trace$, event $\src{e_{0}}$ occurs before $\src{e_{1}}$ written
-  $\src{e_{0}}\le_{\trace}\src{e_{1}}$ iff
+  Given two events $\src{e_{0},e_{1}}$ and a trace $\trace$, event $\src{e_{0}}$ occurs before $\src{e_{1}}$ in $\trace$, written
+  $\src{e_{0}}\le_{\trace}\src{e_{1}}$, iff
 
   $\exists n, \trace[n] = \src{e_{0}}\implies \exists m, \trace[m] = \src{e_{1}} \wedge n<m$
 \end{definition}
 
 \begin{definition}[Temporal Memory Safety]\label{def:tempmemsafe}
-  We define the property $\src{tsafe}$ as follows:
+  We define the property $\src{tmsafe}$ as follows:
   Given any trace $\trace$, we say it is temporal memory safe iff
 
-  $\forall \src{v\ s}, (\src{Alloc\ v\ s})!_{\trace}\ \implies (\src{Dealloc\ v})!_{\trace}\ \wedge (\src{Alloc\ v\ s})\le_{\trace} (\src{Dealloc\ v})$
+  $\forall \src{\loc\ s}, (\src{Alloc\ \loc\ s})!_{\trace}\ \implies (\src{Dealloc\ \loc})!_{\trace}\ \wedge (\src{Alloc\ \loc\ s})\le_{\trace} (\src{Dealloc\ \loc})$
 \end{definition}
 
-\begin{lemma}[$\whileA$ is temporal memory safe]
-  For any $\whileA$ program $\src{p}$, it robustly satisfies \Cref{def:tempmemsafe}: $\rsat{\src{p}}{\src{tsafe}}$
+\begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
+  We define the property $\src{smsafe}$ as follows:
+  Given any trace $\trace$, we say it is spatial memory safe iff
+
+  $\forall \src{\loc\ s\ n\ m}, (\src{Alloc\ \loc\ s})!_{\trace}\ \implies (\src{Read\ \loc\ n}\in\trace \implies \src{n} < \src{s})\wedge (\src{Write\ \loc\ n\ m}\in\trace\implies \src{n} < \src{s})$
+\end{definition}
+
+\begin{lemma}[$\mmlA$ is temporal memory safe]
+  For any $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:tempmemsafe}: $\rsat{\src{p}}{\src{tmsafe}}$
 \end{lemma}
 \begin{proof}
    TODO
+\end{proof}
+
+\begin{lemma}[$\mmlA$ is not spatially memory safe]
+  It does not hold that for any $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:spatmemsafe}:
+
+  $\rsat{\src{p}}{\src{smsafe}}$
+\end{lemma}
+\begin{proof}
+  Pick the program $\src{let\ x:=new\ 42\ in\ let \_ = x[1337]\ in\ delete\ x}$ and run it using the initial configuration $\src{\Omega_{0}}$.
+  The program generates a trace prefix $\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{Dealloc\ \loc}$.
+  But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$
 \end{proof}
 
 \clearpage

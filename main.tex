@@ -606,10 +606,10 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   }{w-t-nat}
   %
   \typerule{$t-\src{\oplus}$}{
-    \typechecks{\Gamma}{e_1}{\nat}{\Gamma'} &
-    \typechecks{\Gamma'}{e_2}{\nat}{\Gamma''}
+    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
+    \typechecks{\Gamma}{e_2}{\nat}{\Gamma}
   }{
-    \typechecks{\Gamma}{e_1\oplus e_2}{\nat}{\Gamma''}
+    \typechecks{\Gamma}{e_1\oplus e_2}{\nat}{\Gamma}
   }{w-t-binop}
   %
   \typerule{$t-get$}{
@@ -659,14 +659,14 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 }{w-expr-ty}{Checking of $\mmlA$ expressions.}
 
 \myfig{
-  \judgbox{\typechecks{}{C}{\tau_C}}{,,The context $\src{C}$ has type $\src{\tau_{C}}$.''}
+  \judgbox{\typechecks{}{C}{\tau_C}{}}{,,The context $\src{C}$ has type $\src{\tau_{C}}$.''}
 
   \begin{center}
   \typerule{$t-ctx$}{
-    \typechecks{x:\nat}{e_1}{\nat}&
-    \typechecks{y:\nat}{e_2}{\nat}
+    \typechecks{x:\nat}{e_1}{\nat}{}&
+    \typechecks{y:\nat}{e_2}{\nat}{}
 	}{
-  \typechecks{}{let\ y=let\ x=\hole{\cdot}\ in\ e_1\ in\ e_2}{\nat\to\nat}
+  \typechecks{}{let\ y=let\ x=\hole{\cdot}\ in\ e_1\ in\ e_2}{\nat\to\nat}{}
 	}{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlA$ programs.}
@@ -682,32 +682,32 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \src{E}\bnfdef &\ \src{\hole{\cdot}}\mid \src{E\oplus e}\mid \src{v\oplus E}\mid \src{x[e]}\mid
-                        \src{let\ x:=E\ in\ e}\mid \src{x\leftarrow E}\mid \src{new\ E}\mid \src{if\ E\ then\ e_{1}\ else\ e_{2}}
+      \src{E}\bnfdef &\ \src{\hole{\cdot}}\mid \src{E\oplus e}\mid \src{v\oplus E}\mid \src{x[E]}\mid
+            \src{let\ x:=E\ in\ e}\mid \src{x[E]\leftarrow e}\mid \src{x[v]\leftarrow E}\mid \src{new\ E}\mid \src{if\ E\ then\ e_{1}\ else\ e_{2}}
     \end{aligned}
   \end{gather*}
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
 
 \myfig{
-  \judgbox{\exprevals{\configs}{E[e]}{\configs'}{E[e']}}{,,Given an evaluation context $\src{E}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{E}$.''}
-  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$.''}
+  \judgbox{\exprevals{\configs}{E[e]}{\configs'}{E[e']}{a}}{,,Given an evaluation context $\src{E}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{E}$, emitting event $\src{a}$.''}
+  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{a}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting event $\src{a}$.''}
   %
   \typerule{$e-ctx$}{
-    \exprevals{\configs}{e}{\configs'}{e'}
+    \exprevals{\configs}{e}{\configs'}{e'}{a}
   }{
-    \exprevals{\configs}{E[e]}{\configs'}{E[e']}
+    \exprevals{\configs}{E[e]}{\configs'}{E[e']}{a}
   }{w-e-ectx}
   %
   \typerule{$e-var$}{
     \src{x\mapsto v}\in\Deltas
   }{
-    \exprevals{\configs}{x}{\configs}{v}
+    \exprevals{\configs}{x}{\configs}{v}{\emptyevent}
   }{w-e-var}
   %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}+\src{n_2}=\src{n_3}
   }{
-    \exprevals{\configs}{n_1+n_2}{\configs}{n_3}
+    \exprevals{\configs}{n_1+n_2}{\configs}{n_3}{\emptyevent}
   }{w-e-oplus}
   %
   \typerule{$e-\src{get}$}{
@@ -715,19 +715,19 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
     \src{\loc\mapsto n_\loc}\in \src{A}&
     \src{n_\loc+n\mapsto v}\in \src{H}
   }{
-    \exprevals{\config{H}{A}{\Delta}}{x[n]}{\config{H}{A}{\Delta}}{v}
+    \exprevals{\config{H}{A}{\Delta}}{x[n]}{\config{H}{A}{\Delta}}{v}{Read\ \loc\ n}
   }{w-e-get}
   %
   \typerule{$e-\src{let}$}{
     \src{\Delta'} = \Deltas\uplus \{\src{x\mapsto v}\}
   }{
-    \exprevals{\config{H}{A}{\Delta}}{let\ x:=v\ in\ e}{\config{H}{A}{\Delta'}}{e}
+    \exprevals{\config{H}{A}{\Delta}}{let\ x:=v\ in\ e}{\config{H}{A}{\Delta'}}{e}{\emptyevent}
   }{w-e-let}
   %
   \typerule{$e-\src{delete}$}{
     \src{\Delta'} = \Deltas \setminus \{\src{x\mapsto\loc}\}
   }{
-    \exprevals{\config{H}{A}{\Delta}}{delete\ x}{\config{H}{A}{\Delta'}}{0}
+    \exprevals{\config{H}{A}{\Delta}}{delete\ x}{\config{H}{A}{\Delta'}}{0}{Dealloc\ \loc}
   }{w-e-let-new}
   %
   \typerule{$e-\src{new}$}{
@@ -735,23 +735,21 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
     \text{fresh}\ \src{\loc}&
     \src{A'} = \src{A} \uplus \{\src{\loc\mapsto |H|}\} &
   }{
-    \exprevals{\config{H}{A}{\Delta}}{new\ n}{\config{H'}{A'}{\Delta}}{\loc}
+    \exprevals{\config{H}{A}{\Delta}}{new\ n}{\config{H'}{A'}{\Delta}}{\loc}{Alloc\ \loc}
   }{w-e-let-new}
   %
   \typerule{$e-\src{if}-\bot$}{
   }{
-    \exprevals{\configs}{if\ 0\ then\ e_1\ else\ e_2}{\configs}{e_2}
+    \exprevals{\configs}{if\ 0\ then\ e_1\ else\ e_2}{\configs}{e_2}{\emptyevent}
   }{w-e-if-false}
   %
   \typerule{$e-\src{if}-\top$}{
     \src{v}\neq\src{0}
   }{
-    \exprevals{\configs}{if\ v\ then\ e_1\ else\ e_2}{\configs}{e_1}
+    \exprevals{\configs}{if\ v\ then\ e_1\ else\ e_2}{\configs}{e_1}{\emptyevent}
   }{w-e-if-true}
   %
 }{w-expr-eval}{Evaluation of $\mmlA$ expressions.}
-
-% use A(x) instead of A,x->L
 
 \myfig{
   $$
@@ -783,6 +781,23 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   \end{array}
   $$
 }{w-step-util}{Helper functions for heap manipulation.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\execs{\configs}{e}{\configs'}{e'}{As}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting list of events $\src{As}$.''}
+    %
+    \typerule{$e-refl$}{
+    }{
+      \execs{\configs}{e}{\configs'}{e'}{nil}
+    }{w-e-trans}
+    \typerule{$e-trans$}{
+      \exprevals{\configs}{e}{\configs'}{e'}{a}&
+      \execs{\configs}{e}{\configs'}{e'}{As}&
+    }{
+      \execs{\configs}{e}{\configs'}{e'}{a :: As}
+    }{w-e-trans}
+  \end{center}
+}{w-steps}{Trace prefix generation given a $\mmlA$ program using the reflexive-transitive closure.}
 
 \clearpage
 

@@ -19,6 +19,7 @@
 \usepackage{xspace}
 \usepackage{etoolbox}
 \usepackage{natbib}
+\usepackage{extpfeil}
 
 \usepackage{tikz}
 \usetikzlibrary{positioning}
@@ -75,8 +76,6 @@ Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
 % if we get τ1 and τ2, then there is aontehr program that does τ3 which does τ1 and τ2 in parallel
 % define self-composition. and then define it with respect to low-equivalent programs
 % 
-
-% compilation of n compilers can b e reduced to compilation of two compilers
 
 \begin{definition}[Notation for Sequences]
   For any sequence of events, let $\seqnil$ denote the empty sequence and $\seqcons{e}{\bar{t}}$ the sequence that starts with $e$ and continues with $\bar{t}$.
@@ -335,6 +334,9 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
 \begin{proof}
   Analogous argument as in \Cref{lem:seqcompo}, but with a case distinction on whether the source program is element of $\S$ or $\I$.
 \end{proof}
+% S = while,    I = while with exceptions           => modularization
+
+% another idea: certified nugget -> minimal RSP compiler
 
 \begin{definition}[Lower Composition]
   Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
@@ -346,23 +348,6 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
 \begin{proof}
   Analogous argument as in \Cref{lem:seqcompo}, but with a case distinction on whether the compiled source program is element of $\I$ or $\T$.
 \end{proof}
-
-% spectre : compile one part to v4, the other to v5
-
-% are we always just preserving the lub? can we preserve something stronger?
-% => goal is to make target class in composed compiler stronger
-
-% hypersafety implies safety    prove safety preservation, implies hypersafety (for some reasonable constraints)
-%
-
-% going a level deeper: what can we say about individual properties? composing individual props
-% e.g. prop for spec safety and memsafety, how does their conjunction work out?
-%
-% speculative safety encompasses hypersafety
-
-% constant time : assumes memsafety, then somethings, thus crypto const time
-%
-%
 
 \begin{lemma}[Diamond]\label{lem:diamond}
   Given $\rtp{\lhcsiocomp{\bullet}}{\cC_{1}}$ and $\rtp{\uhciotcomp{\bullet}}{\cC_{2}}$ with $\stcomp{\bullet} = \lambda\src{p}.\uhciotcomp{\lhcsiocomp{p}}$, then $\rtp{\stcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
@@ -428,7 +413,7 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
 
 \begin{definition}[Instrumentation]\label{def:instrumentation}
   A source code instrumentation done by a compiler takes a program in language $\T$ and emits an altered version of the same program in $\T$ such that it does not go wrong for some class of security relevant (hyper-)properties.
-  Formally, given a $\cC$ the instrumentation done by $\ttcomp{\bullet}$ ensures:
+  Formally, given a $\cC$ a compiler $\ttcomp{\bullet}$ is an instrumentation for $\cC$ iff:
 
   $$
   \forall \trg{p}\in\trg{\partials}, \rsat{\ttcomp{p}}{\cC}
@@ -444,71 +429,83 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
 
 \begin{definition}[Secure Instrumentation with Respect to $\cC$]\label{def:secure-instrumentation}
   A secure instrumentation with respect to some class $\cC$ ensures (hyper-)properties described by some class $\cC'$ without violating $\cC$-satisfying programs. We write $\sinstr{\ttcomp{\bullet}}{\cC}{\cC'}$.
-  Thus, in addition to the condition presented in \Cref{def:instrumentation}, we require:
+  Thus, a compiler $\ttcomp{\bullet}$ is a secure instrumentation for $\cC'$ respecting $\cC$ iff:
 
   $$
-  \forall\Pi\in\cC.\forall \trg{p}\in\trg{\partials}, \rsat{\trg{p}}{\Pi} \implies \rsat{\ttcomp{p}}{\Pi} \wedge \Pi\in\cC\cap\cC'
+  \rtp{\ttcomp{\bullet}}{\cC}\text{ and } \instr{\ttcomp{\bullet}}{\cC'}
   $$
 
 \end{definition}
 
-\begin{definition}[No-v* Classes]
-  Let $\nvOne$ denote the singleton-class such that no SPECTRE v1 attack can happen.
-  Analgously, define $\nvFour$ as a singleton-class that disallows SPECTRE v4 attacks and $\nvOneFour$ as the class that disallows both v1 and v4 attacks, i.e. $\nvOneFour=\nvOne\cap\nvFour$.
-\end{definition}
+\begin{lemma}[Sequential Composition with a Secure Instrumentation]\label{lem:seqcompsecinstr}
+  Given compilers $\sicomp{\bullet}$, $\itcomp{\bullet}$ and classes $\cC_{0},\cC_{1}$ such that
+  \begin{assumptions}
+  \item\label[ass]{lem:seqcompsecinstr:ass:a} $\rtp{\sicomp{\bullet}}{\cC_{0}}$
+  \item\label[ass]{lem:seqcompsecinstr:ass:b} $\sinstr{\itcomp{\bullet}}{\cC_{1}}{\cC_{0}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item\label[goal]{lem:seqcompsecinstr:goal:i} $\rtp{\sitcomp{\bullet}}{\cC_{0}\cup\cC_{1}}$
+  \end{goals}
+\end{lemma}
 
-\begin{example}
-  Consider a compiler $\ttcomp{\bullet}_{1}$ such that $\sinstr{\ttcomp{\bullet}_{1}}{\nvOne}{\nvFour}$ and, similarily,
-  $\ttcomp{\bullet}_{4}$ such that $\sinstr{\ttcomp{\bullet}_{4}}{\nvFour}{\nvOne}$.
+%\begin{definition}[No-v* Classes]
+%  Let $\nvOne$ denote the singleton-class such that no SPECTRE v1 attack can happen.
+%  Analgously, define $\nvFour$ as a singleton-class that disallows SPECTRE v4 attacks and $\nvOneFour$ as the class that disallows both v1 and v4 attacks, i.e. $\nvOneFour=\nvOne\cap\nvFour$.
+%\end{definition}
 
-  \begin{lemma}\label{lem:vOnevFourSafe}
-    Using above compilers, we now show that $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$.
-  \end{lemma}
-  \begin{proof}
-    By \Cref{lem:seqcompo} we get two goals, $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ and $\rtp{\ttcomp{\bullet}_{4}}{\nvOneFour}$.
+% \begin{example}
+%   Consider a compiler $\ttcomp{\bullet}_{1}$ such that $\sinstr{\ttcomp{\bullet}_{1}}{\nvOne}{\nvFour}$ and, similarily,
+%   $\ttcomp{\bullet}_{4}$ such that $\sinstr{\ttcomp{\bullet}_{4}}{\nvFour}{\nvOne}$.
 
-    Since both cases are symmetrical, we only consider $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ now.
+%   \begin{lemma}\label{lem:vOnevFourSafe}
+%     Using above compilers, we now show that $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$.
+%   \end{lemma}
+%   \begin{proof}
+%     By \Cref{lem:seqcompo} we get two goals, $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ and $\rtp{\ttcomp{\bullet}_{4}}{\nvOneFour}$.
 
-    Unfolding the definition of the goal, suppose there is a $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, while our new goal is $\rsat{\ttcomp{p}_{1}}{\Pi}$.
+%     Since both cases are symmetrical, we only consider $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ now.
 
-    Strengthen the goal so that we need to show $\rsat{\ttcomp{p}_{1}}{\Pi}\wedge\Pi\in\nvOneFour$. Now, apply \Cref{def:secure-instrumentation}, so the only things left to show are $\Pi\in\nvOne$ and $\rsat{\trg{p}}{\Pi}$.
-    Both follow easily from our assumptions.
-  \end{proof}
-  \begin{lemma}
-    $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOneFour}$
-  \end{lemma}
-  \begin{proof}
-    By \Cref{lem:vOnevFourSafe} and \Cref{lem:swappable}.
-  \end{proof}
+%     Unfolding the definition of the goal, suppose there is a $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, while our new goal is $\rsat{\ttcomp{p}_{1}}{\Pi}$.
 
-  We now consider what happens if one of the two instrumentations is not secure with respect to the respective other class.
-  However, we focus on the case where the v1-instrumentation is insecure with respect to v4, due to symmetry.
+%     Strengthen the goal so that we need to show $\rsat{\ttcomp{p}_{1}}{\Pi}\wedge\Pi\in\nvOneFour$. Now, apply \Cref{def:secure-instrumentation}, so the only things left to show are $\Pi\in\nvOne$ and $\rsat{\trg{p}}{\Pi}$.
+%     Both follow easily from our assumptions.
+%   \end{proof}
+%   \begin{lemma}
+%     $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOneFour}$
+%   \end{lemma}
+%   \begin{proof}
+%     By \Cref{lem:vOnevFourSafe} and \Cref{lem:swappable}.
+%   \end{proof}
 
-  \begin{lemma}
-    $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$
-  \end{lemma}
-  \begin{proof}
-    Note that $\ttcomp{p}_{1}$ is a secure $\T$ program with respect to SPECTRE v1 attacks, given any $\trg{p}\in\trg{\partials}$.
+%   We now consider what happens if one of the two instrumentations is not secure with respect to the respective other class.
+%   However, we focus on the case where the v1-instrumentation is insecure with respect to v4, due to symmetry.
 
-    Unfolding, let $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, our goal changes to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}$.
+%   \begin{lemma}
+%     $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$
+%   \end{lemma}
+%   \begin{proof}
+%     Note that $\ttcomp{p}_{1}$ is a secure $\T$ program with respect to SPECTRE v1 attacks, given any $\trg{p}\in\trg{\partials}$.
 
-    Strengthen what we want to prove to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}\wedge\Pi\in\nvOneFour$.
-    Apply \Cref{def:secure-instrumentation}, giving us proof-obligations that are already part of our assumptions.
-  \end{proof}
+%     Unfolding, let $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, our goal changes to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}$.
 
-  \begin{lemma}
-    $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOne}$
-  \end{lemma}
-  \begin{proof}
-    Let $\trg{p}=\ttcomp{p'}_{4}$ be some program that is the result of plugging $\trg{p'}\in\trg{\partials}$ into $\ttcomp{\bullet}_{4}$.
+%     Strengthen what we want to prove to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}\wedge\Pi\in\nvOneFour$.
+%     Apply \Cref{def:secure-instrumentation}, giving us proof-obligations that are already part of our assumptions.
+%   \end{proof}
 
-    Our goal becomes $\rtp{\ttcomp{p}_{1}}{\nvOne}$. Unfolding it, let $\Pi\in\nvOne$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, where what is left to prove is $\rsat{\ttcomp{p}_{1}}{\nvOne}$.
+%   \begin{lemma}
+%     $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOne}$
+%   \end{lemma}
+%   \begin{proof}
+%     Let $\trg{p}=\ttcomp{p'}_{4}$ be some program that is the result of plugging $\trg{p'}\in\trg{\partials}$ into $\ttcomp{\bullet}_{4}$.
 
-    The goal follows immediately by \Cref{def:instrumentation}, since $\ttcomp{p}_{1}$ is an instrumentation for $\nvOne$.
-  \end{proof}
+%     Our goal becomes $\rtp{\ttcomp{p}_{1}}{\nvOne}$. Unfolding it, let $\Pi\in\nvOne$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, where what is left to prove is $\rsat{\ttcomp{p}_{1}}{\nvOne}$.
 
-  Finally, if both are insecure instrumentations, the strongest result one can get is either the robust preservation of $\nvOne$ or $\nvFour$, depending on which compiler is run last.
-\end{example}
+%     The goal follows immediately by \Cref{def:instrumentation}, since $\ttcomp{p}_{1}$ is an instrumentation for $\nvOne$.
+%   \end{proof}
+
+%   Finally, if both are insecure instrumentations, the strongest result one can get is either the robust preservation of $\nvOne$ or $\nvFour$, depending on which compiler is run last.
+% \end{example}
 
 We have seen that we can already swap robust compilers with same input and output language in a compilation pipeline.
 Now, we want to formalize this idea of ``being able to swap things around'' for source code instrumentations.
@@ -561,16 +558,16 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-    \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x := e_{1}\ in\ e_{2}}\mid \src{if\ e_{1}\ then\ e_{2}\ else\ e_{3}} \mid\src{x[e_{1}]\leftarrow e_{2}} \\
-    & \mid \src{new\ e} \mid \src{delete\ x}
+  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x := e_{1}\ in\ e_{2}}\mid \src{if\ e_{1}\ then\ e_{2}\ else\ e_{3}} \mid\src{x[e_{1}]\leftarrow e_{2}} \\
+    & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
   \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref\ \nat} \hspace{0.5cm}
   %
-  \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \mid\src{\ell}\in\refs \\
+  \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \hspace{0.5cm} \mi{References}~\src{\loc}\in\refs \\
   %
   \mi{Variables}~&\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
-  \mi{Contexts}~\src{C} \bnfdef\ \src{let\ y=let\ x=\hole{\cdot}\ in\ e_{1}\ in\ e_{2}}\\
+  \mi{Contexts}~\src{C} \bnfdef\ \src{let\ y=let\ x=e_{1}\ in\hole{\cdot}\ in\ e_{2}}\\
   \mi{Context\ Types}~\src{\tau_{C}}~\bnfdef&\ \src{\nat\to\nat}\\
   %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
@@ -586,9 +583,11 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   \end{gather*}
 }{while-syntax}{Syntax of $\mmlA$}
 
-% move the x -> L to Δ and L -> n to A
+% define notion of component that can be linked
+
+% do the let-new
+
 % assign should not have the universal quantification
-% add an assignment operation
 
 \myfig{
   \judgbox{\typechecks{\Gamma}{e}{\taus}{\Gamma'}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\taus$ and yields typing env. $\src{\Gamma'}$.''}
@@ -614,7 +613,7 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   %
   \typerule{$t-get$}{
     \typechecks{\Gamma}{x}{ref\ \nat}{\Gamma} &
-    \typechecks{\Gamma}{x}{\nat}{\Gamma}
+    \typechecks{\Gamma}{e}{\nat}{\Gamma}
   }{
     \typechecks{\Gamma}{x[e]}{\nat}{\Gamma}
   }{w-t-get}
@@ -628,20 +627,21 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   }{w-t-set}
   %
   \typerule{$t-\src{let}$}{
-    \typechecks{\Gamma}{e_1}{\tau}{\Gamma} &
-    \typechecks{\Gamma,x:\tau}{e_2}{\tau}{\Gamma'} &
-    \src{x:\tau}\notin\src{\Gamma'}\vee \src{x:\nat}\in\src{\Gamma'}
+    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
+    \typechecks{\Gamma,x:\nat}{e_2}{\tau}{\Gamma,x:\nat}
   }{
     \typechecks{\Gamma}{let\ x:=e_1\ in\ e_2}{\tau}{\Gamma}
   }{w-t-let}
   %
   \typerule{$t-\src{new}$}{
-    \typechecks{\Gamma}{e}{\nat}{\Gamma} &
+    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
+    \typechecks{\Gamma,x:ref\ \nat}{e_2}{\nat}{\Gamma}
   }{
-    \typechecks{\Gamma}{new\ e}{ref\ \nat}{\Gamma}
+    \typechecks{\Gamma}{let\ x:=new\ e_1\ in\ e_2}{nat}{\Gamma}
   }{w-t-new}
   %
   \typerule{$t-\src{delete}$}{
+    \src{x:ref\ \nat}\in\Gammas &
     \src{\Gamma'}=\Gammas\setminus\{\src{x:ref\ \nat}\}
   }{
     \typechecks{\Gamma}{delete\ x}{\nat}{\Gamma'}
@@ -659,14 +659,14 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 }{w-expr-ty}{Checking of $\mmlA$ expressions.}
 
 \myfig{
-  \judgbox{\typechecks{}{C}{\tau_C}{}}{,,The context $\src{C}$ has type $\src{\tau_{C}}$.''}
+  \judgbox{\typechecks{\Gamma}{C}{\tau_C}{\Gamma'}}{,,Under environment $\Gammas$, the context $\src{C}$ has type $\src{\tau_{C}}$ and yields environment $\src{\Gamma'}$.''}
 
   \begin{center}
   \typerule{$t-ctx$}{
-    \typechecks{x:\nat}{e_1}{\nat}{}&
-    \typechecks{y:\nat}{e_2}{\nat}{}
+    \typechecks{x:\nat}{e_1}{\nat}{x:\nat}&
+    \typechecks{y:\nat}{e_2}{\nat}{y:\nat}
 	}{
-  \typechecks{}{let\ y=let\ x=\hole{\cdot}\ in\ e_1\ in\ e_2}{\nat\to\nat}{}
+  \typechecks{}{let\ y=let\ x=e_1\ in\hole{\cdot}\ in\ e_2}{\nat\to\nat}{}
 	}{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlA$ programs.}
@@ -701,7 +701,7 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   \typerule{$e-var$}{
     \src{x\mapsto v}\in\Deltas
   }{
-    \exprevals{\configs}{x}{\configs}{v}{\emptyevent}
+    \exprevals{\config{H}{A}{\Delta}}{x}{\config{H}{A}{\Delta}}{v}{\emptyevent}
   }{w-e-var}
   %
   \typerule{$e-\src{\oplus}$}{
@@ -718,6 +718,14 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
     \exprevals{\config{H}{A}{\Delta}}{x[n]}{\config{H}{A}{\Delta}}{v}{Read\ \loc\ n}
   }{w-e-get}
   %
+  \typerule{$e-\src{set}$}{
+    \src{x\mapsto\loc}\in\Deltas&
+    \src{\loc\mapsto n_\loc}\in \src{A}&
+    \src{H'} = \src{H}(\src{n_\loc+n}\mapsto \src{v})
+  }{
+    \exprevals{\config{H}{A}{\Delta}}{x[n]\leftarrow v}{\config{H'}{A}{\Delta}}{v}{Read\ \loc\ n}
+  }{w-e-set}
+  %
   \typerule{$e-\src{let}$}{
     \src{\Delta'} = \Deltas\uplus \{\src{x\mapsto v}\}
   }{
@@ -725,6 +733,7 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   }{w-e-let}
   %
   \typerule{$e-\src{delete}$}{
+    \src{x\mapsto\loc}\in\Deltas&
     \src{\Delta'} = \Deltas \setminus \{\src{x\mapsto\loc}\}
   }{
     \exprevals{\config{H}{A}{\Delta}}{delete\ x}{\config{H}{A}{\Delta'}}{0}{Dealloc\ \loc}
@@ -735,7 +744,7 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
     \text{fresh}\ \src{\loc}&
     \src{A'} = \src{A} \uplus \{\src{\loc\mapsto |H|}\} &
   }{
-    \exprevals{\config{H}{A}{\Delta}}{new\ n}{\config{H'}{A'}{\Delta}}{\loc}{Alloc\ \loc}
+    \exprevals{\config{H}{A}{\Delta}}{new\ n}{\config{H'}{A'}{\Delta}}{\loc}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
   \typerule{$e-\src{if}-\bot$}{
@@ -788,7 +797,7 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
     %
     \typerule{$e-refl$}{
     }{
-      \execs{\configs}{e}{\configs'}{e'}{nil}
+      \execs{\configs}{e}{\configs'}{e'}{\hole{\ }}
     }{w-e-trans}
     \typerule{$e-trans$}{
       \exprevals{\configs}{e}{\configs'}{e'}{a}&
@@ -801,9 +810,6 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 
 \clearpage
 
-
-% add spatial memsafety
-% have some connection between Γ and Δ
 
 We now define temporal memory safety in terms of traces on events $\src{e}$.
 
@@ -832,6 +838,7 @@ We now define temporal memory safety in terms of traces on events $\src{e}$.
 
   $\forall \src{\loc\ s}, (\src{Alloc\ \loc\ s})!_{\trace}\ \implies (\src{Dealloc\ \loc})!_{\trace}\ \wedge (\src{Alloc\ \loc\ s})\le_{\trace} (\src{Dealloc\ \loc})$
 \end{definition}
+% use prose instead of \implies
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
   We define the property $\src{smsafe}$ as follows:
@@ -840,12 +847,15 @@ We now define temporal memory safety in terms of traces on events $\src{e}$.
   $\forall \src{\loc\ s\ n\ m}, (\src{Alloc\ \loc\ s})!_{\trace}\ \implies (\src{Read\ \loc\ n}\in\trace \implies \src{n} < \src{s})\wedge (\src{Write\ \loc\ n\ m}\in\trace\implies \src{n} < \src{s})$
 \end{definition}
 
+% provenance : where does the pointer come from
+
 \begin{lemma}[$\mmlA$ is temporal memory safe]
-  For any $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:tempmemsafe}: $\rsat{\src{p}}{\src{tmsafe}}$
+  For any well-typed $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:tempmemsafe}: $\rsat{\src{p}}{\src{tmsafe}}$
 \end{lemma}
 \begin{proof}
    TODO
-\end{proof}
+ \end{proof}
+ % use additional lemma on whole programs
 
 \begin{lemma}[$\mmlA$ is not spatially memory safe]
   It does not hold that for any $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:spatmemsafe}:
@@ -857,6 +867,9 @@ We now define temporal memory safety in terms of traces on events $\src{e}$.
   The program generates a trace prefix $\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{Dealloc\ \loc}$.
   But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$
 \end{proof}
+
+%
+%
 
 \clearpage
 

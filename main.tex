@@ -572,8 +572,7 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
   \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \hspace{0.5cm} \mi{References}~\src{\loc}\in\refs \\
   %
   \mi{Variables}~&\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
-  \mi{Contexts}~\src{C} \bnfdef\ \src{let\ y=let\ x=e_{1}\ in\hole{\cdot}\ in\ e_{2}}\\
-  \mi{Context\ Types}~\src{\tau_{C}}~\bnfdef&\ \src{\nat\to\nat}\\
+  \mi{Context\ Types}~\src{\tau_{C}}~\bnfdef\ \src{\nat\to\nat}\\
   %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
   \mi{Eval. Env.}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \Deltas,\src{x\mapsto v} \mid \Deltas,\src{x\mapsto\loc}\\
@@ -664,17 +663,124 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 }{w-expr-ty}{Checking of $\mmlA$ expressions.}
 
 \myfig{
-  \judgbox{\typechecks{\Gamma}{C}{\tau_C}{\Gamma'}}{,,Under environment $\Gammas$, the context $\src{C}$ has type $\src{\tau_{C}}$ and yields environment $\src{\Gamma'}$.''}
+  \begin{center}
+    \typerule{$c-lit$}{
+    }{
+      closed\ X\ \src{v}
+    }{w-c-lit}
+    %
+    \typerule{$c-var$}{
+      x\in X
+    }{
+      closed\ X\ \src{x}
+    }{w-c-var}
+    %
+    \typerule{$c-binop$}{
+      closed\ X\ \src{e_1}&
+      closed\ X\ \src{e_2}
+    }{
+      closed\ X\ \src{e_1\oplus e_2}
+    }{w-c-binop}
+    %
+    \typerule{$c-get$}{
+      x\in X&
+      closed\ X\ \src{e}
+    }{
+      closed\ X\ \src{x[e]}
+    }{w-c-get}
+    %
+    \typerule{$c-let$}{
+      closed\ X\ \src{e_0} &
+      closed\ (\{x\}\uplus X)\ \src{e_1}
+    }{
+      closed\ X\ \src{let\ x:=e_0\ in\ e_1}
+    }{w-c-let}
+    %
+    \typerule{$c-if$}{
+      closed\ X\ \src{e_0} &
+      closed\ X\ \src{e_1} &
+      closed\ X\ \src{e_2}
+    }{
+      closed\ X\ \src{if\ e_0\ then\ e_1\ else\ e_2}
+    }{w-c-if}
+    %
+    \typerule{$c-set$}{
+      x\in X&
+      closed\ X\ \src{e_0} &
+      closed\ X\ \src{e_1} &
+    }{
+      closed\ X\ \src{x[e_0]\leftarrow e_1}
+    }{w-c-set}
+    %
+    \typerule{$c-new$}{
+      closed\ X\ \src{e_0} &
+      closed\ (\{x\}\uplus X)\ \src{e_1}
+    }{
+      closed\ X\ \src{let\ x:=new\ e_0\ in\ e_1}
+    }{w-c-new}
+    %
+    \typerule{$c-delete$}{
+      x\in X
+    }{
+      closed\ X\ \src{delete\ x}
+    }{w-c-delete}
+  \end{center}
+}{w-closed}{Predicate checking whether an $\mmlA$ expression is closed or not}
+
+\myfig{
+  \begin{center}
+    \typerule{$program$}{
+      closed\ \emptyset\ \src{e}
+    }{
+      \src{prog\ e}
+    }{w-program}
+    %
+    \typerule{$component$}{
+      closed\ \{\src{x}\}\ \src{e}
+    }{
+      \src{component\ e}
+    }{w-component}
+    %
+    \typerule{$context$}{
+      closed\ \emptyset\ \src{e_0} &
+      closed\ \{\src{y}\}\ \src{e_1}
+    }{
+      \src{context\ e_0\ e_1}
+    }{w-context}
+  \end{center}
+}{w-programs}{$\mmlA$ programs, contexts, and components.}
+
+\myfig{
+%  \judgbox{\typechecks{\Gamma}{C}{\tau_C}{\Gamma'}}{,,Under environment $\Gammas$, the context $\src{C}$ has type $\src{\tau_{C}}$ and yields environment $\src{\Gamma'}$.''}
 
   \begin{center}
   \typerule{$t-ctx$}{
-    \typechecks{x:\nat}{e_1}{\nat}{x:\nat}&
+    \typechecks{}{e_1}{\nat}{}&
     \typechecks{y:\nat}{e_2}{\nat}{y:\nat}
 	}{
-  \typechecks{}{let\ y=let\ x=e_1\ in\hole{\cdot}\ in\ e_2}{\nat\to\nat}{}
+  \typechecks{}{context\ e_1\ e_2}{\nat\to\nat}{}
+	}{w-t-ctx}
+  %
+  \typerule{$t-prog$}{
+    \typechecks{}{e}{\nat}{}&
+	}{
+  \typechecks{}{prog\ e}{\nat}{}
 	}{w-t-prog}
+  %
+  \typerule{$t-comp$}{
+    \typechecks{x:\nat}{e}{\nat}{x:\nat}&
+	}{
+  \typechecks{}{comp\ e}{\nat}{}
+	}{w-t-comp}
   \end{center}
-}{w-program-ty}{Checking of $\mmlA$ programs.}
+}{w-program-ty}{Checking of $\mmlA$ contexts, components, and programs.}
+
+
+\myfig{
+  \begin{center}
+    $$\src{context\ e_0\ e_1}\hole{\src{component\ e_p}} = \src{prog\ (let\ y:=let\ x:=e_0\ in\ e_p\ in\ e_1)}$$
+  \end{center}
+}{w-plugging}{$\mmlA$ plugging of contexts and components.}
 
 \myfig{
   \begin{gather*}
@@ -815,8 +921,22 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 
 \clearpage
 
+\begin{lemma}[Weaken Closedness]
+  For any two sets $X,Y$ and an expression $\src{e}$, when
+  \begin{assumptions}
+    \item $closed\ X\ \src{e}$
+    \item $X\subseteq Y$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $closed\ Y\ \src{e}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Structural induction on $\src{e}$.
+\end{proof}
 
-We now define temporal memory safety in terms of traces on events $\src{e}$.
+We now define temporal and spatial memory safety in terms of traces on events $\src{e}$.
 
 \begin{definition}[Occurence]
   Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs in $\trace$, written $\src{e}\in\trace$, iff
@@ -839,17 +959,20 @@ We now define temporal memory safety in terms of traces on events $\src{e}$.
 
 \begin{definition}[Temporal Memory Safety]\label{def:tempmemsafe}
   We define the property $\src{tmsafe}$ as follows:
-  Given any trace $\trace$, we say it is temporal memory safe iff
-
-  $\forall \src{\loc\ s}, (\src{Alloc\ \loc\ s})!_{\trace}\ \implies (\src{Dealloc\ \loc})!_{\trace}\ \wedge (\src{Alloc\ \loc\ s})\le_{\trace} (\src{Dealloc\ \loc})$
+  Given any trace $\trace$, we say it is temporal memory safe iff:
+%
+  Take $\src{\loc},\src{s}$ such that $(\src{Alloc\ \loc\ s})!_{\trace}$,
+  now show $(\src{Dealloc\ \loc})!_{\trace}$ and $(\src{Alloc\ \loc\ s})\le_{\trace}(\src{Dealloc\ \loc})$.
 \end{definition}
 % use prose instead of \implies
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
   We define the property $\src{smsafe}$ as follows:
-  Given any trace $\trace$, we say it is spatial memory safe iff
-
-  $\forall \src{\loc\ s\ n\ m}, (\src{Alloc\ \loc\ s})!_{\trace}\ \implies (\src{Read\ \loc\ n}\in\trace \implies \src{n} < \src{s})\wedge (\src{Write\ \loc\ n\ m}\in\trace\implies \src{n} < \src{s})$
+  Given any trace $\trace$, we say it is spatial memory safe iff:
+%
+  Take $\src{\loc},\src{s},\src{n},\src{m}$ such that $(\src{Alloc\ \loc\ s})!_{\trace}$,
+  show $(\src{Read\ \loc\ n}\in\trace \implies \src{n} < \src{s})$ and
+  $(\src{Write\ \loc\ n\ m}\in\trace\implies \src{n} < \src{s})$.
 \end{definition}
 
 % provenance : where does the pointer come from

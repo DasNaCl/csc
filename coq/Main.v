@@ -1,6 +1,9 @@
 Set Implicit Arguments.
+Require Import Coq.Arith.PeanoNat Strings.String Lists.List Lia Program.Equality.
 
 Ltac inv H := (inversion H; subst; clear H).
+
+Section Compositionality.
 
 Axiom Trace : Set.
 
@@ -97,12 +100,16 @@ Proof.
   intros H H0 Π H1; apply H0, H, H1.
 Qed.
 
+Section Main.
+
+Variable S I T : Language.
+
 (* Robust Compilation *)
-Definition RC { S T : Language } (γ : Compiler S T) (C : PClass) :=
-  forall Π, Π ∈ C -> forall (p : Partials S), p |= Π -> γ p |= Π.
+Definition RC { L0 L1 : Language } (γ : Compiler L0 L1) (C : PClass) :=
+  forall Π, Π ∈ C -> forall (p : Partials L0), p |= Π -> γ p |= Π.
 Notation "'|-' γ ':' C" := (RC γ C) (at level 50, γ at next level).
 
-Lemma seqcomp_compose { S I T : Language } (γ0 : Compiler S I) (γ1 : Compiler I T) (C0 C1 : PClass) :
+Lemma seqcomp_compose (γ0 : Compiler S I) (γ1 : Compiler I T) (C0 C1 : PClass) :
   |- γ0 : C0 -> |- γ1 : C1 -> |- (γ0 ∘ γ1) : (C0 ∩ C1).
 Proof.
   intros H0 H1 Π H2 p H3.
@@ -111,7 +118,7 @@ Proof.
   apply H0; trivial.
 Qed.
 
-Corollary swappable { I : Language } (γ0 γ1 : Compiler I I) (C0 C1 : PClass) :
+Corollary swappable (γ0 γ1 : Compiler I I) (C0 C1 : PClass) :
   |- γ0 : C0 -> |- γ1 : C1 -> |- (γ0 ∘ γ1) : (C0 ∩ C1) /\ |- (γ1 ∘ γ0) : (C0 ∩ C1).
 Proof.
   intros H0 H1; split.
@@ -121,7 +128,7 @@ Proof.
   (apply H1, H0 || apply H0, H1); trivial.
 Qed.
 
-Lemma weakening_RC { S T : Language } (γ : Compiler S T) (C0 C1 : PClass) :
+Lemma weakening_RC (γ : Compiler S T) (C0 C1 : PClass) :
   C0 ⊆ C1 -> |- γ : C1 -> |- γ : C0.
 Proof.
   intros H0 H1 Π H2 p H3.
@@ -130,11 +137,11 @@ Proof.
 Qed.
 
 (* Secure Instrumentations *)
-Definition instrumentation { S T : Language } (γ : Compiler S T) (C : PClass) := forall (p : Partials S), rcsat (γ p) C.
-Definition secure_instrumentation { S T : Language } (γ : Compiler S T) (C0 C1 : PClass) := |- γ : C0 /\ instrumentation γ C1.
+Definition instrumentation { L0 L1 : Language } (γ : Compiler L0 L1) (C : PClass) := forall (p : Partials L0), rcsat (γ p) C.
+Definition secure_instrumentation { L0 L1 : Language } (γ : Compiler L0 L1) (C0 C1 : PClass) := |- γ : C0 /\ instrumentation γ C1.
 Notation "γ '-' C0 '-≻' C1" := (secure_instrumentation γ C0 C1) (at level 50).
 
-Lemma glue { S I T : Language } (γ0 : Compiler S I) (γ1 : Compiler I T) (C0 C1 : PClass) :
+Lemma glue (γ0 : Compiler S I) (γ1 : Compiler I T) (C0 C1 : PClass) :
   |- γ0 : C0 -> γ1 -C0-≻ C1 -> |- (γ0 ∘ γ1) : (C0 ∪ C1).
 Proof.
   intros H0 [H1a H1b] Π H2 p H3.
@@ -142,3 +149,7 @@ Proof.
   - eapply seqcomp_compose; eauto; rewrite self_intersect; trivial.
   - apply H1b, H2b.
 Qed.
+
+End Main.
+End Compositionality.
+

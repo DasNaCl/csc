@@ -43,3 +43,50 @@ Fixpoint replace { A } (n : nat) (H : list A) (a : A) :=
                  end
   end
 .
+
+Fixpoint bool_In (X : list string) (x : string) : bool :=
+  match X with
+  | nil => false
+  | y :: Y => if string_dec x y then true else bool_In Y x
+  end
+.
+Notation "X '⊆' Y" := (forall x, In x X -> In x Y) (at level 81, left associativity).
+Lemma cons_subset {A} (X Y : list A) (x : A) : X ⊆ Y -> ((x :: X) ⊆ (x :: Y)).
+Proof. intros. destruct H0; try ((now left) + (right; now apply H)). Qed.
+
+Lemma bool_In_equiv_In X x : (if bool_In X x then True else False) <-> In x X.
+Proof.
+  induction X; split; cbn; intros; try congruence || contradiction.
+  - destruct (string_dec x a); subst.
+    + now left.
+    + right; now apply IHX.
+  - destruct H; destruct (string_dec x a); subst; trivial.
+    congruence. now apply IHX.
+Qed.
+Lemma bool_eq_equiv_if (x : bool) : (if x then True else False) <-> x = true.
+Proof. now destruct x. Qed.
+Lemma bool_and_equiv_prop (x y : bool) : (x && y)%bool = true <-> (x = true) /\ (y = true).
+Proof. now destruct x,y. Qed.
+
+Lemma subset_equiv_bool_in_subset X Y : X ⊆ Y <-> (forall x, bool_In X x = true -> bool_In Y x = true).
+Proof.
+  split; intros.
+  - apply bool_eq_equiv_if in H0; apply bool_In_equiv_In in H0;
+    apply bool_eq_equiv_if; apply bool_In_equiv_In; now apply H.
+  - apply bool_In_equiv_In in H0; apply bool_eq_equiv_if in H0.
+    apply bool_In_equiv_In; apply bool_eq_equiv_if; now apply H.
+Qed.
+Lemma nested_bool_pred (x y : bool) : ((if x then y else false) = true) <-> (andb x y = true).
+Proof. now destruct x,y. Qed.
+
+Definition is_Some {A : Type} (mx : option A) := exists x, mx = Some x.
+
+Lemma is_Some_alt {A : Type} (mx : option A) :
+  is_Some mx <-> match mx with Some _ => True | None => False end.
+Proof.
+  unfold is_Some; destruct mx; split; try easy; try now exists a.
+  intros; now destruct H.
+Qed.
+
+Lemma not_eq_None_Some {A : Type} (mx : option A) : mx <> None <-> is_Some mx.
+Proof. rewrite is_Some_alt; destruct mx; try easy; congruence. Qed.

@@ -1,5 +1,6 @@
 Set Implicit Arguments.
 Require Import Coq.Arith.PeanoNat Strings.String Lists.List Lia Program.Equality.
+Require Import Classes.RelationClasses Morphisms Setoid.
 Require Import CSC.Util.
 
 Inductive bin_op :=
@@ -8,6 +9,7 @@ Inductive bin_op :=
 Inductive val :=
   | LitV : nat -> val
 .
+Coercion LitV : nat >-> val.
 Inductive addr :=
   | LocA : nat -> addr
 .
@@ -52,7 +54,7 @@ Definition to_val (e : expr) : option val :=
   end
 .
 Coercion of_val : val >-> expr.
-Definition is_val (e : expr) : Type :=
+Definition is_val (e : expr) : Prop :=
   match e with
   | Lit _ => True
   | _ => False
@@ -105,13 +107,13 @@ Inductive env_elem : Set :=
 | EnvAddr : addr -> env_elem
 | EnvVal  : val  -> env_elem
 .
-Definition of_env_elem (e : env_elem) : option expr :=
+Definition of_env_elem (e : env_elem) : option val :=
   match e with
-  | EnvVal(LitV v) => Some(Lit v)
+  | EnvVal(LitV v) => Some(LitV v)
   | _ => None
   end
 .
-Definition of_opt_env_elem (e : option env_elem) : option expr :=
+Definition of_opt_env_elem (e : option env_elem) : option val :=
   match e with
   | Some x => of_env_elem x
   | _ => None
@@ -126,8 +128,24 @@ Definition Conf : Set := (State * expr).
 Notation "H ';' A ';' Δ" := ((H, A, Δ) : State) (at level 80, A at next level, Δ at next level).
 Notation "Ω '▷' e" := ((Ω, e) : Conf) (at level 80, e at next level).
 
+Notation "∅" := ((nil, nil, nil) : State).
+
 Definition lookup {A : Type} (x : string) (Δ : list (string * A)) := Util.find (String.eqb x) Δ.
-Definition fetch {A : Type} (x : addr) (A : list (addr * A)) := Util.find (addr_eqb x) A.
+Definition fetch (x : addr) (A : list (addr * nat)) :=
+  match Util.find (addr_eqb x) A with
+  | Some n => n
+  | None => 1729
+  end
+.
+Definition read (a : nat) (H : list nat) :=
+  match List.find (Nat.eqb a) H with
+  | Some n => n
+  | None => 1729
+  end
+.
+Lemma lookup_dec {A : Type} (x : string) (Δ : list (string * A)) :
+  { lookup x Δ = None } + { lookup x Δ <> None }.
+Proof. unfold lookup; apply Util.find_dec. Defined.
 
 Variant Event : Set :=
 | Internal : Event
@@ -147,66 +165,28 @@ Proof.
 Qed.
 
 Reserved Notation "Ω1 '-[' a ']~>' Ω2" (at level 80, a at next level, right associativity).
-Inductive base_tstep : Conf -> Event -> Conf -> Prop :=
-| VarS : forall H A (Δ : Env) (x : string) v, lookup x Δ = Some(EnvVal(LitV v)) ->
-                                         (H;A;Δ ▷ Var x -[ Internal ]~> H;A;Δ ▷ Lit v)
-where "Ω '-[' a ']~>' Ω2" := (base_tstep Ω a Ω2)
-.
-
-Definition pack (Ω : State) (eo : option expr) (a : Event) : option (State * expr * Event) :=
-  match eo with
-  | None => None
-  | Some x => Some(Ω, x, a)
-  end
-.
-
-Definition one_tstep (Ω : State) (e : expr) : option (State * expr * Event)  :=
-  let '(H, A, Δ) := Ω in
-  match e with
-  | Var x => pack Ω (of_opt_env_elem(lookup x Δ)) Internal
-  | _ => None
-  end
-.
-
-Lemma base_tstep_and_one_tstep Ω Ω' e a e' :
-  one_tstep Ω e = Some (Ω', e', a) -> base_tstep (Ω ▷ e) a (Ω' ▷ e').
-Proof.
-  revert Ω Ω' a e'; induction e; intros [[Ha Aa] Δa] [[Hb Ab] Δb] a e' H; cbn in *.
-  - inv H.
-  -
-    Search (List.find).
-    edestruct ((lookup s Δa) = Some ?_). . ) as [env0 | H0]; cbn in *; try congruence.
-    destruct env0 as [v | ?]; cbn in *; try congruence.
-    destruct v; inv H.
-    constructor. econstructor.
-Qed.
-
-
-
-Reserved Notation "H ';' A ';' Δ '▷' e '--' a '-->' Ha ';' Aa ';' Δa '▷' ea" (at level 80, A at next level, Δ at next level,
-                                                                            e at next level, a at next level, Ha at next level,
-                                                                            Aa at next level, Δa at next level).
-Inductive base_step : Heap -> LocMap -> Env -> expr -> Event -> Heap -> LocMap -> Env -> expr -> Prop :=
-| VarS : forall H A Δ x v, lookup x Δ = Some (EnvVal v) -> (H;A;Δ ▷ Var x -- Internal --> H;A;Δ ▷ v)
-| AddS : forall H A Δ n1 n2 o, (H;A;Δ ▷ BinOp o (Lit n1) (Lit n2) -- Internal --> H;A;Δ ▷ Lit (n1 + n2))
+Inductive base_step : Conf -> Event -> Conf -> Prop :=
+| VarS : forall H A Δ x v, lookup x Δ = Some (EnvVal(LitV v)) ->
+                      (H;A;Δ ▷ Var x -[ Internal ]~> H;A;Δ ▷ Lit v)
+| BinOpS : forall Ω n1 n2 o, (Ω ▷ BinOp o (Lit n1) (Lit n2) -[ Internal ]~> Ω ▷ of_val(bin_op_eval o n1 n2))
 | GetS : forall H A Δ x n loc v nl, lookup x Δ = Some (EnvAddr loc) ->
-                            fetch loc A = Some nl ->
-                            List.nth_error H (nl + n) = Some v ->
-                            (H;A;Δ ▷ Access x (Lit n) -- Read loc n --> H;A;Δ ▷ Lit v)
+                               fetch loc A = nl ->
+                               read (nl + n) H = v ->
+                               (H;A;Δ ▷ Access x (Lit n) -[ Read loc n ]~> H;A;Δ ▷ Lit v)
 | SetS : forall H H' A Δ x n v loc nl, lookup x Δ = Some (EnvAddr loc) ->
-                                  fetch loc A = Some nl ->
+                                  fetch loc A = nl ->
                                   H' = replace (nl + n) H v ->
-                                  (H;A;Δ ▷ Assign x (Lit n) (Lit v) -- Write loc n --> H';A;Δ ▷ Lit v)
-| IfBotS : forall H A Δ e1 e2, (H;A;Δ ▷ If (Lit 0) e1 e2 -- Internal --> H;A;Δ ▷ e2)
-| IfTopS : forall H A Δ v e1 e2, v <> 0 -> (H;A;Δ ▷ If (Lit v) e1 e2 -- Internal --> H;A;Δ ▷ e1)
-| LetS : forall H A Δ x v e, (H;A;Δ ▷ Letin x (Lit v) e -- Internal --> H;A;((x,EnvVal (LitV v)) :: Δ) ▷ e)
+                                  (H;A;Δ ▷ Assign x (Lit n) (Lit v) -[ Write loc n ]~> H';A;Δ ▷ Lit v)
+| IfBotS : forall Ω e1 e2, (Ω ▷ If (Lit 0) e1 e2 -[ Internal ]~> Ω ▷ e2)
+| IfTopS : forall Ω e1 e2 v, v <> 0 -> (Ω ▷ If (Lit v) e1 e2 -[ Internal ]~> Ω ▷ e1)
+| LetS : forall H A Δ x v e, (H;A;Δ ▷ Letin x (Lit v) e -[ Internal ]~> H;A;((x,EnvVal (LitV v)) :: Δ) ▷ e)
 | DeleteS : forall H A Δ x loc, lookup x Δ = Some (EnvAddr loc) ->
-                           (H;A;Δ ▷ Delete x -- Dealloc loc --> H;A;(delete x Δ) ▷ Lit 0)
+                           (H;A;Δ ▷ Delete x -[ Dealloc loc ]~> H;A;(delete x Δ) ▷ Lit 0)
 | NewS : forall H H' A Δ x n e loc s, s = List.length H ->
                                  H' = grow H n ->
                                  loc = LocA (List.length A) ->  (* <- using the length of A allows us to not need an axiom *)
-                                 (H;A;Δ ▷ New x (Lit n) e -- Alloc loc n --> H';((loc, s) :: A);((x, EnvAddr loc) :: Δ) ▷ e)
-where "H ';' A ';' Δ '▷' e '--' a '-->' Ha ';' Aa ';' Δa '▷' ea" := (base_step H A Δ e a Ha Aa Δa ea)
+                                 (H;A;Δ ▷ New x (Lit n) e -[ Alloc loc n ]~> H';((loc, s) :: A);((x, EnvAddr loc) :: Δ) ▷ e)
+where "Ω0 '-[' a ']~>' Ω1" := (base_step Ω0 a Ω1)
 .
 #[global]
 Hint Constructors base_step : core.
@@ -223,7 +203,6 @@ Inductive ectx :=
   | NewCtx : string -> ectx -> expr -> ectx
   | IfCtx : ectx -> expr -> expr -> ectx
 .
-
 Fixpoint fill (K : ectx) (e : expr) : expr :=
   match K with
   | HoleCtx => e
@@ -250,161 +229,164 @@ Fixpoint comp_ectx (K1 K2 : ectx) : ectx :=
   | IfCtx K' e1 e2 => IfCtx (comp_ectx K' K2) e1 e2
   end
 .
-Inductive contextual_step (H : Heap) (A : LocMap) (Δ : Env) (e1 : expr)
-                          (a : Event)
-                          (H' : Heap) (A' : LocMap) (Δ' : Env) (e2 : expr) : Prop :=
-| Ectx_step : forall K e1' e2',
-    e1 = fill K e1' -> e2 = fill K e2' ->
-    (H;A;Δ ▷ e1' -- a --> H';A';Δ' ▷ e2') ->
-    contextual_step H A Δ e1 a H' A' Δ' e2
+Reserved Notation "Ω1 '=[' a ']~>' Ω2" (at level 80, a at next level, right associativity).
+Inductive contextual_step : Conf -> Event -> Conf -> Prop :=
+| Ectx_step : forall Ω1 e1 a Ω2 e2 K e1' e2',
+    e1 = fill K e1' ->
+    e2 = fill K e2' ->
+    (Ω1 ▷ e1' -[ a ]~> Ω2 ▷ e2') ->
+    Ω1 ▷ e1 =[ a ]~> Ω2 ▷ e2
+where "Ω1 '=[' a ']~>' Ω2" := (contextual_step Ω1 a Ω2)
 .
-Inductive steps (H: Heap) (A : LocMap) (Δ : Env) (e : expr) : list Event -> Heap -> LocMap -> Env -> expr -> Prop :=
-| stepsRefl : steps H A Δ e nil H A Δ e
-| stepsTrans : forall H' A' Δ' e' a As H'' A'' Δ'' e'', contextual_step H A Δ e a H' A' Δ' e' ->
-                                                   steps H' A' Δ' e' As H'' A'' Δ'' e'' ->
-                                                   steps H A Δ e (a :: As) H'' A'' Δ'' e''
+Reserved Notation "Ω1 '=[' a ']~>*' Ω2" (at level 80, a at next level, right associativity).
+Inductive steps : Conf -> list Event -> Conf -> Prop :=
+| stepsRefl : forall Ω e, steps (Ω ▷ e) nil (Ω ▷ e)
+| stepsTrans : forall Ω e a as0 Ω' e' Ω'' e'',
+    (Ω ▷ e =[ a ]~> Ω' ▷ e') ->
+    (Ω' ▷ e' =[ as0 ]~>* Ω'' ▷ e'') ->
+    (Ω ▷ e =[ a :: as0 ]~>* Ω'' ▷ e'')
+where "Ω1 '=[' a ']~>*' Ω2" := (steps Ω1 a Ω2)
 .
+
 #[global]
-Hint Constructors steps contextual_step.
+Hint Constructors steps contextual_step : core.
 Lemma fill_empty e : fill HoleCtx e = e.
 Proof. now cbn. Qed.
 
 Lemma fill_comp (K1 K2 : ectx) e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e.
 Proof. induction K1; cbn; congruence. Qed.
 
-Lemma base_contextual_step H A Δ e1 a e2 H' A' Δ' :
-  base_step H A Δ e1 a e2 H' A' Δ' -> contextual_step H A Δ e1 a e2 H' A' Δ'.
+Lemma base_contextual_step Ω e a Ω' e' :
+  Ω ▷ e -[ a ]~> Ω' ▷ e' -> Ω ▷ e =[ a ]~> Ω' ▷ e'.
 Proof. apply Ectx_step with HoleCtx; try rewrite fill_empty; trivial. Qed.
 
-Lemma fill_contextual_step H A Δ e1 a e2 H' A' Δ' K :
-  contextual_step H A Δ e1 a H' A' Δ' e2 -> contextual_step H A Δ (fill K e1) a H' A' Δ' (fill K e2).
-Proof. destruct 1; subst. rewrite !fill_comp. econstructor; try reflexivity; assumption. Qed.
+Lemma fill_contextual_step Ω e1 a e2 Ω' K :
+  Ω ▷ e1 =[ a ]~> Ω' ▷ e2 -> Ω ▷ (fill K e1) =[ a ]~> Ω' ▷ (fill K e2).
+Proof. intros H; inv H; rewrite !fill_comp; econstructor; try reflexivity; assumption. Qed.
 
-Lemma fill_steps H A Δ e1 As e2 H' A' Δ' K :
-  steps H A Δ e1 As H' A' Δ' e2 -> steps H A Δ (fill K e1) As H' A' Δ' (fill K e2).
+Lemma fill_steps Ω e1 As Ω' e2 K :
+  (*Ω ▷ e1 =[ As ]~>* Ω' ▷ e2 -> Ω ▷ (fill K e1) =[ As ]~>* Ω' ▷ (fill K e2).*)
+  steps (Ω ▷ e1) As (Ω' ▷ e2) -> steps (Ω ▷ (fill K e1)) As (Ω' ▷ (fill K e2)).
 Proof.
-  induction 1; subst; try eapply stepsRefl.
-  eapply stepsTrans. eapply fill_contextual_step. exact H0. exact IHsteps.
+  intros H; dependent induction H; subst; try eapply stepsRefl.
+  eapply stepsTrans. eapply fill_contextual_step. exact H.
+  eapply IHsteps; trivial.
 Qed.
 
 Ltac get_values := repeat match goal with
                    | [H: is_val ?e |- _] => apply is_val_inv in H as []
                    end.
 Ltac context_intro := (
-                       (match goal with
-                        | [ H: _ |- steps _ _ _ _ _ _ _ _ _ -> _ ] => induction 1; try apply stepsRefl
-                        end) || (
                        intros;
-                       repeat match goal with
-                       | [ H : contextual_step _ _ _ _ _ _ _ _ _ |- _ ] => destruct H
-                       end; get_values)
+                       get_values; subst
+
                       ).
 Ltac context_solver C := (
                         match goal with
-                        | [ H0 : contextual_step ?H ?A ?Δ ?e ?a ?H' ?A' ?Δ' ?e',
-                            H1 : steps _ _ _ ?e' ?As ?H'' ?A'' ?Δ'' _ |- steps ?H ?A ?Δ _ (?a :: ?As) ?H'' ?A'' ?Δ'' _ ] =>
-                             eapply stepsTrans; eapply fill_contextual_step with (K:=C) in H0; eauto
-                        | [ H0 : steps _ _ _ ?e' _ ?H'' ?A'' ?Δ'' _ |- steps ?H ?A ?Δ _ _ ?H'' ?A'' ?Δ'' _ ] =>
-                             eapply fill_steps with (K:=C) in H0; subst; cbn in *; assumption
-                        | [ H : _ |- contextual_step _ _ _ _ _ _ _ _ _ ] =>
-                            (subst; eapply Ectx_step with (K:=C); try now cbn; eauto)
+                        | [ H : _ =[ _ ]~>* _ |- _ =[ _ ]~>* _ ] =>
+                             eapply fill_steps with (K:=C) in H; eauto
+                        | [ H : _ =[ _ ]~> _ |- _ =[ _ ]~> _ ] =>
+                            (eapply fill_contextual_step with (K:=C) in H; cbn in H; eauto)
+                        | [ |- _ =[ _ ]~> _ ] =>
+                            eapply Ectx_step with (K:=C); try now cbn; constructor
                         end
                         ).
 
 
-Lemma contextual_step_bin_l H A Δ e1 o a e1' e2 H' A' Δ' :
-  contextual_step H A Δ e1 a H' A' Δ' e1' ->
-  contextual_step H A Δ (BinOp o e1 e2) a H' A' Δ' (BinOp o e1' e2).
-Proof. context_intro; context_solver (LBinOpCtx o K e2). Qed.
-
-Lemma contextual_step_bin_r H A Δ e1 o a e2 e2' H' A' Δ' :
-  is_val e1 ->
-  contextual_step H A Δ e2 a H' A' Δ' e2' ->
-  contextual_step H A Δ (BinOp o e1 e2) a H' A' Δ' (BinOp o e1 e2').
-Proof. context_intro; context_solver (RBinOpCtx o (LitV x) K). Qed.
-
-Lemma contextual_step_bin_v H A Δ e1 o e2 :
-  is_val e1 ->
-  is_val e2 ->
-  { v : expr | contextual_step H A Δ (BinOp o e1 e2) Internal H A Δ v }.
-Proof. context_intro; exists (Lit (x0 + x)); context_solver (HoleCtx). Qed.
-
-Lemma contextual_step_access H A Δ e e' a x H' A' Δ' :
-  contextual_step H A Δ e a H' A' Δ' e' ->
-  contextual_step H A Δ (Access x e) a H' A' Δ' (Access x e').
-Proof. context_intro; context_solver (AccessCtx x K). Qed.
-
-Lemma contextual_step_letin H A Δ e e' e0 a x H' A' Δ' :
-  contextual_step H A Δ e a H' A' Δ' e' ->
-  contextual_step H A Δ (Letin x e e0) a H' A' Δ' (Letin x e' e0).
-Proof. context_intro; context_solver (LetinCtx x K e0). Qed.
-
-Lemma contextual_step_assign H A Δ e e' e0 x a H' A' Δ' :
-  contextual_step H A Δ e a H' A' Δ' e' ->
-  contextual_step H A Δ (Assign x e e0) a H' A' Δ' (Assign x e' e0).
-Proof. context_intro; context_solver (AssignCtx x K e0). Qed.
-
-Lemma contextual_step_assignv H A Δ e e' v x a H' A' Δ' :
-  is_val v ->
-  contextual_step H A Δ e a H' A' Δ' e' ->
-  contextual_step H A Δ (Assign x v e) a H' A' Δ' (Assign x v e').
-Proof. context_intro; context_solver (AssignVCtx x (LitV x0) K). Qed.
-
-Lemma contextual_step_newctx H A Δ x e0 e e' a H' A' Δ' :
-  contextual_step H A Δ e a H' A' Δ' e' ->
-  contextual_step H A Δ (New x e e0) a H' A' Δ' (New x e' e0).
-Proof. context_intro; context_solver (NewCtx x K e0). Qed.
-
-Lemma contextual_step_ifctx H A Δ e e' e1 e2 a H' A' Δ' :
-  contextual_step H A Δ e a H' A' Δ' e' ->
-  contextual_step H A Δ (If e e1 e2) a H' A' Δ' (If e' e1 e2).
-Proof. context_intro; context_solver (IfCtx K e1 e2). Qed.
-
-Lemma ctx_steps_bin_l H A Δ e1 o a e1' e2 H' A' Δ' :
-  steps H A Δ e1 a H' A' Δ' e1' ->
-  steps H A Δ (BinOp o e1 e2) a H' A' Δ' (BinOp o e1' e2).
+Lemma contextual_step_bin_l Ω e1 o a e1' e2 Ω' :
+  Ω ▷ e1 =[ a ]~> Ω' ▷ e1' ->
+  Ω ▷ BinOp o e1 e2 =[ a ]~> Ω' ▷ BinOp o e1' e2.
 Proof. context_intro; context_solver (LBinOpCtx o HoleCtx e2). Qed.
 
-Lemma ctx_steps_bin_r H A Δ e1 o As e2 e2' H' A' Δ' :
+Lemma contextual_step_bin_r Ω e1 o a e2 e2' Ω' :
   is_val e1 ->
-  steps H A Δ e2 As H' A' Δ' e2' ->
-  steps H A Δ (BinOp o e1 e2) (As) H' A' Δ' (BinOp o e1 e2').
+  Ω ▷ e2 =[ a ]~> Ω' ▷ e2' ->
+  Ω ▷ BinOp o e1 e2 =[ a ]~> Ω' ▷ BinOp o e1 e2'.
 Proof. context_intro; context_solver (RBinOpCtx o (LitV x) HoleCtx). Qed.
 
-Lemma ctx_steps_access H A Δ e e' a x H' A' Δ' :
-  steps H A Δ e a H' A' Δ' e' ->
-  steps H A Δ (Access x e) a H' A' Δ' (Access x e').
+Lemma contextual_step_bin_v Ω e1 o e2 :
+  is_val e1 ->
+  is_val e2 ->
+  { v : expr | Ω ▷ BinOp o e1 e2 =[ Internal ]~> Ω ▷ v }.
+Proof. context_intro; exists (Lit (x0 + x)); context_solver (HoleCtx). Qed.
+
+Lemma contextual_step_access Ω e e' a x Ω' :
+  Ω ▷ e =[ a ]~> Ω' ▷ e' ->
+  Ω ▷ Access x e =[ a ]~> Ω' ▷ Access x e'.
 Proof. context_intro; context_solver (AccessCtx x HoleCtx). Qed.
 
-Lemma ctx_steps_letin H A Δ e e' e0 a x H' A' Δ' :
-  steps H A Δ e a H' A' Δ' e' ->
-  steps H A Δ (Letin x e e0) a H' A' Δ' (Letin x e' e0).
+Lemma contextual_step_letin Ω e e' e0 a x Ω' :
+  Ω ▷ e =[ a ]~> Ω' ▷ e' ->
+  Ω ▷ Letin x e e0 =[ a ]~> Ω' ▷ Letin x e' e0.
 Proof. context_intro; context_solver (LetinCtx x HoleCtx e0). Qed.
 
-Lemma ctx_steps_assign H A Δ e e' e0 x a H' A' Δ' :
-  steps H A Δ e a H' A' Δ' e' ->
-  steps H A Δ (Assign x e e0) a H' A' Δ' (Assign x e' e0).
+Lemma contextual_step_assign Ω e e' e0 x a Ω' :
+  Ω ▷ e =[ a ]~> Ω' ▷ e' ->
+  Ω ▷ Assign x e e0 =[ a ]~> Ω' ▷ Assign x e' e0.
 Proof. context_intro; context_solver (AssignCtx x HoleCtx e0). Qed.
 
-Lemma ctx_steps_assignv H A Δ e e' v x a H' A' Δ' :
+Lemma contextual_step_assignv Ω e e' v x a Ω' :
   is_val v ->
-  steps H A Δ e a H' A' Δ' e' ->
-  steps H A Δ (Assign x v e) a H' A' Δ' (Assign x v e').
+  Ω ▷ e =[ a ]~> Ω' ▷ e' ->
+  Ω ▷ Assign x v e =[ a ]~> Ω' ▷ Assign x v e'.
 Proof. context_intro; context_solver (AssignVCtx x (LitV x0) HoleCtx). Qed.
 
-Lemma ctx_steps_newctx H A Δ x e0 e e' a H' A' Δ' :
-  steps H A Δ e a H' A' Δ' e' ->
-  steps H A Δ (New x e e0) a H' A' Δ' (New x e' e0).
+Lemma contextual_step_newctx Ω x e0 e e' a Ω' :
+  Ω ▷ e =[ a ]~> Ω' ▷ e' ->
+  Ω ▷ New x e e0 =[ a ]~> Ω' ▷ New x e' e0.
 Proof. context_intro; context_solver (NewCtx x HoleCtx e0). Qed.
 
-Lemma ctx_steps_ifctx H A Δ e e' e1 e2 a H' A' Δ' :
-  steps H A Δ e a H' A' Δ' e' ->
-  steps H A Δ (If e e1 e2) a H' A' Δ' (If e' e1 e2).
+Lemma contextual_step_ifctx Ω e e' e1 e2 a Ω' :
+  Ω ▷ e =[ a ]~> Ω' ▷ e' ->
+  Ω ▷ If e e1 e2 =[ a ]~> Ω' ▷ If e' e1 e2.
 Proof. context_intro; context_solver (IfCtx HoleCtx e1 e2). Qed.
 
-Lemma contextual_step_steps H A Δ e1 a e2 H' A' Δ' :
-  contextual_step H A Δ e1 a e2 H' A' Δ' -> steps H A Δ e1 (a :: nil) e2 H' A' Δ'.
-Proof. intros; eapply stepsTrans; (exact H0 || eapply stepsRefl). Qed.
+
+Lemma ctx_steps_bin_l Ω e1 o a e1' e2 Ω' :
+  Ω ▷ e1 =[ a ]~>* Ω' ▷ e1' ->
+  Ω ▷ BinOp o e1 e2 =[ a ]~>* Ω' ▷ BinOp o e1' e2.
+Proof. context_intro; context_solver (LBinOpCtx o HoleCtx e2). Qed.
+
+Lemma ctx_steps_bin_r Ω e1 o a e2 e2' Ω' :
+  is_val e1 ->
+  Ω ▷ e2 =[ a ]~>* Ω' ▷ e2' ->
+  Ω ▷ BinOp o e1 e2 =[ a ]~>* Ω' ▷ BinOp o e1 e2'.
+Proof. context_intro; context_solver (RBinOpCtx o (LitV x) HoleCtx). Qed.
+
+Lemma ctx_steps_access Ω e e' a x Ω' :
+  Ω ▷ e =[ a ]~>* Ω' ▷ e' ->
+  Ω ▷ Access x e =[ a ]~>* Ω' ▷ Access x e'.
+Proof. context_intro; context_solver (AccessCtx x HoleCtx). Qed.
+
+Lemma ctx_steps_letin Ω e e' e0 a x Ω' :
+  Ω ▷ e =[ a ]~>* Ω' ▷ e' ->
+  Ω ▷ Letin x e e0 =[ a ]~>* Ω' ▷ Letin x e' e0.
+Proof. context_intro; context_solver (LetinCtx x HoleCtx e0). Qed.
+
+Lemma ctx_steps_assign Ω e e' e0 x a Ω' :
+  Ω ▷ e =[ a ]~>* Ω' ▷ e' ->
+  Ω ▷ Assign x e e0 =[ a ]~>* Ω' ▷ Assign x e' e0.
+Proof. context_intro; context_solver (AssignCtx x HoleCtx e0). Qed.
+
+Lemma ctx_steps_assignv Ω e e' v x a Ω' :
+  is_val v ->
+  Ω ▷ e =[ a ]~>* Ω' ▷ e' ->
+  Ω ▷ Assign x v e =[ a ]~>* Ω' ▷ Assign x v e'.
+Proof. context_intro; context_solver (AssignVCtx x (LitV x0) HoleCtx). Qed.
+
+Lemma ctx_steps_newctx Ω x e0 e e' a Ω' :
+  Ω ▷ e =[ a ]~>* Ω' ▷ e' ->
+  Ω ▷ New x e e0 =[ a ]~>* Ω' ▷ New x e' e0.
+Proof. context_intro; context_solver (NewCtx x HoleCtx e0). Qed.
+
+Lemma ctx_steps_ifctx Ω e e' e1 e2 a Ω' :
+  Ω ▷ e =[ a ]~>* Ω' ▷ e' ->
+  Ω ▷ If e e1 e2 =[ a ]~>* Ω' ▷ If e' e1 e2.
+Proof. context_intro; context_solver (IfCtx HoleCtx e1 e2). Qed.
+
+Lemma contextual_step_steps σ a σ' :
+  σ =[ a ]~> σ' -> σ =[ a :: nil ]~>* σ'.
+Proof. intros; destruct σ, σ'; eapply stepsTrans; (eapply stepsRefl + exact H). Qed.
 
 #[global]
 Hint Resolve
@@ -416,25 +398,17 @@ Hint Resolve
   ctx_steps_assign ctx_steps_assignv ctx_steps_newctx ctx_steps_ifctx
   : core
 .
-
-Lemma steps_bin_l H A Δ e1 o a e1' e2 H' A' Δ' :
-  steps H A Δ e1 a H' A' Δ' e1' ->
-  steps H A Δ (BinOp o e1 e2) a H' A' Δ' (BinOp o e1' e2).
-Proof. context_intro; context_solver (LBinOpCtx o HoleCtx e2). Qed.
-
-Definition reducible (H : Heap) (A : LocMap) (Δ : Env) (e : expr) :=
-  exists a H' A' Δ', exists e', contextual_step H A Δ e a H' A' Δ' e'
+Lemma trans_steps σ σ' σ'' As1 As2 :
+  σ =[ As1 ]~>* σ' -> σ' =[ As2 ]~>* σ'' -> σ =[ As1 ++ As2 ]~>* σ''
 .
+Proof.
+  intros H; dependent induction H; cbn; intros; try easy;
+  destruct σ''; eapply stepsTrans; try exact H; apply IHsteps; exact H1.
+Qed.
 
-Fixpoint bool_In (X : list string) (x : string) : bool :=
-  match X with
-  | nil => false
-  | y :: Y => if string_dec x y then true else bool_In Y x
-  end
+Definition reducible (Ω : State) (e : expr) :=
+  exists a Ω' e', Ω ▷ e =[ a ]~> Ω' ▷ e'
 .
-Notation "X '⊆' Y" := (forall x, In x X -> In x Y) (at level 81, left associativity).
-Lemma cons_subset {A} (X Y : list A) (x : A) : X ⊆ Y -> ((x :: X) ⊆ (x :: Y)).
-Proof. intros. destruct H0; try ((now left) + (right; now apply H)). Qed.
 
 Fixpoint is_closed (X : list string) (e : expr) : bool :=
   match e with
@@ -450,33 +424,9 @@ Fixpoint is_closed (X : list string) (e : expr) : bool :=
   end
 .
 Definition closed (X : list string) (e : expr) : Prop := if is_closed X e then True else False.
-Lemma bool_In_equiv_In X x : (if bool_In X x then True else False) <-> In x X.
-Proof.
-  induction X; split; cbn; intros; try congruence || contradiction.
-  - destruct (string_dec x a); subst.
-    + now left.
-    + right; now apply IHX.
-  - destruct H; destruct (string_dec x a); subst; trivial.
-    congruence. now apply IHX.
-Qed.
-Lemma bool_eq_equiv_if (x : bool) : (if x then True else False) <-> x = true.
-Proof. now destruct x. Qed.
-Lemma bool_and_equiv_prop (x y : bool) : (x && y)%bool = true <-> (x = true) /\ (y = true).
-Proof. now destruct x,y. Qed.
 
-Lemma subset_equiv_bool_in_subset X Y : X ⊆ Y <-> (forall x, bool_In X x = true -> bool_In Y x = true).
-Proof.
-  split; intros.
-  - apply bool_eq_equiv_if in H0; apply bool_In_equiv_In in H0;
-    apply bool_eq_equiv_if; apply bool_In_equiv_In; now apply H.
-  - apply bool_In_equiv_In in H0; apply bool_eq_equiv_if in H0.
-    apply bool_In_equiv_In; apply bool_eq_equiv_if; now apply H.
-Qed.
 Lemma closed_equiv_is_closed X e : is_closed X e = true <-> closed X e.
 Proof. unfold closed; now rewrite bool_eq_equiv_if. Qed.
-
-Lemma nested_bool_pred (x y : bool) : ((if x then y else false) = true) <-> (andb x y = true).
-Proof. now destruct x,y. Qed.
 
 Lemma closed_weaken X Y e : closed X e -> X ⊆ Y -> closed Y e.
 Proof.
@@ -535,7 +485,7 @@ Inductive ty :=
 .
 Definition Gamma := list (string * ty).
 Reserved Notation "Γa '||-' e ':' τ '=|' Γb" (at level 99, right associativity, e at next level, τ at level 200).
-Inductive check : Gamma -> expr -> ty -> Gamma -> Type :=
+Inductive check : Gamma -> expr -> ty -> Gamma -> Prop :=
 | Tvar : forall Γ x τ, lookup x Γ = Some τ -> (Γ ||- (Var x) : τ =| Γ)
 | Tnat : forall Γ n, (Γ ||- Lit n : tyNat =| Γ)
 | Tbinop : forall Γ e1 e2 o, (Γ ||- e1 : tyNat =| Γ) ->
@@ -569,154 +519,174 @@ where "Γa '||-' e ':' τ '=|' Γb" := (check Γa e τ Γb)
 #[global]
 Hint Constructors check : core.
 
-(*
-Fixpoint exec (*n*) (H : Heap) (A : LocMap) (Δ : Env) (e : expr) : (Heap * LocMap * Env * option val * list Event) :=
-  (*
-  match n with
-  | 0 => (nil, nil, nil, None, nil)
-  | S n' =>*) match e with
-           | Var x => (H, A, Δ, match lookup x Δ with
-                               | Some(EnvVal(LitV v)) => Some (LitV v)
-                               | _ => None
-                               end, Internal :: nil)
-           | Lit n => (H, A, Δ, Some (LitV n), nil)
-           | BinOp _ e1 e2 => let '(H', A', Δ', sv1, evs1) := exec (*n'*) H A Δ e1 in
-                             let '(H'', A'', Δ'', sv2, evs2) := exec (*n'*) H' A' Δ' e2 in
-                             (H'', A'', Δ'', match sv1, sv2 with
-                                             | Some(LitV v1), Some(LitV v2) => Some (LitV (v1 + v2))
-                                             | _, _ => None
-                                             end, evs1 ++ evs2)
-           | Access x e => let '(H', A', Δ', sv, evs) := exec (*n'*) H A Δ e in
-                          match lookup x Δ, sv with
-                          | Some(EnvAddr(loc)), Some(LitV v) =>
-                              match fetch loc A' with
-                              | Some nl => (H', A', Δ', match (List.nth_error H' (nl + v)) with
-                                                       | Some x => Some (LitV x)
-                                                       | None => Some (LitV 0)
-                                                       end,
-                                                      evs ++ ((Read loc v)::nil))
-                              | _ => (H', A', Δ', None, nil)
-                              end
-                          | _, _ => (H', A', Δ', None, nil)
-                          end
-           | Assign x e1 e2 => let '(H', A', Δ', sv1, evs1) := exec (*n'*) H A Δ e1 in
-                              let '(H'', A'', Δ'', sv2, evs2) := exec (*n'*) H' A' Δ' e2 in
-                              match lookup x Δ, sv1, sv2 with
-                              | Some(EnvAddr(loc)), Some(LitV n), Some(LitV v) =>
-                                  match fetch loc A'' with
-                                  | Some nl => (replace (nl + n) H'' v, A'', Δ'', Some (LitV v), evs1 ++ evs2 ++ ((Write loc n)::nil))
-                                  | _ => (H'', A'', Δ'', None, nil)
-                                  end
-                              | _,_,_ => (H'', A'', Δ'', None, nil)
-                              end
-           | If e1 e2 e3 => let '(H0, A0, Δ0, sv0, evs0) := exec (*n'*) H A Δ e1 in
-                           match sv0 with
-                           | Some(LitV 0) => let '(H1, A1, Δ1, sv1, evs1) := exec (*n'*) H0 A0 Δ0 e2 in
-                                            (H1, A1, Δ1, sv1, evs0 ++ evs1)
-                           | Some(LitV _) => let '(H1, A1, Δ1, sv1, evs1) := exec (*n'*) H0 A0 Δ0 e3 in
-                                            (H1, A1, Δ1, sv1, evs0 ++ evs1)
-
-                           | _ => (nil, nil, nil, None, nil)
+(* This is easier to work with to get traces. TODO: make it cofix when adding loops *)
+Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
+  let '(H, A, Δ) := Ω in
+  match e with
+  | Var x => match lookup x Δ with
+            | Some(EnvVal(LitV v)) => Some (Ω, LitV v, Internal :: nil)
+            | _ => None
+            end
+  | Lit n => Some (Ω, LitV n, nil)
+  | BinOp o e1 e2 =>
+      match exec Ω e1 with
+      | Some(Ω1, LitV v1, Tr1) =>
+          match exec Ω1 e2 with
+          | Some(Ω2, LitV v2, Tr2) => Some (Ω2, LitV (v1 + v2), Tr1 ++ Tr2 ++ (Internal :: nil))
+          | None => None
+          end
+      | None => None
+      end
+  | Access x e => match exec Ω e with
+                 | Some(Ω', LitV v, Tr) =>
+                   let '(H', A', Δ') := Ω' in
+                   match lookup x Δ' with
+                   | Some(EnvAddr loc) =>
+                       let nl := fetch loc A' in
+                       Some (Ω', LitV (read (nl + v) H'), Tr ++ ((Read loc v) :: nil))
+                   | _ => None
+                   end
+                 | None => None
+                 end
+  | Assign x e1 e2 => match exec Ω e1 with
+                     | Some(Ω1, LitV n, Tr1) =>
+                         match exec Ω1 e2 with
+                         | Some(Ω2, LitV v, Tr2) =>
+                           let '(H', A', Δ') := Ω2 in
+                           match lookup x Δ' with
+                           | Some(EnvAddr loc) =>
+                               let nl := fetch loc A' in
+                               Some ((replace (nl + n) H' v, A', Δ'), LitV v, Tr1 ++ Tr2 ++ ((Write loc n)::nil))
+                           | _ => None
                            end
-           | Letin x e1 e2 => let '(H0, A0, Δ0, sv0, evs0) := exec (*n'*) H A Δ e1 in
-                             match sv0 with
-                             | Some v0 => let '(H1, A1, Δ1, sv1, evs1) := exec (*n'*) H A ((x,EnvVal v0) :: Δ0) e2 in
-                                         (H1, A1, Δ1, sv1, evs0 ++ evs1)
-                             | None => (nil, nil, nil, None, nil)
-                             end
-           | Delete x => match lookup x Δ with
-                        | Some (EnvAddr loc) => (H, A, delete x Δ, Some(LitV 0), (Dealloc loc)::nil)
-                        | _ => (nil, nil, nil, None, nil)
+                         | None => None
+                         end
+                     | None => None
+                     end
+  | If e1 e2 e3 => match exec Ω e1 with
+                  | Some(Ω1, LitV v, Tr1) =>
+                      match v with
+                      | 0 => match exec Ω1 e3 with
+                            | Some(Ω3, v3, Tr3) => Some(Ω3, v3, Tr1 ++ (Internal :: nil) ++ Tr3)
+                            | None => None
+                            end
+                      | S _ => match exec Ω1 e2 with
+                              | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ (Internal :: nil) ++ Tr2)
+                              | None => None
+                              end
+                      end
+                  | None => None
+                  end
+  | Letin x e1 e2 => match exec Ω e1 with
+                    | Some(Ω1, LitV v1, Tr1) =>
+                        let '(H1, A1, Δ1) := Ω1 in
+                        match exec (H1, A1, (x, EnvVal v1) :: Δ1) e2 with
+                        | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ (Internal :: nil) ++ Tr2)
+                        | None => None
                         end
-           | New x e1 e2 => let '(H0, A0, Δ0, sv0, evs0) := exec (*n'*) H A Δ e1 in
-                           match sv0 with
-                           | Some(LitV m) => let loc := LocA(List.length A) in
-                                            let s := List.length H in
-                                            let '(H1, A1, Δ1, sv1, evs1) :=
-                                              exec (*n'*) (grow H m) ((loc,s)::A) ((x,EnvAddr loc) :: Δ0) e2 in
-                                            (H1, A1, Δ1, sv1, evs0 ++ ((Alloc loc m)::nil) ++ evs1)
-                           | None => (nil, nil, nil, None, nil)
-                           end
-           end
-  (*end*)
+                    | None => None
+                    end
+  | Delete x => match lookup x Δ with
+               | Some (EnvAddr loc) => Some ((H, A, delete x Δ), LitV 0, (Dealloc loc)::nil)
+               | _ => None
+               end
+  | New x e1 e2 => match exec Ω e1 with
+                  | Some(Ω1, LitV m, Tr1) =>
+                      let '(H1, A1, Δ1) := Ω1 in
+                      let loc := LocA(List.length A1) in
+                      let s := List.length H1 in
+                      match exec (grow H1 m, (loc,s)::A1, (x,EnvAddr loc) :: Δ1) e2 with
+                      | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ ((Alloc loc m)::nil) ++ Tr2)
+                      | _ => None
+                      end
+                  | None => None
+                  end
+  end
 .
-Definition compute_trace_prefix (e : expr) : list Event := let '(H, A, Δ, v, es) := exec nil nil nil e in es.
+Definition compute_trace_prefix (e : expr) : list Event :=
+  match exec ∅ e with
+  | Some(Ω, v, Tr) => Tr
+  | None => nil
+  end
+.
 Lemma split_prod {A : Type} (a b c d e a' b' c' d' e' : Type) :
   (a,b,c,d,e) = (a',b',c',d',e') -> a = a' /\ b = b' /\ c = c' /\ d = d' /\ e = e'.
 Proof. intros H; inv H; now repeat split. Qed.
 
-Lemma exec_equiv_steps H A Δ e v Es H' A' Δ' :
-  exec H A Δ e = (H', A', Δ', Some(LitV v), Es) ->
-  steps H A Δ e Es H' A' Δ' (Lit v)
+Ltac exec_reduce_handle_eq_none := (
+  match goal with
+  | [ H1: match exec (?Aa, ?Ha, ?Δa) ?e with | Some _ => _ | None => None end = _,
+     H: exec (?Aa, ?Ha, ?Δa) ?e <> None |- _ ] =>
+      let Aa1 := fresh "Aa" in
+      let Ha1 := fresh "Ha" in
+      let Δa1 := fresh "Δa" in
+      let v1 := fresh "v" in
+      let Tr1 := fresh "Tr" in
+    apply Util.not_eq_None_Some in H as [x]; destruct x as [[[[Aa1 Ha1] Δa1] [v1]] Tr1];
+    rewrite H in H1; cbn in H1
+  end;
+  match goal with
+  | [Ha: (exec (?A, ?H, ?Δ) ?e = Some (?A', ?H', ?Δ', LitV ?v', ?Tr')),
+      IH: forall (Ω : State) (v : nat) (Tr : list Event) (Ω' : State),
+          exec Ω ?e = Some (Ω', LitV v, Tr) ->
+          (Ω, ?e) =[ Tr ]~>* (Ω', Lit v) |- _ ] =>
+      specialize (IH (A, H, Δ) v' Tr' (A', H', Δ') Ha)
+  end
+).
+
+Ltac exec_reduce := (
+  try match goal with
+  | [ H: match exec (?Aa, ?Ha, ?Δa) ?e with | Some _ => _ | None => None end = _ |- _ ] =>
+      assert (exec (Aa, Ha, Δa) e <> None) by (
+      let Aa1 := fresh "Aa" in
+      let Ha1 := fresh "Ha" in
+      let Δa1 := fresh "Δa" in
+      let v1 := fresh "v" in
+      let Tr1 := fresh "Tr" in
+      destruct (exec (Aa, Ha, Δa) e) as [[[[[Aa1 Ha1] Δa1] [v1]]]|]; congruence);
+      exec_reduce_handle_eq_none
+  | [ H: match lookup ?s ?Δa with | Some _ => _ | None => None end = _ |- _ ] =>
+    let H2 := fresh "H" in
+    destruct (lookup_dec s Δa) as [H2|H2]; try (rewrite H2 in H; congruence);
+    apply Util.not_eq_None_Some in H2 as [x H2];
+    rewrite H2 in H; cbn in H
+  | [ H: Some _ = Some _ |- _ ] => inv H
+  | [ H : match ?x with | EnvAddr _ => _ | EnvVal _ => _ end = _ |- _] => destruct x; try congruence
+  | [ H : match ?v with | 0 => _ | S _ => _ end = _ |- _ ] => destruct v
+  end
+).
+
+Lemma exec_equiv_steps Ω Ω' e v Tr :
+  exec Ω e = Some (Ω', LitV v, Tr) ->
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ Lit v
 .
 Proof.
-  revert H A Δ v Es H' A' Δ'; induction e; intros; cbn in H0; inv H0; eauto.
-  - eapply stepsTrans. context_solver HoleCtx; econstructor; destruct (lookup s Δ'); try congruence;
-    destruct e; try congruence. destruct v0; inv H5; reflexivity.
-    eapply stepsRefl.
-  - remember (exec H A Δ e1) as X; destruct X as [[[[He1 A1] Δ1] v1] Es1].
-    remember (exec He1 A1 Δ1 e2) as X; destruct X as [[[[He2 A2] Δ2] v2] Es2].
-    destruct v1; try congruence; destruct v0 as [n0].
-    destruct v2; try congruence; destruct v0 as [n1].
-    symmetry in HeqX, HeqX0.
-    specialize (IHe1 H A Δ n0 Es1 He1 A1 Δ1 HeqX); specialize (IHe2 He1 A1 Δ1 n1 Es2 He2 A2 Δ2 HeqX0).
-    inv H2.
-    induction Es1; cbn.
-    eapply ctx_steps_bin_l in IHe1; eapply ctx_steps_bin_r in IHe2.
-
-    inv H2. eapply stepsTrans. context_solver HoleCtx.
-    inv H2. inv IHe1; inv IHe2.
-      * econstructor. context_solver HoleCtx. econstructor.
-      * econstructor. eapply fill_contextual_step with (K:=RBinOpCtx b (LitV n0) HoleCtx) in H. cbn in H.
-        eauto. eapply fill_destruct a. exact H. inv H. inv H0. inv H4.
-        context_solver (RBinOpCtx b (LitV n0) HoleCtx). eapp0
-      instantiate (1:=Lit (n0 + n1)). econstructor.
-      admit. admit.
-  admit.
-  - induction e; intros; cbn.
-    +
-Qed.
-*)
-
-Ltac reducible_in_ctx := repeat match goal with
-                         | [ H: reducible ?a ?b ?c ?e |- _] => do 5 destruct H
-                         end.
-
-Definition treducible (H : Heap) (A : LocMap) (Δ : Env) (e : expr) : Set :=
-  { a : Event & { H' : Heap & { A' : LocMap & { Δ' : Env & { e' : expr | contextual_step H A Δ e a H' A' Δ' e' }}}}}
-.
-
-Lemma progress e τ Γ' :
-  (nil ||- e : τ =| Γ') -> is_val e + treducible nil nil nil e.
-Proof.
-  remember nil as Γ;
-  induction 1; subst.
-  - (* var *) cbn in e; congruence.
-  - (* lit *) now left.
-  - (* binop *) right; destruct (IHcheck1 eq_refl), (IHcheck2 eq_refl); get_values; subst.
-    + do 5 eexists; context_solver HoleCtx.
-    + rename t into s; do 5 destruct s; do 5 eexists; apply fill_contextual_step with (K:=RBinOpCtx o (LitV x) HoleCtx) in c;
-      exact c.
-    + rename t into s; do 5 destruct s; do 5 eexists; apply fill_contextual_step with (K:=LBinOpCtx o HoleCtx (Lit x)) in c;
-      exact c.
-    + rename t into s; do 5 destruct s; do 5 eexists; apply fill_contextual_step with (K:=LBinOpCtx o HoleCtx e2) in c;
-      exact c.
-  - (* access *) inv H; cbn in H3; congruence.
-  - (* assign *) inv H; cbn in H4; congruence.
-  - (* letin *) right; destruct (IHcheck1 eq_refl); get_values; subst; reducible_in_ctx.
-    + do 5 eexists; context_solver HoleCtx.
-    + rename t into s; do 5 destruct s; do 5 eexists; apply fill_contextual_step with (K:=LetinCtx x HoleCtx e2) in c;
-      exact c.
-  - (* new *) right; destruct (IHcheck1 eq_refl); get_values; subst.
-    + do 5 eexists; context_solver HoleCtx; econstructor; reflexivity.
-    + rename t into s; do 5 destruct s; do 5 eexists; eauto.
-  - (* delete *) inv e.
-  - (* if *) right; destruct (IHcheck1 eq_refl); get_values; subst.
-    + destruct (Nat.eq_dec x 0).
-      * do 5 eexists; context_solver HoleCtx.
-      * do 5 eexists; context_solver HoleCtx.
-    + rename t into s; do 5 destruct s; do 5 eexists; apply fill_contextual_step with (K:=IfCtx HoleCtx e2 e3) in c;
-      exact c.
+  revert Ω v Tr Ω'; induction e; intros; destruct Ω as [[Aa Ha] Δa]; cbn in H; inv H; eauto.
+  - repeat exec_reduce; destruct v0; inv H1; eauto.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=LBinOpCtx b HoleCtx e2) in IHe1; cbn in IHe1;
+    eapply fill_steps with (K:=RBinOpCtx b (LitV v0) HoleCtx) in IHe2; cbn in IHe2;
+    eauto using trans_steps.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=AccessCtx s HoleCtx) in IHe; cbn in IHe;
+    eapply trans_steps; try exact IHe; eapply stepsTrans; try eapply stepsRefl;
+    context_solver HoleCtx; econstructor; trivial.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=LetinCtx s HoleCtx e2) in IHe1; cbn in IHe1;
+    eauto using trans_steps.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=IfCtx HoleCtx e2 e3) in IHe1; cbn in IHe1;
+    eauto using trans_steps.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=AssignCtx s HoleCtx e2) in IHe1; cbn in IHe1;
+    eapply fill_steps with (K:=AssignVCtx s (LitV v0) HoleCtx) in IHe2; cbn in IHe2;
+    eapply trans_steps; try exact IHe1; eapply trans_steps; eauto.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=NewCtx s HoleCtx e2) in IHe1; cbn in IHe1.
+    eapply trans_steps; try exact IHe1.
+    eapply stepsTrans; try exact IHe2.
+    context_solver HoleCtx.
+  - repeat exec_reduce; eauto.
 Qed.
 
 Fixpoint drop {A} (Γ : list (string * A)) : list string :=
@@ -725,15 +695,14 @@ Fixpoint drop {A} (Γ : list (string * A)) : list string :=
   | (x,_) :: Γ' => x :: (drop Γ')
   end
 .
-
 Lemma closed_typing Γ e τ Γ' :
   (Γ ||- e : τ =| Γ') -> closed (drop Γ) e.
 Proof.
   induction 1; subst; apply closed_equiv_is_closed; cbn.
-  - (* var *) rewrite <- bool_eq_equiv_if; erewrite bool_In_equiv_In. induction Γ; cbn. inv e.
-    destruct a. cbn in e. destruct (string_dec x s); subst.
+  - (* var *) rewrite <- bool_eq_equiv_if; erewrite bool_In_equiv_In. induction Γ; cbn. inv H.
+    destruct a. cbn in H. destruct (string_dec x s); subst.
     + cbn; now left.
-    + right; now apply IHΓ.
+    + right; apply IHΓ; apply String.eqb_neq in n; now rewrite n in H.
   - (* lit *) easy.
   - (* binop *) apply bool_and_equiv_prop; split; apply closed_equiv_is_closed; easy.
   - (* access *) apply nested_bool_pred; apply bool_and_equiv_prop; split.
@@ -749,9 +718,9 @@ Proof.
   - (* new *) apply bool_and_equiv_prop; split.
     + rewrite <- bool_eq_equiv_if; apply closed_equiv_is_closed in IHcheck1; now apply closed_equiv_is_closed.
     + rewrite <- bool_eq_equiv_if; apply closed_equiv_is_closed in IHcheck2; now apply closed_equiv_is_closed.
-  - (* delete *) induction Γ; cbn. inv e. destruct a. cbn in e. destruct (string_dec x s); subst.
+  - (* delete *) induction Γ; cbn. inv H. destruct a. cbn in H. destruct (string_dec x s); subst.
     + cbn; destruct (string_dec s s); try contradiction; reflexivity.
-    + cbn; destruct (string_dec x s); try contradiction; now apply IHΓ.
+    + cbn; destruct (string_dec x s); try contradiction; apply IHΓ; apply String.eqb_neq in n; now rewrite n in H.
   - (* if *) rewrite !bool_and_equiv_prop; repeat split.
     + rewrite <- bool_eq_equiv_if; apply closed_equiv_is_closed in IHcheck1; now apply closed_equiv_is_closed.
     + rewrite <- bool_eq_equiv_if; apply closed_equiv_is_closed in IHcheck2; now apply closed_equiv_is_closed.
@@ -759,61 +728,55 @@ Proof.
 Qed.
 
 Lemma gprogress e τ Γ Γ' :
-  (Γ ||- e : τ =| Γ') -> is_val e + { H : Heap & { A : LocMap & { Δ : Env & treducible H A Δ e } } }.
+  (Γ ||- e : τ =| Γ') -> is_val e \/ exists Ω, reducible Ω e.
 Proof.
   induction 1; subst.
-  - (* var *) right; do 2 exists nil; do 6 eexists; context_solver HoleCtx.
-    eapply VarS;
-    instantiate (1:=LitV 42); instantiate (1:=(x,EnvVal(LitV 42))::nil); cbn;
-    destruct (string_dec x x); try contradiction; reflexivity.
+  - (* var *) right; exists (nil, nil, (x, EnvVal(LitV 0)) :: nil); do 3 eexists; context_solver HoleCtx;
+    eapply VarS; cbn; now rewrite String.eqb_refl.
   - (* lit *) now left.
-  - (* binop *) right; destruct (IHcheck1), (IHcheck2); reducible_in_ctx; get_values; subst.
-    + do 3 exists nil; do 5 eexists; context_solver HoleCtx.
-    + do 8 destruct s as [? s]; do 8 eexists. eapply fill_contextual_step with (K:=RBinOpCtx o (LitV x) HoleCtx) in s; eauto.
-    + do 8 destruct s as [? s]; rename x7 into e1'. exists x0. exists x1. exists x2. exists x3. exists x4. exists x5. exists x6.
-      exists (BinOp o e1' (Lit x)). eapply fill_contextual_step with (K:=LBinOpCtx o HoleCtx (Lit x)) in s; cbn in s; exact s.
-    + do 8 destruct s as [? s]; rename x6 into e1'. exists x. exists x0. exists x1. exists x2. exists x3. exists x4. exists x5.
-      exists (BinOp o e1' e2). eapply fill_contextual_step with (K:=LBinOpCtx o HoleCtx e2) in s; cbn in s; exact s.
-  - (* access *) right; destruct (IHcheck2); get_values; reducible_in_ctx; subst.
-    + do 8 eexists. context_solver HoleCtx. econstructor. instantiate (1:=LocA 0). instantiate (1:=(x,EnvAddr(LocA 0))::nil).
-      cbn. destruct (string_dec x x); try contradiction; trivial.
-      instantiate (1:=0). instantiate (1:=(LocA 0, 0)::nil); cbn.
-      destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; trivial.
-      instantiate (1:=0). instantiate (1:=grow nil (1+x0)); cbn.
-      clear IHcheck1 IHcheck2 H0.
-      induction x0; cbn; trivial.
-    + do 8 destruct s as [? s]; rename x7 into e'; do 8 eexists;
-      eapply fill_contextual_step with (K:=AccessCtx x HoleCtx) in s; cbn in s; exact s.
-  - (* assign *) right; destruct (IHcheck2), (IHcheck3); reducible_in_ctx; get_values; subst.
-    + do 8 eexists. context_solver HoleCtx. econstructor.
-      instantiate (1:=LocA 0). instantiate (1:=(x,EnvAddr(LocA 0))::nil); cbn.
-      destruct (string_dec x x); try contradiction; trivial.
-      instantiate (1:=0). instantiate (1:=(LocA 0, 0)::nil); cbn.
-      destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; trivial.
-      instantiate (1:=nil). instantiate (1:=nil). now destruct x1; cbn.
-    + do 8 destruct s as [? s]; do 8 eexists; eapply fill_contextual_step with (K:=AssignVCtx x (LitV x0) HoleCtx) in s; eauto.
-    + do 8 destruct s as [? s]; do 8 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx (Lit x0)) in s; eauto.
-    + do 8 destruct s as [? s]; do 8 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx e2) in s; eauto.
-  - (* letin *) right; destruct (IHcheck1); get_values; subst; reducible_in_ctx.
-    + do 3 exists nil; do 5 eexists; context_solver HoleCtx.
-    + do 8 destruct s as [? s]; do 8 eexists; eapply fill_contextual_step with (K:=LetinCtx x HoleCtx e2) in s; eauto.
-  - (* new *) right; destruct (IHcheck1); get_values; subst; reducible_in_ctx.
-    + do 3 exists nil. do 5 eexists. context_solver HoleCtx; econstructor; reflexivity.
-    + do 8 destruct s as [? s]; do 8 eexists; eapply fill_contextual_step with (K:=NewCtx x HoleCtx e2) in s; eauto.
-  - (* delete *) right. exists nil. exists nil. do 6 eexists. context_solver HoleCtx. econstructor.
-    instantiate (1:=LocA 0). instantiate (1:=(x,EnvAddr(LocA 0))::nil); cbn.
-    destruct (string_dec x x); try contradiction; trivial.
+  - (* binop *) right; destruct (IHcheck1), (IHcheck2); get_values; subst.
+    + exists ∅; do 3 eexists; context_solver HoleCtx.
+    + do 4 destruct H2 as [? H2]; do 4 eexists;
+      eapply fill_contextual_step with (K:=RBinOpCtx o (LitV x) HoleCtx) in H2; eauto.
+    + do 4 destruct H1 as [? H1]; exists x0; exists x1; exists x2;
+      exists (BinOp o x3 (Lit x)); now eapply fill_contextual_step with (K:=LBinOpCtx o HoleCtx (Lit x)) in H1.
+    + do 4 destruct H1 as [? H1]; exists x; exists x0; exists x1;
+      exists (BinOp o x2 e2); now eapply fill_contextual_step with (K:=LBinOpCtx o HoleCtx e2) in H1.
+  - (* access *) right; destruct (IHcheck2); get_values; subst.
+    + do 4 eexists; context_solver HoleCtx; econstructor.
+      instantiate (1:=LocA 0); instantiate (1:=(x,EnvAddr(LocA 0))::nil); cbn; now rewrite String.eqb_refl.
+      instantiate (1:=0); instantiate (1:=(LocA 0, 0)::nil); now cbn.
+      instantiate (1:=0); instantiate (1:=grow nil (1+x0)); cbn;
+      clear IHcheck1 IHcheck2 H0; induction x0; cbn; trivial.
+    + do 4 destruct H1 as [? H1]; do 4 eexists;
+      eapply fill_contextual_step with (K:=AccessCtx x HoleCtx) in H1; cbn in H1; exact H1.
+  - (* assign *) right; destruct (IHcheck2), (IHcheck3); get_values; subst.
+    + do 4 eexists; context_solver HoleCtx; econstructor.
+      instantiate (1:=LocA 0); instantiate (1:=(x,EnvAddr(LocA 0))::nil); cbn; now rewrite String.eqb_refl.
+      instantiate (1:=0); instantiate (1:=(LocA 0, 0)::nil); now cbn.
+      instantiate (1:=nil); instantiate (1:=nil); now destruct x1; cbn.
+    + do 4 destruct H3 as [? H3]; do 4 eexists; eapply fill_contextual_step with (K:=AssignVCtx x (LitV x0) HoleCtx) in H3; eauto.
+    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx (Lit x0)) in H2; eauto.
+    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx e2) in H2; eauto.
+  - (* letin *) right; destruct (IHcheck1); get_values; subst.
+    + exists (nil, nil, nil); do 3 eexists; eauto.
+    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=LetinCtx x HoleCtx e2) in H2; eauto.
+  - (* new *) right; destruct (IHcheck1); get_values; subst.
+    + exists (nil, nil, nil); do 3 eexists; context_solver HoleCtx; econstructor; reflexivity.
+    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=NewCtx x HoleCtx e2) in H2; eauto.
+  - (* delete *) right; exists (nil, nil, (x,EnvAddr(LocA 0))::nil); do 3 eexists; context_solver HoleCtx;
+    econstructor; cbn; now rewrite String.eqb_refl.
   - (* if *) right; destruct (IHcheck1); get_values; subst.
-    + do 3 exists nil. exists Internal. do 3 exists nil. destruct (Nat.eq_dec x 0); subst.
+    + exists (nil, nil, nil); exists Internal; exists (nil, nil, nil); destruct (Nat.eq_dec x 0); subst.
       * exists e3; context_solver HoleCtx.
       * exists e2; context_solver HoleCtx.
-    + do 8 destruct s as [? s]; eapply fill_contextual_step with (K:=IfCtx HoleCtx e2 e3) in s; do 8 eexists; exact s.
+    + do 4 destruct H2 as [? H2]; eapply fill_contextual_step with (K:=IfCtx HoleCtx e2 e3) in H2; do 4 eexists; exact H2.
 Qed.
 
-Lemma preservation e e' Γ Γ' H A Δ H' A' Δ' a :
+Lemma preservation e e' Γ Γ' Ω Ω' a :
   (Γ ||- e : tyNat =| Γ') ->
-  (contextual_step H A Δ e a H' A' Δ' e') ->
-  { Γ0 : Gamma & { Γ1 : Gamma & (Γ0 ||- e' : tyNat =| Γ1) }}
+  (Ω ▷ e -[ a ]~> Ω' ▷ e') ->
+  exists Γ'', Γ' ||- e' : tyNat =| Γ''
 .
 Proof.
 Admitted.
@@ -840,7 +803,7 @@ Lemma contexts_closed e0 ep e1 :
   closed ("x"%string :: nil) ep ->
   closed nil (Letin "y"%string (Letin "x"%string e0 ep) e1).
 Proof.
-  intros. unfold closed. cbn. rewrite bool_eq_equiv_if. rewrite !bool_and_equiv_prop.
+  intros; unfold closed; cbn; rewrite bool_eq_equiv_if, !bool_and_equiv_prop;
   repeat split; rewrite closed_equiv_is_closed; trivial.
 Defined.
 Definition plug (c : WhileContext) (p : WhileComponent) : WhileProgram :=
@@ -862,42 +825,10 @@ Inductive context_check : WhileContext -> Type :=
 | WCtxCheck : forall e0 e1 (H0 : (nil ||- e0 : tyNat =| nil)) (H1 : ((("y"%string, tyNat) :: nil) ||- e1 : tyNat =| (("y"%string, tyNat)::nil))),
                             context_check (WCtx e0 e1 (closed_typing H0) (closed_typing H1))
 .
-CoInductive infinite_steps (p : expr) : Type :=
-| more : forall H H' A A' Δ Δ' b p', contextual_step H A Δ p b H' A' Δ' p' -> infinite_steps p' -> infinite_steps p
-| term : infinite_steps p
-.
 
 CoInductive CTrace : Type :=
 | SCons : Event -> CTrace -> CTrace
 .
-Definition termtrace : CTrace.
-Proof.
-  cofix H; econstructor; exact Internal || exact H.
-Defined.
-CoFixpoint mk_trace p (H : infinite_steps p) : CTrace.
-Proof.
-  inv H. econstructor.
-  - exact b.
-  - eapply mk_trace; exact (more H1 H2).
-  - exact termtrace.
-Defined.
-
-CoFixpoint mk_steps p Γ Γ' (H : Γ ||- p : tyNat =| Γ') : infinite_steps p.
-Proof.
-  eapply gprogress in H as H0.
-  destruct H0.
-  - eapply term.
-  - do 8 destruct s as [? s]. eapply more.
-    + exact s.
-    + eapply preservation in s as H0.
-      do 2 destruct H0 as [? H0].
-      eapply mk_steps. exact H0.
-      exact H.
-Defined.
-Definition execute_expr (e : expr) Γ Γ' (H : Γ ||- e : tyNat =| Γ') := mk_trace (mk_steps H).
-Definition execute (p : WhileProgram) (H : whole_program_check p) : CTrace.
-Proof. destruct H; now apply execute_expr in H. Defined.
-
 Fixpoint trace_at (t : CTrace) (n : nat) :=
   match t with
   | SCons e0 xs =>
@@ -948,6 +879,10 @@ Lemma plug_checks_propagate (c : WhileContext) (p : WhileComponent) :
   whole_program_check (plug c p).
 Proof. intros; destruct c, H, H0; cbn; repeat (econstructor; trivial); (eassumption || now cbn). Defined.
 
+Definition termtrace : CTrace.
+Proof.
+  cofix H; econstructor; try exact Internal; apply H.
+Defined.
 Fixpoint mk_full_trace_from_pref (m : list Event) : CTrace :=
   match m with
   | nil => termtrace
@@ -976,28 +911,32 @@ Proof.
   assert (context_check (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))) by repeat econstructor.
   specialize (H (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3)) H4).
 
-  unfold wsat in H.
-  specialize (H (LocA 0) 42). destruct H.
+  unfold wsat in H; unfold spat_memsafe in H.
+  remember (plug (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))
+                  (WComp p (closed_typing H0))) as fp.
+  assert (occ (Alloc (LocA 0) 42) (prog2trace fp)).
+  rewrite Heqfp; unfold compute_trace_prefix; cbn;
+  rewrite Heqp; cbn; exists 1; now cbn.
 
-
-  unfold compute_trace_prefix. rewrite Heqp. cbn.
+  assert (occ (Read (LocA 0) 1337) (prog2trace fp)).
+  cbn; rewrite Heqfp; cbn; rewrite Heqp; unfold compute_trace_prefix; cbn;
   destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; cbn.
-  exists 0; now cbn.
-  assert (occ (Read (LocA 0) 1337)
-        (prog2trace
-           (plug (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))
-              (WComp p (closed_typing H0))))).
-  cbn. rewrite Heqp. unfold compute_trace_prefix. cbn. destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; cbn.
-  exists 1; now cbn.
-  (*unfold execute. destruct H4, H1; cbn. unfold execute_expr. cbn.*)
-  (*unfold one_event. exists 1. cbn. admit.*)
-  specialize (H 1337 H6).
+  exists 2; now cbn.
+  specialize (H (LocA 0) 42 H5) as [Ha Hb].
+  specialize (Ha 1337 H6).
   lia.
 Qed.
+
+Lemma alloc_not_in_termtrace v n s :
+  trace_at termtrace n <> Alloc v s.
+Proof. induction n; cbn; intros ?; congruence. Qed.
 
 Lemma while_is_temp_memsafe (p : WhileComponent) (H : component_check p) :
   wrsat H temp_memsafe.
 Proof.
-  destruct p. destruct H as [Γ' e' H].
-  intros ? ?. unfold wsat. cbn.
+  destruct p; destruct H as [e' HΓ].
+  intros ? ? ? ? ?; split; remember (plug c0 (WComp e' (closed_typing HΓ))) as fp; destruct fp.
+  - destruct H as [n [Ha Hb]].
+
+    induction e0; cbn in *; try now apply alloc_not_in_termtrace in Ha.
 Admitted.

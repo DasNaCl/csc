@@ -138,7 +138,7 @@ Definition fetch (x : addr) (A : list (addr * nat)) :=
   end
 .
 Definition read (a : nat) (H : list nat) :=
-  match List.find (Nat.eqb a) H with
+  match List.nth_error H a with
   | Some n => n
   | None => 1729
   end
@@ -406,6 +406,29 @@ Proof.
   destruct σ''; eapply stepsTrans; try exact H; apply IHsteps; exact H1.
 Qed.
 
+Lemma inv_lit_ctx_step Ω n E v Ω' :
+  Ω ▷ Lit n =[ E ]~> Ω' ▷ Lit v -> Lit n = Lit v /\ Ω = Ω'.
+Proof. intros; inv H; induction K; cbn in *; try congruence; subst; inv H7. Qed.
+
+Lemma inv_lit_steps Ω n Tr v Ω' :
+  Ω ▷ Lit n =[ Tr ]~>* Ω' ▷ Lit v -> Lit n = Lit v /\ Ω = Ω' /\ Tr = nil.
+Proof.
+  intros; dependent induction H; try easy.
+  inv H; induction K; cbn in *; try congruence; subst; inv H8.
+Qed.
+
+Lemma inv_var_ctx_step A H Δ Ω' E v s :
+  (A; H; Δ, Var s) =[ E ]~> (Ω', Lit v) -> lookup s Δ = Some(EnvVal v) /\ (A; H; Δ) = Ω'.
+Proof. intros; inv H0; induction K; cbn in *; try congruence; subst; now inv H8. Qed.
+
+Lemma inv_var_steps A H Δ Ω' Tr v s :
+  (A; H; Δ, Var s) =[ Tr ]~>* (Ω', Lit v) -> lookup s Δ = Some(EnvVal v) /\ (A; H; Δ) = Ω' /\ Tr = Internal :: nil.
+Proof.
+  intros; dependent induction H0; try easy;
+  inv H1; induction K; cbn in *; try congruence; subst; inv H9; try easy;
+  apply inv_lit_steps in H0 as []; inv H0; now inv H1.
+Qed.
+
 Definition reducible (Ω : State) (e : expr) :=
   exists a Ω' e', Ω ▷ e =[ a ]~> Ω' ▷ e'
 .
@@ -656,7 +679,7 @@ Ltac exec_reduce := (
   end
 ).
 
-Lemma exec_equiv_steps Ω Ω' e v Tr :
+Lemma exec_is_steps Ω Ω' e v Tr :
   exec Ω e = Some (Ω', LitV v, Tr) ->
   Ω ▷ e =[ Tr ]~>* Ω' ▷ Lit v
 .
@@ -688,6 +711,7 @@ Proof.
     context_solver HoleCtx.
   - repeat exec_reduce; eauto.
 Qed.
+
 
 Fixpoint drop {A} (Γ : list (string * A)) : list string :=
   match Γ with
@@ -727,6 +751,10 @@ Proof.
     + rewrite <- bool_eq_equiv_if; apply closed_equiv_is_closed in IHcheck3; now apply closed_equiv_is_closed.
 Qed.
 
+Lemma cons_read_same x v H :
+  read x (v :: H) = v -> read (S x) (v :: v :: H) = v.
+Proof. revert v H; induction x; intros; cbn in *; trivial. Qed.
+
 Lemma gprogress e τ Γ Γ' :
   (Γ ||- e : τ =| Γ') -> is_val e \/ exists Ω, reducible Ω e.
 Proof.
@@ -747,7 +775,7 @@ Proof.
       instantiate (1:=LocA 0); instantiate (1:=(x,EnvAddr(LocA 0))::nil); cbn; now rewrite String.eqb_refl.
       instantiate (1:=0); instantiate (1:=(LocA 0, 0)::nil); now cbn.
       instantiate (1:=0); instantiate (1:=grow nil (1+x0)); cbn;
-      clear IHcheck1 IHcheck2 H0; induction x0; cbn; trivial.
+      clear IHcheck1 IHcheck2 H0. induction x0; cbn; trivial; now apply cons_read_same.
     + do 4 destruct H1 as [? H1]; do 4 eexists;
       eapply fill_contextual_step with (K:=AccessCtx x HoleCtx) in H1; cbn in H1; exact H1.
   - (* assign *) right; destruct (IHcheck2), (IHcheck3); get_values; subst.
@@ -773,6 +801,15 @@ Proof.
     + do 4 destruct H2 as [? H2]; eapply fill_contextual_step with (K:=IfCtx HoleCtx e2 e3) in H2; do 4 eexists; exact H2.
 Qed.
 
+Lemma gprogress_steps e τ Γ Γ' :
+  (Γ ||- e : τ =| Γ') -> exists Ω Ω' Tr v, (Ω ▷ e =[ Tr ]~>* Ω' ▷ v) /\ is_val v.
+Proof.
+  intros; apply gprogress in H as [].
+  - do 2 exists ∅. exists nil. apply is_val_inv in H as []. exists (Lit x). subst. repeat constructor.
+  - destruct H as [Ω [E [Ω' [e' H]]]]. exists Ω. exists Ω'. exists (E :: nil). exists e'. split. eapply stepsTrans. exact H. eapply stepsRefl.
+    (* Logical Relations .... *)
+Admitted.
+
 Lemma preservation e e' Γ Γ' Ω Ω' a :
   (Γ ||- e : tyNat =| Γ') ->
   (Ω ▷ e -[ a ]~> Ω' ▷ e') ->
@@ -781,6 +818,135 @@ Lemma preservation e e' Γ Γ' Ω Ω' a :
 Proof.
 Admitted.
 
+Axiom zap : forall e : expr, exists Ω E Ω' v, Ω ▷ e =[ E ]~> Ω' ▷ Lit v.
+
+Lemma binop_ctx_step_inv Ω1 b e1 e2 Ω3 v E :
+  Ω1 ▷ BinOp b e1 e2 =[ E ]~> Ω3 ▷ Lit v ->
+  exists v1 v2, (e1 = Lit v1 /\ e2 = Lit v2 /\ E = Internal /\ v = bin_op_eval_int b v1 v2)
+.
+Proof.
+  intros. inv H. induction K; cbn in *; try congruence. subst.
+  inv H7. exists n1; exists n2; easy.
+Qed.
+
+Lemma binop_steps_lits_inv Ω1 b Ω3 v1 v2 v Tr :
+  Ω1 ▷ BinOp b (Lit v1) (Lit v2) =[ Tr ]~>* Ω3 ▷ Lit v ->
+  Ω1 = Ω3 /\ v = v1 + v2 /\ Tr = Internal :: nil.
+Proof.
+  intros; inv H; inv H4; destruct K; cbn in *; try congruence; subst.
+  - inv H8; apply inv_lit_steps in H6 as [H [H0 H1]]; subst; inv H; easy.
+  - inv H5; destruct K; cbn in *; try congruence; subst; inv H8.
+  - inv H5; destruct K; cbn in *; try congruence; subst; inv H8.
+Qed.
+
+Lemma binop_steps_inv Ω1 b e1 e2 Ω3 v Tr :
+  Ω1 ▷ BinOp b e1 e2 =[ Tr ]~>* Ω3 ▷ Lit v ->
+  exists Ω2 Tr1 Tr2 v1 v2, ((Ω1 ▷ e1 =[ Tr1 ]~>* Ω2 ▷ Lit v1) /\ (Ω2 ▷ e2 =[ Tr2 ]~>* Ω3 ▷ Lit v2)
+/\ Tr = Tr1 ++ Tr2 ++ Internal :: nil /\ v = bin_op_eval_int b v1 v2)
+.
+Proof.
+Admitted.
+
+Lemma access_steps_inv Ω1 A3 H3 Δ3 s e v Tr :
+  Ω1 ▷ Access s e =[ Tr ]~>* (H3; A3; Δ3) ▷ Lit v ->
+  exists Ω' Tr' loc v1, ((Ω1 ▷ e =[ Tr' ]~>* Ω' ▷ Lit v1)
+/\ (let '(H', A', Δ') := Ω' in (A3 = A' /\ H3 = H' /\ Δ3 = Δ' /\ v = read (fetch loc A' + v1) H')
+/\ lookup s Δ' = Some(EnvAddr loc) /\ Tr = Tr' ++ Read loc v1 :: nil))
+.
+Proof.
+  intros. dependent induction H.
+Admitted.
+
+Lemma letin_steps_inv Ω1 Ω3 s e1 e2 v Tr :
+  Ω1 ▷ Letin s e1 e2 =[ Tr ]~>* Ω3 ▷ Lit v ->
+  exists H1 A1 Δ1 Tr1 Tr2 v1 v2, (Ω1 ▷ e1 =[ Tr1 ]~>* (H1; A1; Δ1) ▷ Lit v1)
+/\ ((H1; A1; (s,EnvVal v1) :: Δ1) ▷ e2 =[ Tr2 ]~>* Ω3 ▷ Lit v2) /\ v = v2 /\ Tr = Tr1 ++ Internal :: Tr2
+.
+Proof.
+Admitted.
+
+Lemma if_steps_inv Ω Ω' e1 e2 e3 v Tr :
+  Ω ▷ If e1 e2 e3 =[ Tr ]~>* Ω' ▷ Lit v ->
+  exists v1 Tr1 Ω1, ((Ω ▷ e1 =[ Tr1 ]~>* Ω1 ▷ Lit v1) /\ (
+    (v1 <> 0 /\ exists v2 Tr2 Ω2, (Ω1 ▷ e2 =[ Tr2 ]~>* Ω2 ▷ Lit v2) /\ v = v2 /\ Tr = Tr1 ++ Internal :: Tr2 /\ Ω' = Ω2)
+  \/ (v1 = 0 /\ exists v3 Tr3 Ω3, (Ω1 ▷ e3 =[ Tr3 ]~>* Ω3 ▷ Lit v3) /\ v = v3 /\ Tr = Tr1 ++ Internal :: Tr3 /\ Ω' = Ω3)
+  ))
+.
+Proof.
+Admitted.
+
+Lemma assign_steps_inv Ω H' A' Δ' s e1 e2 v Tr :
+  Ω ▷ Assign s e1 e2 =[ Tr ]~>* (H'; A'; Δ') ▷ Lit v ->
+  exists v1 Tr1 Ω1 v2 Tr2 Ω2 loc, (Ω ▷ e1 =[ Tr1 ]~>* Ω1 ▷ Lit v1) /\ (Ω1 ▷ e2 =[ Tr2 ]~>* Ω2 ▷ Lit v2)
+/\ (let '(H2, A2, Δ2) := Ω2 in (lookup s Δ2 = Some(EnvAddr loc)
+                             /\ Tr = Tr1 ++ Tr2 ++ Write loc v1 :: nil /\ v = v2
+                             /\ H' = replace (fetch loc A' + v1) H2 v2 /\ A' = A2 /\ Δ' = Δ2))
+.
+Proof.
+Admitted.
+
+Lemma new_steps_inv Ω Ω' s e1 e2 v Tr :
+  Ω ▷ New s e1 e2 =[ Tr ]~>* Ω' ▷ Lit v ->
+  exists v1 Tr1 Ω1 v2 Tr2 Ω2, (Ω ▷ e1 =[ Tr1 ]~>* Ω1 ▷ Lit v1)
+/\ (let '(H1, A1, Δ1) := Ω1 in (((grow H1 v1; (LocA(List.length A1), List.length H1) :: A1; (s,EnvAddr(LocA(List.length A1))) :: Δ1)
+                                ▷ e2 =[ Tr2 ]~>* Ω2 ▷ Lit v2)
+/\  Ω' = Ω2 /\ v = v2 /\ Tr = Tr1 ++ Alloc (LocA(List.length A1)) v1 :: Tr2))
+.
+Proof.
+Admitted.
+
+Lemma delete_steps_inv Ω Ω' s Tr v :
+  Ω ▷ Delete s =[ Tr ]~>* Ω' ▷ Lit v ->
+  exists loc, (let '(Ha, Aa, Δa) := Ω in (lookup s Δa = Some(EnvAddr loc)
+      /\ Ω' = (Ha, Aa, delete s Δa) /\ v = 0 /\ Tr = Dealloc loc :: nil
+  )).
+Proof.
+  intros; destruct Ω; inv H;
+  inv H4; induction K; cbn in *; try congruence; subst; inv H8;
+  exists loc; repeat split; apply inv_lit_steps in H6 as [H0 [H1 H2]]; try easy;
+  now (inv H0 + rewrite H2).
+Qed.
+
+(* this depends on the above inversion lemmas... *)
+Lemma steps_is_exec Ω Ω' e v Tr :
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ Lit v ->
+  exec Ω e = Some (Ω', LitV v, Tr)
+.
+Proof.
+  revert Ω v Tr Ω'; induction e; intros; destruct Ω as [[Ha Aa] Δa], Ω' as [[Ha' Aa'] Δa']; cbn.
+  - apply inv_lit_steps in H as []; subst; inv H0; inv H; inv H1; easy.
+  - apply inv_var_steps in H as [H []]; rewrite H, H1; inv H0; easy.
+  - eapply binop_steps_inv in H as [Ω2 [Tr1 [Tr2 [v1 [v2 [H1 [H2 [H3 H4]]]]]]]];
+    specialize (IHe1 (Ha; Aa; Δa) v1 Tr1 Ω2 H1); specialize (IHe2 Ω2 v2 Tr2 (Ha'; Aa'; Δa') H2);
+    now rewrite IHe1, IHe2, H3, H4.
+  - eapply access_steps_inv in H as [[[H' A'] Δ'] [Tr' [loc [v1 [H1 [[H2 [H3 [H4 H5]]] [H6 H7]]]]]]];
+    specialize (IHe (Ha; Aa; Δa) v1 Tr' (H'; A'; Δ') H1);
+    now rewrite IHe, H6, H5, H7, H2, H3, H4.
+  - eapply letin_steps_inv in H as [H1 [A1 [Δ1 [Tr1 [Tr2 [v1 [v2 [H2 [H3 [H4 H5]]]]]]]]]];
+    specialize (IHe1 (Ha; Aa; Δa) v1 Tr1 (H1; A1; Δ1) H2);
+    specialize (IHe2 (H1; A1; (s, EnvVal v1) :: Δ1) v2 Tr2 (Ha'; Aa'; Δa') H3);
+    now rewrite IHe1, IHe2, H4, H5.
+  - eapply if_steps_inv in H as [v1 [Tr1 [Ω1 [H1 [[H2 [v2 [Tr2 [Ω2 [H3 [H4 [H5 H6]]]]]]]
+                                                | [H2 [v3 [Tr3 [Ω3 [H3 [H4 [H5 H6]]]]]]]]]]]];
+    specialize (IHe1 (Ha; Aa; Δa) v1 Tr1 Ω1 H1).
+    + specialize (IHe2 Ω1 v2 Tr2 Ω2 H3);
+      destruct v1; try contradiction; now rewrite IHe1, IHe2, H4, H5, H6.
+    + specialize (IHe3 Ω1 v3 Tr3 Ω3 H3);
+      now rewrite IHe1, IHe3, H4, H2, H5, H6.
+  - eapply assign_steps_inv in H as [v1 [Tr1 [Ω1 [v2 [Tr2 [[[H2 A2] Δ2] [loc [H3 [H4 [H5 [H6 [H7 [H8 [H9 H10]]]]]]]]]]]]]];
+    specialize (IHe1 (Ha; Aa; Δa) v1 Tr1 Ω1 H3); specialize (IHe2 Ω1 v2 Tr2 (H2; A2; Δ2) H4);
+    now rewrite IHe1, IHe2, H5, H6, H7, H8, H9, H10.
+  - eapply new_steps_inv in H as [v1 [Tr1 [[[H1 A1] Δ1] [v2 [Tr2 [Ω2 [H2 [H3 [H4 [H5 H6]]]]]]]]]];
+    specialize (IHe1 (Ha; Aa; Δa) v1 Tr1 (H1; A1; Δ1) H2);
+    specialize (IHe2 (grow H1 v1; (LocA(List.length A1), List.length H1) :: A1; (s, EnvAddr(LocA(List.length A1))) :: Δ1) v2 Tr2 Ω2 H3);
+    now rewrite IHe1, IHe2, H4, H5, H6.
+  - eapply delete_steps_inv in H as [loc [H1 [H2 [H3 H4]]]];
+    now rewrite H1, H2, H3, H4.
+Qed.
+
+Theorem steps_equiv_exec Ω Ω' e v Tr :
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ Lit v <-> exec Ω e = Some (Ω', LitV v, Tr).
+Proof. split; (apply steps_is_exec + apply exec_is_steps). Qed.
 
 Inductive WhileProgram :=
 | WProg : forall e, closed nil e -> WhileProgram
@@ -845,11 +1011,16 @@ Fixpoint is_prefix (m : list Event) (t : CTrace) :=
   end
 .
 Definition safety (π : CTrace -> Prop) : Prop :=
-  forall (t : CTrace), π t -> exists (m : list Event), is_prefix m t /\ forall (t' : CTrace), is_prefix m t' -> ~(π t')
+  forall (t : CTrace), ~(π t) -> exists (m : list Event), (is_prefix m t -> forall (t' : CTrace), is_prefix m t' -> ~(π t'))
 .
 Definition occ (e : Event) (t : CTrace) :=
   exists n, trace_at t n = e
 .
+Lemma prefix_implies_occ t m e :
+  is_prefix m t -> List.In e m -> occ e t.
+Proof.
+Admitted.
+
 Definition one_event (e : Event) (t : CTrace) :=
   exists n, trace_at t n = e /\ ~exists m, n <> m /\ trace_at t m = e
 .
@@ -857,9 +1028,11 @@ Definition after_another_event (e0 e1 : Event) (t : CTrace) :=
   exists n, trace_at t n = e0 -> exists m, trace_at t m = e1 /\ n < m
 .
 Definition temp_memsafe (t : CTrace) :=
-  forall v s, one_event (Alloc v s) t ->
-         one_event (Dealloc v) t /\
-         after_another_event (Alloc v s) (Dealloc v) t
+  forall v s, after_another_event (Alloc v s) (Dealloc v) t /\
+         (~(forall x, after_another_event (Read v x) (Alloc v s) t)) /\
+         (~(forall x, after_another_event (Write v x) (Alloc v s) t)) /\
+         (~(forall x, after_another_event (Dealloc v) (Read v x) t)) /\
+         (~(forall x, after_another_event (Dealloc v) (Write v x) t))
 .
 Definition spat_memsafe (t : CTrace) :=
   forall loc s, occ (Alloc loc s) t ->
@@ -868,10 +1041,25 @@ Definition spat_memsafe (t : CTrace) :=
 .
 Lemma temp_memsafe_is_safety : safety temp_memsafe.
 Proof.
+  intros ? ?.
+  exists (Dealloc (LocA 0) :: Read (LocA 0) 42 :: nil); intros ? ? ? ?.
+  unfold temp_memsafe in H, H2.
+  eapply H2. exact 5.  (* <- this makes it seem like something is off of the definition *)
+  intros ?. exists 0. intros. exists 1. split; try lia.
+  (* by prefix *)
 Admitted.
 Lemma spat_memsafe_is_safety : safety spat_memsafe.
 Proof.
-Admitted.
+  intros ? ?.
+  exists (Alloc (LocA 0) 42 :: Read (LocA 0) 1337 :: nil); intros ? ? ? ?.
+  eapply prefix_implies_occ with (e:=Alloc (LocA 0) 42) in H1 as Halloc1; cbn; try now left.
+  eapply prefix_implies_occ with (e:=Read (LocA 0) 1337) in H1 as Hread1; cbn; try (right; now left).
+  specialize (H2 (LocA 0) 42 Halloc1) as [].
+  assert (occ (Read (LocA 0) 1337) t') by assumption.
+  destruct Hread1 as [n1 Hread1'].
+  specialize (H2 1337 H4).
+  lia.
+Qed.
 
 Lemma plug_checks_propagate (c : WhileContext) (p : WhileComponent) :
   context_check c ->

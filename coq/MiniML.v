@@ -819,6 +819,14 @@ Proof.
   inv H8; exists n1; exists n2; easy.
 Qed.
 
+Lemma lit_steps_inv Ω1 v1 Ω2 v2 Tr :
+  Ω1 ▷ (Lit v1) =[ Tr ]~>* Ω2 ▷ Lit v2 ->
+  Ω1 = Ω2 /\ v1 = v2 /\ Tr = nil.
+Proof.
+  intros H; inv H; repeat split; trivial;
+  inv H4; induction K; cbn in *; try congruence; subst; inv H9.
+Qed.
+
 Lemma binop_steps_lits_inv Ω1 b Ω3 v1 v2 v Tr :
   Ω1 ▷ BinOp b (Lit v1) (Lit v2) =[ Tr ]~>* Ω3 ▷ Lit v ->
   Ω1 = Ω3 /\ v = v1 + v2 /\ Tr = Internal :: nil.
@@ -1110,6 +1118,121 @@ Qed.
 Lemma alloc_not_in_termtrace v n s :
   trace_at termtrace n <> Alloc v s.
 Proof. induction n; cbn; intros ?; congruence. Qed.
+
+Lemma dealloc_not_in_termtrace v n :
+  trace_at termtrace n <> Dealloc v.
+Proof. induction n; cbn; intros ?; congruence. Qed.
+
+(** Returns the suffix starting at the nth position in the given trace t. *)
+Fixpoint sufftr (n : nat) (t : list Event) :=
+  match n,t with
+  | 0,t' => t'
+  | _,nil => nil
+  | S n',_ :: t' => sufftr n' t'
+  end
+.
+Ltac boring := (
+  repeat match goal with
+  | [H: nth_error nil ?n = Some _ |- _] =>
+      induction n; cbn in *; congruence
+  | [H: (?Ω, Lit ?n) =[ ?TR ]~>* (?Ω'', Lit ?n') |- _] =>
+      apply lit_steps_inv in H as [Ha [Hb Hc]]; subst
+  | [H: Lit ?v = fill ?K ?e |- _] => induction K; cbn in *; try congruence; subst
+  end
+).
+Lemma base_alloc_yields_new e e' Ω Ω' loc s :
+  Ω ▷ e -[ Alloc loc s ]~> Ω' ▷ e' ->
+  exists x e2, e = New x (Lit s) e2 /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\ e' = e2.
+Proof.
+  intros H; inv H; boring.
+  exists x; exists e'; cbn; split; trivial.
+  rewrite eqb_refl; now cbn.
+Qed.
+Lemma ctx_alloc_yields_new e e' Ω Ω' loc s :
+  Ω ▷ e =[ Alloc loc s ]~> Ω' ▷ e' ->
+  exists K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\
+            e' = fill K e2.
+Proof.
+  intros H; inv H; boring; apply base_alloc_yields_new in H7 as [x [e2 [H0a [H0b H0c]]]];
+  exists K; subst; eauto.
+Qed.
+Lemma steps_alloc_yields_new e e' Ω Ω' Tr loc s :
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
+  List.nth_error Tr 0 = Some (Alloc loc s) ->
+  exists Ω'' K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω'' = Some (EnvAddr loc)
+   /\ (Ω ▷ e =[ Alloc loc s ]~> Ω'' ▷ fill K e2)
+   /\ Ω'' ▷ fill K e2 =[ List.tail Tr ]~>* Ω' ▷ e'.
+Proof.
+  intros H0 H1. inv H0; boring.
+  cbn in H1; inv H1.
+  exists Ω'0.
+  edestruct ctx_alloc_yields_new as [K [x [e2 [H0a [H0b H0c]]]]]; cbn; subst; eauto.
+  exists K; exists x; exists e2; repeat split; subst; eauto.
+Qed.
+Lemma steps_alloc_yields_new_inbetween e e' Ω Ω' Tr loc s n :
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
+  List.nth_error Tr n = Some (Alloc loc s) ->
+  exists Ω1 Ω2 Tr' K x e2, (Ω ▷ e =[ Tr' ]~>* Ω1 ▷ (fill K (New x (Lit s) e2)))
+          /\ (Ω1 ▷ fill K (New x (Lit s) e2) =[ Alloc loc s ]~> Ω2 ▷ fill K e2)
+          /\ Δ_lookup x Ω2 = Some (EnvAddr loc)
+          /\ Ω2 ▷ fill K e2 =[ sufftr (S n) Tr ]~>* Ω' ▷ e'.
+Proof.
+  intros H0 H1.
+  revert Tr Ω Ω' e e' H0 H1; induction n; intros Tr Ω Ω' e e' H0 H1.
+  - edestruct steps_alloc_yields_new as [Ω'' [K [x [e2 [H2a [H2b [H2c H2d]]]]]]]; eauto;
+    do 6 eexists; subst; repeat split; eauto.
+  - inv H0; boring; cbn in *.
+    specialize (IHn as0 Ω'0 Ω' e'0 e' H8 H1).
+    destruct IHn as [Ω1 [Ω2 [Tr' [K [x [e2 [IHa [IHb [IHc IHd]]]]]]]]].
+    do 6 eexists; eauto.
+Qed.
+
+Lemma base_dealloc_yields_delete e e' Ω Ω' loc :
+  Ω ▷ e -[ Dealloc loc ]~> Ω' ▷ e' ->
+  exists x, e = Delete x /\ Δ_lookup x Ω = Some (EnvAddr loc) /\ e' = (Lit 0).
+Proof.
+  intros H; inv H; boring.
+  exists x; cbn; repeat split; trivial.
+Qed.
+Lemma ctx_dealloc_yields_delete e e' Ω Ω' loc :
+  Ω ▷ e =[ Dealloc loc ]~> Ω' ▷ e' ->
+  exists K x, e = fill K (Delete x) /\ Δ_lookup x Ω = Some (EnvAddr loc) /\
+         e' = fill K (Lit 0).
+Proof.
+  intros H; inv H; boring; apply base_dealloc_yields_delete in H7 as [x [H0a [H0b H0c]]];
+  exists K; subst; eauto.
+Qed.
+Lemma steps_dealloc_yields_delete e e' Ω Ω' Tr loc :
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
+  List.nth_error Tr 0 = Some (Dealloc loc) ->
+  exists Ω'' K x, e = fill K (Delete x) /\ Δ_lookup x Ω = Some (EnvAddr loc)
+   /\ (Ω ▷ e =[ Dealloc loc ]~> Ω'' ▷ fill K (Lit 0))
+   /\ Ω'' ▷ fill K (Lit 0) =[ List.tail Tr ]~>* Ω' ▷ e'.
+Proof.
+  intros H0 H1. inv H0; boring.
+  cbn in H1; inv H1.
+  exists Ω'0.
+  edestruct ctx_dealloc_yields_delete as [K [x [H0a [H0b H0c]]]]; cbn; subst; eauto.
+  exists K; exists x; repeat split; subst; eauto.
+Qed.
+Lemma steps_dealloc_yields_delete_inbetween e e' Ω Ω' Tr loc n :
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
+  List.nth_error Tr n = Some (Dealloc loc) ->
+  exists Ω1 Ω2 Tr' K x, (Ω ▷ e =[ Tr' ]~>* Ω1 ▷ (fill K (Delete x)))
+          /\ (Ω1 ▷ fill K (Delete x) =[ Dealloc loc ]~> Ω2 ▷ fill K (Lit 0))
+          /\ Δ_lookup x Ω1 = Some (EnvAddr loc)
+          /\ Ω2 ▷ fill K (Lit 0) =[ sufftr (S n) Tr ]~>* Ω' ▷ e'.
+Proof.
+  intros H0 H1.
+  revert Tr Ω Ω' e e' H0 H1; induction n; intros Tr Ω Ω' e e' H0 H1.
+  - edestruct steps_dealloc_yields_delete as [Ω'' [K [x [H2a [H2b [H2c H2d]]]]]]; eauto;
+    do 6 eexists; subst; repeat split; eauto.
+  - inv H0; boring; cbn in *.
+    specialize (IHn as0 Ω'0 Ω' e'0 e' H8 H1).
+    destruct IHn as [Ω1 [Ω2 [Tr' [K [x [IHa [IHb [IHc IHd]]]]]]]].
+    do 6 eexists; eauto.
+Qed.
+
 
 Lemma while_is_temp_memsafe (p : WhileComponent) (H : component_check p) :
   wrsat H temp_memsafe.

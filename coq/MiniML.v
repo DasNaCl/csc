@@ -3,6 +3,11 @@ Require Import Coq.Arith.PeanoNat Strings.String Lists.List Lia Program.Equality
 Require Import Classes.RelationClasses Morphisms Setoid.
 Require Import CSC.Util CSC.Fresh.
 
+(** * MiniML *)
+(** In this document, we present the formalisation of MiniML.
+    It's basically simple, non-recursive let-expressions.     *)
+
+(** ** Abstract Syntax *)
 Inductive bin_op :=
   | Plus
 .
@@ -61,34 +66,16 @@ Definition is_val (e : expr) : Prop :=
   end
 .
 Lemma to_of_val v : to_val (of_val v) = Some v.
-Proof.
-  now induction v.
-Qed.
+Proof. now induction v. Qed.
+
 Lemma of_to_val e v : to_val e = Some v -> of_val v = e.
-Proof.
-  revert v; induction e; cbn; intros v ?; inv H; easy.
-Qed.
+Proof. revert v; induction e; cbn; intros v ?; inv H; easy. Qed.
+
 Lemma is_val_inv e : is_val e -> { n : nat | e = Lit n }.
-Proof.
-  induction e; cbn; intros; try contradiction.
-  now exists n.
-Qed.
+Proof. induction e; cbn; intros; try contradiction; now exists n. Qed.
 
+(** ** Evaluation *)
 
-(* Not sure if necessary, let's see... *)
-Fixpoint esubst (x : string) (fore : expr) (ine : expr) : expr :=
-  match ine with
-  | Lit _ => ine
-  | Var y => if string_dec x y then fore else Var x
-  | BinOp o e1 e2 => BinOp o (esubst x fore e1) (esubst x fore e2)
-  | Access y e => Access y (esubst x fore e)
-  | Letin y e1 e2 => Letin y (esubst x fore e1) (if string_dec x y then e2 else esubst x fore e2)
-  | If e1 e2 e3 => If (esubst x fore e1) (esubst x fore e2) (esubst x fore e3)
-  | Assign x e1 e2 => Assign x (esubst x fore e1) (esubst x fore e2)
-  | New x eat e => New x (esubst x fore eat) (esubst x fore e)
-  | Delete x => Delete x
-  end
-.
 Definition bin_op_eval_int (op : bin_op) (n1 n2 : nat) : nat :=
   match op with
   | PlusOp => n1 + n2
@@ -122,6 +109,14 @@ Definition of_opt_env_elem (e : option env_elem) : option val :=
 Coercion EnvAddr : addr >-> env_elem.
 Coercion EnvVal : val >-> env_elem.
 Definition Env : Set := list (string * env_elem).
+
+(**
+  State consists of four things:
+    1. A way to get unique ids
+    2. A heap, modeled as a list of natural numbers
+    3. Mapping of unguessable addresses to indexes to things in heap
+    4. An environment containing the values of variables/identifiers
+*)
 Record State : Set := {
     fresh : Fresh.fresh_state ;
     H     : Heap ;
@@ -155,6 +150,15 @@ Definition H_lookup (a : nat) (Ω : State) :=
 Lemma Δ_lookup_dec (x : string) (Ω : State) :
   { Δ_lookup x Ω = None } + { Δ_lookup x Ω <> None }.
 Proof. unfold Δ_lookup; apply Util.find_dec. Defined.
+
+(**
+  Events occuring in traces are
+    - << Internal >> is the unobservable event
+    - << Alloc loc s >> a new memory region at address << loc >> of size << s >> was allocated
+    - << Dealloc loc >> the memory region at address << loc >> is freed
+    - << Read loc n >> value in heap at address << loc + n >> read
+    - << Write loc n >> value in heap at address << loc + n >> overwritten
+ *)
 
 Variant Event : Set :=
 | Internal : Event
@@ -546,7 +550,6 @@ where "Γa '||-' e ':' τ '=|' Γb" := (check Γa e τ Γb)
 .
 #[global]
 Hint Constructors check : core.
-
 (* This is easier to work with to get traces. TODO: make it cofix when adding loops *)
 Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
   match e with
@@ -708,7 +711,6 @@ Proof.
     context_solver HoleCtx.
   - repeat exec_reduce; eauto.
 Qed.
-
 
 Fixpoint drop {A} (Γ : list (string * A)) : list string :=
   match Γ with
@@ -923,58 +925,63 @@ Proof.
   now (inv Hx0 + rewrite Hx2).
 Qed.
 
-Inductive ectx_check : Gamma -> ectx -> ty -> ty -> Prop :=
-| HoleCtx_check : forall Γ A, ectx_check Γ HoleCtx A A
-| LBinOpCtx_check : forall Γ o K e A, (Γ ||- e : tyNat =| Γ) -> (ectx_check Γ K A tyNat) ->
-    ectx_check Γ (LBinOpCtx o K e) A tyNat
-| RBinOpCtx_check : forall Γ o K v A, (ectx_check Γ K A tyNat) ->
-                                  ectx_check Γ (RBinOpCtx o v K) A tyNat
-| AccessCtx_check : forall Γ x K A, (ectx_check Γ K A tyNat) ->
+Inductive ectx_check : Gamma -> ectx -> ty -> ty -> Gamma -> Prop :=
+| HoleCtx_check : forall Γ Γ' A, ectx_check Γ HoleCtx A A Γ'
+| LBinOpCtx_check : forall Γ o K e A, (Γ ||- e : tyNat =| Γ) ->
+                                 (ectx_check Γ K A tyNat Γ) ->
+    ectx_check Γ (LBinOpCtx o K e) A tyNat Γ
+| RBinOpCtx_check : forall Γ o K v A, (ectx_check Γ K A tyNat Γ) ->
+                                  ectx_check Γ (RBinOpCtx o v K) A tyNat Γ
+| AccessCtx_check : forall Γ x K A, (ectx_check Γ K A tyNat Γ) ->
                                 Util.find (String.eqb x) Γ = Some tyRefnat ->
-                                ectx_check Γ (AccessCtx x K) A tyNat
-| LetinCtx_check : forall Γ x e K A, (ectx_check Γ K A tyNat) ->
+                                ectx_check Γ (AccessCtx x K) A tyNat Γ
+| LetinCtx_check : forall Γ x e K A, (ectx_check Γ K A tyNat Γ) ->
                                 ((x, tyNat) :: Γ ||- e : tyNat =| (x, tyNat) :: Γ) ->
-                                (ectx_check Γ (LetinCtx x K e) A tyNat)
-| AssignCtx_check : forall Γ x e K A, (ectx_check Γ K A tyNat) ->
+                                (ectx_check Γ (LetinCtx x K e) A tyNat Γ)
+| AssignCtx_check : forall Γ x e K A, (ectx_check Γ K A tyNat Γ) ->
                                  Util.find (String.eqb x) Γ = Some tyRefnat ->
                                  (Γ ||- e : tyNat =| Γ) ->
-                                 (ectx_check Γ (AssignCtx x K e) A tyNat)
-| AssignVCtx_check : forall Γ x v K A, (ectx_check Γ K A tyNat) ->
+                                 (ectx_check Γ (AssignCtx x K e) A tyNat Γ)
+| AssignVCtx_check : forall Γ x v K A, (ectx_check Γ K A tyNat Γ) ->
                                   Util.find (String.eqb x) Γ = Some tyRefnat ->
-                                  (ectx_check Γ (AssignVCtx x v K) A tyNat)
-| NewCtx_check : forall Γ x e K A, (ectx_check Γ K A tyNat) ->
+                                  (ectx_check Γ (AssignVCtx x v K) A tyNat Γ)
+| NewCtx_check : forall Γ x e K A, (ectx_check Γ K A tyNat Γ) ->
                               ((x, tyRefnat) :: Γ ||- e : tyNat =| Γ) ->
-                              (ectx_check Γ (NewCtx x K e) A tyNat)
-| IfCtx_check : forall Γ e1 e2 K A, (ectx_check Γ K A tyNat) ->
+                              (ectx_check Γ (NewCtx x K e) A tyNat Γ)
+| IfCtx_check : forall Γ e1 e2 K A, (ectx_check Γ K A tyNat Γ) ->
                                (Γ ||- e1 : tyNat =| Γ) ->
                                (Γ ||- e2 : tyNat =| Γ) ->
-                               (ectx_check Γ (IfCtx K e1 e2) A tyNat)
+                               (ectx_check Γ (IfCtx K e1 e2) A tyNat Γ)
 .
 Hint Constructors ectx_check : core.
-(*
-  | IfCtx : ectx -> expr -> expr -> ectx *)
 
-Lemma preservation_base e e' Γ Ω Ω' a ty :
-  (Γ ||- e : ty =| Γ) ->
+Lemma delete_is_subset (Γ : Gamma) x :
+  delete x Γ ⊆ Γ.
+Proof.
+  induction Γ; trivial; destruct a; intros [s0 t0] H;
+  cbn in *; destruct (string_dec x s).
+  - subst; now right.
+  - specialize (IHΓ (s0, t0)); cbn in H; destruct H.
+    + now left.
+    + right; auto.
+Qed.
+#[global]
+Hint Resolve delete_is_subset : core.
+
+Lemma preservation_base e e' Γ0 Γ0' Ω Ω' a ty :
+  (Γ0 ||- e : ty =| Γ0') ->
   (Ω ▷ e -[ a ]~> Ω' ▷ e') ->
-  exists Γ' Γ'', Γ' ||- e' : ty =| Γ''
+  exists Γ1 Γ1', (Γ1 ||- e' : ty =| Γ1') /\ (Γ0 ⊆ Γ1) /\ (Γ0' ⊆ Γ1')
 .
 Proof.
-  induction 1; intros.
-  - inv H1; do 2 exists Γ; auto.
-  - inv H0; eauto.
-  - inv H0; do 2 exists Γ; auto.
-  - inv H2; do 2 exists Γ; auto.
-  - inv H1; eauto.
-  - inv H0; eauto.
-  - inv H0; eauto.
-  - inv H2; do 2 exists Γ; auto.
-  - inv H0; eauto.
+  induction 1; intros H; inv H; eauto.
+  - do 2 eexists; repeat split; eauto; cbn; eauto.
+  - do 2 eexists; repeat split; eauto; cbn; eauto.
+  - do 2 eexists; repeat split; eauto.
 Qed.
-
-Lemma preservation_decomposition e K Γ ty :
-  (Γ ||- fill K e : ty =| Γ) ->
-  exists ty', (Γ ||- e : ty' =| Γ) /\ (ectx_check Γ K ty' ty).
+Lemma preservation_decomposition e K Γ Γ' ty :
+  (Γ ||- fill K e : ty =| Γ') ->
+  exists ty', (Γ ||- e : ty' =| Γ') /\ (ectx_check Γ K ty' ty Γ').
 Proof.
   induction K; cbn; intros H.
   - exists ty; eauto.
@@ -987,9 +994,8 @@ Proof.
   - inv H; destruct (IHK H6) as [ty' [IHKa IHKb]]; eauto.
   - inv H; destruct (IHK H4) as [ty' [IHKa IHKb]]; eauto.
 Qed.
-
 Lemma preservation_composition e K Γ ty ty' :
-  (ectx_check Γ K ty ty') ->
+  (ectx_check Γ K ty ty' Γ) ->
   (Γ ||- e : ty =| Γ) ->
   (Γ ||- fill K e : ty' =| Γ).
 Proof.
@@ -1000,89 +1006,36 @@ Proof.
   - econstructor; trivial.
     + destruct v; constructor.
     + now apply IHectx_check.
-Qed.
+  *)
+Admitted.
+Lemma weaken Γ0 Γ0' Γ1 Γ1' K ty ty' :
+  (Γ0 ⊆ Γ1) -> (Γ0' ⊆ Γ1') ->
+  (ectx_check Γ0 K ty ty' Γ0') ->
+  (ectx_check Γ1 K ty ty' Γ1').
+Proof.
+Admitted.
 
-Lemma preservation e e' Γ Ω Ω' a ty :
-  (Γ ||- e : ty =| Γ) ->
+Lemma preservation e e' Γ0 Γ0' Ω Ω' a ty :
+  (Γ0 ||- e : ty =| Γ0') ->
   (Ω ▷ e =[ a ]~> Ω' ▷ e') ->
-  exists Γ', Γ ||- e' : ty =| Γ'
+  exists Γ' Γ'', Γ' ||- e' : ty =| Γ''
 .
 Proof.
-  intros H0 H1. inv H1. eapply preservation_decomposition in H0.
-  eapply preservation_base in H9; eauto. destruct H9 as [Γ' [Γ'' H9]].
-
-  - eapply inv_var_ctx_step in H1 as [v [H1a H1b]]; subst; eauto.
-  - eapply inv_lit_ctx_step in H0; contradiction.
-  - eapply binop_ctx_step_inv_extra in H0 as [H0|H0].
-    + destruct H0; subst; eauto.
-    + destruct H0.
-      * repeat destruct H0.
-Admitted.
+  intros H0 H1; inv H1.
+  eapply preservation_decomposition in H0 as [ty' [H0a H0b]].
+  eapply preservation_base in H9 as [Γ' [Γ'' [H9a [H9b H9c]]]]; eauto.
+  exists Γ'. exists Γ''. eapply preservation_composition; eauto. eapply weaken; eauto.
+Qed.
 
 Lemma preservation_star e e' Γ Ω Ω' a ty :
   (Γ ||- e : ty =| Γ) ->
   (Ω ▷ e =[ a ]~>* Ω' ▷ e') ->
-  exists Γ', Γ ||- e' : ty =| Γ'
+  exists Γ' Γ'', Γ' ||- e' : ty =| Γ''
 .
 Proof.
-  intros H0 H1; assert (H1':=H1). pattern e'. dependent induction H1. eauto.
-  eapply preservation; eauto. inv H1; eauto.
-  admit.
-    (*
-  intros H; revert Ω a Ω' e'; induction H; intros Ω a Ω' e' H.
-  - eapply inv_var_steps in H as [H | [s [Ha [Hb [Hc Hd]]]]]; subst; exists Γ; now constructor.
-  - eapply inv_lit_steps in H as [Ha [Hb Hc]]; subst; exists Γ; now constructor.
-  - inv H.
-    + exists Γ; now constructor.
-    + eapply binop_ctx_step_inv_extra in H6 as [[v H6]|[[Ω1' [Tr1 [e1' [H6a H6b]]]]|H6]].
-      * subst; eapply inv_lit_steps in H8 as [H8a [H8b H8c]]; subst; now econstructor.
-      * subst. eapply IHcheck2.
-  *)
 Admitted.
 
 
-(* this depends on the above inversion lemmas... *)
-Lemma steps_is_exec Ω Ω' e v Tr :
-  Ω ▷ e =[ Tr ]~>* Ω' ▷ Lit v ->
-  exec Ω e = Some (Ω', LitV v, Tr)
-.
-Proof.
-  revert Ω v Tr Ω'; induction e; intros; cbn.
-  - apply inv_lit_steps in H0 as []; subst; inv H1; inv H0; easy.
-  - apply inv_var_steps in H0 as [H0 | [n [H0 [H1 []]]]]; (congruence || (inv H0; now rewrite H1)).
-  - eapply binop_steps_inv in H0 as [Ω2 [Tr1 [Tr2 [v1 [v2 [H1 [H2 [H3 H4]]]]]]]];
-    specialize (IHe1 Ω v1 Tr1 Ω2 H1); specialize (IHe2 Ω2 v2 Tr2 Ω' H2);
-    now rewrite IHe1, IHe2, H3, H4.
-  - eapply access_steps_inv in H0 as [Ω0 [Tr' [loc [v1 [H0 [[H1 H2] [H3 H4]]]]]]];
-    specialize (IHe Ω v1 Tr' Ω0 H0);
-    now rewrite IHe, H1, H2, H3, H4.
-  - eapply letin_steps_inv in H0 as [Ω1 [Tr1 [Tr2 [v1 [v2 [H2 [H3 [H4 H5]]]]]]]].
-    specialize (IHe1 Ω v1 Tr1 Ω1 H2);
-    specialize (IHe2 (Ω1.(fresh); Ω1.(H); Ω1.(A); (s, EnvVal v1) :: Ω1.(Δ)) v2 Tr2 Ω' H3);
-    now rewrite IHe1, IHe2, H4, H5.
-  - eapply if_steps_inv in H0 as [v1 [Tr1 [Ω1 [H1 [[H2 [v2 [Tr2 [Ω2 [H3 [H4 [H5 H6]]]]]]]
-                                                 | [H2 [v3 [Tr3 [Ω3 [H3 [H4 [H5 H6]]]]]]]]]]]];
-    specialize (IHe1 Ω v1 Tr1 Ω1 H1).
-    + specialize (IHe2 Ω1 v2 Tr2 Ω2 H3);
-      destruct v1; try contradiction; now rewrite IHe1, IHe2, H4, H5, H6.
-    + specialize (IHe3 Ω1 v3 Tr3 Ω3 H3);
-      now rewrite IHe1, IHe3, H4, H2, H5, H6.
-  - eapply assign_steps_inv in H0 as [v1 [Tr1 [Ω1 [v2 [Tr2 [Ω2 [loc [H3 [H4 [H5 [H6 [H7 [H8 [H9 [H10 H11]]]]]]]]]]]]]]].
-    specialize (IHe1 Ω v1 Tr1 Ω1 H3); specialize (IHe2 Ω1 v2 Tr2 Ω2 H4);
-    rewrite IHe1, IHe2, H5, H6, H7, <- H8, <- H9, <- H10, <- H11; repeat f_equal; destruct Ω'; now cbn.
-  - eapply new_steps_inv in H0 as [v1 [Tr1 [Ω1 [v2 [Tr2 [Ω2 [H2 [H3 [H4 [H5 H6]]]]]]]]]];
-    specialize (IHe1 Ω v1 Tr1 Ω1 H2);
-    specialize (IHe2 (advance (Ω1.(fresh)); grow Ω1.(H) v1;
-                      (LocA(Fresh.fresh (Ω1.(fresh))), List.length Ω1.(H)) :: (Ω1.(A));
-                      (s, EnvAddr(LocA(Fresh.fresh (Ω1.(fresh))))) :: Ω1.(Δ)) v2 Tr2 Ω2 H3);
-    now rewrite IHe1, IHe2, H4, H5, H6.
-  - eapply delete_steps_inv in H0 as [loc [H1 [H2 [H3 H4]]]];
-    now rewrite H1, H2, H3, H4.
-Qed.
-
-Theorem steps_equiv_exec Ω Ω' e v Tr :
-  Ω ▷ e =[ Tr ]~>* Ω' ▷ Lit v <-> exec Ω e = Some (Ω', LitV v, Tr).
-Proof. split; (apply steps_is_exec + apply exec_is_steps). Qed.
 
 Inductive WhileProgram :=
 | WProg : forall e, closed nil e -> WhileProgram
@@ -1163,38 +1116,6 @@ Definition wsat (p : WhileProgram) (H : whole_program_check p) (π : Trace -> Pr
 Definition wrsat (p : WhileComponent) (H0 : component_check p) (π : Trace -> Prop) : Prop :=
   forall (c : WhileContext) (H1 : context_check c), @wsat (plug c p) (@plug_checks_propagate c p H1 H0) π
 .
-
-Lemma while_is_not_spat_memsafe :
-  ~ (forall (p : WhileComponent) (H : component_check p), wrsat H spat_memsafe).
-Proof.
-  intros H.
-  remember (New "x0"%string (Lit 42) (Letin "_"%string (Access "x0"%string (Lit 1337)) (Delete "x0"%string))) as p.
-  assert ((("x"%string, tyNat)::nil) ||- p : tyNat =| (("x"%string, tyNat)::nil)) by
-  (rewrite Heqp; repeat econstructor).
-  assert (component_check (WComp p (closed_typing H0))) by econstructor.
-  specialize (H (WComp p (closed_typing H0)) H1).
-
-  unfold wrsat in H.
-  assert (nil ||- Lit 0 : tyNat =| nil) by repeat econstructor.
-  assert ((("y"%string, tyNat) :: nil) ||- Lit 0 : tyNat =| (("y"%string, tyNat)::nil)) by repeat econstructor.
-  assert (context_check (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))) by repeat econstructor.
-  specialize (H (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3)) H4).
-
-  unfold wsat in H; unfold spat_memsafe in H.
-  remember (plug (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))
-                  (WComp p (closed_typing H0))) as fp.
-  assert (occ (Alloc (LocA 0) 42) (prog2trace fp)).
-  rewrite Heqfp; unfold compute_trace_prefix; cbn;
-  rewrite Heqp; cbn; right; now left.
-
-  assert (occ (Read (LocA 0) 1337) (prog2trace fp)).
-  cbn; rewrite Heqfp; cbn; rewrite Heqp; unfold compute_trace_prefix; cbn;
-  destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; cbn.
-  do 2 right; now left.
-  specialize (H (LocA 0) 42 H5) as [Ha Hb].
-  specialize (Ha 1337 H6).
-  lia.
-Qed.
 
 (** Returns the suffix starting at the nth position in the given trace t. *)
 Fixpoint sufftr (n : nat) (t : list Event) :=
@@ -1409,6 +1330,38 @@ Proof.
   easy.
 Qed.
 
+
+Lemma while_is_not_spat_memsafe :
+  ~ (forall (p : WhileComponent) (H : component_check p), wrsat H spat_memsafe).
+Proof.
+  intros H.
+  remember (New "x0"%string (Lit 42) (Letin "_"%string (Access "x0"%string (Lit 1337)) (Delete "x0"%string))) as p.
+  assert ((("x"%string, tyNat)::nil) ||- p : tyNat =| (("x"%string, tyNat)::nil)) by
+  (rewrite Heqp; repeat econstructor).
+  assert (component_check (WComp p (closed_typing H0))) by econstructor.
+  specialize (H (WComp p (closed_typing H0)) H1).
+
+  unfold wrsat in H.
+  assert (nil ||- Lit 0 : tyNat =| nil) by repeat econstructor.
+  assert ((("y"%string, tyNat) :: nil) ||- Lit 0 : tyNat =| (("y"%string, tyNat)::nil)) by repeat econstructor.
+  assert (context_check (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))) by repeat econstructor.
+  specialize (H (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3)) H4).
+
+  unfold wsat in H; unfold spat_memsafe in H.
+  remember (plug (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))
+                  (WComp p (closed_typing H0))) as fp.
+  assert (occ (Alloc (LocA 0) 42) (prog2trace fp)).
+  rewrite Heqfp; unfold compute_trace_prefix; cbn;
+  rewrite Heqp; cbn; right; now left.
+
+  assert (occ (Read (LocA 0) 1337) (prog2trace fp)).
+  cbn; rewrite Heqfp; cbn; rewrite Heqp; unfold compute_trace_prefix; cbn;
+  destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; cbn.
+  do 2 right; now left.
+  specialize (H (LocA 0) 42 H5) as [Ha Hb].
+  specialize (Ha 1337 H6).
+  lia.
+Qed.
 
 
 Lemma while_is_temp_memsafe (p : WhileComponent) (H : component_check p) :

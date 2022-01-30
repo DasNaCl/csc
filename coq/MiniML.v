@@ -253,6 +253,7 @@ Inductive contextual_step : Conf -> Event -> Conf -> Prop :=
 where "Ω1 '=[' a ']~>' Ω2" := (contextual_step Ω1 a Ω2)
 .
 Reserved Notation "Ω1 '=[' a ']~>*' Ω2" (at level 80, a at next level, right associativity).
+Unset Elimination Schemes.
 Inductive steps : Conf -> list Event -> Conf -> Prop :=
 | stepsRefl : forall Ω e, steps (Ω ▷ e) nil (Ω ▷ e)
 | stepsTrans : forall Ω e a as0 Ω' e' Ω'' e'',
@@ -261,17 +262,16 @@ Inductive steps : Conf -> list Event -> Conf -> Prop :=
     (Ω ▷ e =[ a :: as0 ]~>* Ω'' ▷ e'')
 where "Ω1 '=[' a ']~>*' Ω2" := (steps Ω1 a Ω2)
 .
-
+Set Elimination Schemes.
+Scheme steps_ind := Induction for steps Sort Prop.
 #[global]
 Hint Constructors steps contextual_step : core.
+
 Lemma fill_empty e : fill HoleCtx e = e.
 Proof. now cbn. Qed.
 
 Lemma fill_comp (K1 K2 : ectx) e : fill K1 (fill K2 e) = fill (comp_ectx K1 K2) e.
 Proof. induction K1; cbn; congruence. Qed.
-
-Lemma fill_deter (K K' : ectx) e e' e'' : fill K e = e' -> fill K' e = e'' -> K = K' /\ e' = e''.
-Proof. Admitted.
 
 Lemma base_contextual_step Ω e a Ω' e' :
   Ω ▷ e -[ a ]~> Ω' ▷ e' -> Ω ▷ e =[ a ]~> Ω' ▷ e'.
@@ -420,7 +420,7 @@ Lemma trans_steps σ σ' σ'' As1 As2 :
   σ =[ As1 ]~>* σ' -> σ' =[ As2 ]~>* σ'' -> σ =[ As1 ++ As2 ]~>* σ''
 .
 Proof.
-  intros H; dependent induction H; cbn; intros; try easy;
+  induction 1; cbn; intros H; try easy;
   destruct σ''; eapply stepsTrans; try eassumption; apply IHsteps; eassumption.
 Qed.
 
@@ -431,8 +431,14 @@ Proof. intros; inv H0; induction K; cbn in *; try congruence; subst; inv H8. Qed
 Lemma inv_lit_steps Ω n Tr e Ω' :
   Ω ▷ Lit n =[ Tr ]~>* Ω' ▷ e -> e = Lit n /\ Ω = Ω' /\ Tr = nil.
 Proof.
-  intros; dependent induction H0; try easy.
-  - now apply inv_lit_ctx_step in H0.
+  intros H.
+  change ((fun σ σ' : Conf => fun Tr =>
+          let (Ω, e0) := σ in
+          let (Ω', e) := σ' in
+          e = e0 /\ Ω = Ω' /\ Tr = nil) (Ω ▷ Lit n) (Ω' ▷ e) Tr).
+  remember (Ω ▷ Lit n) as σ.
+  remember (Ω' ▷ e) as σ'.
+  induction H; inv Heqσ; inv Heqσ'; eauto; now apply inv_lit_ctx_step in c.
 Qed.
 
 Lemma inv_var_ctx_step Ω Ω' E s e :
@@ -521,7 +527,8 @@ Inductive ty :=
 Definition Gamma := list (string * ty).
 Reserved Notation "Γa '||-' e ':' τ '=|' Γb" (at level 99, right associativity, e at next level, τ at level 200).
 Inductive check : Gamma -> expr -> ty -> Gamma -> Prop :=
-| Tvar : forall Γ x, Util.find (String.eqb x) Γ = Some tyNat -> (Γ ||- (Var x) : tyNat =| Γ)
+| Tvar : forall Γ x, Util.find (String.eqb x) Γ = Some tyNat ->
+                (Γ ||- (Var x) : tyNat =| Γ)
 | Tnat : forall Γ n, (Γ ||- Lit n : tyNat =| Γ)
 | Tbinop : forall Γ e1 e2 o, (Γ ||- e1 : tyNat =| Γ) ->
                         (Γ ||- e2 : tyNat =| Γ) ->
@@ -533,12 +540,14 @@ Inductive check : Gamma -> expr -> ty -> Gamma -> Prop :=
                       (Γ ||- e1 : tyNat =| Γ) ->
                       (Γ ||- e2 : tyNat =| Γ) ->
                       (Γ ||- Assign x e1 e2 : tyNat =| Γ)
-| Tlet : forall Γ x e1 e2, (Γ ||- e1 : tyNat =| Γ) ->
-                      ((x,tyNat) :: Γ ||- e2 : tyNat =| (x,tyNat) :: Γ) ->
-                      (Γ ||- Letin x e1 e2 : tyNat =| Γ)
-| Tletnew : forall Γ x e1 e2, (Γ ||- e1 : tyNat =| Γ) ->
-                         ((x,tyRefnat) :: Γ ||- e2 : tyNat =| Γ) ->
-                         (Γ ||- New x e1 e2 : tyNat =| Γ)
+| Tlet : forall Γ Γ' x e1 e2, (Γ ||- e1 : tyNat =| Γ) ->
+                      ((x,tyNat) :: Γ ||- e2 : tyNat =| (x,tyNat)::Γ') ->
+                      (Γ' ⊆ Γ) ->
+                      (Γ ||- Letin x e1 e2 : tyNat =| Γ')
+| Tletnew : forall Γ Γ' x e1 e2, (Γ ||- e1 : tyNat =| Γ) ->
+                         ((x,tyRefnat) :: Γ ||- e2 : tyNat =| Γ') ->
+                         (Γ' ⊆ Γ) ->
+                         (Γ ||- New x e1 e2 : tyNat =| Γ')
 | Tdelete : forall Γ Γ' x, Util.find (String.eqb x) Γ = Some tyRefnat ->
                    Γ' = delete x Γ ->
                    (Γ ||- Delete x : tyNat =| Γ')
@@ -550,6 +559,22 @@ where "Γa '||-' e ':' τ '=|' Γb" := (check Γa e τ Γb)
 .
 #[global]
 Hint Constructors check : core.
+Lemma weaken_check Γ0 Γ0' e ty Γ1 Γ1' :
+  (Γ0 ⊆ Γ1) -> (Γ0' ⊆ Γ1') -> (Γ0 ||- e : ty =| Γ0') -> (Γ1 ||- e : ty =| Γ1').
+Proof.
+Admitted.
+
+Goal (("x"%string, tyNat)::nil ||- New "x0"%string (Lit 42) (Letin "_"%string (Access "x0"%string (Lit 1337)) (Delete "x0"%string)) : tyNat =| ("x"%string, tyNat) :: nil).
+Proof.
+  econstructor.
+  econstructor.
+  econstructor.
+  econstructor. now cbn.
+  econstructor.
+  econstructor. now cbn. now cbn.
+  cbn; eauto.
+  eauto.
+Qed.
 (* This is easier to work with to get traces. TODO: make it cofix when adding loops *)
 Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
   match e with
@@ -718,6 +743,16 @@ Fixpoint drop {A} (Γ : list (string * A)) : list string :=
   | (x,_) :: Γ' => x :: (drop Γ')
   end
 .
+Lemma drop_subset_compat (Γ Γ' : Gamma) :
+  (Γ ⊆ Γ') -> ((drop Γ) ⊆ (drop Γ')).
+Proof.
+  revert Γ'; induction Γ;
+  intros Γ' H0 x H1; firstorder.
+  destruct a; destruct H1.
+  - subst; apply IHΓ.
+    + intros y H2; apply H0; cbn; now right.
+    + cbn in H0; specialize (H0 (x, t)). intuition. admit.
+Admitted.
 Lemma closed_typing Γ e τ Γ' :
   (Γ ||- e : τ =| Γ') -> closed (drop Γ) e.
 Proof.
@@ -790,10 +825,10 @@ Proof.
     + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx e2) in H1; eauto.
   - (* letin *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; do 3 eexists; eauto.
-    + do 4 destruct H0 as [? H0]; do 4 eexists; eapply fill_contextual_step with (K:=LetinCtx x HoleCtx e2) in H0; eauto.
+    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=LetinCtx x HoleCtx e2) in H1; eauto.
   - (* new *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; do 3 eexists; context_solver HoleCtx; econstructor; reflexivity.
-    + do 4 destruct H0 as [? H0]; do 4 eexists; eapply fill_contextual_step with (K:=NewCtx x HoleCtx e2) in H0; eauto.
+    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=NewCtx x HoleCtx e2) in H1; eauto.
   - (* delete *) right; exists (empty_fresh; nil; nil; (x,EnvAddr(LocA 0))::nil); do 3 eexists; context_solver HoleCtx;
     econstructor; cbn; now rewrite String.eqb_refl.
   - (* if *) right; destruct (IHcheck1); get_values; subst.
@@ -809,16 +844,6 @@ Proof.
   intros; apply gprogress in H0 as [].
   - do 2 exists ∅; exists nil; apply is_val_inv in H0 as []; exists (Lit x); subst; repeat constructor.
   - destruct H0 as [Ω [E [Ω' [e' H0]]]]; exists Ω; exists Ω'; exists (E :: nil); exists e'; left; eapply stepsTrans; try eassumption; eapply stepsRefl.
-Qed.
-Lemma ctx_typing e K Γ Γ' ty :
-  (Γ ||- fill K e : ty =| Γ') ->
-  exists Γ0 Γ1 ty0, Γ0 ||- e : ty0 =| Γ1.
-Proof.
-  intros H.
-  revert Γ Γ' ty H; induction K; intros Γ Γ' ty H; cbn in *; inv H.
-  eauto.
-  exists nil; exists nil; exists tyNat; eauto.
-  all: eauto.
 Qed.
 
 Lemma binop_ctx_step_inv Ω1 b e1 e2 Ω3 v E :
@@ -954,6 +979,12 @@ Inductive ectx_check : Gamma -> ectx -> ty -> ty -> Gamma -> Prop :=
                                (ectx_check Γ (IfCtx K e1 e2) A tyNat Γ)
 .
 Hint Constructors ectx_check : core.
+Lemma weaken_ctx_check Γ0 Γ1 Γ0' Γ1' K ty ty' :
+  (Γ0 ⊆ Γ1) -> (Γ0' ⊆ Γ1') ->
+  (ectx_check Γ0 K ty ty' Γ0') ->
+  (ectx_check Γ1 K ty ty' Γ1').
+Proof.
+Admitted.
 
 Lemma delete_is_subset (Γ : Gamma) x :
   delete x Γ ⊆ Γ.
@@ -977,27 +1008,29 @@ Proof.
   induction 1; intros H; inv H; eauto.
   - do 2 eexists; repeat split; eauto; cbn; eauto.
   - do 2 eexists; repeat split; eauto; cbn; eauto.
-  - do 2 eexists; repeat split; eauto.
+  - do 2 eexists; repeat split; eauto; cbn; eauto.
 Qed.
 Lemma preservation_decomposition e K Γ Γ' ty :
   (Γ ||- fill K e : ty =| Γ') ->
   exists ty', (Γ ||- e : ty' =| Γ') /\ (ectx_check Γ K ty' ty Γ').
 Proof.
-  induction K; cbn; intros H.
+  revert Γ Γ'; induction K; intros Γ Γ'; cbn; intros H.
   - exists ty; eauto.
-  - inv H; destruct (IHK H6) as [ty' [IHKa IHKb]]; eauto.
-  - inv H; destruct (IHK H7) as [ty' [IHKa IHKb]]; eauto.
-  - inv H; destruct (IHK H6) as [ty' [IHKa IHKb]]; eauto.
-  - inv H; destruct (IHK H6) as [ty' [IHKa IHKb]]; eauto.
-  - inv H; destruct (IHK H7) as [ty' [IHKa IHKb]]; eauto.
-  - inv H; destruct (IHK H8) as [ty' [IHKa IHKb]]; eauto.
-  - inv H; destruct (IHK H6) as [ty' [IHKa IHKb]]; eauto.
-  - inv H; destruct (IHK H4) as [ty' [IHKa IHKb]]; eauto.
-Qed.
-Lemma preservation_composition e K Γ ty ty' :
-  (ectx_check Γ K ty ty' Γ) ->
-  (Γ ||- e : ty =| Γ) ->
-  (Γ ||- fill K e : ty' =| Γ).
+  - inv H; destruct (IHK Γ' Γ' H6) as [ty' [IHKa IHKb]]; eauto.
+  - inv H; destruct (IHK Γ' Γ' H7) as [ty' [IHKa IHKb]]; eauto.
+  - inv H; destruct (IHK Γ' Γ' H6) as [ty' [IHKa IHKb]]; eauto.
+  - inv H. destruct (IHK Γ Γ H4) as [ty' [IHKa IHKb]]; eauto.
+    admit.
+  - inv H; destruct (IHK Γ' Γ' H7) as [ty' [IHKa IHKb]]; eauto.
+  - inv H; destruct (IHK Γ' Γ' H8) as [ty' [IHKa IHKb]]; eauto.
+  - inv H. destruct (IHK Γ Γ H4) as [ty' [IHKa IHKb]]; eauto.
+    admit.
+  - inv H; destruct (IHK Γ' Γ' H4) as [ty' [IHKa IHKb]]; eauto.
+Admitted.
+Lemma preservation_composition e K Γ Γ' ty ty' :
+  (ectx_check Γ K ty ty' Γ') ->
+  (Γ ||- e : ty =| Γ') ->
+  (Γ ||- fill K e : ty' =| Γ').
 Proof.
   induction 1; cbn; intros; eauto.
   - econstructor.
@@ -1006,35 +1039,56 @@ Proof.
   - econstructor; trivial.
     + destruct v; constructor.
     + now apply IHectx_check.
-  *)
-Admitted.
-Lemma weaken Γ0 Γ0' Γ1 Γ1' K ty ty' :
-  (Γ0 ⊆ Γ1) -> (Γ0' ⊆ Γ1') ->
-  (ectx_check Γ0 K ty ty' Γ0') ->
-  (ectx_check Γ1 K ty ty' Γ1').
-Proof.
-Admitted.
+Qed.
 
 Lemma preservation e e' Γ0 Γ0' Ω Ω' a ty :
   (Γ0 ||- e : ty =| Γ0') ->
   (Ω ▷ e =[ a ]~> Ω' ▷ e') ->
-  exists Γ' Γ'', Γ' ||- e' : ty =| Γ''
+  exists Γ' Γ'', (Γ' ||- e' : ty =| Γ'') /\ (Γ0 ⊆ Γ') /\ (Γ0' ⊆ Γ'')
 .
 Proof.
   intros H0 H1; inv H1.
   eapply preservation_decomposition in H0 as [ty' [H0a H0b]].
   eapply preservation_base in H9 as [Γ' [Γ'' [H9a [H9b H9c]]]]; eauto.
-  exists Γ'. exists Γ''. eapply preservation_composition; eauto. eapply weaken; eauto.
+  exists Γ'; exists Γ''; repeat split; eauto.
+  eapply preservation_composition; eauto using weaken_ctx_check.
 Qed.
 
-Lemma preservation_star e e' Γ Ω Ω' a ty :
-  (Γ ||- e : ty =| Γ) ->
+Lemma subset_trans {T} (A B C : list T) :
+  A ⊆ B -> B ⊆ C -> A ⊆ C.
+Proof. intros H0 H1 x H2; apply H1; now apply H0. Qed.
+#[global]
+Hint Resolve subset_trans : core.
+
+Lemma preservation_star e e' Γ0 Γ0' Ω Ω' a ty :
+  (Γ0 ||- e : ty =| Γ0') ->
   (Ω ▷ e =[ a ]~>* Ω' ▷ e') ->
-  exists Γ' Γ'', Γ' ||- e' : ty =| Γ''
+  exists Γ1 Γ1', (Γ1 ||- e' : ty =| Γ1') /\ (Γ0 ⊆ Γ1) /\ (Γ0' ⊆ Γ1')
 .
 Proof.
-Admitted.
-
+  intros H0 H1; assert (H1' := H1); pattern e in H0;
+  change ((fun x : Conf =>
+             let (_, e) := x in
+             (Γ0 ||- e : ty =| Γ0')
+          ) (Ω ▷ e)) in H0;
+  remember (Ω ▷ e) as σ;
+  pattern e';
+  change ((fun x : Conf =>
+            let (_, e0) := x in
+            exists Γ1 Γ1' : Gamma, (Γ1 ||- e0 : ty =| Γ1') /\
+                              (Γ0 ⊆ Γ1) /\
+                              (Γ0' ⊆ Γ1')
+         ) (Ω' ▷ e'));
+  remember (Ω' ▷ e') as σ';
+  clear Heqσ Heqσ' e e' Ω Ω'.
+  revert Γ0 Γ0' ty H0; induction H1; intros Γ0 Γ0' ty H2; eauto;
+  specialize (IHsteps H1).
+  eapply preservation in H2.
+  destruct H2 as [Γ1 [Γ1' [H0a [H0b H0c]]]];
+  specialize (IHsteps Γ1 Γ1' ty H0a);
+  destruct IHsteps as [Γ2 [Γ2' [IHsteps0 [IHsteps1 IHsteps2]]]];
+  do 2 eexists; repeat split; eauto. eauto.
+Qed.
 
 
 Inductive WhileProgram :=
@@ -1109,7 +1163,7 @@ Lemma plug_checks_propagate (c : WhileContext) (p : WhileComponent) :
   context_check c ->
   component_check p ->
   whole_program_check (plug c p).
-Proof. intros H H0; destruct c, H, H0; cbn; repeat (econstructor; trivial); (eassumption || now cbn). Defined.
+Proof. Admitted. (*intros H H0; destruct c, H, H0; cbn; repeat (econstructor; trivial); (eassumption || now cbn). Defined.*)
 Definition prog2trace (p : WhileProgram) : Trace := wprog2tracepref p.
 
 Definition wsat (p : WhileProgram) (H : whole_program_check p) (π : Trace -> Prop) : Prop := π (prog2trace p).
@@ -1310,11 +1364,11 @@ Proof.
   assert (H1' := H1);
   eapply steps_alloc_yields_new_inbetween in H1 as [Ω'' [Ω''' [Tr [K [x [e2 [H1a [H1b [H1c H1d]]]]]]]]];
   try eapply H2'.
-  eapply preservation in H1a as [Γ'' H1a]; try exact H0.
-  eapply ctx_typing in H1a as [Γ0 [Γ1 [ty0 H2]]].
-  inv H2.
-  eapply refnat_in_type_means_dealloc_is_in_there in H9 as H9'; try exact H1c.
-  destruct H9' as [Ω2' [K2 [Tr2' H9']]].
+  eapply preservation_star in H1a as [Γ0 [Γ0' [H2a [H2b H2c]]]]; try exact H0.
+  eapply preservation_decomposition in H2a as [Γ1 [H3a H3b]].
+  inv H3a.
+  eapply refnat_in_type_means_dealloc_is_in_there in H8 as H8'; try exact H1c.
+  destruct H8' as [Ω2' [K2 [Tr2' H9']]].
   remember (Ω2'.(fresh);Ω2'.(H);Ω2'.(A);(delete x Ω2'.(Δ))) as Ω2''.
   assert (Ω2' ▷ fill K2 (Delete x) =[ Dealloc loc ]~> Ω2'' ▷ fill K2 (Lit 0)) by
   (econstructor; eauto; subst; econstructor; eapply Δ_lookup_carries; eauto).
@@ -1330,14 +1384,27 @@ Proof.
   easy.
 Qed.
 
+Definition out_of_bounds_program :=
+  New "x0"%string (Lit 42)
+    (Letin "_"%string (Access "x0"%string (Lit 1337))
+      (Delete "x0"%string)).
+Lemma oob_prog_typechecks :
+  (("x"%string, tyNat)::nil ||- out_of_bounds_program : tyNat =| ("x"%string, tyNat) :: nil).
+Proof.
+  do 2 econstructor.
+  econstructor. now cbn.
+  econstructor.
+  econstructor. now cbn. now cbn.
+  cbn; eauto.
+  cbn in H0. now destruct H0.
+Qed.
 
 Lemma while_is_not_spat_memsafe :
   ~ (forall (p : WhileComponent) (H : component_check p), wrsat H spat_memsafe).
 Proof.
   intros H.
-  remember (New "x0"%string (Lit 42) (Letin "_"%string (Access "x0"%string (Lit 1337)) (Delete "x0"%string))) as p.
-  assert ((("x"%string, tyNat)::nil) ||- p : tyNat =| (("x"%string, tyNat)::nil)) by
-  (rewrite Heqp; repeat econstructor).
+  remember out_of_bounds_program as p.
+  assert (H0 := oob_prog_typechecks); rewrite <- Heqp in H0.
   assert (component_check (WComp p (closed_typing H0))) by econstructor.
   specialize (H (WComp p (closed_typing H0)) H1).
 

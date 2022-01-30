@@ -1086,21 +1086,36 @@ Qed.
 #[local]
 Hint Resolve inv_check_binop : core.
 
+Lemma weaken_check (Γ1 Γ2 : Gamma) e (A : ty) :
+  (forall x y, ~ In (y, tyCap x) Γ2) ->
+  (Γ1 ||- e : A) -> Γ1 ⊆ Γ2 -> (Γ2 ||- e : A)
+.
+Proof.
+Admitted.
+
 Definition ectx_check (Γ : Gamma) (K : ectx) (A B : ty) :=
-  forall e Γ', (Γ' ||- e : A) -> (Γ ||- (fill K e) : B) /\ (Γ ⊆ Γ').
+  forall e Γ', (forall x y, ~ In (y, tyCap x) Γ') ->
+          (Γ' ||- e : A) ->
+          (Γ ⊆ Γ') ->
+          (Γ ||- (fill K e) : B).
 Lemma weaken_ctx_check Γ0 Γ1 K ty ty' :
   (ectx_check Γ0 K ty ty') ->
   (Γ0 ⊆ Γ1) ->
   (ectx_check Γ1 K ty ty').
 Proof.
-Admitted.
-
+  intros H0 H1 e Γ' H2 H3 H4.
+  assert (Γ0 ⊆ Γ') by firstorder.
+  specialize (H0 e Γ' H2 H3 H5).
+  eapply weaken_check; eauto.
+  intros x0 y0 H6. edestruct H2. eapply H4. exact H6.
+Qed.
 
 Lemma preservation_decomposition e K Γ0 ty :
   (Γ0 ||- fill K e : ty) ->
   exists ty' Γ1, (Γ1 ||- e : ty') /\ (ectx_check Γ0 K ty' ty) /\ (Γ0 ⊆ Γ1).
 Proof.
 Admitted.
+
 Lemma preservation_composition e K Γ Γ' ty ty' :
   (ectx_check Γ K ty ty') ->
   (Γ' ||- e : ty) ->

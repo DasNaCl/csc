@@ -3,10 +3,10 @@ Require Import Strings.String List Coq.Logic.Decidable.
 
 Ltac inv H := (inversion H; subst; clear H).
 
-Fixpoint delete {A : Type} (x : string) (Δ : list (string * A)) :=
+Fixpoint delete {A : Type} (x : string) (Δ : list (string * A)) {struct Δ} :=
   match Δ with
   | nil => nil
-  | (y, v) :: Δ' => if string_dec x y then Δ' else (y,v) :: delete x Δ'
+  | (y, v) :: Δ' => if string_dec x y then Δ' else (y,v) :: Δ' (* delete x Δ' *)
   end
 .
 Fixpoint find {A B : Type} (f : A -> bool) (Δ : list (A * B)) :=

@@ -363,7 +363,6 @@ Inductive contextual_step : Conf -> Event -> Conf -> Prop :=
 where "Ω1 '=[' a ']~>' Ω2" := (contextual_step Ω1 a Ω2)
 .
 Reserved Notation "Ω1 '=[' a ']~>*' Ω2" (at level 80, a at next level, right associativity).
-Unset Elimination Schemes.
 Inductive steps : Conf -> list Event -> Conf -> Prop :=
 | stepsRefl : forall Ω e, steps (Ω ▷ e) nil (Ω ▷ e)
 | stepsTrans : forall Ω e a as0 Ω' e' Ω'' e'',
@@ -372,8 +371,6 @@ Inductive steps : Conf -> list Event -> Conf -> Prop :=
     (Ω ▷ e =[ a :: as0 ]~>* Ω'' ▷ e'')
 where "Ω1 '=[' a ']~>*' Ω2" := (steps Ω1 a Ω2)
 .
-Set Elimination Schemes.
-Scheme steps_ind := Induction for steps Sort Prop.
 #[local]
 Hint Constructors steps contextual_step : core.
 
@@ -556,7 +553,7 @@ Proof.
           e = e0 /\ Ω = Ω' /\ Tr = nil) (Ω ▷ Lit n) (Ω' ▷ e) Tr).
   remember (Ω ▷ Lit n) as σ.
   remember (Ω' ▷ e) as σ'.
-  induction H; inv Heqσ; inv Heqσ'; eauto; now apply inv_lit_ctx_step in c.
+  induction H; inv Heqσ; inv Heqσ'; eauto; now apply inv_lit_ctx_step in H0.
 Qed.
 
 
@@ -1141,7 +1138,7 @@ Lemma preservation_decomposition e K ty Γ0 Γ0' :
   exists ty', (Γ0 ||- e : ty' =| Γ0') /\ (ectx_check K ty' ty).
 Proof.
   intros H; assert (H' := H). generalize_eqs_vars H.
-  induction H0; intros e0 K H0' H1'; simplify_dep_elim.
+  induction H0; intros e0 K H0' H1'.
   - boring; subst; firstorder.
   - boring; subst; firstorder.
   - boring; subst; firstorder.
@@ -1220,20 +1217,20 @@ Proof.
              let (_, e) := x in
              (Γ0 ||- e : ty =| Γ0')
           ) (Ω ▷ e)) in H0.
+  change ((fun σ : Conf => let (Ω, _) := σ in Γ0 ~ Ω) (Ω ▷ e)) in H2.
   remember (Ω ▷ e) as σ;
   pattern e';
   change ((fun x : Conf =>
-            let (_, e0) := x in
+            let (Ω', e0) := x in
             exists Γ1 Γ2' : Gamma, (Γ1 ||- e0 : ty =| Γ2') /\
                               (Γ1 ~ Ω') /\ (Γ0' ⊆ Γ2')
          ) (Ω' ▷ e'));
   remember (Ω' ▷ e') as σ'.
-  revert Γ0 H2 ty H0; induction H1; intros Γ0 H2 ty H3; eauto.
-  specialize (IHsteps H1).
-  eapply preservation in H2.
-  destruct H2 as [Γ1 [H0a H0b]].
-  edestruct IHsteps as [Γ2 [IHsteps0 IHsteps1]]; eauto.
-  eassumption.
+  clear Heqσ Heqσ'; revert Γ0 Γ0' H2 ty H0; dependent induction H1; intros Γ0 Γ0' H2 ty H0'.
+  - do 2 eexists; repeat split; firstorder eauto.
+  - eapply preservation in H0 as [Γ1' [Γ2' [H0a [H0b H0c]]]]; eauto.
+    edestruct IHsteps as [Γ1a [Γ1b [IHstepsa [IHstepsb IHstepsc]]]]; eauto.
+    exists Γ1a; exists Γ1b; repeat split; try assumption. etransitivity; eauto.
 Qed.
 
 
@@ -1245,11 +1242,6 @@ Inductive WhileComponent :=
 .
 Inductive WhileContext :=
 | WCtx : forall e0 e1, closed nil e0 -> closed ("y"%string :: nil) e1 -> WhileContext
-.
-Definition wprog2tracepref (p : WhileProgram) : list Event :=
-  match p with
-  | WProg e _ => compute_trace_prefix e
-  end
 .
 
 Lemma contexts_closed e0 ep e1 :
@@ -1270,14 +1262,15 @@ Definition plug (c : WhileContext) (p : WhileComponent) : WhileProgram :=
   end
 .
 Inductive whole_program_check : WhileProgram -> Type :=
-| WProgCheck : forall e t (H : nil ||- e : tyNat), whole_program_check (WProg e t)
+| WProgCheck : forall e t (H : nil ||- e : tyNat =| nil), whole_program_check (WProg e t)
 .
 Inductive component_check : WhileComponent -> Type :=
-| WCompCheck : forall e (H : ((("x"%string, tyNat)::nil) ||- e : tyNat)),
+| WCompCheck : forall e (H : ((("x"%string, tyNat)::nil) ||- e : tyNat =| ("x"%string, tyNat)::nil)),
                component_check (WComp e (closed_typing H))
 .
 Inductive context_check : WhileContext -> Type :=
-| WCtxCheck : forall e0 e1 (H0 : (nil ||- e0 : tyNat)) (H1 : ((("y"%string, tyNat) :: nil) ||- e1 : tyNat)),
+| WCtxCheck : forall e0 e1 (H0 : (nil ||- e0 : tyNat =| nil))
+                      (H1 : ((("y"%string, tyNat) :: nil) ||- e1 : tyNat =| ("y"%string, tyNat) :: nil)),
                             context_check (WCtx e0 e1 (closed_typing H0) (closed_typing H1))
 .
 

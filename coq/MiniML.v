@@ -660,28 +660,26 @@ Inductive check : Gamma -> expr -> ty -> Gamma -> Prop :=
 | Tbinop : forall Γ e1 e2 o, (Γ ||- e1 : tyNat =| Γ) ->
                         (Γ ||- e2 : tyNat =| Γ) ->
                         (Γ ||- BinOp o e1 e2 : tyNat =| Γ)
-| Tget : forall Γ1 Γ2 e x, HasPtr x Γ1 -> HasPtr x Γ2 ->
-                      (Γ1 ||- e : tyNat =| Γ2) ->
-                      (Γ1 ||- Access x e : tyNat =| Γ2)
-| Tset : forall Γ1 Γ2 x e1 e2, HasPtr x Γ1 -> HasPtr x Γ2 ->
-                          (Γ1 ||- e1 : tyNat =| Γ1) ->
-                          (Γ2 ||- e2 : tyNat =| Γ2) ->
-                          (Γ2 ⊆ Γ1) ->
-                          (Γ1 ||- Assign x e1 e2 : tyNat =| Γ2)
+| Tget : forall Γ e x, HasPtr x Γ ->
+                  (Γ ||- e : tyNat =| Γ) ->
+                  (Γ ||- Access x e : tyNat =| Γ)
+| Tset : forall Γ x e1 e2, HasPtr x Γ ->
+                      (Γ ||- e1 : tyNat =| Γ) ->
+                      (Γ ||- e2 : tyNat =| Γ) ->
+                      (Γ ||- Assign x e1 e2 : tyNat =| Γ)
 | Tlet : forall Γ1 Γ2 x e1 e2, (Γ1 ||- e1 : tyNat =| Γ1) ->
-                          (Γ2 ⊆ Γ1) ->
-                          ((x,tyNat)::Γ1 ||- e2 : tyNat =| (x,tyNat)::Γ2) ->
-                          (Γ1 ||- Letin x e1 e2 : tyNat =| Γ2)
+                   ((x,tyNat)::Γ1 ||- e2 : tyNat =| (x,tyNat)::Γ2) ->
+                   (Γ2 ⊆ Γ1) ->
+                   (Γ1 ||- Letin x e1 e2 : tyNat =| Γ2)
 | Tletnew : forall Γ1 Γ2 x e1 e2, (Γ1 ||- e1 : tyNat =| Γ1) ->
-                             (Γ2 ⊆ Γ1) ->
-                             ((x,tyRefnat)::Γ1 ||- e2 : tyNat =| Γ2) ->
-                             (Γ1 ||- New x e1 e2 : tyNat =| Γ2)
+                         ((x,tyRefnat)::Γ1 ||- e2 : tyNat =| Γ2) ->
+                         (~ HasPtr x Γ2) -> (Γ2 ⊆ Γ1) ->
+                         (Γ1 ||- New x e1 e2 : tyNat =| Γ2)
 | Tdelete : forall Γ x, ((x,tyRefnat)::Γ ||- Delete x : tyNat =| Γ)
-| Tif : forall Γ1 Γ2 e1 e2 e3, (Γ1 ||- e1 : tyNat =| Γ1) ->
-                          (Γ2 ⊆ Γ1) ->
-                          (Γ1 ||- e2 : tyNat =| Γ2) ->
-                          (Γ1 ||- e3 : tyNat =| Γ2) ->
-                          (Γ1 ||- If e1 e2 e3 : tyNat =| Γ2)
+| Tif : forall Γ e1 e2 e3, (Γ ||- e1 : tyNat =| Γ) ->
+                      (Γ ||- e2 : tyNat =| Γ) ->
+                      (Γ ||- e3 : tyNat =| Γ) ->
+                      (Γ ||- If e1 e2 e3 : tyNat =| Γ)
 where "Γa '||-' e ':' τ '=|' Γb" := (check Γa e τ Γb)
 .
 #[local]
@@ -694,12 +692,10 @@ Definition out_of_bounds_program :=
 Lemma oob_prog_typechecks :
   (("x"%string, tyNat)::nil ||- out_of_bounds_program : tyNat =| ("x"%string, tyNat)::nil).
 Proof.
-  eapply Tletnew. apply Tnat. easy.
+  eapply Tletnew. apply Tnat.
   eapply Tlet.
   apply Tget; try apply Tnat.
   now cbn.
-  now cbn.
-  firstorder.
   replace (("_"%string, tyNat) :: ("y"%string, tyRefnat) :: ("x"%string, tyNat) :: nil)
      with ((("_"%string, tyNat)::nil) ++ (("y"%string, tyRefnat) :: ("x"%string, tyNat) :: nil)) by now cbn.
   replace (("_"%string, tyNat)::("x"%string, tyNat) :: nil) with
@@ -708,6 +704,9 @@ Proof.
   instantiate (1:=("y"%string,tyRefnat)::("_"%string,tyNat)::("x"%string,tyNat)::nil); firstorder.
   reflexivity.
   apply Tdelete.
+  firstorder.
+  inversion 1.
+  reflexivity.
 Qed.
 
 Fixpoint drop {A} (Γ : list (string * A)) : list string :=
@@ -767,14 +766,14 @@ Proof.
     + eapply closed_weaken. now eapply IHcheck1. intuition.
     + eapply closed_weaken. now eapply IHcheck2. intuition.
   - (* access *)
-    assert ((bool_In (drop Γ1) x = true) \/ (bool_In (drop Γ1) x = false)) as [H|H] by
-    (destruct (bool_In (drop Γ1) x); eauto).
+    assert ((bool_In (drop Γ) x = true) \/ (bool_In (drop Γ) x = false)) as [H|H] by
+    (destruct (bool_In (drop Γ) x); eauto).
     rewrite H. eapply closed_equiv_is_closed, closed_weaken.
     eapply IHcheck; eauto. firstorder.
     apply bool_In_equiv_find_none in H; congruence.
   - (* assign *)
-    assert ((bool_In (drop Γ1) x = true) \/ (bool_In (drop Γ1) x = false)) as [H|H] by
-    (destruct (bool_In (drop Γ1) x); eauto).
+    assert ((bool_In (drop Γ) x = true) \/ (bool_In (drop Γ) x = false)) as [H|H] by
+    (destruct (bool_In (drop Γ) x); eauto).
     rewrite H.
     rewrite !bool_and_equiv_prop; repeat split; apply closed_equiv_is_closed.
     now eapply IHcheck1.
@@ -784,12 +783,12 @@ Proof.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck1.
       intuition.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck2.
-      eapply cons_subset. firstorder.
+      eapply cons_subset. reflexivity.
   - (* new *) apply bool_and_equiv_prop; split.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck1.
       firstorder.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck2.
-      clear; cbn. eapply cons_subset. reflexivity.
+      eapply cons_subset. reflexivity.
   - (* delete *) destruct (string_dec x x); try congruence.
   - (* if *) rewrite !bool_and_equiv_prop; repeat split.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck1. reflexivity.
@@ -807,81 +806,6 @@ Ltac inv_check_intro := (intros H; match goal with
                             assert (H':=H); remember (e) as e3; dependent induction H;
                             try congruence
                         end).
-Lemma inv_check_lit Γ Γ' n ty :
-  (Γ ||- Lit n : ty =| Γ') ->
-  (ty = tyNat) /\ (Γ ≡ Γ').
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [IHchecka IHcheckb]; subst; split; trivial.
-    apply gamma_equiv_is_equal in H0, H1, IHcheckb; now subst.
-  - split; easy.
-Qed.
-
-Lemma inv_check_var Γ Γ' x ty :
-  (Γ ||- Var x : ty =| Γ') ->
-  (exists Γ0, ty = tyNat /\ (Γ ≡ (x,tyNat)::Γ0) /\ (Γ ≡ Γ')).
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [Γ' [IHchecka [IHcheckb IHcheckc]]]; subst.
-    eexists; do 2 split. transitivity (Γ1). symmetry. exact H0. exact IHcheckb.
-    rewrite <- H0, <- H1. exact IHcheckc.
-  - inv Heqe; now exists Γ.
-Qed.
-Lemma inv_check_binop Γ Γ' b e1 e2 ty :
-  (Γ ||- BinOp b e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ≡ Γ') /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ).
-Proof.
-  (*
-  intros H; assert (H':=H); remember (BinOp b e1 e2) as e3; dependent induction H;
-  try congruence.
-  - destruct IHcheck as [Γ2 [Γ3 [IHchecka [IHcheckb [IHcheckc IHcheckd]]]]]; trivial.
-    exists Γ2; exists Γ3; repeat split; eauto.
-    clear b e1 e2 e Heqe3 ty0 H0 H' IHchecka IHcheckc IHcheckd.
-    now apply subset_swap.
-  - destruct IHcheck as [Γ2 [Γ3 [IHchecka [IHcheckb [IHcheckc IHcheckd]]]]]; trivial.
-    do 2 eexists; repeat split; eauto. exists (Γ2); exists Γ3; repeat split; firstorder.
-  - destruct IHcheck as [Γ2 [Γ3 [IHchecka [IHcheckb [IHcheckc IHcheckd]]]]]; trivial.
-    exists (Γ2); exists Γ3; repeat split; eauto; firstorder.
-  - destruct IHcheck as [Γ2 [Γ3 [IHchecka [IHcheckb [IHcheckc IHcheckd]]]]]; trivial.
-    exists Γ2; exists Γ3; repeat split; eauto; firstorder.
-  - inv Heqe3; clear IHcheck1 H' IHcheck2; do 2 eexists; repeat split; eauto.
-  *)
-Admitted.
-Lemma inv_check_access Γ Γ' x e ty :
-  (Γ ||- Access x e : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e : tyNat =| Γ') /\ (Util.find (String.eqb x) Γ = Some tyRefnat)
-                                       /\ (Util.find (String.eqb x) Γ' = Some tyRefnat).
-Proof.
-Admitted.
-Lemma inv_check_assign Γ Γ' x e1 e2 ty :
-  (Γ ||- Assign x e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ') /\
-  (Util.find (String.eqb x) Γ = Some tyRefnat) /\ (Util.find (String.eqb x) Γ' = Some tyRefnat).
-Proof.
-Admitted.
-Lemma inv_check_if Γ Γ' e1 e2 e3 ty :
-  (Γ ||- If e1 e2 e3 : ty =| Γ') ->
-  (ty = tyNat) /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ') /\ (Γ ||- e3 : tyNat =| Γ').
-Proof.
-Admitted.
-Lemma inv_check_let Γ Γ' x e1 e2 ty :
-  (Γ ||- Letin x e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ' ⊆ Γ) /\
-  ((x,tyNat)::Γ ||- e2 : tyNat =| (x,tyNat)::Γ').
-Proof.
-Admitted.
-Lemma inv_check_delete Γ Γ' x ty :
-  (Γ ||- Delete x : ty =| Γ') ->
-  exists Γ0, ty = tyNat /\ (Γ ≡ (x,tyRefnat)::Γ0) /\ (Γ' ≡ Γ0).
-Proof.
-Admitted.
-Lemma inv_check_letnew Γ Γ' x e1 e2 ty :
-  (Γ ||- New x e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ' ⊆ Γ) /\
-  ((x,tyRefnat)::Γ ||- e2 : tyNat =| Γ').
-Proof.
-Admitted.
-
 Ltac boring := (
   repeat match goal with
   | [H: nth_error nil ?n = Some _ |- _] =>
@@ -901,6 +825,86 @@ Ltac boring := (
   | [H: _ |- ?Γ0 ≡ ?Γ1] => apply gamma_equiv_is_equal
   end
 ).
+Lemma inv_check_lit Γ Γ' n ty :
+  (Γ ||- Lit n : ty =| Γ') ->
+  (ty = tyNat) /\ (Γ ≡ Γ').
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [IHchecka IHcheckb]; boring; subst; split; trivial.
+    reflexivity.
+  - split; easy.
+Qed.
+
+Lemma inv_check_var Γ Γ' x ty :
+  (Γ ||- Var x : ty =| Γ') ->
+  (exists Γ0, ty = tyNat /\ (Γ ≡ (x,tyNat)::Γ0) /\ (Γ ≡ Γ')).
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [Γ' [IHchecka [IHcheckb IHcheckc]]]; boring; subst.
+    eexists; do 2 split; reflexivity.
+  - inv Heqe; now exists Γ.
+Qed.
+Lemma inv_check_binop Γ Γ' b e1 e2 ty :
+  (Γ ||- BinOp b e1 e2 : ty =| Γ') ->
+  ty = tyNat /\ (Γ ≡ Γ') /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ).
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
+  - inv Heqe; easy.
+Qed.
+Lemma inv_check_access Γ Γ' x e ty :
+  (Γ ||- Access x e : ty =| Γ') ->
+  ty = tyNat /\ (Γ ||- e : tyNat =| Γ') /\ (Util.find (String.eqb x) Γ = Some tyRefnat)
+                                       /\ (Util.find (String.eqb x) Γ' = Some tyRefnat).
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe0 H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
+  - inv Heqe0; easy.
+Qed.
+Lemma inv_check_assign Γ Γ' x e1 e2 ty :
+  (Γ ||- Assign x e1 e2 : ty =| Γ') ->
+  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ') /\
+  (Util.find (String.eqb x) Γ = Some tyRefnat) /\ (Util.find (String.eqb x) Γ' = Some tyRefnat).
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
+  - inv Heqe; easy.
+Qed.
+Lemma inv_check_if Γ Γ' e1 e2 e3 ty :
+  (Γ ||- If e1 e2 e3 : ty =| Γ') ->
+  (ty = tyNat) /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ') /\ (Γ ||- e3 : tyNat =| Γ').
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
+  - inv Heqe; easy.
+Qed.
+Lemma inv_check_let Γ Γ' x e1 e2 ty :
+  (Γ ||- Letin x e1 e2 : ty =| Γ') ->
+  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ' ⊆ Γ) /\
+  ((x,tyNat)::Γ ||- e2 : tyNat =| (x,tyNat)::Γ').
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
+  - inv Heqe; easy.
+Qed.
+Lemma inv_check_delete Γ Γ' x ty :
+  (Γ ||- Delete x : ty =| Γ') ->
+  exists Γ0, ty = tyNat /\ (Γ ≡ (x,tyRefnat)::Γ0) /\ (Γ' ≡ Γ0).
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [Γ [IHchecka [IHcheckb IHcheckc]]]; boring; subst.
+    exists Γ; easy.
+  - inv Heqe; exists Γ; easy.
+Qed.
+Lemma inv_check_letnew Γ Γ' x e1 e2 ty :
+  (Γ ||- New x e1 e2 : ty =| Γ') ->
+  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ' ⊆ Γ) /\
+  ((x,tyRefnat)::Γ ||- e2 : tyNat =| Γ').
+Proof.
+  inv_check_intro.
+  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
+  - inv Heqe; easy.
+Qed.
 
 Lemma progress Γ Γ' e τ :
   (Γ ||- e : τ =| Γ') -> is_val e \/ exists Ω, reducible Ω e.
@@ -922,30 +926,30 @@ Proof.
     + do 4 eexists; context_solver HoleCtx; econstructor.
       instantiate (1:=LocA 0). instantiate (1:=(empty_fresh; grow nil (1+x0); (LocA 0, 0)::nil; (x,EnvAddr(LocA 0))::nil)); cbn; now rewrite String.eqb_refl.
       instantiate (1:=0); now cbn.
-      instantiate (1:=0); cbn; clear IHcheck H0 H1 H2; induction x0; cbn; trivial; now apply cons_read_same.
-    + do 4 destruct H3 as [? H3]; do 4 eexists;
-      eapply fill_contextual_step with (K:=AccessCtx x HoleCtx) in H3; cbn in H3; eassumption.
+      instantiate (1:=0); cbn; clear IHcheck H0 H1; induction x0; cbn; trivial; now apply cons_read_same.
+    + do 4 destruct H2 as [? H2]; do 4 eexists;
+      eapply fill_contextual_step with (K:=AccessCtx x HoleCtx) in H2; cbn in H2; eassumption.
   - (* assign *) right; destruct (IHcheck1), (IHcheck2); get_values; subst.
     + do 4 eexists; context_solver HoleCtx; econstructor.
       instantiate (1:=LocA 0). instantiate (1:=(empty_fresh; nil; (LocA 0, 0)::nil; (x, EnvAddr(LocA 0))::nil)); cbn; now rewrite String.eqb_refl.
       instantiate (1:=0); now cbn.
       instantiate (1:=nil); now destruct x1; cbn.
-    + do 4 destruct H4 as [? H4]; do 4 eexists; eapply fill_contextual_step with (K:=AssignVCtx x (LitV x0) HoleCtx) in H4; eauto.
-    + do 4 destruct H3 as [? H3]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx (Lit x0)) in H3; eauto.
-    + do 4 destruct H3 as [? H3]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx e2) in H3; eauto.
+    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=AssignVCtx x (LitV x0) HoleCtx) in H2; eauto.
+    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx (Lit x0)) in H1; eauto.
+    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx e2) in H1; eauto.
   - (* letin *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; do 3 eexists; eauto.
     + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=LetinCtx x HoleCtx e2) in H1; eauto.
   - (* new *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; do 3 eexists; context_solver HoleCtx; econstructor; reflexivity.
-    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=NewCtx x HoleCtx e2) in H1; eauto.
+    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=NewCtx x HoleCtx e2) in H2; eauto.
   - (* delete *) right; exists (empty_fresh; nil; nil; (x,EnvAddr(LocA 0))::nil); do 3 eexists; context_solver HoleCtx;
     econstructor; cbn; now rewrite String.eqb_refl.
   - (* if *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; exists Internal; exists ∅; destruct (Nat.eq_dec x 0); subst.
       * exists e3; context_solver HoleCtx.
       * exists e2; context_solver HoleCtx.
-    + do 4 destruct H1 as [? H1]; eapply fill_contextual_step with (K:=IfCtx HoleCtx e2 e3) in H1; do 4 eexists; eassumption.
+    + do 4 destruct H0 as [? H0]; eapply fill_contextual_step with (K:=IfCtx HoleCtx e2 e3) in H0; do 4 eexists; eassumption.
 Qed.
 
 Lemma progress_steps Γ Γ' e τ :
@@ -1122,75 +1126,66 @@ Lemma weaken_ctx_when_checking K0 K1 ty0 ty1 :
   ectx_check K1 ty0 ty1 ->
   ectx_check (comp_ectx K0 K1) ty0 ty1.
 Proof.
-Admitted.
-
-Lemma weaken_check_R Γ1 Γ2 e t :
-  (Γ1 ||- e : t =| Γ1) -> (Γ2 ⊆ Γ1) -> (Γ1 ||- e : t =| Γ2).
-Proof.
-Admitted.
-Lemma weaken_check_L Γ1 Γ2 e t :
-  (Γ1 ||- e : t =| Γ1) -> (Γ1 ⊆ Γ2) -> (Γ2 ||- e : t =| Γ1).
-Proof.
+  induction K0; cbn; intros H; eauto.
 Admitted.
 
 Lemma preservation_decomposition e K ty Γ0 Γ0' :
   (Γ0 ||- fill K e : ty =| Γ0') ->
-  exists ty', (Γ0 ||- e : ty' =| Γ0') /\ (ectx_check K ty' ty).
+  exists Γ1 ty', (Γ0 ||- e : ty' =| Γ1) /\ (Γ0' ⊆ Γ1) /\ (ectx_check K ty' ty).
 Proof.
   intros H; assert (H' := H). generalize_eqs_vars H.
   induction H0; intros e0 K H0' H1'.
-  - boring; subst; firstorder.
-  - boring; subst; firstorder.
-  - boring; subst; firstorder.
-  - boring; subst.
-    + exists tyNat; split. now constructor. firstorder.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [ty1' [IHcheck1a IHcheck1b]].
-      exists ty1'; split. assumption.
+  - (* exchange *) boring; subst; firstorder.
+  - (* var *) boring; subst; firstorder.
+  - (* lit *) boring; subst; firstorder.
+  - (* binop *) boring; subst.
+    + eexists; exists tyNat; repeat split. now constructor. reflexivity. firstorder.
+    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a IHcheck1b]]].
+      exists Γ'; exists ty1'; repeat split; try easy.
       replace (LBinOpCtx b K e) with (comp_ectx (LBinOpCtx b HoleCtx e) K) by now cbn.
       now eapply weaken_ctx_when_checking.
-    + inv H1'. specialize (IHcheck2 e0 K H0_0 eq_refl) as [ty2' [IHcheck2a IHcheck2b]].
-      exists ty2'; split. assumption.
+    + inv H1'. specialize (IHcheck2 e0 K H0_0 eq_refl) as [Γ' [ty2' [IHcheck2a IHcheck2b]]].
+      exists Γ'; exists ty2'; repeat split; try easy.
       replace (RBinOpCtx b v K) with (comp_ectx (RBinOpCtx b v HoleCtx) K) by now cbn.
       now eapply weaken_ctx_when_checking.
-  - boring; subst.
-    + exists tyNat; split. assumption. firstorder.
-    + inv H1'. specialize (IHcheck e0 K H2 eq_refl) as [ty' [IHchecka IHcheckb]].
-      exists ty'; split. assumption.
+  - (* get *) boring; subst.
+    + exists Γ; exists tyNat; repeat split. assumption. reflexivity. firstorder.
+    + inv H1'. specialize (IHcheck e0 K H1 eq_refl) as [Γ' [ty' [IHchecka IHcheckb]]].
+      exists Γ'; exists ty'; repeat split; try easy.
       replace (AccessCtx s K) with (comp_ectx (AccessCtx s HoleCtx) K) by now cbn.
       now eapply weaken_ctx_when_checking.
-  - boring; subst.
-    + exists tyNat; split. now constructor. firstorder.
+  - (* set *) boring; subst.
+    + exists Γ; exists tyNat; split. now constructor. firstorder.
     + inv H1'. apply inv_check_assign in H0' as [H0a [H0b [H0c [H0d H0e]]]].
-      specialize (IHcheck1 e0 K H0_ eq_refl) as [ty1' [IHcheck1a IHcheck1b]].
-      exists ty1'; split. eapply weaken_check_R; assumption.
+      specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a IHcheck1b]]].
+      exists Γ'; exists ty1'; repeat split; try easy.
       replace (AssignCtx s K e) with (comp_ectx (AssignCtx s HoleCtx e) K) by now cbn.
       now eapply weaken_ctx_when_checking.
     + inv H1'. apply inv_check_assign in H0' as [H0a [H0b [H0c [H0d H0e]]]].
-      specialize (IHcheck2 e0 K H0_0 eq_refl) as [ty2' [IHcheck2a IHcheck2b]].
-      exists ty2'; split. eapply weaken_check_L; assumption.
+      specialize (IHcheck2 e0 K H0_0 eq_refl) as [Γ' [ty2' [IHcheck2a IHcheck2b]]].
+      exists Γ'; exists ty2'; repeat split; try easy.
       replace (AssignVCtx s v K) with (comp_ectx (AssignVCtx s v HoleCtx) K) by now cbn.
       now eapply weaken_ctx_when_checking.
-  - boring; subst.
-    + exists tyNat; split. assumption. firstorder.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [ty1' [IHcheck1a IHcheck1b]].
-      exists ty1'; split. eapply weaken_check_R; assumption.
+  - (* let *) boring; subst.
+    + exists Γ2; exists tyNat; split. assumption. firstorder.
+    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a [IHcheck1b IHcheck1c]]]].
+      exists Γ'; exists ty1'; repeat split; try easy. etransitivity; eauto.
       replace (LetinCtx s K e) with (comp_ectx (LetinCtx s HoleCtx e) K) by now cbn.
       now eapply weaken_ctx_when_checking.
-  - boring; subst.
-    + exists tyNat; split. assumption. firstorder.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [ty1' [IHcheck1a IHcheck1b]].
-      exists ty1'; split. eapply weaken_check_R; assumption.
+  - (* new *) boring; subst.
+    + exists Γ2; exists tyNat; split. assumption. firstorder.
+    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a [IHcheck1b IHcheck1c]]]].
+      exists Γ'; exists ty1'; repeat split; try easy. etransitivity; eauto.
       replace (NewCtx s K e) with (comp_ectx (NewCtx s HoleCtx e) K) by now cbn.
       now eapply weaken_ctx_when_checking.
   - boring; subst; firstorder.
   - boring; subst.
-    + exists tyNat; split. assumption. firstorder.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [ty1' [IHcheck1a IHcheck1b]].
-      exists ty1'; split. eapply weaken_check_R; assumption.
+    + exists Γ; exists tyNat; split; try easy.
+    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a IHcheck1b]]].
+      exists Γ'; exists ty1'; repeat split; try easy.
       replace (IfCtx K e e4) with (comp_ectx (IfCtx HoleCtx e e4) K) by now cbn.
       now eapply weaken_ctx_when_checking.
 Qed.
-
 
 Lemma preservation e e' Γ0 Γ0' Ω Ω' a ty :
   (Γ0 ~ Ω) ->
@@ -1200,9 +1195,10 @@ Lemma preservation e e' Γ0 Γ0' Ω Ω' a ty :
 .
 Proof.
   intros H2 H0 H1; inv H1.
-  eapply preservation_decomposition in H0 as [ty' [H0a H0b]]; try eassumption.
+  eapply preservation_decomposition in H0 as [Γ' [ty' [H0a [H0b H0c]]]]; try eassumption.
   eapply preservation_base in H0a as [Γ2 [Γ2' [H9a [H9b H9c]]]]; try eassumption.
   eapply preservation_composition in H9a; eauto.
+  exists Γ2. exists Γ2'. repeat split. assumption. assumption. etransitivity; eauto.
 Qed.
 
 Lemma preservation_star e e' Γ0 Γ0' Ω Ω' a ty :

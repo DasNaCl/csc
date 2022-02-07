@@ -640,6 +640,168 @@ Qed.
 Lemma closed_weaken_nil X e : closed nil e -> closed X e.
 Proof. intros; eapply closed_weaken; try exact H0; intros ? ?; inv H1. Qed.
 
+(* This is easier to work with to get traces. TODO: make it cofix when adding loops *)
+Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
+  match e with
+  | Var x => match Δ_lookup x Ω with
+            | Some(EnvVal(LitV v)) => Some (Ω, LitV v, Internal :: nil)
+            | _ => None
+            end
+  | Lit n => Some (Ω, LitV n, nil)
+  | BinOp o e1 e2 =>
+      match exec Ω e1 with
+      | Some(Ω1, LitV v1, Tr1) =>
+          match exec Ω1 e2 with
+          | Some(Ω2, LitV v2, Tr2) => Some (Ω2, LitV (v1 + v2), Tr1 ++ Tr2 ++ (Internal :: nil))
+          | None => None
+          end
+      | None => None
+      end
+  | Access x e => match exec Ω e with
+                 | Some(Ω', LitV v, Tr) =>
+                   match Δ_lookup x Ω' with
+                   | Some(EnvAddr loc) =>
+                       let nl := A_lookup loc Ω' in
+                       Some (Ω', LitV (H_lookup (nl + v) Ω'), Tr ++ ((Read loc v) :: nil))
+                   | _ => None
+                   end
+                 | None => None
+                 end
+  | Assign x e1 e2 => match exec Ω e1 with
+                     | Some(Ω1, LitV n, Tr1) =>
+                         match exec Ω1 e2 with
+                         | Some(Ω2, LitV v, Tr2) =>
+                           match Δ_lookup x Ω2 with
+                           | Some(EnvAddr loc) =>
+                               let nl := A_lookup loc Ω2 in
+                               Some ((Ω2.(fresh); replace (nl + n) Ω2.(H) v; Ω2.(A); Ω2.(Δ)),
+                                     LitV v, Tr1 ++ Tr2 ++ ((Write loc n)::nil))
+                           | _ => None
+                           end
+                         | None => None
+                         end
+                     | None => None
+                     end
+  | If e1 e2 e3 => match exec Ω e1 with
+                  | Some(Ω1, LitV v, Tr1) =>
+                      match v with
+                      | 0 => match exec Ω1 e3 with
+                            | Some(Ω3, v3, Tr3) => Some(Ω3, v3, Tr1 ++ (Internal :: nil) ++ Tr3)
+                            | None => None
+                            end
+                      | S _ => match exec Ω1 e2 with
+                              | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ (Internal :: nil) ++ Tr2)
+                              | None => None
+                              end
+                      end
+                  | None => None
+                  end
+  | Letin x e1 e2 => match exec Ω e1 with
+                    | Some(Ω1, LitV v1, Tr1) =>
+                        match exec (Ω1.(fresh); Ω1.(H); Ω1.(A); (x, EnvVal v1) :: Ω1.(Δ)) e2 with
+                        | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ (Internal :: nil) ++ Tr2)
+                        | None => None
+                        end
+                    | None => None
+                    end
+  | Delete x => match Δ_lookup x Ω with
+               | Some (EnvAddr loc) => Some ((Ω.(fresh); Ω.(H); Ω.(A); delete x Ω.(Δ)), LitV 0, (Dealloc loc)::nil)
+               | _ => None
+               end
+  | New x e1 e2 => match exec Ω e1 with
+                  | Some(Ω1, LitV m, Tr1) =>
+                      let loc := LocA(Fresh.fresh (Ω1.(fresh))) in
+                      let s := List.length (Ω1.(H)) in
+                      match exec (Fresh.advance Ω1.(fresh); grow Ω1.(H) m; (loc,s)::(Ω1.(A)); (x,EnvAddr loc) :: Ω1.(Δ)) e2 with
+                      | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ ((Alloc loc m)::nil) ++ Tr2)
+                      | _ => None
+                      end
+                  | None => None
+                  end
+  end
+.
+Definition compute_trace_prefix (e : expr) : list Event :=
+  match exec ∅ e with
+  | Some(Ω, v, Tr) => Tr
+  | None => nil
+  end
+.
+Lemma split_prod {A : Type} (a b c d e a' b' c' d' e' : Type) :
+  (a,b,c,d,e) = (a',b',c',d',e') -> a = a' /\ b = b' /\ c = c' /\ d = d' /\ e = e'.
+Proof. intros H; inv H; now repeat split. Qed.
+
+Ltac exec_reduce_handle_eq_none := (
+  match goal with
+  | [ H1: match exec ?Ω ?e with | Some _ => _ | None => None end = _,
+     H: exec ?Ω ?e <> None |- _ ] =>
+      let Ωa1 := fresh "Ωa" in
+      let v1 := fresh "v" in
+      let Tr1 := fresh "Tr" in
+    apply Util.not_eq_None_Some in H as [x]; destruct x as [[Ωa1 [v1]] Tr1];
+    rewrite H in H1; cbn in H1
+  end;
+  match goal with
+  | [Ha: (exec ?Ωa ?e = Some (?Ωa', LitV ?v', ?Tr')),
+      IH: forall (Ω : State) (v : nat) (Tr : list Event) (Ω' : State),
+          exec Ω ?e = Some (Ω', LitV v, Tr) ->
+          (Ω, ?e) =[ Tr ]~>* (Ω', Lit v) |- _ ] =>
+      specialize (IH Ωa v' Tr' Ωa' Ha)
+  end
+).
+
+Ltac exec_reduce := (
+  try match goal with
+  | [ H: match exec ?Ω ?e with | Some _ => _ | None => None end = _ |- _ ] =>
+      assert (exec Ω e <> None) by (
+      let Ωa1 := fresh "Ωa" in
+      let v1 := fresh "v" in
+      let Tr1 := fresh "Tr" in
+      destruct (exec Ω e) as [[[Ωa1 [v1]]]|]; congruence);
+      exec_reduce_handle_eq_none
+  | [ H: match Δ_lookup ?s ?Ω with | Some _ => _ | None => None end = _ |- _ ] =>
+    let H2 := fresh "H" in
+    destruct (Δ_lookup_dec s Ω) as [H2|H2]; try (rewrite H2 in H; congruence);
+    apply Util.not_eq_None_Some in H2 as [x H2];
+    rewrite H2 in H; cbn in H
+  | [ H: Some _ = Some _ |- _ ] => inv H
+  | [ H : match ?x with | EnvAddr _ => _ | EnvVal _ => _ end = _ |- _] => destruct x; try congruence
+  | [ H : match ?v with | 0 => _ | S _ => _ end = _ |- _ ] => destruct v
+  end
+).
+
+Lemma exec_is_steps Ω Ω' e v Tr :
+  exec Ω e = Some (Ω', LitV v, Tr) ->
+  Ω ▷ e =[ Tr ]~>* Ω' ▷ Lit v
+.
+Proof.
+  revert Ω v Tr Ω'; induction e; intros; cbn in H0; inv H0; eauto.
+  - repeat exec_reduce; destruct v0; inv H2; eauto.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=LBinOpCtx b HoleCtx e2) in IHe1; cbn in IHe1;
+    eapply fill_steps with (K:=RBinOpCtx b (LitV v0) HoleCtx) in IHe2; cbn in IHe2;
+    eauto using trans_steps.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=AccessCtx s HoleCtx) in IHe; cbn in IHe;
+    eapply trans_steps; try exact IHe; eapply stepsTrans; try eapply stepsRefl;
+    context_solver HoleCtx; econstructor; trivial.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=LetinCtx s HoleCtx e2) in IHe1; cbn in IHe1;
+    eauto using trans_steps.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=IfCtx HoleCtx e2 e3) in IHe1; cbn in IHe1;
+    eauto using trans_steps.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=AssignCtx s HoleCtx e2) in IHe1; cbn in IHe1;
+    eapply fill_steps with (K:=AssignVCtx s (LitV v0) HoleCtx) in IHe2; cbn in IHe2;
+    eapply trans_steps; try exact IHe1; eapply trans_steps; eauto.
+  - repeat exec_reduce;
+    eapply fill_steps with (K:=NewCtx s HoleCtx e2) in IHe1; cbn in IHe1.
+    eapply trans_steps; try exact IHe1.
+    eapply stepsTrans; try exact IHe2.
+    context_solver HoleCtx.
+  - repeat exec_reduce; eauto.
+Qed.
+
 Inductive ty :=
 | tyNat : ty
 | tyRefnat : ty
@@ -960,6 +1122,11 @@ Proof.
   - destruct H0 as [Ω [E [Ω' [e' H0]]]]; exists Ω; exists Ω'; exists (E :: nil); exists e'; left; eapply stepsTrans; try eassumption; eapply stepsRefl.
 Qed.
 
+Lemma closed_implies_typing e :
+  closed nil e -> exists τ : ty, nil ||- e : τ =| nil.
+Proof.
+Admitted.
+
 Lemma binop_ctx_step_inv Ω1 b e1 e2 Ω3 v E :
   Ω1 ▷ BinOp b e1 e2 =[ E ]~> Ω3 ▷ Lit v ->
   exists v1 v2, (e1 = Lit v1 /\ e2 = Lit v2 /\ E = Internal /\ v = bin_op_eval_int b v1 v2)
@@ -1122,11 +1289,19 @@ Lemma preservation_composition e K ty ty' Γ0 Γ0' :
   (Γ0 ||- fill K e : ty' =| Γ0').
 Proof. intros H0 H1; eauto. Qed.
 
-Lemma weaken_ctx_when_checking K0 K1 ty0 ty1 :
-  ectx_check K1 ty0 ty1 ->
-  ectx_check (comp_ectx K0 K1) ty0 ty1.
+Lemma fill_ctx_binop_inv Γ0 o K e e0 ty Γ0' :
+  (Γ0 ||- fill (LBinOpCtx o K e) e0 : ty =| Γ0') ->
+  exists e', (Γ0 ||- BinOp o e' e : ty =| Γ0').
+Proof. eauto. Qed.
+
+Lemma weaken_ctx_when_checking K0 K1 ty0 :
+  ectx_check K1 ty0 tyNat ->
+  ectx_check (comp_ectx K0 K1) ty0 tyNat.
 Proof.
   induction K0; cbn; intros H; eauto.
+  - intros e' Γ0 Γ0' H0. specialize (IHK0 H e' Γ0 Γ0' H0).
+    eapply preservation_composition; try eassumption.
+    intros ? ? ? ?. cbn.
 Admitted.
 
 Lemma preservation_decomposition e K ty Γ0 Γ0' :
@@ -1239,6 +1414,11 @@ Inductive WhileComponent :=
 Inductive WhileContext :=
 | WCtx : forall e0 e1, closed nil e0 -> closed ("y"%string :: nil) e1 -> WhileContext
 .
+Definition wprog2tracepref (p : WhileProgram) : list Event :=
+  match p with
+  | WProg e _ => compute_trace_prefix e
+  end
+.
 
 Lemma contexts_closed e0 ep e1 :
   closed nil e0 ->
@@ -1299,12 +1479,12 @@ Lemma plug_checks_propagate (c : WhileContext) (p : WhileComponent) :
   component_check p ->
   whole_program_check (plug c p).
 Proof.
-  intros H H0; destruct c, H, H0; cbn; repeat (econstructor; trivial).
-  change (nil ++ nil ||- Letin "y" (Letin "x" e2 e) e3 : tyNat).
+  intros H H0; destruct c, H, H0; cbn. econstructor; trivial.
+  change (nil ++ nil ||- Letin "y" (Letin "x" e2 e) e3 : tyNat =| nil ++ nil).
   eapply Tlet.
-  - eauto.
-  - change (nil ++ nil ||- Letin "x" e2 e : tyNat); eauto.
+  - eapply Tlet; now cbn.
   - assumption.
+  - reflexivity.
 Defined.
 Definition prog2trace (p : WhileProgram) : Trace := wprog2tracepref p.
 
@@ -1323,48 +1503,48 @@ Fixpoint sufftr (n : nat) (t : list Event) :=
 .
 Lemma base_alloc_yields_new e e' Ω Ω' loc s :
   Ω ▷ e -[ Alloc loc s ]~> Ω' ▷ e' ->
-  exists y x e2, e = New y x (Lit s) e2 /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\ e' = e2.
+  exists x e2, e = New x (Lit s) e2 /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\ e' = e2.
 Proof.
   intros H; inv H; boring.
-  exists y; exists x; exists e'; cbn; split; trivial.
+  exists x; exists e'; cbn; split; trivial.
   rewrite eqb_refl; now cbn.
 Qed.
 Lemma ctx_alloc_yields_new e e' Ω Ω' loc s :
   Ω ▷ e =[ Alloc loc s ]~> Ω' ▷ e' ->
-  exists K y x e2, e = fill K (New y x (Lit s) e2) /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\
-              e' = fill K e2.
+  exists K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\
+            e' = fill K e2.
 Proof.
-  intros H; inv H; boring; apply base_alloc_yields_new in H7 as [y [x [e2 [H0a [H0b H0c]]]]];
-  exists K; subst; eauto. do 3 eexists; repeat split; easy.
+  intros H; inv H; boring; apply base_alloc_yields_new in H7 as [x [e2 [H0a [H0b H0c]]]];
+  exists K; subst; eauto.
 Qed.
 Lemma steps_alloc_yields_new e e' Ω Ω' Tr loc s :
   Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
   List.nth_error Tr 0 = Some (Alloc loc s) ->
-  exists Ω'' K y x e2, e = fill K (New y x (Lit s) e2) /\ Δ_lookup x Ω'' = Some (EnvAddr loc)
+  exists Ω'' K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω'' = Some (EnvAddr loc)
    /\ (Ω ▷ e =[ Alloc loc s ]~> Ω'' ▷ fill K e2)
    /\ Ω'' ▷ fill K e2 =[ List.tail Tr ]~>* Ω' ▷ e'.
 Proof.
   intros H0 H1; inv H0; boring;
   cbn in H1; inv H1;
   exists Ω'0;
-  edestruct ctx_alloc_yields_new as [K [y [x [e2 [H0a [H0b H0c]]]]]]; cbn; subst; eauto;
-  exists K; exists y; exists x; exists e2; repeat split; subst; eauto.
+  edestruct ctx_alloc_yields_new as [K [x [e2 [H0a [H0b H0c]]]]]; cbn; subst; eauto;
+  exists K; exists x; exists e2; repeat split; subst; eauto.
 Qed.
 Lemma steps_alloc_yields_new_inbetween e e' Ω Ω' Tr loc s n :
   Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
   List.nth_error Tr n = Some (Alloc loc s) ->
-  exists Ω1 Ω2 Tr' K y x e2, (Ω ▷ e =[ Tr' ]~>* Ω1 ▷ (fill K (New y x (Lit s) e2)))
-          /\ (Ω1 ▷ fill K (New y x (Lit s) e2) =[ Alloc loc s ]~> Ω2 ▷ fill K e2)
+  exists Ω1 Ω2 Tr' K x e2, (Ω ▷ e =[ Tr' ]~>* Ω1 ▷ (fill K (New x (Lit s) e2)))
+          /\ (Ω1 ▷ fill K (New x (Lit s) e2) =[ Alloc loc s ]~> Ω2 ▷ fill K e2)
           /\ Δ_lookup x Ω2 = Some (EnvAddr loc)
           /\ Ω2 ▷ fill K e2 =[ sufftr (S n) Tr ]~>* Ω' ▷ e'.
 Proof.
   intros H0 H1.
   revert Tr Ω Ω' e e' H0 H1; induction n; intros Tr Ω Ω' e e' H0 H1.
-  - edestruct steps_alloc_yields_new as [Ω'' [K [y [x [e2 [H2a [H2b [H2c H2d]]]]]]]]; eauto;
+  - edestruct steps_alloc_yields_new as [Ω'' [K [x [e2 [H2a [H2b [H2c H2d]]]]]]]; eauto;
     do 7 eexists; subst; repeat split; eauto.
   - inv H0; boring; cbn in *;
     specialize (IHn as0 Ω'0 Ω' e'0 e' H8 H1);
-    destruct IHn as [Ω1 [Ω2 [Tr' [K [y [x [e2 [IHa [IHb [IHc IHd]]]]]]]]]];
+    destruct IHn as [Ω1 [Ω2 [Tr' [K [x [e2 [IHa [IHb [IHc IHd]]]]]]]]];
     do 7 eexists; eauto.
 Qed.
 
@@ -1422,7 +1602,7 @@ Proof.
   do 2 eexists; eauto.
 Qed.
 Lemma refnat_in_type_means_dealloc_is_in_there x Γ e τ Ω loc:
-  ((x, tyRefnat) :: Γ ||- e : τ) ->
+  ((x, tyRefnat) :: Γ ||- e : τ =| Γ) ->
   Δ_lookup x Ω = Some loc ->
   exists Ω' K Tr, (Ω ▷ e =[ Tr ]~>* Ω' ▷ (fill K (Delete x))).
 Proof.
@@ -1485,8 +1665,39 @@ Lemma nth_error_list_skip (Tr1 Tr2 : Trace) :
   List.nth_error (Tr1 ++ Tr2) (List.length Tr1) = List.nth_error Tr2 0.
 Proof. induction Tr1; cbn; trivial. Qed.
 
-Lemma while_alloc_before_dealloc Γ τ Ω Ω' Tr e v loc s :
-  (Γ ||- e : τ) ->
+Lemma while_is_not_spat_memsafe :
+  ~ (forall (p : WhileComponent) (H : component_check p), wrsat H spat_memsafe).
+Proof.
+  intros H.
+  remember out_of_bounds_program as p.
+  assert (H0 := oob_prog_typechecks); rewrite <- Heqp in H0.
+  assert (component_check (WComp p (closed_typing H0))) by econstructor.
+  specialize (H (WComp p (closed_typing H0)) H1).
+
+  unfold wrsat in H.
+  assert (nil ||- Lit 0 : tyNat =| nil) by econstructor.
+  assert ((("y"%string, tyNat) :: nil) ||- Lit 0 : tyNat =| (("y"%string, tyNat)::nil)) by econstructor.
+  assert (context_check (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))) by econstructor.
+  specialize (H (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3)) H4).
+
+  unfold wsat in H; unfold spat_memsafe in H.
+  remember (plug (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))
+                  (WComp p (closed_typing H0))) as fp.
+  assert (occ (Alloc (LocA 0) 42) (prog2trace fp)).
+  rewrite Heqfp; unfold compute_trace_prefix; cbn;
+  rewrite Heqp; cbn; right; now left.
+
+  assert (occ (Read (LocA 0) 1337) (prog2trace fp)).
+  cbn; rewrite Heqfp; cbn; rewrite Heqp; unfold compute_trace_prefix; cbn;
+  destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; cbn.
+  do 2 right; now left.
+  specialize (H (LocA 0) 42 H5) as [Ha Hb].
+  specialize (Ha 1337 H6).
+  lia.
+Qed.
+
+Lemma while_alloc_before_dealloc Γ Γ' τ Ω Ω' Tr e v loc s :
+  (Γ ||- e : τ =| Γ') ->
   (Ω ▷ e =[ Tr ]~>* Ω' ▷ (Lit v)) ->
   after_another_event (Alloc loc s) (Dealloc loc) Tr.
 Proof.
@@ -1513,37 +1724,6 @@ Proof.
   repeat rewrite <- Nat.add_assoc;
   rewrite nth_error_simpl, nth_error_cons_simpl, nth_error_list_skip.
   easy.
-Qed.
-
-Lemma while_is_not_spat_memsafe :
-  ~ (forall (p : WhileComponent) (H : component_check p), wrsat H spat_memsafe).
-Proof.
-  intros H.
-  remember out_of_bounds_program as p.
-  assert (H0 := oob_prog_typechecks); rewrite <- Heqp in H0.
-  assert (component_check (WComp p (closed_typing H0))) by econstructor.
-  specialize (H (WComp p (closed_typing H0)) H1).
-
-  unfold wrsat in H.
-  assert (nil ||- Lit 0 : tyNat =| nil) by repeat econstructor.
-  assert ((("y"%string, tyNat) :: nil) ||- Lit 0 : tyNat =| (("y"%string, tyNat)::nil)) by repeat econstructor.
-  assert (context_check (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))) by repeat econstructor.
-  specialize (H (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3)) H4).
-
-  unfold wsat in H; unfold spat_memsafe in H.
-  remember (plug (WCtx (Lit 0) (Lit 0) (closed_typing H2) (closed_typing H3))
-                  (WComp p (closed_typing H0))) as fp.
-  assert (occ (Alloc (LocA 0) 42) (prog2trace fp)).
-  rewrite Heqfp; unfold compute_trace_prefix; cbn;
-  rewrite Heqp; cbn; right; now left.
-
-  assert (occ (Read (LocA 0) 1337) (prog2trace fp)).
-  cbn; rewrite Heqfp; cbn; rewrite Heqp; unfold compute_trace_prefix; cbn;
-  destruct (addr_eq_dec (LocA 0) (LocA 0)); try contradiction; cbn.
-  do 2 right; now left.
-  specialize (H (LocA 0) 42 H5) as [Ha Hb].
-  specialize (Ha 1337 H6).
-  lia.
 Qed.
 
 

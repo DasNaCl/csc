@@ -3,119 +3,6 @@ Require Import Coq.Arith.PeanoNat Strings.String Lists.List Lia Program.Equality
 Require Import Classes.RelationClasses Morphisms Setoid.
 Require Import CSC.Util CSC.Fresh.
 
-Definition gamma_subset {T} (A B : list T) := forall x, In x A -> In x B.
-Infix "⊆" := gamma_subset (at level 81, left associativity).
-
-Definition gamma_equiv {T} (Γ0 Γ1 : list T) := (Γ0 ⊆ Γ1) /\ (Γ1 ⊆ Γ0).
-Infix "≡" := gamma_equiv (at level 98, left associativity).
-Lemma gamma_equiv_is_equal {T} (Γ0 Γ1 : list T) :
-  (Γ0 ≡ Γ1) <-> (Γ0 = Γ1).
-Proof.
-Admitted.
-#[local]
-Hint Resolve gamma_equiv_is_equal : core.
-
-Lemma nil_eq_sets {T} (Γ1 Γ2 : list T) :
-  nil = Γ1 ++ Γ2 -> nil = Γ1 /\ nil = Γ2.
-Proof. intros; induction Γ1; firstorder; inv H. Qed.
-
-Lemma subset_trans {T} (A B C : list T) :
-  A ⊆ B -> B ⊆ C -> A ⊆ C.
-Proof. intros H0 H1 x H2; apply H1; now apply H0. Qed.
-#[local]
-Hint Resolve subset_trans : core.
-
-#[local]
-Instance subset_refl {T : Type} : Reflexive (@gamma_subset T).
-Proof. now intros Γ x H. Qed.
-#[local]
-Instance subset_trans_inst {T : Type} : Transitive (@gamma_subset T).
-Proof. intros Γ0 Γ1 Γ2 H0 H1; firstorder. Qed.
-
-#[local]
-Instance equiv_is_equiv {T : Type} : Equivalence (@gamma_equiv T).
-Proof.
-  split.
-  - (* refl  *) now split.
-  - (* symm  *) split; firstorder eauto.
-  - (* trans *) split; firstorder eauto.
-Qed.
-#[local]
-Instance equiv_commutes {T : Type} (Γ : list T) : Proper (gamma_equiv ==> Basics.flip Basics.impl)
-                                      (fun l : list T => l ≡ Γ).
-Proof. intros Γ0 Γ1 H H0; etransitivity; eauto. Qed.
-Lemma subset_swap_nil {T : Type} (Γ1 Γ3 : list T) :
-  Γ1 ++ nil ⊆ Γ3 -> nil ++ Γ1 ⊆ Γ3.
-Proof. intros H; cbn; now rewrite app_nil_r in H. Qed.
-Lemma subset_swap_cons {T : Type} a (Γ1 Γ3 : list T) :
-  Γ1 ++ a :: nil ⊆ Γ3 -> a :: Γ1 ⊆ Γ3.
-Proof.
-  intros H0 x H1; apply H0; destruct H1; subst; induction Γ1; cbn; firstorder.
-Qed.
-Lemma subset_swap {T : Type} (Γ1 Γ2 Γ3 : list T) :
-  Γ1 ++ Γ2 ⊆ Γ3 -> Γ2 ++ Γ1 ⊆ Γ3.
-Proof.
-  intros H0 x H1; apply H0. induction Γ2; cbn in *.
-  now rewrite app_nil_r. destruct H1; subst.
-  clear IHΓ2; induction Γ1; cbn; firstorder.
-  clear IHΓ2 H0. induction Γ2; cbn in *; firstorder.
-  eapply subset_swap_nil in H. exact H. clear H; rewrite app_nil_r.
-  induction Γ1; cbn; firstorder eauto.
-  subst; clear IHΓ2; induction Γ1; firstorder eauto.
-  clear H; induction Γ1; firstorder eauto.
-Qed.
-Lemma subset_cons_swap {T : Type} a b (Γ1 Γ2 : list T) :
-  a :: b :: Γ1 ⊆ Γ2 -> b :: a :: Γ1 ⊆ Γ2.
-Proof. firstorder eauto. Qed.
-Lemma subset_weak {T : Type} a (Γ1 Γ2 : list T) :
-  a :: Γ1 ⊆ Γ2 -> Γ1 ⊆ Γ2.
-Proof. firstorder eauto. Qed.
-Lemma cons_subset {T : Type} a (Γ1 Γ2 : list T) :
-  Γ1 ⊆ Γ2 -> a :: Γ1 ⊆ a :: Γ2.
-Proof. firstorder eauto. Qed.
-Lemma cons_subset_eq {T : Type} a a0 :
-  (a :: nil) ⊆ (a0 :: (nil : list T)) -> a = a0.
-Proof. intros H; specialize (H a); firstorder eauto. Qed.
-Lemma subset_nil {T : Type} (Γ : list T) :
-  Γ ⊆ nil -> Γ = nil.
-Proof. induction Γ; firstorder; exfalso; apply (H a); now left. Qed.
-Lemma subset_cons_inv {T : Type} a (Γ : list T) :
-  Γ ⊆ (a :: nil) -> Γ = nil \/ Γ = a :: nil.
-Proof.
-Admitted.
-Lemma subset_of_cons {T : Type} a (Γ : list T) :
-  Γ ⊆ a :: Γ.
-Proof. induction Γ; firstorder. Qed.
-Lemma gamma_equiv_symm {T : Type} (Γ0 Γ1 : list T) :
-  Γ0 ++ Γ1 ≡ Γ1 ++ Γ0.
-Proof.
-  split.
-  - now eapply subset_swap.
-  - now eapply subset_swap.
-Qed.
-#[local]
-Instance equiv_absurd_proper {T : Type} (Γ0 : list T) : Proper (gamma_equiv ==> Basics.impl)
-                                  (fun l : list T => l = Γ0).
-Proof.
-  intros Γ1 Γ2 H0 H1. rewrite <- H1. symmetry.
-  firstorder.
-Admitted.
-Lemma gamma_equiv_absurd {T : Type} a (Γ : list T) :
-  nil ≡ a :: Γ -> False.
-Proof.
-  intros H;
-  remember nil as Γ'; pattern Γ' in HeqΓ'; rewrite H in HeqΓ'; inv HeqΓ'.
-Qed.
-#[local]
-Hint Resolve gamma_equiv_symm : core.
-Instance equiv_subset_proper {T : Type} Γ0 : Proper (gamma_equiv ==> Basics.flip Basics.impl)
-                                    (fun (Γ : list T) => Γ ⊆ Γ0).
-Proof.
-Admitted.
-Instance equiv_supset_proper {T : Type} Γ0 : Proper (gamma_equiv ==> Basics.flip Basics.impl)
-                                    (fun (Γ : list T) => Γ0 ⊆ Γ).
-Proof.
-Admitted.
 
 (** * MiniML *)
 (** In this document, we present the formalisation of MiniML.
@@ -147,20 +34,56 @@ Definition addr_eqb (x y : addr) :=
   | LocA n, LocA m => Nat.eqb n m
   end
 .
-Inductive expr :=
-  | Lit : nat -> expr
-  | Var : string -> expr
-  | BinOp : bin_op -> expr -> expr -> expr        (* e0 + e1 *)
-  | Access : string -> expr -> expr              (* x[e] *)
-  | Letin : string -> expr -> expr -> expr        (* let x = e0 in e1 *)
-  | If : expr -> expr -> expr -> expr             (* if e0 then e1 else e2 *)
-  | Assign : string -> expr -> expr -> expr       (* x[e0] <- e1 *)
-  | New : string -> expr -> expr -> expr          (* let x = new e0 in e1 *)
-  | Delete : string -> expr                     (* delete x *)
+(** * Syntax *)
+(** We define two languages, one just for statics, the other just for dynamics. *)
+(** Reason we do this is to disallow contexts from guessing locations. *)
+Inductive sexpr {R : Type} :=
+  | CLit : nat -> sexpr
+  | CVar : string -> sexpr
+  | CBinOp : bin_op -> R -> R -> sexpr    (* e0 + e1 *)
+  | CAccess : string -> R -> sexpr       (* x[e] *)
+  | CLetin : string -> R -> R -> sexpr    (* let x = e0 in e1 *)
+  | CIf : R -> R -> R -> sexpr            (* if e0 then e1 else e2 *)
+  | CAssign : string -> R -> R -> sexpr   (* x[e0] <- e1 *)
+  | CNew : string -> R -> R -> sexpr      (* let x = new e0 in e1 *)
+  | CDelete : string -> sexpr           (* delete x *)
 .
-Declare Scope expr_scope.
-Bind Scope expr_scope with expr.
-
+Inductive lexpr {R : Type} :=
+  | CLoc : addr -> lexpr
+.
+Inductive static := Static : @sexpr static -> static.
+(** dynamic *)
+Inductive expr :=
+  | L : @sexpr expr -> expr
+  | R : @lexpr expr -> expr
+.
+(** "constructors" *)
+Definition Lit n := L(CLit n).
+Definition Var x := L(CVar x).
+Definition BinOp b e1 e2 := L(CBinOp b e1 e2).
+Definition Access x e := L(CAccess x e).
+Definition Letin x e1 e2 := L(CLetin x e1 e2).
+Definition If e0 e1 e2 := L(CIf e0 e1 e2).
+Definition Assign x e0 e1 := L(CAssign x e0 e1).
+Definition New x e0 e1 := L(CNew x e0 e1).
+Definition Delete x := L(CDelete x).
+Definition Loc n := R(CLoc n).
+Fixpoint s2d (e : static) : expr :=
+  match e with
+  | Static e' => match e' with
+                | CLit x => Lit x
+                | CVar x => Var x
+                | CBinOp b e1 e2 => BinOp b (s2d e1) (s2d e2)
+                | CAccess x e0 => Access x (s2d e0)
+                | CLetin x e1 e2 => Letin x (s2d e1) (s2d e2)
+                | CIf e0 e1 e2 => If (s2d e0) (s2d e1) (s2d e2)
+                | CAssign x e1 e2 => Assign x (s2d e1) (s2d e2)
+                | CNew x e1 e2 => New x (s2d e1) (s2d e2)
+                | CDelete x => Delete x
+                end
+  end
+.
+Coercion s2d : static >-> expr.
 Definition of_val (v : val) : expr :=
   match v with
   | LitV z => Lit z
@@ -168,14 +91,14 @@ Definition of_val (v : val) : expr :=
 .
 Definition to_val (e : expr) : option val :=
   match e with
-  | Lit z => Some (LitV z)
+  | L(CLit z) => Some (LitV z)
   | _ => None
   end
 .
 Coercion of_val : val >-> expr.
 Definition is_val (e : expr) : Prop :=
   match e with
-  | Lit _ => True
+  | L(CLit _) => True
   | _ => False
   end
 .
@@ -183,11 +106,14 @@ Lemma to_of_val v : to_val (of_val v) = Some v.
 Proof. now induction v. Qed.
 
 Lemma of_to_val e v : to_val e = Some v -> of_val v = e.
-Proof. revert v; induction e; cbn; intros v ?; inv H; easy. Qed.
+Proof.
+  revert v; induction e; cbn; intros v H; inv H;
+  destruct s; try congruence; now inv H1.
+Qed.
 
 Lemma is_val_inv e : is_val e -> { n : nat | e = Lit n }.
 Proof.
-  induction e; cbn; intros; try contradiction; now exists n.
+  induction e; cbn; intro H; try contradiction; destruct s; try contradiction; now exists n.
 Qed.
 
 (** ** Evaluation *)
@@ -199,26 +125,7 @@ Definition bin_op_eval_int (op : bin_op) (n1 n2 : nat) : nat :=
 
 Definition Heap := list nat.
 Definition LocMap := list (addr * nat).
-
-Inductive env_elem : Set :=
-| EnvAddr : addr -> env_elem
-| EnvVal  : val  -> env_elem
-.
-Definition of_env_elem (e : env_elem) : option val :=
-  match e with
-  | EnvVal(LitV v) => Some(LitV v)
-  | _ => None
-  end
-.
-Definition of_opt_env_elem (e : option env_elem) : option val :=
-  match e with
-  | Some x => of_env_elem x
-  | _ => None
-  end
-.
-Coercion EnvAddr : addr >-> env_elem.
-Coercion EnvVal : val >-> env_elem.
-Definition Env : Set := list (string * env_elem).
+Definition Env : Set := list (string * addr).
 
 (**
   State consists of four things:
@@ -269,7 +176,6 @@ Proof. unfold Δ_lookup; apply Util.find_dec. Defined.
     - << Read loc n >> value in heap at address << loc + n >> read
     - << Write loc n >> value in heap at address << loc + n >> overwritten
  *)
-
 Variant Event : Set :=
 | Internal : Event
 | Alloc : addr -> nat -> Event
@@ -286,30 +192,51 @@ Proof.
   - destruct (Nat.eq_dec n1 n2), (Nat.eq_dec n n0); subst; (now left + right; congruence).
   - destruct (Nat.eq_dec n1 n2), (Nat.eq_dec n n0); subst; (now left + right; congruence).
 Qed.
+Fixpoint esubst (x : string) (fore : expr) (ine : expr) : expr :=
+  match ine with
+  | L ine' =>
+    match ine' with
+    | CLit _ => ine
+    | CVar y => if string_dec x y then fore else Var y
+    | CBinOp o e1 e2 => BinOp o (esubst x fore e1) (esubst x fore e2)
+    | CAccess y e => Access y (esubst x fore e)
+    | CLetin y e1 e2 => Letin y (esubst x fore e1) (if string_dec x y then e2 else esubst x fore e2)
+    | CIf e1 e2 e3 => If (esubst x fore e1) (esubst x fore e2) (esubst x fore e3)
+    | CAssign y e1 e2 => Assign y (esubst x fore e1) (esubst x fore e2)
+    | CNew y eat e0 => New y (esubst x fore eat) (if string_dec x y then e0
+                                                else esubst x fore e0)
+    | CDelete x => Delete x
+    end
+  | R _ => ine (* this is just a location *)
+  end
+.
+Definition deleteLoc {A' : Type} (x : addr) (A : list (addr * A')) :=
+  match A with
+  | nil => nil
+  | (y, v) :: Δ' => if addr_eq_dec x y then Δ' else (y,v) :: Δ' (* delete x Δ' *)
+  end
+.
 Reserved Notation "Ω1 '-[' a ']~>' Ω2" (at level 80, a at next level, right associativity).
 Inductive base_step : Conf -> Event -> Conf -> Prop :=
-| VarS : forall Ω x v, Δ_lookup x Ω = Some (EnvVal(LitV v)) ->
-                  (Ω ▷ Var x -[ Internal ]~> Ω ▷ Lit v)
 | BinOpS : forall Ω n1 n2 o, (Ω ▷ BinOp o (Lit n1) (Lit n2) -[ Internal ]~> Ω ▷ of_val(bin_op_eval_int o n1 n2))
-| GetS : forall Ω x n loc v nl, Δ_lookup x Ω = Some (EnvAddr loc) ->
+| GetS : forall Ω x n loc v nl, Δ_lookup x Ω = Some (loc) ->
                            A_lookup loc Ω = nl ->
                            H_lookup (nl + n) Ω = v ->
                            (Ω ▷ Access x (Lit n) -[ Read loc n ]~> Ω ▷ Lit v)
-| SetS : forall Ω H' x n v loc nl, Δ_lookup x Ω = Some (EnvAddr loc) ->
+| SetS : forall Ω H' x n v loc nl, Δ_lookup x Ω = Some (loc) ->
                               A_lookup loc Ω = nl ->
                               H' = replace (nl + n) Ω.(H) v ->
                               (Ω ▷ Assign x (Lit n) (Lit v) -[ Write loc n ]~> Ω.(fresh);H';Ω.(A);Ω.(Δ) ▷ Lit v)
 | IfBotS : forall Ω e1 e2, (Ω ▷ If (Lit 0) e1 e2 -[ Internal ]~> Ω ▷ e2)
 | IfTopS : forall Ω e1 e2 v, v <> 0 -> (Ω ▷ If (Lit v) e1 e2 -[ Internal ]~> Ω ▷ e1)
-| LetS : forall Ω x v e, (Ω ▷ Letin x (Lit v) e -[ Internal ]~>
-                          (Ω.(fresh); Ω.(H); Ω.(A); (x,EnvVal(LitV v))::Ω.(Δ)) ▷ e)
-| DeleteS : forall Ω x loc, Δ_lookup x Ω = Some (EnvAddr loc) ->
-                       (Ω ▷ Delete x -[ Dealloc loc ]~> Ω.(fresh);Ω.(H);Ω.(A);(delete x Ω.(Δ)) ▷ Lit 0)
+| LetS : forall Ω x v e, (Ω ▷ Letin x (Lit v) e -[ Internal ]~> Ω ▷ esubst x (Lit v) e)
+| DeleteS : forall Ω x loc, Δ_lookup x Ω = Some loc ->
+                       (Ω ▷ Delete x -[ Dealloc loc ]~> Ω.(fresh);Ω.(H);deleteLoc loc Ω.(A);(delete x Ω.(Δ)) ▷ Lit 0)
 | NewS : forall Ω H' x n e loc s, s = List.length Ω.(H) ->
                              H' = grow Ω.(H) n ->
                              loc = LocA(Fresh.fresh Ω.(fresh)) ->
                              (Ω ▷ New x (Lit n) e -[ Alloc loc n ]~>
-                             (Fresh.advance Ω.(fresh));H';((loc, s) :: Ω.(A));((x, EnvAddr loc) :: Ω.(Δ)) ▷ e)
+                             (Fresh.advance Ω.(fresh));H';((loc, s) :: Ω.(A));((x, loc) :: Ω.(Δ)) ▷ esubst x (Loc loc) e)
 where "Ω0 '-[' a ']~>' Ω1" := (base_step Ω0 a Ω1)
 .
 #[local]
@@ -557,20 +484,6 @@ Proof.
 Qed.
 
 
-Lemma inv_var_ctx_step Ω Ω' E v s :
-  (Ω, Var s) =[ E ]~> (Ω', Lit v) -> Δ_lookup s Ω = Some(EnvVal v) /\ Ω = Ω'.
-Proof. intros; inv H0; induction K; cbn in *; try congruence; subst; now inv H8. Qed.
-
-Lemma inv_var_steps Ω Ω' Tr s e :
-  (Ω, Var s) =[ Tr ]~>* (Ω', e) -> e = Var s \/ exists v, e = Lit v /\ Δ_lookup s Ω = Some(EnvVal v) /\ Ω = Ω' /\ Tr = Internal :: nil.
-Proof.
-  intros H0; inv H0.
-  - now left.
-  - inv H5; induction K; cbn in *; try congruence; subst; inv H9; try easy;
-    right; exists v; eapply inv_lit_steps in H7 as [H0 [H1 H2]];
-    subst; eauto.
-Qed.
-
 Definition reducible (Ω : State) (e : expr) :=
   exists a Ω' e', Ω ▷ e =[ a ]~> Ω' ▷ e'
 .
@@ -643,10 +556,6 @@ Proof. intros; eapply closed_weaken; try exact H0; intros ? ?; inv H1. Qed.
 (* This is easier to work with to get traces. TODO: make it cofix when adding loops *)
 Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
   match e with
-  | Var x => match Δ_lookup x Ω with
-            | Some(EnvVal(LitV v)) => Some (Ω, LitV v, Internal :: nil)
-            | _ => None
-            end
   | Lit n => Some (Ω, LitV n, nil)
   | BinOp o e1 e2 =>
       match exec Ω e1 with
@@ -660,7 +569,7 @@ Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
   | Access x e => match exec Ω e with
                  | Some(Ω', LitV v, Tr) =>
                    match Δ_lookup x Ω' with
-                   | Some(EnvAddr loc) =>
+                   | Some(loc) =>
                        let nl := A_lookup loc Ω' in
                        Some (Ω', LitV (H_lookup (nl + v) Ω'), Tr ++ ((Read loc v) :: nil))
                    | _ => None
@@ -672,7 +581,7 @@ Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
                          match exec Ω1 e2 with
                          | Some(Ω2, LitV v, Tr2) =>
                            match Δ_lookup x Ω2 with
-                           | Some(EnvAddr loc) =>
+                           | Some(loc) =>
                                let nl := A_lookup loc Ω2 in
                                Some ((Ω2.(fresh); replace (nl + n) Ω2.(H) v; Ω2.(A); Ω2.(Δ)),
                                      LitV v, Tr1 ++ Tr2 ++ ((Write loc n)::nil))
@@ -698,21 +607,21 @@ Fixpoint exec (Ω : State) (e : expr) : option (State * val * list Event) :=
                   end
   | Letin x e1 e2 => match exec Ω e1 with
                     | Some(Ω1, LitV v1, Tr1) =>
-                        match exec (Ω1.(fresh); Ω1.(H); Ω1.(A); (x, EnvVal v1) :: Ω1.(Δ)) e2 with
+                        match exec (Ω1.(fresh); Ω1.(H); Ω1.(A); (x, v1) :: Ω1.(Δ)) e2 with
                         | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ (Internal :: nil) ++ Tr2)
                         | None => None
                         end
                     | None => None
                     end
   | Delete x => match Δ_lookup x Ω with
-               | Some (EnvAddr loc) => Some ((Ω.(fresh); Ω.(H); Ω.(A); delete x Ω.(Δ)), LitV 0, (Dealloc loc)::nil)
+               | Some (loc) => Some ((Ω.(fresh); Ω.(H); Ω.(A); delete x Ω.(Δ)), LitV 0, (Dealloc loc)::nil)
                | _ => None
                end
   | New x e1 e2 => match exec Ω e1 with
                   | Some(Ω1, LitV m, Tr1) =>
                       let loc := LocA(Fresh.fresh (Ω1.(fresh))) in
                       let s := List.length (Ω1.(H)) in
-                      match exec (Fresh.advance Ω1.(fresh); grow Ω1.(H) m; (loc,s)::(Ω1.(A)); (x,EnvAddr loc) :: Ω1.(Δ)) e2 with
+                      match exec (Fresh.advance Ω1.(fresh); grow Ω1.(H) m; (loc,s)::(Ω1.(A)); (x,loc) :: Ω1.(Δ)) e2 with
                       | Some(Ω2, v2, Tr2) => Some(Ω2, v2, Tr1 ++ ((Alloc loc m)::nil) ++ Tr2)
                       | _ => None
                       end
@@ -764,7 +673,6 @@ Ltac exec_reduce := (
     apply Util.not_eq_None_Some in H2 as [x H2];
     rewrite H2 in H; cbn in H
   | [ H: Some _ = Some _ |- _ ] => inv H
-  | [ H : match ?x with | EnvAddr _ => _ | EnvVal _ => _ end = _ |- _] => destruct x; try congruence
   | [ H : match ?v with | 0 => _ | S _ => _ end = _ |- _ ] => destruct v
   end
 ).
@@ -812,40 +720,66 @@ Proof.
 Qed.
 Definition Gamma := list (string * ty).
 Definition HasPtr x Γ := (Util.find (String.eqb x) Γ = Some tyRefnat).
+Definition same_ptrs (Γ1 Γ2 : Gamma) := (Γ1 ⊆ Γ2). (*/\ (forall x, HasPtr x Γ2 -> HasPtr x Γ1). *)
+#[local]
+Instance same_ptrs_refl : Reflexive (same_ptrs).
+Proof. intros ?; trivial; easy. Qed.
+#[local]
+Instance same_ptrs_trans : Transitive (same_ptrs).
+Proof. intros Γ0 Γ1 Γ2 H0 H1; firstorder eauto. Qed.
+Infix "⪽" := (same_ptrs) (at level 81).
 Reserved Notation "Γa '||-' e ':' τ '=|' Γb" (at level 99, right associativity, e at next level, τ at level 200).
 Inductive check : Gamma -> expr -> ty -> Gamma -> Prop :=
-| Texchange : forall Γ1 Γ2 Γ3 Γ4 e τ, Γ1 ≡ Γ2 -> Γ3 ≡ Γ4 ->
-                                 (Γ1 ||- e : τ =| Γ3) ->
-                                 (Γ2 ||- e : τ =| Γ4)
-| Tvar : forall x Γ, ((x,tyNat)::Γ ||- (Var x) : tyNat =| (x,tyNat)::Γ)
+| Tvar : forall x Γ, (Util.find (String.eqb x) Γ = Some tyNat) ->
+                (Γ ||- (Var x) : tyNat =| Γ)
 | Tnat : forall Γ n, (Γ ||- Lit n : tyNat =| Γ)
-| Tbinop : forall Γ e1 e2 o, (Γ ||- e1 : tyNat =| Γ) ->
-                        (Γ ||- e2 : tyNat =| Γ) ->
-                        (Γ ||- BinOp o e1 e2 : tyNat =| Γ)
-| Tget : forall Γ e x, HasPtr x Γ ->
-                  (Γ ||- e : tyNat =| Γ) ->
-                  (Γ ||- Access x e : tyNat =| Γ)
-| Tset : forall Γ x e1 e2, HasPtr x Γ ->
-                      (Γ ||- e1 : tyNat =| Γ) ->
-                      (Γ ||- e2 : tyNat =| Γ) ->
-                      (Γ ||- Assign x e1 e2 : tyNat =| Γ)
-| Tlet : forall Γ1 Γ2 x e1 e2, (Γ1 ||- e1 : tyNat =| Γ1) ->
-                   ((x,tyNat)::Γ1 ||- e2 : tyNat =| (x,tyNat)::Γ2) ->
-                   (Γ2 ⊆ Γ1) ->
-                   (Γ1 ||- Letin x e1 e2 : tyNat =| Γ2)
-| Tletnew : forall Γ1 Γ2 x e1 e2, (Γ1 ||- e1 : tyNat =| Γ1) ->
-                         ((x,tyRefnat)::Γ1 ||- e2 : tyNat =| Γ2) ->
-                         (~ HasPtr x Γ2) -> (Γ2 ⊆ Γ1) ->
-                         (Γ1 ||- New x e1 e2 : tyNat =| Γ2)
+| Tbinop : forall Γ1 Γ2 Γ3 e1 e2 o, (Γ2 ⪽ Γ1) -> (Γ2 ⪽ Γ3) ->
+                               (Γ1 ||- e1 : tyNat =| Γ2) ->
+                               (Γ2 ||- e2 : tyNat =| Γ3) ->
+                               (Γ1 ||- BinOp o e1 e2 : tyNat =| Γ3)
+| Tget : forall Γ1 Γ2 e x, HasPtr x Γ1 ->
+                      (Γ1 ||- e : tyNat =| Γ2) ->
+                      (Γ1 ||- Access x e : tyNat =| Γ2)
+| Tset : forall Γ1 Γ2 Γ3 x e1 e2, HasPtr x Γ1 -> Γ2 ⪽ Γ1 ->
+                             (Γ1 ||- e1 : tyNat =| Γ2) ->
+                             (Γ2 ||- e2 : tyNat =| Γ3) ->
+                             (Γ1 ||- Assign x e1 e2 : tyNat =| Γ3)
+| Tlet : forall Γ1 Γ2 Γ3 x e1 e2, (Γ2 ⊆ Γ1) ->
+                   (Γ1 ||- e1 : tyNat =| Γ2) ->
+                   ((x,tyNat)::Γ2 ||- e2 : tyNat =| (x,tyNat)::Γ3) ->
+                   (Γ1 ||- Letin x e1 e2 : tyNat =| Γ3)
+| Tletnew : forall Γ1 Γ2 Γ3 x e1 e2, (Γ2 ⊆ Γ1) ->
+                         (Γ1 ||- e1 : tyNat =| Γ2) ->
+                         ((x,tyRefnat)::Γ2 ||- e2 : tyNat =| Γ3) ->
+                         (Γ1 ||- New x e1 e2 : tyNat =| Γ3)
 | Tdelete : forall Γ x, ((x,tyRefnat)::Γ ||- Delete x : tyNat =| Γ)
-| Tif : forall Γ e1 e2 e3, (Γ ||- e1 : tyNat =| Γ) ->
-                      (Γ ||- e2 : tyNat =| Γ) ->
-                      (Γ ||- e3 : tyNat =| Γ) ->
-                      (Γ ||- If e1 e2 e3 : tyNat =| Γ)
+| Tif : forall Γ1 Γ2 Γ3 e1 e2 e3, (Γ2 ⊆ Γ1) ->
+                             (Γ1 ||- e1 : tyNat =| Γ2) ->
+                             (Γ2 ||- e2 : tyNat =| Γ3) ->
+                             (Γ2 ||- e3 : tyNat =| Γ3) ->
+                             (Γ1 ||- If e1 e2 e3 : tyNat =| Γ3)
 where "Γa '||-' e ':' τ '=|' Γb" := (check Γa e τ Γb)
 .
 #[local]
 Hint Constructors check : core.
+
+Lemma Texchange Γ1 Γ1' Γ2 Γ2' e ty :
+  Γ1 ≡ Γ2 -> Γ1' ≡ Γ2' -> (Γ1 ||- e : ty =| Γ1') -> Γ2 ||- e : ty =| Γ2'.
+Proof.
+Admitted.
+
+Definition mult_free :=
+  New "x"%string (Lit 0)
+      (New "y"%string
+           (Delete "x"%string)
+           (Delete "y"%string)).
+Goal (("x"%string, tyNat)::nil ||- mult_free : tyNat =| ("x"%string, tyNat)::nil).
+Proof.
+  eapply Tletnew. easy. eapply Tnat.
+  eapply Tletnew. instantiate (1:=("x"%string, tyNat)::nil); firstorder.
+  eapply Tdelete.
+  eapply Tdelete.
+Qed.
 
 Definition out_of_bounds_program :=
   New "y"%string (Lit 42)
@@ -854,10 +788,9 @@ Definition out_of_bounds_program :=
 Lemma oob_prog_typechecks :
   (("x"%string, tyNat)::nil ||- out_of_bounds_program : tyNat =| ("x"%string, tyNat)::nil).
 Proof.
-  eapply Tletnew. apply Tnat.
-  eapply Tlet.
-  apply Tget; try apply Tnat.
-  now cbn.
+  eapply Tletnew. easy. apply Tnat.
+  eapply Tlet. easy.
+  apply Tget; try apply Tnat. easy.
   replace (("_"%string, tyNat) :: ("y"%string, tyRefnat) :: ("x"%string, tyNat) :: nil)
      with ((("_"%string, tyNat)::nil) ++ (("y"%string, tyRefnat) :: ("x"%string, tyNat) :: nil)) by now cbn.
   replace (("_"%string, tyNat)::("x"%string, tyNat) :: nil) with
@@ -866,10 +799,8 @@ Proof.
   instantiate (1:=("y"%string,tyRefnat)::("_"%string,tyNat)::("x"%string,tyNat)::nil); firstorder.
   reflexivity.
   apply Tdelete.
-  firstorder.
-  inversion 1.
-  reflexivity.
 Qed.
+
 
 Fixpoint drop {A} (Γ : list (string * A)) : list string :=
   match Γ with
@@ -882,6 +813,11 @@ Definition transmogrifies (Γ : Gamma) (Ω : State) :=
   drop Γ ⊆ drop Ω.(Δ) (* add more if necessary *)
 .
 Infix "~" := (transmogrifies) (at level 78, left associativity).
+
+Instance gamma_trans_flip Ω : Proper (gamma_equiv ==> Basics.flip Basics.impl)
+                                     (fun Γ : list (string * ty) => Γ ~ Ω).
+Proof.
+Admitted.
 
 Instance equiv_closed_proper e : Proper (gamma_equiv ==> Basics.flip Basics.impl)
                                       (fun (Γ : Gamma) => closed (drop Γ) e).
@@ -901,7 +837,13 @@ Admitted.
 
 Lemma subset_implies_drop_subset (Γ1 Γ2 : Gamma) :
   (Γ1 ⊆ Γ2) -> (drop Γ1 ⊆ drop Γ2).
-Proof. Admitted.
+Proof.
+  induction Γ1; cbn; intros H.
+  easy.
+  destruct a. eapply subset_weak in H as H'. specialize (IHΓ1 H').
+  intros x H1.
+  specialize (IHΓ1 x). apply IHΓ1.
+Admitted.
 Lemma drop_subset (Γ1 Γ2 : Gamma) :
   (drop Γ1 ⊆ drop (Γ1 ++ Γ2)) /\ (drop Γ2 ⊆ drop (Γ1 ++ Γ2)).
 Proof. induction Γ1; try firstorder; destruct a; firstorder. Qed.
@@ -916,46 +858,52 @@ Lemma bool_In_equiv_find_none x (Γ : Gamma) :
   (bool_In (drop Γ) x = false) <-> (find (eqb x) Γ = None).
 Proof.
 Admitted.
+Lemma bool_In_equiv_find_some x ty (Γ : Gamma) :
+  (bool_In (drop Γ) x = true) <-> (find (eqb x) Γ = Some ty).
+Proof.
+Admitted.
 
 Lemma closed_typing Γ Γ' e τ :
   (Γ ||- e : τ =| Γ') -> closed (drop Γ) e.
 Proof.
   intros H; assert (H':=H); dependent induction H; subst; apply closed_equiv_is_closed; cbn.
-  - (* exchange *) pattern Γ2; rewrite <- H0. apply closed_equiv_is_closed, IHcheck, H2.
-  - (* var *) destruct (string_dec x x); now cbn.
+  - (* var *) eapply bool_In_equiv_find_some; eassumption.
   - (* lit *) easy.
   - (* binop *) apply bool_and_equiv_prop; split; apply closed_equiv_is_closed.
     + eapply closed_weaken. now eapply IHcheck1. intuition.
     + eapply closed_weaken. now eapply IHcheck2. intuition.
+      eapply subset_implies_drop_subset, H0.
   - (* access *)
-    assert ((bool_In (drop Γ) x = true) \/ (bool_In (drop Γ) x = false)) as [H|H] by
-    (destruct (bool_In (drop Γ) x); eauto).
+    assert ((bool_In (drop Γ1) x = true) \/ (bool_In (drop Γ1) x = false)) as [H|H] by
+    (destruct (bool_In (drop Γ1) x); eauto).
     rewrite H. eapply closed_equiv_is_closed, closed_weaken.
     eapply IHcheck; eauto. firstorder.
     apply bool_In_equiv_find_none in H; congruence.
   - (* assign *)
-    assert ((bool_In (drop Γ) x = true) \/ (bool_In (drop Γ) x = false)) as [H|H] by
-    (destruct (bool_In (drop Γ) x); eauto).
+    assert ((bool_In (drop Γ1) x = true) \/ (bool_In (drop Γ1) x = false)) as [H|H] by
+    (destruct (bool_In (drop Γ1) x); eauto).
     rewrite H.
     rewrite !bool_and_equiv_prop; repeat split; apply closed_equiv_is_closed.
-    now eapply IHcheck1.
-    eapply closed_weaken. now eapply IHcheck2. now apply subset_implies_drop_subset.
-    apply bool_In_equiv_find_none in H; congruence.
+    eapply closed_weaken.
+    now eapply IHcheck1. eapply subset_implies_drop_subset. easy.
+    eapply closed_weaken.
+    now eapply IHcheck2. eapply subset_implies_drop_subset. eapply H1.
+    unfold HasPtr in H0. apply bool_In_equiv_find_none in H; congruence.
   - (* letin *) apply bool_and_equiv_prop; split.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck1.
       intuition.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck2.
-      eapply cons_subset. reflexivity.
+      eapply cons_subset. now apply subset_implies_drop_subset.
   - (* new *) apply bool_and_equiv_prop; split.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck1.
       firstorder.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck2.
-      eapply cons_subset. reflexivity.
+      eapply cons_subset. now apply subset_implies_drop_subset.
   - (* delete *) destruct (string_dec x x); try congruence.
   - (* if *) rewrite !bool_and_equiv_prop; repeat split.
     + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck1. reflexivity.
-    + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck2. reflexivity.
-    + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck3. reflexivity.
+    + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck2. now apply subset_implies_drop_subset.
+    + rewrite closed_equiv_is_closed. eapply closed_weaken. now eapply IHcheck3. now apply subset_implies_drop_subset.
 Qed.
 
 Lemma cons_read_same x v Ω :
@@ -969,6 +917,14 @@ Ltac inv_check_intro := (intros H; match goal with
                             try congruence
                         end).
 Ltac boring := (
+  repeat match goal with
+  | [H: exists Ω : State, reducible Ω ?e |- exists Ω' : State, reducible Ω' _] =>
+      let x0 := fresh "Ω" in
+      let x1 := fresh "a" in
+      let x2 := fresh "Ω" in
+      let x3 := fresh "e" in
+      destruct H as [x0 [x1 [x2 [x3 H]]]]
+  end;
   repeat match goal with
   | [H: nth_error nil ?n = Some _ |- _] =>
       induction n; cbn in *; congruence
@@ -985,133 +941,73 @@ Ltac boring := (
   | [H: Delete _ = fill ?K ?e |- _] => induction K; cbn in *; try congruence; subst
   | [H: ?Γ0 ≡ ?Γ1 |- _] => apply gamma_equiv_is_equal in H
   | [H: _ |- ?Γ0 ≡ ?Γ1] => apply gamma_equiv_is_equal
+  | [H: ?Γ ⪽ nil |- _] => eapply subset_nil in H; inv H
+  | [H: ?Γ ⊆ nil |- _] => eapply subset_nil in H; inv H
+  | [H: _ ||- Lit _ : _ =| _ |- _] => inv H
   end
 ).
-Lemma inv_check_lit Γ Γ' n ty :
-  (Γ ||- Lit n : ty =| Γ') ->
-  (ty = tyNat) /\ (Γ ≡ Γ').
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [IHchecka IHcheckb]; boring; subst; split; trivial.
-    reflexivity.
-  - split; easy.
-Qed.
 
-Lemma inv_check_var Γ Γ' x ty :
-  (Γ ||- Var x : ty =| Γ') ->
-  (exists Γ0, ty = tyNat /\ (Γ ≡ (x,tyNat)::Γ0) /\ (Γ ≡ Γ')).
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [Γ' [IHchecka [IHcheckb IHcheckc]]]; boring; subst.
-    eexists; do 2 split; reflexivity.
-  - inv Heqe; now exists Γ.
-Qed.
-Lemma inv_check_binop Γ Γ' b e1 e2 ty :
-  (Γ ||- BinOp b e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ≡ Γ') /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ).
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
-  - inv Heqe; easy.
-Qed.
-Lemma inv_check_access Γ Γ' x e ty :
-  (Γ ||- Access x e : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e : tyNat =| Γ') /\ (Util.find (String.eqb x) Γ = Some tyRefnat)
-                                       /\ (Util.find (String.eqb x) Γ' = Some tyRefnat).
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe0 H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
-  - inv Heqe0; easy.
-Qed.
-Lemma inv_check_assign Γ Γ' x e1 e2 ty :
-  (Γ ||- Assign x e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ') /\
-  (Util.find (String.eqb x) Γ = Some tyRefnat) /\ (Util.find (String.eqb x) Γ' = Some tyRefnat).
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
-  - inv Heqe; easy.
-Qed.
-Lemma inv_check_if Γ Γ' e1 e2 e3 ty :
-  (Γ ||- If e1 e2 e3 : ty =| Γ') ->
-  (ty = tyNat) /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ ||- e2 : tyNat =| Γ') /\ (Γ ||- e3 : tyNat =| Γ').
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
-  - inv Heqe; easy.
-Qed.
-Lemma inv_check_let Γ Γ' x e1 e2 ty :
-  (Γ ||- Letin x e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ' ⊆ Γ) /\
-  ((x,tyNat)::Γ ||- e2 : tyNat =| (x,tyNat)::Γ').
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
-  - inv Heqe; easy.
-Qed.
-Lemma inv_check_delete Γ Γ' x ty :
-  (Γ ||- Delete x : ty =| Γ') ->
-  exists Γ0, ty = tyNat /\ (Γ ≡ (x,tyRefnat)::Γ0) /\ (Γ' ≡ Γ0).
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [Γ [IHchecka [IHcheckb IHcheckc]]]; boring; subst.
-    exists Γ; easy.
-  - inv Heqe; exists Γ; easy.
-Qed.
-Lemma inv_check_letnew Γ Γ' x e1 e2 ty :
-  (Γ ||- New x e1 e2 : ty =| Γ') ->
-  ty = tyNat /\ (Γ ||- e1 : tyNat =| Γ) /\ (Γ' ⊆ Γ) /\
-  ((x,tyRefnat)::Γ ||- e2 : tyNat =| Γ').
-Proof.
-  inv_check_intro.
-  - specialize (IHcheck Heqe H2) as [IHchecka [IHcheckb [IHcheckc IHcheckd]]]; boring; now subst.
-  - inv Heqe; easy.
-Qed.
+Ltac solve_progress_case Ctx := (
+  match goal with
+  | [H: exists Ω : State, reducible Ω ?e |- exists Ω' : State, reducible Ω' _] =>
+      let x0 := fresh "Ω" in
+      let x1 := fresh "a" in
+      let x2 := fresh "Ω" in
+      let x3 := fresh "e" in
+      destruct H as [x0 [x1 [x2 [x3 H]]]];
+      do 4 eexists;
+      eapply fill_contextual_step with (K:=Ctx) in H;
+      eauto
+  end
+).
 
 Lemma progress Γ Γ' e τ :
   (Γ ||- e : τ =| Γ') -> is_val e \/ exists Ω, reducible Ω e.
 Proof.
   induction 1; subst.
-  - (* exchange *) assumption.
-  - (* var *) right; exists (empty_fresh; nil; nil; (x,EnvVal(LitV 0))::nil); do 3 eexists;
+  - (* var *) right; exists (empty_fresh; nil; nil; (x,(LitV 0))::nil); do 3 eexists;
     context_solver HoleCtx; eapply VarS; cbn; now rewrite eqb_refl.
   - (* lit *) now left.
   - (* binop *) right; destruct (IHcheck1), (IHcheck2); get_values; subst.
     + exists ∅; do 3 eexists; context_solver HoleCtx.
-    + do 4 destruct H1 as [? H1]; do 4 eexists;
-      eapply fill_contextual_step with (K:=RBinOpCtx o (LitV x) HoleCtx) in H1; eauto.
-    + do 4 destruct H0 as [? H0]; exists x0; exists x1; exists x2;
-      exists (BinOp o x3 (Lit x)); now eapply fill_contextual_step with (K:=LBinOpCtx o HoleCtx (Lit x)) in H0.
-    + do 4 destruct H0 as [? H0]; exists x; exists x0; exists x1;
-      exists (BinOp o x2 e2); now eapply fill_contextual_step with (K:=LBinOpCtx o HoleCtx e2) in H0.
+    + solve_progress_case (RBinOpCtx o (LitV x) HoleCtx).
+    + solve_progress_case (LBinOpCtx o HoleCtx (Lit x)).
+    + boring; exists Ω2; exists a0; exists Ω3; exists (BinOp o e0 e2).
+      match goal with
+      | [H: (_, ?e2) =[ _ ]~> (_, _) |- (_, BinOp o e1 e2) =[ _ ]~> (_, _)] =>
+        eapply fill_contextual_step with (K:=LBinOpCtx o HoleCtx e2) in H; eauto
+      end.
   - (* access *) right; destruct (IHcheck); get_values; subst.
     + do 4 eexists; context_solver HoleCtx; econstructor.
-      instantiate (1:=LocA 0). instantiate (1:=(empty_fresh; grow nil (1+x0); (LocA 0, 0)::nil; (x,EnvAddr(LocA 0))::nil)); cbn; now rewrite String.eqb_refl.
+      instantiate (1:=LocA 0). instantiate (1:=(empty_fresh; grow nil (1+x0); (LocA 0, 0)::nil; (x,(LocA 0))::nil)); cbn; now rewrite String.eqb_refl.
       instantiate (1:=0); now cbn.
-      instantiate (1:=0); cbn; clear IHcheck H0 H1; induction x0; cbn; trivial; now apply cons_read_same.
-    + do 4 destruct H2 as [? H2]; do 4 eexists;
-      eapply fill_contextual_step with (K:=AccessCtx x HoleCtx) in H2; cbn in H2; eassumption.
+      instantiate (1:=0); cbn. clear IHcheck H0 H1; induction x0; cbn; trivial.
+    + solve_progress_case (AccessCtx x HoleCtx).
   - (* assign *) right; destruct (IHcheck1), (IHcheck2); get_values; subst.
     + do 4 eexists; context_solver HoleCtx; econstructor.
-      instantiate (1:=LocA 0). instantiate (1:=(empty_fresh; nil; (LocA 0, 0)::nil; (x, EnvAddr(LocA 0))::nil)); cbn; now rewrite String.eqb_refl.
+      instantiate (1:=LocA 0). instantiate (1:=(empty_fresh; nil; (LocA 0, 0)::nil; (x, (LocA 0))::nil)); cbn; now rewrite String.eqb_refl.
       instantiate (1:=0); now cbn.
       instantiate (1:=nil); now destruct x1; cbn.
-    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=AssignVCtx x (LitV x0) HoleCtx) in H2; eauto.
-    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx (Lit x0)) in H1; eauto.
-    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=AssignCtx x HoleCtx e2) in H1; eauto.
+    + solve_progress_case (AssignVCtx x (LitV x0) HoleCtx).
+    + solve_progress_case (AssignCtx x HoleCtx (Lit x0)).
+    + boring; do 4 eexists;
+      match goal with
+      | [H: (_, ?e2) =[ _ ]~> (_, _) |- (_, Assign x e1 e2) =[ _ ]~> (_, _)] =>
+        eapply fill_contextual_step with (K:=AssignCtx x HoleCtx e2) in H; eauto
+      end.
   - (* letin *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; do 3 eexists; eauto.
-    + do 4 destruct H1 as [? H1]; do 4 eexists; eapply fill_contextual_step with (K:=LetinCtx x HoleCtx e2) in H1; eauto.
+    + solve_progress_case (LetinCtx x HoleCtx e2).
   - (* new *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; do 3 eexists; context_solver HoleCtx; econstructor; reflexivity.
-    + do 4 destruct H2 as [? H2]; do 4 eexists; eapply fill_contextual_step with (K:=NewCtx x HoleCtx e2) in H2; eauto.
-  - (* delete *) right; exists (empty_fresh; nil; nil; (x,EnvAddr(LocA 0))::nil); do 3 eexists; context_solver HoleCtx;
+    + solve_progress_case (NewCtx x HoleCtx e2).
+  - (* delete *) right; exists (empty_fresh; nil; nil; (x,(LocA 0))::nil); do 3 eexists; context_solver HoleCtx;
     econstructor; cbn; now rewrite String.eqb_refl.
   - (* if *) right; destruct (IHcheck1); get_values; subst.
     + exists ∅; exists Internal; exists ∅; destruct (Nat.eq_dec x 0); subst.
       * exists e3; context_solver HoleCtx.
       * exists e2; context_solver HoleCtx.
-    + do 4 destruct H0 as [? H0]; eapply fill_contextual_step with (K:=IfCtx HoleCtx e2 e3) in H0; do 4 eexists; eassumption.
+    + solve_progress_case (IfCtx HoleCtx e2 e3).
 Qed.
 
 Lemma progress_steps Γ Γ' e τ :
@@ -1167,7 +1063,7 @@ Lemma access_steps_inv Ω1 Ω3 es e v Tr :
   Ω1 ▷ Access es e =[ Tr ]~>* Ω3 ▷ Lit v ->
   exists s Ω' Tr' loc v1, ((Ω1 ▷ e =[ Tr' ]~>* Ω' ▷ Lit v1) /\ (es = s)
 /\ (Ω3 = Ω' /\ v = H_lookup (A_lookup loc Ω' + v1) Ω')
-/\ Δ_lookup s Ω' = Some(EnvAddr loc) /\ Tr = Tr' ++ Read loc v1 :: nil)
+/\ Δ_lookup s Ω' = Some(loc) /\ Tr = Tr' ++ Read loc v1 :: nil)
 .
 Proof.
 Admitted.
@@ -1175,7 +1071,7 @@ Admitted.
 Lemma letin_steps_inv Ω1 Ω3 s e1 e2 v Tr :
   Ω1 ▷ Letin s e1 e2 =[ Tr ]~>* Ω3 ▷ Lit v ->
   exists Ω2 Tr1 Tr2 v1 v2, (Ω1 ▷ e1 =[ Tr1 ]~>* Ω2 ▷ Lit v1)
-/\ ((Ω2.(fresh); Ω2.(H); Ω2.(A); (s,EnvVal v1) :: Ω2.(Δ)) ▷ e2 =[ Tr2 ]~>* Ω3 ▷ Lit v2) /\ v = v2 /\ Tr = Tr1 ++ Internal :: Tr2
+/\ ((Ω2.(fresh); Ω2.(H); Ω2.(A); (s,v1) :: Ω2.(Δ)) ▷ e2 =[ Tr2 ]~>* Ω3 ▷ Lit v2) /\ v = v2 /\ Tr = Tr1 ++ Internal :: Tr2
 .
 Proof.
 Admitted.
@@ -1193,7 +1089,7 @@ Admitted.
 Lemma assign_steps_inv Ω Ω' es e1 e2 v Tr :
   Ω ▷ Assign es e1 e2 =[ Tr ]~>* Ω' ▷ Lit v ->
   exists s v1 Tr1 Ω1 v2 Tr2 Ω2 loc, (Ω ▷ e1 =[ Tr1 ]~>* Ω1 ▷ Lit v1) /\ (Ω1 ▷ e2 =[ Tr2 ]~>* Ω2 ▷ Lit v2)
-/\ (es = s) /\ ((Δ_lookup s Ω2 = Some(EnvAddr loc)
+/\ (es = s) /\ ((Δ_lookup s Ω2 = Some(loc)
                              /\ Tr = Tr1 ++ Tr2 ++ Write loc v1 :: nil /\ v = v2 /\ Ω'.(fresh) = Ω2.(fresh)
                              /\ Ω'.(H) = replace (A_lookup loc Ω2 + v1) Ω2.(H) v2 /\ Ω'.(A) = Ω2.(A) /\ Ω'.(Δ) = Ω2.(Δ)))
 .
@@ -1204,7 +1100,7 @@ Lemma new_steps_inv Ω Ω' s e1 e2 v Tr :
   Ω ▷ New s e1 e2 =[ Tr ]~>* Ω' ▷ Lit v ->
   exists v1 Tr1 Ω1 v2 Tr2 Ω2, (Ω ▷ e1 =[ Tr1 ]~>* Ω1 ▷ Lit v1)
 /\ (((Fresh.advance (Ω1.(fresh)); grow Ω1.(H) v1;
-     (LocA(Fresh.fresh Ω1.(fresh)), List.length Ω1.(H)) :: (Ω1.(A)); (s,EnvAddr(LocA(Fresh.fresh (Ω1.(fresh))))) :: (Ω1.(Δ))
+     (LocA(Fresh.fresh Ω1.(fresh)), List.length Ω1.(H)) :: (Ω1.(A)); (s,(LocA(Fresh.fresh (Ω1.(fresh))))) :: (Ω1.(Δ))
                                 ▷ e2 =[ Tr2 ]~>* Ω2 ▷ Lit v2)
 /\  Ω' = Ω2 /\ v = v2 /\ Tr = Tr1 ++ Alloc (LocA(Fresh.fresh(Ω1.(fresh)))) v1 :: Tr2))
 .
@@ -1213,7 +1109,7 @@ Admitted.
 
 Lemma delete_steps_inv Ω Ω' x Tr v :
   Ω ▷ Delete x =[ Tr ]~>* Ω' ▷ Lit v ->
-  exists loc, (Δ_lookup x Ω = Some(EnvAddr loc)
+  exists loc, (Δ_lookup x Ω = Some(loc)
       /\ Ω' = (Ω.(fresh); Ω.(H); Ω.(A); delete x Ω.(Δ)) /\ v = 0 /\ Tr = Dealloc loc :: nil
   ).
 Proof.
@@ -1223,7 +1119,7 @@ Proof.
   now (inv Hx0 + rewrite Hx2).
 Qed.
 
-Lemma delete_is_subset (Γ : Gamma) x :
+Lemma delete_is_subset {T} (Γ : list (string * T)) x :
   delete x Γ ⊆ Γ.
 Proof.
   induction Γ; unfold delete; cbn. try firstorder; cbn. destruct a; intros [s0 t0] H;
@@ -1238,170 +1134,104 @@ Hint Resolve delete_is_subset : core.
 
 Lemma subset_delete (Γ : Gamma) (Ω : State) (x : string) :
   drop Γ ⊆ drop (Ω.(Δ)) -> drop (delete x Γ) ⊆ drop(delete x (Ω.(Δ))).
-Proof. Admitted.
+Proof.
+Admitted.
 
-Lemma preservation_base e e' Γ0 Γ2 Ω Ω' a ty :
-  Γ0 ~ Ω ->
-  (Γ0 ||- e : ty =| Γ2) ->
+Lemma find_split (Γ : Gamma) x ty :
+  find (eqb x) Γ = Some ty -> exists Γ', Γ ≡ (x,ty)::Γ'.
+Proof.
+Admitted.
+
+Lemma preservation_base e e' Ω Ω' a ty :
+  (nil ||- e : ty =| nil) ->
   (Ω ▷ e -[ a ]~> Ω' ▷ e') ->
-  exists Γ1 Γ2', (Γ1 ||- e' : ty =| Γ2') /\ (Γ1 ~ Ω') /\ (Γ2 ⊆ Γ2')
+  (nil ||- e' : ty =| nil)
 .
 Proof.
+  (*
   intros H2 H0 H1; assert (H1' := H1); assert (H0' := H0).
   change ((fun (σ : Conf) =>  let (Ω, _)   := σ  in Γ0 ~ Ω) (Ω ▷ e)) in H2.
   change ((fun (σ : Conf) =>  let (_, e)   := σ  in Γ0 ||- e : ty =| Γ2) (Ω ▷ e)) in H0, H0'.
   change ((fun (σ' : Conf) => let (Ω1, e') := σ' in exists Γ1 Γ2' : Gamma, (Γ1 ||- e' : ty =| Γ2') /\ Γ1 ~ Ω1 /\ (Γ2 ⊆ Γ2')) (Ω' ▷ e')).
   induction H1.
-  - (* var *) eapply inv_check_var in H0' as [Γ1 [H0a [H0b H0c]]]; boring; subst;
-    do 2 exists ((x,tyNat)::Γ1); repeat split; eauto; reflexivity.
-  - (* binop *) eapply inv_check_binop in H0 as [H0a [H0b [H0c H0d ]]]; boring; subst;
+  - (* var *) inv H0'. apply find_split in H5 as [Γ2' H5].
+    do 2 exists ((x,tyNat)::Γ2'); repeat split; eauto; try firstorder.
+    pattern ((x,tyNat)::Γ2'); now rewrite <- H5.
+  - (* binop *) inv H0; boring.
+    exists Γ2; eauto using Tnat.
+  - (* access *) inv H0; boring.
     do 2 exists Γ2; repeat split; eauto using Tnat; reflexivity.
-  - (* access *) eapply inv_check_access in H0 as [H0a [H0b [H0c H0d]]];
-    eapply inv_check_lit in H0b as [H1a H1b]; boring; subst;
-    do 2 exists Γ2; repeat split; eauto using Tnat; reflexivity.
-  - (* assign *) eapply inv_check_assign in H0 as [H0a [H0b [H0c [H0d H0e]]]];
-    eapply inv_check_lit in H0c as [H1a H1b]; boring; subst.
-    do 2 exists Γ2; repeat split; eauto using Tnat; reflexivity.
-  - (* ifF *) eapply inv_check_if in H0 as [H0a [H0b [H0c H0d]]]; subst;
-    exists Γ0; exists Γ2; repeat split; eauto; reflexivity.
-  - (* ifT *) eapply inv_check_if in H0 as [H0a [H0b [H0c H0d]]]; subst;
-    exists Γ0; exists Γ2; repeat split; eauto; reflexivity.
-  - (* let *) eapply inv_check_let in H0 as [H0a [H0b [H0c H0d]]]; subst;
-    exists ((x,tyNat)::Γ0); exists ((x,tyNat) :: Γ2); repeat split; eauto.
-    eapply cons_subset; apply H2. firstorder.
-  - (* delete *) eapply inv_check_delete in H0 as [Γ0a [H0a [H0b H0c]]]; boring; subst;
-    do 2 exists (Γ0a); repeat split. constructor.
+  - (* assign *) inv H0; boring.
+    do 2 exists Γ2; eauto using Tnat.
+  - (* ifF *) inv H0; boring.
+    exists Γ3; exists Γ2; eauto using Tnat; firstorder.
+  - (* ifT *) inv H0; boring.
+    exists Γ3; exists Γ2; eauto using Tnat; firstorder.
+  - (* let *) inv H0; boring.
+    exists ((x,tyNat)::Γ3); exists ((x,tyNat) :: Γ2); repeat split; eauto.
+    now eapply cons_subset. firstorder.
+  - (* delete *) inv H0'. do 2 exists Γ2; repeat split. now constructor.
     unfold "_ ~ _"; cbn.
-    replace (drop Γ0a) with (drop (delete x ((x,tyRefnat)::Γ0a))) by (cbn; destruct (string_dec x x); congruence).
+    replace (drop Γ2) with (drop (delete x ((x,tyRefnat)::Γ2))) by (cbn; destruct (string_dec x x); congruence).
     now eapply subset_delete. reflexivity.
-  - (* new *) eapply inv_check_letnew in H0 as [H0a [H0b [H0c H0d]]]; subst;
-    exists ((x,tyRefnat)::Γ0); exists (Γ2); repeat split; eauto.
-    eapply cons_subset; apply H2. reflexivity.
-Qed.
-
-Definition ectx_check (K : ectx) (A B : ty) :=
-  forall e Γ0 Γ0', (Γ0 ||- e : A =| Γ0') ->
-       (Γ0 ||- (fill K e) : B =| Γ0').
-
-Lemma preservation_composition e K ty ty' Γ0 Γ0' :
-  (ectx_check K ty ty') ->
-  (Γ0 ||- e : ty =| Γ0') ->
-  (Γ0 ||- fill K e : ty' =| Γ0').
-Proof. intros H0 H1; eauto. Qed.
-
-Lemma fill_ctx_binop_inv Γ0 o K e e0 ty Γ0' :
-  (Γ0 ||- fill (LBinOpCtx o K e) e0 : ty =| Γ0') ->
-  exists e', (Γ0 ||- BinOp o e' e : ty =| Γ0').
-Proof. eauto. Qed.
-
-Lemma weaken_ctx_when_checking K0 K1 ty0 :
-  ectx_check K1 ty0 tyNat ->
-  ectx_check (comp_ectx K0 K1) ty0 tyNat.
-Proof.
-  induction K0; cbn; intros H; eauto.
-  - intros e' Γ0 Γ0' H0. specialize (IHK0 H e' Γ0 Γ0' H0).
-    eapply preservation_composition; try eassumption.
-    intros ? ? ? ?. cbn.
+  - (* new *) inv H0; boring.
+    exists ((x,tyRefnat)::Γ3); exists Γ2; repeat split; eauto.
+    now eapply cons_subset. reflexivity.
+Qed.*)
 Admitted.
 
-Lemma preservation_decomposition e K ty Γ0 Γ0' :
-  (Γ0 ||- fill K e : ty =| Γ0') ->
-  exists Γ1 ty', (Γ0 ||- e : ty' =| Γ1) /\ (Γ0' ⊆ Γ1) /\ (ectx_check K ty' ty).
-Proof.
-  intros H; assert (H' := H). generalize_eqs_vars H.
-  induction H0; intros e0 K H0' H1'.
-  - (* exchange *) boring; subst; firstorder.
-  - (* var *) boring; subst; firstorder.
-  - (* lit *) boring; subst; firstorder.
-  - (* binop *) boring; subst.
-    + eexists; exists tyNat; repeat split. now constructor. reflexivity. firstorder.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a IHcheck1b]]].
-      exists Γ'; exists ty1'; repeat split; try easy.
-      replace (LBinOpCtx b K e) with (comp_ectx (LBinOpCtx b HoleCtx e) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-    + inv H1'. specialize (IHcheck2 e0 K H0_0 eq_refl) as [Γ' [ty2' [IHcheck2a IHcheck2b]]].
-      exists Γ'; exists ty2'; repeat split; try easy.
-      replace (RBinOpCtx b v K) with (comp_ectx (RBinOpCtx b v HoleCtx) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-  - (* get *) boring; subst.
-    + exists Γ; exists tyNat; repeat split. assumption. reflexivity. firstorder.
-    + inv H1'. specialize (IHcheck e0 K H1 eq_refl) as [Γ' [ty' [IHchecka IHcheckb]]].
-      exists Γ'; exists ty'; repeat split; try easy.
-      replace (AccessCtx s K) with (comp_ectx (AccessCtx s HoleCtx) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-  - (* set *) boring; subst.
-    + exists Γ; exists tyNat; split. now constructor. firstorder.
-    + inv H1'. apply inv_check_assign in H0' as [H0a [H0b [H0c [H0d H0e]]]].
-      specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a IHcheck1b]]].
-      exists Γ'; exists ty1'; repeat split; try easy.
-      replace (AssignCtx s K e) with (comp_ectx (AssignCtx s HoleCtx e) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-    + inv H1'. apply inv_check_assign in H0' as [H0a [H0b [H0c [H0d H0e]]]].
-      specialize (IHcheck2 e0 K H0_0 eq_refl) as [Γ' [ty2' [IHcheck2a IHcheck2b]]].
-      exists Γ'; exists ty2'; repeat split; try easy.
-      replace (AssignVCtx s v K) with (comp_ectx (AssignVCtx s v HoleCtx) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-  - (* let *) boring; subst.
-    + exists Γ2; exists tyNat; split. assumption. firstorder.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a [IHcheck1b IHcheck1c]]]].
-      exists Γ'; exists ty1'; repeat split; try easy. etransitivity; eauto.
-      replace (LetinCtx s K e) with (comp_ectx (LetinCtx s HoleCtx e) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-  - (* new *) boring; subst.
-    + exists Γ2; exists tyNat; split. assumption. firstorder.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a [IHcheck1b IHcheck1c]]]].
-      exists Γ'; exists ty1'; repeat split; try easy. etransitivity; eauto.
-      replace (NewCtx s K e) with (comp_ectx (NewCtx s HoleCtx e) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-  - boring; subst; firstorder.
-  - boring; subst.
-    + exists Γ; exists tyNat; split; try easy.
-    + inv H1'. specialize (IHcheck1 e0 K H0_ eq_refl) as [Γ' [ty1' [IHcheck1a IHcheck1b]]].
-      exists Γ'; exists ty1'; repeat split; try easy.
-      replace (IfCtx K e e4) with (comp_ectx (IfCtx HoleCtx e e4) K) by now cbn.
-      now eapply weaken_ctx_when_checking.
-Qed.
+Definition ectx_check (K : ectx) A B :=
+  forall e, (nil ||- e : A =| nil) ->
+       (nil ||- (fill K e) : B =| nil).
 
-Lemma preservation e e' Γ0 Γ0' Ω Ω' a ty :
-  (Γ0 ~ Ω) ->
-  (Γ0 ||- e : ty =| Γ0') ->
+Lemma preservation_composition e K A B:
+  (ectx_check K A B) ->
+  (nil ||- e : A =| nil) ->
+  (nil ||- fill K e : B =| nil).
+Proof. intros H0 H1; eauto. Qed.
+
+Lemma preservation_decomposition e K B :
+  (nil ||- fill K e : B =| nil) ->
+  exists A, (ectx_check K A B) /\ (nil ||- e : A =| nil).
+Proof.
+  unfold ectx_check; induction K in e |-*; simpl; eauto.
+  all: inversion 1; subst; boring; edestruct IHK as [? [Hit Hty]]; eauto;
+       eexists; split; intros; try eassumption; econstructor; try easy; now eapply Hit.
+  Unshelve.
+  all: try exact ""%string.
+Qed.
+Lemma preservation e e' Ω Ω' a ty :
+  (nil ||- e : ty =| nil) ->
   (Ω ▷ e =[ a ]~> Ω' ▷ e') ->
-  exists Γ1 Γ2', (Γ1 ||- e' : ty =| Γ2') /\ (Γ1 ~ Ω') /\ (Γ0' ⊆ Γ2')
+  (nil ||- e' : ty =| nil)
 .
 Proof.
-  intros H2 H0 H1; inv H1.
-  eapply preservation_decomposition in H0 as [Γ' [ty' [H0a [H0b H0c]]]]; try eassumption.
-  eapply preservation_base in H0a as [Γ2 [Γ2' [H9a [H9b H9c]]]]; try eassumption.
-  eapply preservation_composition in H9a; eauto.
-  exists Γ2. exists Γ2'. repeat split. assumption. assumption. etransitivity; eauto.
+  intros H0 H1; inv H1.
+  eapply preservation_decomposition in H0 as [ty' [H0a H0b]].
+  eapply preservation_base in H0b; try eassumption.
+  eapply preservation_composition; eauto.
 Qed.
 
-Lemma preservation_star e e' Γ0 Γ0' Ω Ω' a ty :
-  (Γ0 ~ Ω) ->
-  (Γ0 ||- e : ty =| Γ0') ->
+Lemma preservation_star e e' Ω Ω' a ty :
+  (nil ||- e : ty =| nil) ->
   (Ω ▷ e =[ a ]~>* Ω' ▷ e') ->
-  exists Γ1 Γ2', (Γ1 ||- e' : ty =| Γ2') /\ (Γ1 ~ Ω') /\ (Γ0' ⊆ Γ2')
+  (nil ||- e' : ty =| nil)
 .
 Proof.
-  intros H2 H0 H1; assert (H1' := H1); pattern e in H0;
+  intros H0 H1; assert (H1' := H1); pattern e in H0;
   change ((fun x : Conf =>
              let (_, e) := x in
-             (Γ0 ||- e : ty =| Γ0')
+             (nil ||- e : ty =| nil)
           ) (Ω ▷ e)) in H0.
-  change ((fun σ : Conf => let (Ω, _) := σ in Γ0 ~ Ω) (Ω ▷ e)) in H2.
   remember (Ω ▷ e) as σ;
   pattern e';
   change ((fun x : Conf =>
             let (Ω', e0) := x in
-            exists Γ1 Γ2' : Gamma, (Γ1 ||- e0 : ty =| Γ2') /\
-                              (Γ1 ~ Ω') /\ (Γ0' ⊆ Γ2')
+            (nil ||- e0 : ty =| nil)
          ) (Ω' ▷ e'));
   remember (Ω' ▷ e') as σ'.
-  clear Heqσ Heqσ'; revert Γ0 Γ0' H2 ty H0; dependent induction H1; intros Γ0 Γ0' H2 ty H0'.
-  - do 2 eexists; repeat split; firstorder eauto.
-  - eapply preservation in H0 as [Γ1' [Γ2' [H0a [H0b H0c]]]]; eauto.
-    edestruct IHsteps as [Γ1a [Γ1b [IHstepsa [IHstepsb IHstepsc]]]]; eauto.
-    exists Γ1a; exists Γ1b; repeat split; try assumption. etransitivity; eauto.
+  clear Heqσ Heqσ'; revert ty H0; dependent induction H1; intros ty H0'; trivial.
+  - eapply preservation in H0; eauto.
 Qed.
 
 
@@ -1503,7 +1333,7 @@ Fixpoint sufftr (n : nat) (t : list Event) :=
 .
 Lemma base_alloc_yields_new e e' Ω Ω' loc s :
   Ω ▷ e -[ Alloc loc s ]~> Ω' ▷ e' ->
-  exists x e2, e = New x (Lit s) e2 /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\ e' = e2.
+  exists x e2, e = New x (Lit s) e2 /\ Δ_lookup x Ω' = Some (loc) /\ e' = e2.
 Proof.
   intros H; inv H; boring.
   exists x; exists e'; cbn; split; trivial.
@@ -1511,7 +1341,7 @@ Proof.
 Qed.
 Lemma ctx_alloc_yields_new e e' Ω Ω' loc s :
   Ω ▷ e =[ Alloc loc s ]~> Ω' ▷ e' ->
-  exists K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω' = Some (EnvAddr loc) /\
+  exists K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω' = Some (loc) /\
             e' = fill K e2.
 Proof.
   intros H; inv H; boring; apply base_alloc_yields_new in H7 as [x [e2 [H0a [H0b H0c]]]];
@@ -1520,7 +1350,7 @@ Qed.
 Lemma steps_alloc_yields_new e e' Ω Ω' Tr loc s :
   Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
   List.nth_error Tr 0 = Some (Alloc loc s) ->
-  exists Ω'' K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω'' = Some (EnvAddr loc)
+  exists Ω'' K x e2, e = fill K (New x (Lit s) e2) /\ Δ_lookup x Ω'' = Some (loc)
    /\ (Ω ▷ e =[ Alloc loc s ]~> Ω'' ▷ fill K e2)
    /\ Ω'' ▷ fill K e2 =[ List.tail Tr ]~>* Ω' ▷ e'.
 Proof.
@@ -1535,7 +1365,7 @@ Lemma steps_alloc_yields_new_inbetween e e' Ω Ω' Tr loc s n :
   List.nth_error Tr n = Some (Alloc loc s) ->
   exists Ω1 Ω2 Tr' K x e2, (Ω ▷ e =[ Tr' ]~>* Ω1 ▷ (fill K (New x (Lit s) e2)))
           /\ (Ω1 ▷ fill K (New x (Lit s) e2) =[ Alloc loc s ]~> Ω2 ▷ fill K e2)
-          /\ Δ_lookup x Ω2 = Some (EnvAddr loc)
+          /\ Δ_lookup x Ω2 = Some (loc)
           /\ Ω2 ▷ fill K e2 =[ sufftr (S n) Tr ]~>* Ω' ▷ e'.
 Proof.
   intros H0 H1.
@@ -1550,14 +1380,14 @@ Qed.
 
 Lemma base_dealloc_yields_delete e e' Ω Ω' loc :
   Ω ▷ e -[ Dealloc loc ]~> Ω' ▷ e' ->
-  exists x, e = Delete x /\ Δ_lookup x Ω = Some (EnvAddr loc) /\ e' = (Lit 0).
+  exists x, e = Delete x /\ Δ_lookup x Ω = Some (loc) /\ e' = (Lit 0).
 Proof.
   intros H; inv H; boring.
   exists x; cbn; repeat split; trivial.
 Qed.
 Lemma ctx_dealloc_yields_delete e e' Ω Ω' loc :
   Ω ▷ e =[ Dealloc loc ]~> Ω' ▷ e' ->
-  exists K x, e = fill K (Delete x) /\ Δ_lookup x Ω = Some (EnvAddr loc) /\
+  exists K x, e = fill K (Delete x) /\ Δ_lookup x Ω = Some (loc) /\
          e' = fill K (Lit 0).
 Proof.
   intros H; inv H; boring; apply base_dealloc_yields_delete in H7 as [x [H0a [H0b H0c]]];
@@ -1566,7 +1396,7 @@ Qed.
 Lemma steps_dealloc_yields_delete e e' Ω Ω' Tr loc :
   Ω ▷ e =[ Tr ]~>* Ω' ▷ e' ->
   List.nth_error Tr 0 = Some (Dealloc loc) ->
-  exists Ω'' K x, e = fill K (Delete x) /\ Δ_lookup x Ω = Some (EnvAddr loc)
+  exists Ω'' K x, e = fill K (Delete x) /\ Δ_lookup x Ω = Some (loc)
    /\ (Ω ▷ e =[ Dealloc loc ]~> Ω'' ▷ fill K (Lit 0))
    /\ Ω'' ▷ fill K (Lit 0) =[ List.tail Tr ]~>* Ω' ▷ e'.
 Proof.
@@ -1581,7 +1411,7 @@ Lemma steps_dealloc_yields_delete_inbetween e e' Ω Ω' Tr loc n :
   List.nth_error Tr n = Some (Dealloc loc) ->
   exists Ω1 Ω2 Tr' K x, (Ω ▷ e =[ Tr' ]~>* Ω1 ▷ (fill K (Delete x)))
           /\ (Ω1 ▷ fill K (Delete x) =[ Dealloc loc ]~> Ω2 ▷ fill K (Lit 0))
-          /\ Δ_lookup x Ω1 = Some (EnvAddr loc)
+          /\ Δ_lookup x Ω1 = Some (loc)
           /\ Ω2 ▷ fill K (Lit 0) =[ sufftr (S n) Tr ]~>* Ω' ▷ e'.
 Proof.
   intros H0 H1.

@@ -1,9 +1,9 @@
-
+Set Implicit Arguments.
 Require Import Strings.String List Coq.Logic.Decidable.
 
 Ltac inv H := (inversion H; subst; clear H).
 
-Fixpoint delete {A : Type} (x : string) (Δ : list (string * A)) {struct Δ} :=
+Definition delete {A : Type} (x : string) (Δ : list (string * A)) :=
   match Δ with
   | nil => nil
   | (y, v) :: Δ' => if string_dec x y then Δ' else (y,v) :: Δ' (* delete x Δ' *)
@@ -18,15 +18,8 @@ Fixpoint find {A B : Type} (f : A -> bool) (Δ : list (A * B)) :=
 Lemma find_dec {A B : Type} (f : A -> bool) (Δ : list (A * B)) :
   { find f Δ = None } + { find f Δ <> None }.
 Proof.
-  induction Δ; cbn.
-  - now left.
-  - destruct IHΔ, a.
-    + destruct (f a).
-      * now right.
-      * subst; now left.
-    + destruct (f a).
-      * now right.
-      * now right.
+  induction Δ; cbn; try now left.
+  destruct IHΔ, a, (f a); repeat ((try now right); (try now left)).
 Defined.
 Fixpoint grow (H : list nat) (n : nat) :=
   match n with
@@ -44,16 +37,22 @@ Fixpoint replace { A } (n : nat) (H : list A) (a : A) :=
   end
 .
 
-Fixpoint bool_In (X : list string) (x : string) : bool :=
+Require Import CSC.Sets.
+Module StringList <: ListBase.
+  Definition A := string.
+  Definition eqb := String.eqb.
+End StringList.
+Module StrListSets <: Sig := SetTheoryList (StringList).
+Definition StrListSet := StrListSets.set.
+Section Bool.
+
+Import StrListSets StrListSets.Notations.
+Fixpoint bool_In (X : StrListSet) (x : string) : bool :=
   match X with
   | nil => false
   | y :: Y => if string_dec x y then true else bool_In Y x
   end
 .
-Notation "X '⊆' Y" := (forall x, In x X -> In x Y) (at level 81, left associativity).
-Lemma cons_subset {A} (X Y : list A) (x : A) : X ⊆ Y -> ((x :: X) ⊆ (x :: Y)).
-Proof. intros. destruct H0; try ((now left) + (right; now apply H)). Qed.
-
 Lemma bool_In_equiv_In X x : (if bool_In X x then True else False) <-> In x X.
 Proof.
   induction X; split; cbn; intros; try congruence || contradiction.
@@ -68,12 +67,12 @@ Proof. now destruct x. Qed.
 Lemma bool_and_equiv_prop (x y : bool) : (x && y)%bool = true <-> (x = true) /\ (y = true).
 Proof. now destruct x,y. Qed.
 
-Lemma subset_equiv_bool_in_subset X Y : X ⊆ Y <-> (forall x, bool_In X x = true -> bool_In Y x = true).
+Lemma subset_equiv_bool_in_subset (X Y : StrListSet) : X ⊆ Y <-> (forall x, bool_In X x = true -> bool_In Y x = true).
 Proof.
-  split; intros.
-  - apply bool_eq_equiv_if in H0; apply bool_In_equiv_In in H0;
+  split.
+  - intros H x H0; apply bool_eq_equiv_if in H0; apply bool_In_equiv_In in H0;
     apply bool_eq_equiv_if; apply bool_In_equiv_In; now apply H.
-  - apply bool_In_equiv_In in H0; apply bool_eq_equiv_if in H0.
+  - intros H x H0; apply bool_In_equiv_In in H0; apply bool_eq_equiv_if in H0;
     apply bool_In_equiv_In; apply bool_eq_equiv_if; now apply H.
 Qed.
 Lemma nested_bool_pred (x y : bool) : ((if x then y else false) = true) <-> (andb x y = true).
@@ -90,3 +89,5 @@ Qed.
 
 Lemma not_eq_None_Some {A : Type} (mx : option A) : mx <> None <-> is_Some mx.
 Proof. rewrite is_Some_alt; destruct mx; try easy; congruence. Qed.
+
+End Bool.

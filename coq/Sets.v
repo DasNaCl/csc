@@ -130,13 +130,13 @@ Module SetTheoryList (M : ListBase) <: Sig.
   End Notations.
   Import Notations.
 
-  #[local]
+  #[global]
   Instance subset_refl : Reflexive (subset).
   Proof. now intros Γ x H. Qed.
-  #[local]
+  #[global]
   Instance subset_tr : Transitive (subset).
   Proof. intros x y z H0 H1 a H2; apply H1; now apply H0. Qed.
-  #[local]
+  #[global]
   Instance equiv_is_equiv : Equivalence (equiv).
   Proof.
     split.
@@ -144,12 +144,14 @@ Module SetTheoryList (M : ListBase) <: Sig.
     - (* symm  *) split; firstorder eauto.
     - (* trans *) split; firstorder eauto.
   Qed.
+  Lemma equiv_is_equal Γ0 Γ1 : Γ0 ≡ Γ1 <-> Γ0 = Γ1.
+  Proof. Admitted.
 
   Lemma nil_eq_sets (Γ1 Γ2 : set) :
     nil = Γ1 ++ Γ2 -> nil = Γ1 /\ nil = Γ2.
   Proof. intros; induction Γ1; firstorder; inversion H. Qed.
 
-  #[local]
+  #[global]
   Instance equiv_commutes (Γ : set) : Proper (equiv ==> Basics.flip Basics.impl)
                                         (fun l : set => l ≡ Γ).
   Proof. intros Γ0 Γ1 H H0; etransitivity; eauto. Qed.
@@ -224,10 +226,12 @@ Module SetTheoryList (M : ListBase) <: Sig.
   Qed.
   (* end hide *)
 
+  #[global]
   Instance equiv_subset_proper {T : Type} Γ0 : Proper (equiv ==> Basics.flip Basics.impl)
                                       (fun (Γ : set) => Γ ⊆ Γ0).
   Proof.
   Admitted.
+  #[global]
   Instance equiv_supset_proper {T : Type} Γ0 : Proper (equiv ==> Basics.flip Basics.impl)
                                       (fun (Γ : set) => Γ0 ⊆ Γ).
   Proof.

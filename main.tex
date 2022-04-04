@@ -14,11 +14,13 @@
 \usepackage{amsthm}
 \usepackage{amssymb}
 \usepackage{stmaryrd}
+\usepackage{marvosym}
 \usepackage[capitalize]{cleveref}
 \usepackage{bm}
 \usepackage{xspace}
 \usepackage{etoolbox}
 \usepackage{natbib}
+\usepackage{xfrac}
 
 % workaround to use extpfeil and stmaryrd together.
 % see https://tex.stackexchange.com/questions/297108/
@@ -557,107 +559,129 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \clearpage
 
-Let $\refs$ be the set of unguessable memory location identifiers, i.e. references.
-
 \myfig{
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x := e_{1}\ in\ e_{2}}\mid \src{if\ e_{1}\ then\ e_{2}\ else\ e_{3}} \mid\src{x[e_{1}]\leftarrow e_{2}} \\
+  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x := e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
     & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
-  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref\ \nat} \hspace{0.5cm}
+  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
+  %
+  \mi{Qualifier}~\src{q} \bnfdef\ \full \mid \half\hspace{0.25cm}
   %
   \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \hspace{0.5cm} \mi{References}~\src{\loc}\in\refs \\
   %
   \mi{Variables}~&\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
   \mi{Context\ Types}~\src{\tau_{C}}~\bnfdef\ \src{\nat\to\nat}\\
   %
+  \mi{Poison}~&\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
+  %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
-  \mi{Eval. Env.}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \Deltas,\src{x\mapsto v} \mid \Deltas,\src{x\mapsto\loc}\\
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \Deltas,\src{x\mapsto\loc^\poison}\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
-  \mi{Location\ Mappings}~\src{A}\bnfdef\ \src{\hole{\cdot}} \mid \src{A,\loc\mapsto n} \\
   %
-  \mi{Configs}~\configs \bnfdef&\ \config{H}{A}{\Delta} \\
-  %
-  %\mi{Eval.\ Contexts}~\src{K} \bnfdef&\ \src{\hole{\cdot}} \mid \src{while\ K} \mid \src{}
+  \mi{State}\ \configs \bnfdef\ \config{H}{\Delta} \\
   \end{aligned}
   \end{gather*}
 }{while-syntax}{Syntax of $\mmlA$}
 
-% define notion of component that can be linked
-
-% do the let-new
-
-% assign should not have the universal quantification
+\begin{definition}[NoPtr]
+  We write $\src{\noptr{\Gamma}}$ if for any $\src{x}, \src{\tau}$, if $\src{x} : \src{\tau}\in\src{\Gamma}$, then $\taus\not=\ptr$.
+\end{definition}
 
 \myfig{
-  \judgbox{\typechecks{\Gamma}{e}{\taus}{\Gamma'}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\taus$ and yields typing env. $\src{\Gamma'}$.''}
+  \begin{center}
+  \typerule{splitEmpty}{
+  }{
+    \src{\hole{\cdot}} = \src{\hole{\cdot}}\circ\src{\hole{\cdot}}
+  }{t-empty-split}
+  %
+  \typerule{$\nat$split}{
+    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\nat},\Gammas = \src{x:\nat},\src{\Gamma_1}\circ\src{x:\nat},\src{\Gamma_2}
+  }{t-nat-split}
+  %
+  \typerule{weakPtrSplit}{
+    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\wptr},\Gammas = \src{x:\wptr},\src{\Gamma_1}\circ\src{x:\wptr},\src{\Gamma_2}
+  }{t-wptr-split}
+  %
+  \typerule{ptrLSplit}{
+    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\ptr},\Gammas = \src{x:\ptr},\src{\Gamma_1}\circ\src{\Gamma_2}
+  }{t-ptr-l-split}
+  %
+  \typerule{ptrRSplit}{
+    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\ptr},\Gammas = \src{\Gamma_2}\circ\src{x:\ptr},\src{\Gamma_2}
+  }{t-ptr-r-split}
+  \end{center}
+}{w-ctx-split}{Context Splitting of $\mmlA$ typing contexts.}
+
+\myfig{
+  \judgbox{\typechecks{\Gamma}{e}{\taus}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\taus$.''}
 
   \begin{center}
   \typerule{$t-\src{var}$}{
-    \src{x}:\taus\in\Gammas
+    \src{\noptr{\Gamma_1,x:\tau,\Gamma_2}}
 	}{
-    \typechecks{\Gamma}{x}{\tau}{\Gamma}
-	}{w-t-seq}
+    \typechecks{\Gamma_1,x:\tau,\Gamma_2}{x}{\tau}
+	}{t-var}
   %
-  \typerule{$t-\src{n}$}{
+  \typerule{$t-\nat$}{
+    \src{\noptr{\Gamma}}
   }{
-    \typechecks{\Gamma}{n}{\nat}{\Gamma}
-  }{w-t-nat}
+    \typechecks{\Gamma}{n}{\nat}
+  }{t-nat}
   %
   \typerule{$t-\src{\oplus}$}{
-    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
-    \typechecks{\Gamma}{e_2}{\nat}{\Gamma}
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{\Gamma_2}{e_2}{\nat}
   }{
-    \typechecks{\Gamma}{e_1\oplus e_2}{\nat}{\Gamma}
-  }{w-t-binop}
+    \typechecks{\Gamma_1\circ\Gamma_2}{e_1\oplus e_2}{\nat}
+  }{t-binop}
   %
   \typerule{$t-get$}{
-    \typechecks{\Gamma}{x}{ref\ \nat}{\Gamma} &
-    \typechecks{\Gamma}{e}{\nat}{\Gamma}
+    \typechecks{\Gamma_1}{x}{\wptr} &
+    \typechecks{\Gamma_2}{e}{\nat}
   }{
-    \typechecks{\Gamma}{x[e]}{\nat}{\Gamma}
-  }{w-t-get}
+    \typechecks{\Gamma_1\circ\Gamma_2}{x[e]}{\nat}
+  }{t-get}
   %
   \typerule{$t-set$}{
-    \typechecks{\Gamma}{x}{ref\ \nat}{\Gamma} &
-    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
-    \typechecks{\Gamma}{e_2}{\nat}{\Gamma}
+    \typechecks{\Gamma_1}{x}{\wptr} &
+    \typechecks{\Gamma_2}{e_1}{\nat} &
+    \typechecks{\Gamma_3}{e_2}{\nat}
   }{
-    \typechecks{\Gamma}{x[e_1]\leftarrow e_2}{\nat}{\Gamma}
-  }{w-t-set}
+    \typechecks{\Gamma_1\circ(\Gamma_2\circ\Gamma_3)}{x[e_1]\leftarrow e_2}{\nat}
+  }{t-set}
   %
   \typerule{$t-\src{let}$}{
-    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
-    \typechecks{\Gamma,x:\nat}{e_2}{\tau}{\Gamma,x:\nat}
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{x:\nat,\Gamma_2}{e_2}{\tau}
   }{
-    \typechecks{\Gamma}{let\ x:=e_1\ in\ e_2}{\tau}{\Gamma}
-  }{w-t-let}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x:=e_1\ in\ e_2}{\tau}
+  }{t-let}
   %
   \typerule{$t-\src{new}$}{
-    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
-    \typechecks{\Gamma,x:ref\ \nat}{e_2}{\nat}{\Gamma}
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{x:\wptr,\Gamma_2}{e_2}{\nat}
   }{
-    \typechecks{\Gamma}{let\ x:=new\ e_1\ in\ e_2}{nat}{\Gamma}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x:=new\ e_1\ in\ e_2}{nat}
   }{w-t-new}
   %
   \typerule{$t-\src{delete}$}{
-    \src{x:ref\ \nat}\in\Gammas &
-    \src{\Gamma'}=\Gammas\setminus\{\src{x:ref\ \nat}\}
+    \src{\noptr{\Gamma_1}} & \src{\noptr{\Gamma_2}}
   }{
-    \typechecks{\Gamma}{delete\ x}{\nat}{\Gamma'}
+    \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{\nat}
   }{w-t-delete}
-  %
-  \typerule{$t-\src{if}$}{
-    \typechecks{\Gamma}{e_1}{\nat}{\Gamma} &
-    \typechecks{\Gamma}{e_2}{\tau}{\Gamma} &
-    \typechecks{\Gamma}{e_3}{\tau}{\Gamma}
-  }{
-    \typechecks{\Gamma}{if\ e_1\ then\ e_2\ else\ e_3}{\nat}{\Gamma}
-  }{w-t-if}
   %
   \end{center}
 }{w-expr-ty}{Checking of $\mmlA$ expressions.}
@@ -667,42 +691,34 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
     \typerule{$c-lit$}{
     }{
       closed\ X\ \src{v}
-    }{w-c-lit}
+    }{c-lit}
     %
     \typerule{$c-var$}{
       x\in X
     }{
       closed\ X\ \src{x}
-    }{w-c-var}
+    }{c-var}
     %
     \typerule{$c-binop$}{
       closed\ X\ \src{e_1}&
       closed\ X\ \src{e_2}
     }{
       closed\ X\ \src{e_1\oplus e_2}
-    }{w-c-binop}
+    }{c-binop}
     %
     \typerule{$c-get$}{
       x\in X&
       closed\ X\ \src{e}
     }{
       closed\ X\ \src{x[e]}
-    }{w-c-get}
+    }{c-get}
     %
     \typerule{$c-let$}{
       closed\ X\ \src{e_0} &
       closed\ (\{x\}\uplus X)\ \src{e_1}
     }{
       closed\ X\ \src{let\ x:=e_0\ in\ e_1}
-    }{w-c-let}
-    %
-    \typerule{$c-if$}{
-      closed\ X\ \src{e_0} &
-      closed\ X\ \src{e_1} &
-      closed\ X\ \src{e_2}
-    }{
-      closed\ X\ \src{if\ e_0\ then\ e_1\ else\ e_2}
-    }{w-c-if}
+    }{c-let}
     %
     \typerule{$c-set$}{
       x\in X&
@@ -717,13 +733,13 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
       closed\ (\{x\}\uplus X)\ \src{e_1}
     }{
       closed\ X\ \src{let\ x:=new\ e_0\ in\ e_1}
-    }{w-c-new}
+    }{c-new}
     %
     \typerule{$c-delete$}{
       x\in X
     }{
       closed\ X\ \src{delete\ x}
-    }{w-c-delete}
+    }{c-delete}
   \end{center}
 }{w-closed}{Predicate checking whether an $\mmlA$ expression is closed or not}
 
@@ -755,26 +771,53 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 
   \begin{center}
   \typerule{$t-ctx$}{
-    \typechecks{}{e_1}{\nat}{}&
-    \typechecks{y:\nat}{e_2}{\nat}{y:\nat}
+    \typechecks{}{e_1}{\nat}&
+    \typechecks{y:\nat}{e_2}{\nat}
 	}{
-  \typechecks{}{context\ e_1\ e_2}{\nat\to\nat}{}
+  \typechecks{}{context\ e_1\ e_2}{\nat\to\nat}
 	}{w-t-ctx}
   %
-  \typerule{$t-prog$}{
-    \typechecks{}{e}{\nat}{}&
+  \typerule{$t-comp$}{
+    \typechecks{x:\nat}{e}{\nat}&
 	}{
-  \typechecks{}{prog\ e}{\nat}{}
+  \typechecks{}{comp\ e}{\nat}
+	}{w-t-comp}
+  %
+  \typerule{$t-wprog$}{
+    \typechecks{\Gamma}{e}{\nat}
+	}{
+  \typechecks{}{prog\ e}{\nat}
 	}{w-t-prog}
   %
-  \typerule{$t-comp$}{
-    \typechecks{x:\nat}{e}{\nat}{x:\nat}&
+  \typerule{$t-wprog$}{
+    \typechecks{}{\Delta}{\Gamma}&
+    \typechecks{\Gamma}{e}{\nat}
 	}{
-  \typechecks{}{comp\ e}{\nat}{}
-	}{w-t-comp}
+  \typechecks{}{H;\Delta\triangleright e}{\nat}
+	}{w-t-prog}
   \end{center}
-}{w-program-ty}{Checking of $\mmlA$ contexts, components, and programs.}
+}{w-program-ty}{Checking of $\mmlA$ contexts, components, programs, and whole programs.}
 
+\myfig{
+  \begin{center}
+    \typerule{$Tempty\Delta$}{
+    }{
+    \typechecks{}{\hole{\cdot}}{\hole{\cdot}}
+    }{t-empty-store}
+    %
+    \typerule{$Tref\nat$}{
+    \typechecks{}{\Delta}{\Gamma}
+    }{
+    \typechecks{}{x\mapsto\loc^\poisonless,\Delta}{x:\ptr,\Gamma}
+    }{t-ptr-store}
+    %
+    \typerule{$Tref\nat poison$}{
+    \typechecks{}{\Delta}{\Gamma}
+    }{
+    \typechecks{}{x\mapsto\loc^\poisoned,\Delta}{\Gamma}
+    }{t-ptr-store}
+  \end{center}
+}{store-ty}{$\mmlA$ store typing.}
 
 \myfig{
   \begin{center}
@@ -785,7 +828,7 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\src{b} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Write\ \loc\ n\ m}
+  \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Write\ \loc\ n}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlA$.}
@@ -793,81 +836,65 @@ Let $\refs$ be the set of unguessable memory location identifiers, i.e. referenc
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \src{E}\bnfdef &\ \src{\hole{\cdot}}\mid \src{E\oplus e}\mid \src{v\oplus E}\mid \src{x[E]}\mid
-            \src{let\ x:=E\ in\ e}\mid \src{x[E]\leftarrow e}\mid \src{x[v]\leftarrow E}\mid \src{new\ E}\mid \src{if\ E\ then\ e_{1}\ else\ e_{2}}
+      \src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus E}\mid \src{x[K]}\mid
+      \src{let\ x:=K\ in\ e}\mid \src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x:=new\ K\ in\ e}
     \end{aligned}
   \end{gather*}
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
 
 \myfig{
-  \judgbox{\exprevals{\configs}{E[e]}{\configs'}{E[e']}{a}}{,,Given an evaluation context $\src{E}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{E}$, emitting event $\src{a}$.''}
+  \judgbox{\exprevals{\configs}{K[e]}{\configs'}{K[e']}{a}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{a}$.''}
   \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{a}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting event $\src{a}$.''}
   %
   \typerule{$e-ctx$}{
     \exprevals{\configs}{e}{\configs'}{e'}{a}
   }{
-    \exprevals{\configs}{E[e]}{\configs'}{E[e']}{a}
+    \exprevals{\configs}{K[e]}{\configs'}{K[e']}{a}
   }{w-e-ectx}
-  %
-  \typerule{$e-var$}{
-    \src{x\mapsto v}\in\Deltas
-  }{
-    \exprevals{\config{H}{A}{\Delta}}{x}{\config{H}{A}{\Delta}}{v}{\emptyevent}
-  }{w-e-var}
   %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}+\src{n_2}=\src{n_3}
   }{
     \exprevals{\configs}{n_1+n_2}{\configs}{n_3}{\emptyevent}
   }{w-e-oplus}
-  %
+  % TODO
   \typerule{$e-\src{get}$}{
-    \src{x\mapsto\loc}\in\Deltas&
-    \src{\loc\mapsto n_\loc}\in \src{A}&
-    \src{n_\loc+n\mapsto v}\in \src{H}
+    \src{\loc}\in\text{dom }\src{H}\implies\src{v}=\src{H}(\src{\loc+n}) &
+    \src{\loc}\not\in\text{dom }\src{H}\implies\src{v}=\src{1729}
   }{
-    \exprevals{\config{H}{A}{\Delta}}{x[n]}{\config{H}{A}{\Delta}}{v}{Read\ \loc\ n}
+    \exprevals{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
   }{w-e-get}
   %
   \typerule{$e-\src{set}$}{
-    \src{x\mapsto\loc}\in\Deltas&
-    \src{\loc\mapsto n_\loc}\in \src{A}&
-    \src{H'} = \src{H}(\src{n_\loc+n}\mapsto \src{v})
+    \src{H'} = \src{H}(\src{\loc+n}\mapsto \src{v})
   }{
-    \exprevals{\config{H}{A}{\Delta}}{x[n]\leftarrow v}{\config{H'}{A}{\Delta}}{v}{Read\ \loc\ n}
+    \exprevals{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\config{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{w-e-set}
   %
-  \typerule{$e-\src{let}$}{
-    \src{\Delta'} = \Deltas\uplus \{\src{x\mapsto v}\}
+  \typerule{$e-\src{let}-\src{x}$}{
   }{
-    \exprevals{\config{H}{A}{\Delta}}{let\ x:=v\ in\ e}{\config{H}{A}{\Delta'}}{e}{\emptyevent}
-  }{w-e-let}
+    \exprevals{\config{H}{\Delta}}{let\ x:=y\ in\ e}{\config{H}{\Delta}}{e[y/x]}{\emptyevent}
+  }{w-e-let-x}
+  %
+  \typerule{$e-\src{let}-\src{v}$}{
+  }{
+    \exprevals{\config{H}{\Delta}}{let\ x:=v\ in\ e}{\config{H}{\Delta}}{e[v/x]}{\emptyevent}
+  }{w-e-let-v}
   %
   \typerule{$e-\src{delete}$}{
     \src{x\mapsto\loc}\in\Deltas&
     \src{\Delta'} = \Deltas \setminus \{\src{x\mapsto\loc}\}
   }{
-    \exprevals{\config{H}{A}{\Delta}}{delete\ x}{\config{H}{A}{\Delta'}}{0}{Dealloc\ \loc}
+    \exprevals{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\config{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
   }{w-e-let-new}
   %
   \typerule{$e-\src{new}$}{
-    \src{H'} = \grows{H}{n} &
     \text{fresh}\ \src{\loc}&
-    \src{A'} = \src{A} \uplus \{\src{\loc\mapsto |H|}\} &
+    \text{fresh}\ \src{z} &
+    \src{H'} = \src{H} \ll \src{n} &
   }{
-    \exprevals{\config{H}{A}{\Delta}}{new\ n}{\config{H'}{A'}{\Delta}}{\loc}{Alloc\ \loc\ n}
+  \exprevals{\config{H}{A}{\Delta}}{let\ x=new\ n\ in\ e}{\config{H'}{z\mapsto \loc,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
-  %
-  \typerule{$e-\src{if}-\bot$}{
-  }{
-    \exprevals{\configs}{if\ 0\ then\ e_1\ else\ e_2}{\configs}{e_2}{\emptyevent}
-  }{w-e-if-false}
-  %
-  \typerule{$e-\src{if}-\top$}{
-    \src{v}\neq\src{0}
-  }{
-    \exprevals{\configs}{if\ v\ then\ e_1\ else\ e_2}{\configs}{e_1}{\emptyevent}
-  }{w-e-if-true}
   %
 }{w-expr-eval}{Evaluation of $\mmlA$ expressions.}
 
@@ -964,18 +991,25 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   Take $\src{\loc},\src{s}$ such that $(\src{Alloc\ \loc\ s})!_{\trace}$,
   now show $(\src{Dealloc\ \loc})!_{\trace}$ and $(\src{Alloc\ \loc\ s})\le_{\trace}(\src{Dealloc\ \loc})$.
 \end{definition}
-% use prose instead of \implies
+% relaxed temporal memory safety       -> define garbage collector
+% generalize this over Γ, τ
+% might need an 'invariant'  -> connect typing to evaluation states
+% might need to do an induction on evaluation steps
+
+% might not need to do an induction at the general step, but for the primitive step we need it
+
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
   We define the property $\src{smsafe}$ as follows:
   Given any trace $\trace$, we say it is spatial memory safe iff:
 %
-  Take $\src{\loc},\src{s},\src{n},\src{m}$ such that $(\src{Alloc\ \loc\ s})!_{\trace}$,
+  Take $\src{\loc},\src{s},\src{n}$ such that $(\src{Alloc\ \loc\ s})!_{\trace}$,
   show $(\src{Read\ \loc\ n}\in\trace \implies \src{n} < \src{s})$ and
-  $(\src{Write\ \loc\ n\ m}\in\trace\implies \src{n} < \src{s})$.
+  $(\src{Write\ \loc\ n}\in\trace\implies \src{n} < \src{s})$.
 \end{definition}
 
 % provenance : where does the pointer come from
+% C like memory model, explain why! (ptr + 5) and later (ptr + 5) objects might not be the same
 
 \begin{lemma}[$\mmlA$ is temporal memory safe]
   For any well-typed $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:tempmemsafe}: $\rsat{\src{p}}{\src{tmsafe}}$

@@ -946,6 +946,122 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{center}
 }{w-steps}{Trace prefix generation given a $\mmlA$ program using the reflexive-transitive closure.}
 
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ References}~L :=& \nat \hspace{0.5cm}
+      \mi{Abstract\ Store}~T \subseteq L \\
+      \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid Alloc\ \loc \mid Dealloc\ \loc \mid Use\ \loc \\
+      \mi{References\ Agreement}~\delta :& \src{L}\to L
+    \end{aligned}
+  \end{gather*}
+}{tms-monitor}{\gls{tms} Monitor.}
+
+\myfig{
+  \begin{center}
+    \typerule{TMS-Empty}{
+    }{
+    \monitorcheck[]{\emptyset}{\emptyset}{\varepsilon}
+    }{tms-empty}
+    %
+    \typerule{TMS-Use}{
+      \loc\in T
+    }{
+    \monitorcheck[]{T}{T}{\text{Use}\ \loc}
+    }{tms-use}
+    %
+    \typerule{TMS-Alloc}{
+      T'=T\cup\left\{\loc\right\}&
+      \loc\not\in T
+    }{
+    \monitorcheck[]{T}{T'}{\text{Alloc}\ \loc}
+    }{tms-alloc}
+    %
+    \typerule{TMS-Dealloc}{
+      \loc\in T &
+      T'=T\setminus\left\{\loc\right\}
+    }{
+    \monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}
+    }{tms-dealloc}
+    %
+    \typerule{TMS-Refl}{
+    }{
+    \monitorcheck{T}{T}{\hole{\cdot}}
+    }{tms-refl}
+    %
+    \typerule{TMS-Trans}{
+    \monitorcheck[]{T}{T'}{a}&
+    \monitorcheck{T'}{T''}{\bar{a}}&
+    }{
+    \monitorcheck{T}{T''}{a\cdot\bar{a}}
+    }{tms-trans}
+  \end{center}
+}{tms-step}{Steps of \gls{tms} Monitor.}
+
+
+\myfig{
+  \begin{center}
+    \typerule{Alloc-Authentic}{
+      \delta(\src{\loc})=\loc
+    }{
+      \traceagree{\src{Alloc\ \loc\ n}}{Alloc\ \loc}
+    }{tms-alloc-auth}
+    %
+    \typerule{Dealloc-Authentic}{
+      \delta(\src{\loc})=\loc
+    }{
+      \traceagree{\src{Dealloc\ \loc\ n}}{Dealloc\ \loc}
+    }{tms-dealloc-auth}
+    %
+    \typerule{Get-Authentic}{
+      \delta(\src{\loc})=\loc
+    }{
+      \traceagree{\src{Get\ \loc\ n}}{Use\ \loc}
+    }{tms-get-auth}
+    %
+    \typerule{Set-Authentic}{
+      \delta(\src{\loc})=\loc
+    }{
+      \traceagree{\src{Set\ \loc\ n\ v}}{Use\ \loc}
+    }{tms-set-auth}
+    %
+    \typerule{Refl-Authentic}{
+    }{
+    \traceagree{\src{\varepsilon}}{\varepsilon}
+    }{tms-refl-auth}
+    %
+    \typerule{Trans-Authentic}{
+      \traceagree{\src{a}}{a} &
+      \traceagree{\src{\bar{a}}}{\bar{a}}
+    }{
+      \traceagree{\src{a}\cdot\src{\bar{a}}}{a\cdot\bar{a}}
+    }{tms-trans-auth}
+  \end{center}
+}{tms-trace-agreement}{Trace Agreement.}
+
+\myfig{
+  \begin{center}
+    \typerule{Empty-Agree}{
+    }{
+      \storeagree{\emptyset}{\src{\hole{\cdot}}}
+    }{store-empty-agree}
+    %
+    \typerule{Cons-Agree}{
+      \delta\left(\src{\loc}\right)=\loc&
+      \storeagree{T}{\src{\Delta}}
+    }{
+      \storeagree{\left\{\loc\right\}\cup T}{\src{x\mapsto\loc^\poisonless,\Delta}}
+    }{store-cons-agree}
+    %
+    \typerule{Ignore-Agree}{
+      \delta\left(\src{\loc}\right)=\loc&
+      \storeagree{T}{\src{\Delta}}
+    }{
+      \storeagree{T}{\src{x\mapsto\loc^\poisoned,\Delta}}
+    }{store-ignore-agree}
+  \end{center}
+}{tms-store-agreement}{Store Agreement.}
+
 \clearpage
 
 \begin{lemma}[Weaken Closedness]
@@ -966,30 +1082,36 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 We now define temporal and spatial memory safety in terms of traces on events $\src{e}$.
 
 \begin{definition}[Occurence]
-  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs in $\trace$, written $\src{e}\in\trace$, iff
+  Given an event $e$ and a trace $\trace$, the event $e$ occurs in $\trace$, written $e\in\trace$, iff
 
-  $\exists n, \trace[n]=\src{e}$
+  $\exists n, \trace[n]=e$
 \end{definition}
 
 \begin{definition}[Unicity]
-  Given an event $\src{e}$ and a trace $\trace$, the event $\src{e}$ occurs exactly once in $\trace$, written $\src{e}!_{\trace}$, iff
+  Given an event $e$ and a trace $\trace$, the event $e$ occurs exactly once in $\trace$, written $e!_{\trace}$, iff
 
-  $\exists n, \trace[n]=\src{e} \wedge \nexists m, n\not= m \wedge \trace[m] = \src{e}$
+  $\exists n, \trace[n]=e \wedge \nexists m, n\not= m \wedge \trace[m] = e$
 \end{definition}
 
 \begin{definition}[Sequentiality]
-  Given two events $\src{e_{0},e_{1}}$ and a trace $\trace$, event $\src{e_{0}}$ occurs before $\src{e_{1}}$ in $\trace$, written
-  $\src{e_{0}}\le_{\trace}\src{e_{1}}$, iff
+  Given two events $e_{0},e_{1}$ and a trace $\trace$, event $e_{0}$ occurs before $e_{1}$ in $\trace$, written
+  $e_{0}\le_{\trace}e_{1}$, iff
 
-  $\exists n, \trace[n] = \src{e_{0}}\implies \exists m, \trace[m] = \src{e_{1}} \wedge n<m$
+  $\exists n, \trace[n] = e_{0}\implies \exists m, \trace[m] = e_{1} \wedge n<m$
 \end{definition}
 
-\begin{definition}[Temporal Memory Safety]\label{def:tempmemsafe}
-  We define the property $\src{tmsafe}$ as follows:
-  Given any trace $\trace$, we say it is temporal memory safe iff:
-%
-  Take $\src{\loc},\src{s}$ such that $(\src{Alloc\ \loc\ s})!_{\trace}$,
-  now show $(\src{Dealloc\ \loc})!_{\trace}$ and $(\src{Alloc\ \loc\ s})\le_{\trace}(\src{Dealloc\ \loc})$.
+\begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
+  We define the property $\src{tmsafe}(\src{\trace})$ as a conjunction of the following conditions:
+  \begin{itemize}
+    \item $\src{Alloc\ \loc\ s}\le_{\src{\trace}}\src{Dealloc\ \loc}$
+    \item $\neg(\src{Read\ \loc\ n}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
+    \item $\neg(\src{Write\ \loc\ n\ v}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
+    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Read\ \loc\ n})$
+    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Write\ \loc\ n\ v})$
+    \item $\src{Dealloc\ \loc}\in!\;\src{\trace}$
+    \item $\src{Alloc\ \loc\ s}\in!\;\src{\trace}$\makebox(0,0){\put(0,3.0\normalbaselineskip){%
+    $\left.\rule{0pt}{1.32\normalbaselineskip}\right\}$ no reallocs, references are unique}}
+  \end{itemize}
 \end{definition}
 % relaxed temporal memory safety       -> define garbage collector
 % generalize this over Γ, τ
@@ -1011,14 +1133,6 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 % provenance : where does the pointer come from
 % C like memory model, explain why! (ptr + 5) and later (ptr + 5) objects might not be the same
 
-\begin{lemma}[$\mmlA$ is temporal memory safe]
-  For any well-typed $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:tempmemsafe}: $\rsat{\src{p}}{\src{tmsafe}}$
-\end{lemma}
-\begin{proof}
-   TODO
- \end{proof}
- % use additional lemma on whole programs
-
 \begin{lemma}[$\mmlA$ is not spatially memory safe]
   It does not hold that for any $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:spatmemsafe}:
 
@@ -1030,8 +1144,37 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$
 \end{proof}
 
-%
-%
+\begin{lemma}[$\alpha$-conv. Typing]
+  If $\typechecks{\Gamma}{e}{\tau}$, then $\typechecks{\Gamma[z:\tau'/x:\tau]}{e[z/x]}{\tau}$.
+\end{lemma}
+
+\begin{lemma}[Substitution]
+  If $\typechecks{x:\tau',\Gamma_1}{e}{\tau}$ and $\typechecks{\Gamma_2}{v}{\tau'}$ and $\Gamma_3=\Gamma_1\circ\Gamma_2$, then $\typechecks{\Gamma_3}{e[v/x]}{\tau}$.
+\end{lemma}
+
+\begin{lemma}[Base/Ctx Preservation]
+    If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\exprevals{\configs}{e}{\configs'}{e'}{a}$, then $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+\end{lemma}
+
+\begin{lemma}[Steps Preservation]
+    If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\execs{\configs}{e}{\configs'}{e'}{a}$, then $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+\end{lemma}
+
+\begin{lemma}[Progress]
+  If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ then $\src{e}=\src{v}$ or $\exists \src{\Omega'}\ \src{e'}\ \src{a}, \execs{\configs}{e}{\configs'}{e'}{a}$
+\end{lemma}
+
+\begin{lemma}[Base/Ctx \gls{tms} via Monitor]
+  If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\exprevals{\configs}{e}{\configs'}{e'}{a}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$ then $\exists a\ \delta'$ such that $\delta\subseteq\delta'$ and $\traceagree[\delta']{a}{\src{a}}$ and $\exists T'. \monitorcheck[]{T}{T'}{a}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$.
+\end{lemma}
+
+\begin{lemma}[Steps \gls{tms} via Monitor]
+  If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\execs{\configs}{e}{\configs'}{e'}{\bar{a}}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$ then $\exists \bar{a}\ \delta'$ such that $\delta\subseteq\delta'$ and $\traceagree[\delta']{\bar{a}}{\src{\bar{a}}}$ and $\exists T'. \monitorcheck{T}{T'}{\bar{a}}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$.
+\end{lemma}
+
+\begin{lemma}[$\mmlA$ is \gls{tms} via Monitor]
+  If $\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e}{\nat}$ and $\execs{\hole{\cdot};\hole{\cdot}}{e}{\configs}{v}{\bar{a}}$ then $\exists \bar{a}\ \delta$ such that $\traceagree{\bar{a}}{\src{\bar{a}}}$ and $\exists T$ such that $\monitorcheck{\emptyset}{T}{\bar{a}}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$.
+\end{lemma}
 
 \clearpage
 

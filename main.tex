@@ -567,13 +567,14 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
-  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
+  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \mid \src{()} \hspace{0.25cm}
   %
   \mi{Qualifier}~\src{q} \bnfdef\ \full \mid \half\hspace{0.25cm}
   %
-  \mi{Values}~\src{v} \bnfdef\ \src{n}\in\nat \hspace{0.5cm} \mi{References}~\src{\loc}\in\refs \\
+  \mi{Values}~\src{v} \bnfdef\ \src{n}\in\src{\nat} \\
+  \mi{References}~\src{\loc}&\in\src{\nat} \hspace{0.5cm}
   %
-  \mi{Variables}~&\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
+  \mi{Variables}~\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
   \mi{Context\ Types}~\src{\tau_{C}}~\bnfdef\ \src{\nat\to\nat}\\
   %
   \mi{Poison}~&\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
@@ -620,7 +621,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typerule{ptrRSplit}{
     \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
   }{
-    \src{x:\ptr},\Gammas = \src{\Gamma_2}\circ\src{x:\ptr},\src{\Gamma_2}
+    \src{x:\ptr},\Gammas = \src{x:\wptr,\Gamma_1}\circ\src{x:\ptr},\src{\Gamma_2}
   }{t-ptr-r-split}
   \end{center}
 }{w-ctx-split}{Context Splitting of $\mmlA$ typing contexts.}
@@ -672,7 +673,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \typerule{$t-\src{new}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
-    \typechecks{x:\wptr,\Gamma_2}{e_2}{\nat}
+    \typechecks{x:\ptr,\Gamma_2}{e_2}{\nat}
   }{
     \typechecks{\Gamma_1\circ\Gamma_2}{let\ x:=new\ e_1\ in\ e_2}{nat}
   }{w-t-new}
@@ -680,7 +681,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typerule{$t-\src{delete}$}{
     \src{\noptr{\Gamma_1}} & \src{\noptr{\Gamma_2}}
   }{
-    \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{\nat}
+    \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{()}
   }{w-t-delete}
   %
   \end{center}
@@ -789,7 +790,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typechecks{}{prog\ e}{\nat}
 	}{w-t-prog}
   %
-  \typerule{$t-wprog$}{
+  \typerule{$t-prog$}{
     \typechecks{}{\Delta}{\Gamma}&
     \typechecks{\Gamma}{e}{\nat}
 	}{
@@ -882,8 +883,6 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{w-e-let-v}
   %
   \typerule{$e-\src{delete}$}{
-    \src{x\mapsto\loc}\in\Deltas&
-    \src{\Delta'} = \Deltas \setminus \{\src{x\mapsto\loc}\}
   }{
     \exprevals{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\config{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
   }{w-e-let-new}
@@ -893,7 +892,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \text{fresh}\ \src{z} &
     \src{H'} = \src{H} \ll \src{n} &
   }{
-  \exprevals{\config{H}{A}{\Delta}}{let\ x=new\ n\ in\ e}{\config{H'}{z\mapsto \loc,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevals{\config{H}{\Delta}}{let\ x=new\ n\ in\ e}{\config{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
 }{w-expr-eval}{Evaluation of $\mmlA$ expressions.}
@@ -1145,35 +1144,105 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \end{proof}
 
 \begin{lemma}[$\alpha$-conv. Typing]
-  If $\typechecks{\Gamma}{e}{\tau}$, then $\typechecks{\Gamma[z:\tau'/x:\tau]}{e[z/x]}{\tau}$.
+  Given $\src{\Gamma},\src{e},$ and $\src{\tau}$,
+  \begin{assumptions}
+    \item $\typechecks{\Gamma}{e}{\tau}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{\Gamma[z:\tau'/x:\tau]}{e[z/x]}{\tau}$
+  \end{goals}.
 \end{lemma}
 
 \begin{lemma}[Substitution]
-  If $\typechecks{x:\tau',\Gamma_1}{e}{\tau}$ and $\typechecks{\Gamma_2}{v}{\tau'}$ and $\Gamma_3=\Gamma_1\circ\Gamma_2$, then $\typechecks{\Gamma_3}{e[v/x]}{\tau}$.
+  Given $\src{x},\src{\tau'},\src{\Gamma_1},\src{e},\src{\tau},\src{\Gamma_2},\src{v},\src{\tau},$ and $\src{\Gamma}$,
+  \begin{assumptions}
+    \item $\typechecks{x:\tau',\Gamma_1}{e}{\tau}$
+    \item $\typechecks{\Gamma_2}{v}{\tau'}$
+    \item $\src{\Gamma_3}=\src{\Gamma_1}\circ\src{\Gamma_2}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{\Gamma_3}{e[v/x]}{\tau}$
+  \end{goals}.
 \end{lemma}
 
 \begin{lemma}[Base/Ctx Preservation]
-    If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\exprevals{\configs}{e}{\configs'}{e'}{a}$, then $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+  Given $\src{\Omega},\src{e},\configs,\src{\configs'},\src{e'},$ and $\src{a}$,
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\exprevals{\configs}{e}{\configs'}{e'}{a}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+  \end{goals}.
 \end{lemma}
 
 \begin{lemma}[Steps Preservation]
-    If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\execs{\configs}{e}{\configs'}{e'}{a}$, then $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+  Given $\src{\Omega},\src{e},\configs,\src{\configs'},\src{e'},$ and $\src{a}$,
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\execs{\configs}{e}{\configs'}{e'}{a}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+  \end{goals}.
 \end{lemma}
 
 \begin{lemma}[Progress]
-  If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ then $\src{e}=\src{v}$ or $\exists \src{\Omega'}\ \src{e'}\ \src{a}, \execs{\configs}{e}{\configs'}{e'}{a}$
+  Given $\src{\Omega},\src{e},$ and $\src{v}$,
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\src{e}=\src{v}$ or $\exists \src{\Omega'}\ \src{e'}\ \src{a}, \execs{\configs}{e}{\configs'}{e'}{a}$
+  \end{goals}.
 \end{lemma}
 
 \begin{lemma}[Base/Ctx \gls{tms} via Monitor]
-  If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\exprevals{\configs}{e}{\configs'}{e'}{a}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$ then $\exists a\ \delta'$ such that $\delta\subseteq\delta'$ and $\traceagree[\delta']{a}{\src{a}}$ and $\exists T'. \monitorcheck[]{T}{T'}{a}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$.
+  Given $\src{\Omega},\src{e},\configs,\src{e'},$ and $\src{a}$
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\exprevals{\configs}{e}{\configs'}{e'}{a}$
+    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+  \end{assumptions}
+  Then $\exists a\ \delta'$
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\traceagree[\delta']{a}{\src{a}}$
+    \item $\exists T', \monitorcheck[]{T}{T'}{a}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+  \end{goals}.
 \end{lemma}
 
 \begin{lemma}[Steps \gls{tms} via Monitor]
-  If $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$ and $\execs{\configs}{e}{\configs'}{e'}{\bar{a}}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$ then $\exists \bar{a}\ \delta'$ such that $\delta\subseteq\delta'$ and $\traceagree[\delta']{\bar{a}}{\src{\bar{a}}}$ and $\exists T'. \monitorcheck{T}{T'}{\bar{a}}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$.
+  Given $\src{\Omega},\src{e},\configs,\src{e'},$ and $\src{a}$
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\execs{\configs}{e}{\configs'}{e'}{a}$
+    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+  \end{assumptions}
+  Then $\exists a, \delta',$
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\traceagree[\delta']{a}{\src{a}}$
+    \item $\exists T', \monitorcheck{T}{T'}{a}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+  \end{goals}.
 \end{lemma}
 
 \begin{lemma}[$\mmlA$ is \gls{tms} via Monitor]
-  If $\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e}{\nat}$ and $\execs{\hole{\cdot};\hole{\cdot}}{e}{\configs}{v}{\bar{a}}$ then $\exists \bar{a}\ \delta$ such that $\traceagree{\bar{a}}{\src{\bar{a}}}$ and $\exists T$ such that $\monitorcheck{\emptyset}{T}{\bar{a}}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$.
+  Given $\src{e},\src{\bar{a}},\src{v},$ and $\src{\configs}$
+  \begin{assumptions}
+  \item $\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e}{\nat}$
+  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\configs}{v}{\bar{a}}$
+  \end{assumptions}
+  Then $\exists \bar{a}, \delta,$
+  \begin{goals}
+    \item $\traceagree{\bar{a}}{\src{\bar{a}}}$
+    \item $\exists T,\monitorcheck{\emptyset}{T}{\bar{a}}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+  \end{goals}.
 \end{lemma}
 
 \clearpage

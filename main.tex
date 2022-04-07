@@ -567,7 +567,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
-  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \mid \src{()} \hspace{0.25cm}
+  \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
   %
   \mi{Qualifier}~\src{q} \bnfdef\ \full \mid \half\hspace{0.25cm}
   %
@@ -580,7 +580,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Poison}~&\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
-  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \Deltas,\src{x\mapsto\loc^\poison}\\
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc^\poison},\Deltas\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
@@ -631,7 +631,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
   \begin{center}
   \typerule{$t-\src{var}$}{
-    \src{\noptr{\Gamma_1,x:\tau,\Gamma_2}}
+  \src{\noptr{\Gamma_1}}&
+  \src{\noptr{x:\tau,\hole{\cdot}}}&
+  \src{\noptr{\Gamma_2}}
 	}{
     \typechecks{\Gamma_1,x:\tau,\Gamma_2}{x}{\tau}
 	}{t-var}
@@ -650,18 +652,18 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{t-binop}
   %
   \typerule{$t-get$}{
-    \typechecks{\Gamma_1}{x}{\wptr} &
-    \typechecks{\Gamma_2}{e}{\nat}
+    \typechecks{\Gamma_2}{x}{\wptr} &
+    \typechecks{\Gamma_1}{e}{\nat}
   }{
     \typechecks{\Gamma_1\circ\Gamma_2}{x[e]}{\nat}
   }{t-get}
   %
   \typerule{$t-set$}{
-    \typechecks{\Gamma_1}{x}{\wptr} &
-    \typechecks{\Gamma_2}{e_1}{\nat} &
-    \typechecks{\Gamma_3}{e_2}{\nat}
+    \typechecks{\Gamma_3}{x}{\wptr} &
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{\Gamma_2}{e_2}{\nat}
   }{
-    \typechecks{\Gamma_1\circ(\Gamma_2\circ\Gamma_3)}{x[e_1]\leftarrow e_2}{\nat}
+    \typechecks{(\Gamma_1\circ\Gamma_2)\circ\Gamma_3}{x[e_1]\leftarrow e_2}{\nat}
   }{t-set}
   %
   \typerule{$t-\src{let}$}{
@@ -930,17 +932,17 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \judgbox{\execs{\configs}{e}{\configs'}{e'}{As}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting list of events $\src{As}$.''}
+    \judgbox{\execs{\configs}{e}{\configs'}{e'}{As}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting list of events $\src{\bar{a}}$.''}
     %
     \typerule{$e-refl$}{
     }{
-      \execs{\configs}{e}{\configs'}{e'}{\hole{\ }}
+      \execs{\configs}{e}{\configs}{e}{\hole{\cdot}}
     }{w-e-trans}
     \typerule{$e-trans$}{
       \exprevals{\configs}{e}{\configs'}{e'}{a}&
-      \execs{\configs}{e}{\configs'}{e'}{As}&
+      \execs{\configs'}{e'}{\configs''}{e''}{\bar{a}}&
     }{
-      \execs{\configs}{e}{\configs'}{e'}{a :: As}
+      \execs{\configs}{e}{\configs''}{e''}{a \cdot \bar{a}}
     }{w-e-trans}
   \end{center}
 }{w-steps}{Trace prefix generation given a $\mmlA$ program using the reflexive-transitive closure.}
@@ -950,7 +952,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \begin{aligned}
       \mi{Abstract\ References}~L :=& \nat \hspace{0.5cm}
       \mi{Abstract\ Store}~T \subseteq L \\
-      \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid Alloc\ \loc \mid Dealloc\ \loc \mid Use\ \loc \\
+      \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
       \mi{References\ Agreement}~\delta :& \src{L}\to L
     \end{aligned}
   \end{gather*}
@@ -1003,30 +1005,30 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typerule{Alloc-Authentic}{
       \delta(\src{\loc})=\loc
     }{
-      \traceagree{\src{Alloc\ \loc\ n}}{Alloc\ \loc}
+      \traceagree{\src{Alloc\ \loc\ n}}{\text{Alloc}\ \loc}
     }{tms-alloc-auth}
     %
     \typerule{Dealloc-Authentic}{
       \delta(\src{\loc})=\loc
     }{
-      \traceagree{\src{Dealloc\ \loc\ n}}{Dealloc\ \loc}
+    \traceagree{\src{Dealloc\ \loc\ n}}{\text{Dealloc}\ \loc}
     }{tms-dealloc-auth}
     %
     \typerule{Get-Authentic}{
       \delta(\src{\loc})=\loc
     }{
-      \traceagree{\src{Get\ \loc\ n}}{Use\ \loc}
+    \traceagree{\src{Get\ \loc\ n}}{\text{Use}\ \loc}
     }{tms-get-auth}
     %
     \typerule{Set-Authentic}{
       \delta(\src{\loc})=\loc
     }{
-      \traceagree{\src{Set\ \loc\ n\ v}}{Use\ \loc}
+      \traceagree{\src{Set\ \loc\ n\ v}}{\text{Use}\ \loc}
     }{tms-set-auth}
     %
     \typerule{Refl-Authentic}{
     }{
-    \traceagree{\src{\varepsilon}}{\varepsilon}
+    \traceagree{\src{\hole{\cdot}}}{\hole{\cdot}}
     }{tms-refl-auth}
     %
     \typerule{Trans-Authentic}{
@@ -1121,23 +1123,21 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\src{smsafe}$ as follows:
-  Given any trace $\trace$, we say it is spatial memory safe iff:
-%
-  Take $\src{\loc},\src{s},\src{n}$ such that $(\src{Alloc\ \loc\ s})!_{\trace}$,
-  show $(\src{Read\ \loc\ n}\in\trace \implies \src{n} < \src{s})$ and
-  $(\src{Write\ \loc\ n}\in\trace\implies \src{n} < \src{s})$.
+  We define the property $\src{tmsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
+  \begin{itemize}
+    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Read\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
+    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Write\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
+  \end{itemize}
 \end{definition}
 
 % provenance : where does the pointer come from
 % C like memory model, explain why! (ptr + 5) and later (ptr + 5) objects might not be the same
 
 \begin{lemma}[$\mmlA$ is not spatially memory safe]
-  It does not hold that for any $\mmlA$ program $\src{p}$, it robustly satisfies \Cref{def:spatmemsafe}:
-
+  There is an $\mmlA$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
   $\rsat{\src{p}}{\src{smsafe}}$
 \end{lemma}
-\begin{proof}
+\begin{proof} %TODO: counterexample must be a component, not a program
   Pick the program $\src{prog\ let\ x:=new\ 42\ in\ let \_ = x[1337]\ in\ delete\ x}$ and run it using the initial configuration $\src{\Omega_{0}}$.
   The program generates a trace prefix $\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{Dealloc\ \loc}$.
   But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$

@@ -54,6 +54,11 @@
 
 \begin{document}
 
+\tableofcontents
+\clearpage
+
+\section{Preliminaries}
+
 \begin{definition}[Events]\label{def:events}
   $\events$ is the set of atomic propositions hereby called events or actions.
   The internal action is $\emptyevent$.
@@ -176,6 +181,8 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 \begin{definition}[Compilers]
   A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
 \end{definition}
+
+\section{Compositionality of Secure Compilers}
 
 \begin{definition}[Robust Trace-Hyperproperty Preservation]\label{def:rtp}
   For a given class $\cC$, a compiler from languages $\S$ to $\T$ robustly preserves $\cC$ iff
@@ -559,6 +566,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \clearpage
 
+\section{Case Study}
+
 \myfig{
 	\vspace{-1em}
   \begin{gather*}
@@ -683,7 +692,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typerule{$t-\src{delete}$}{
     \src{\noptr{\Gamma_1}} & \src{\noptr{\Gamma_2}}
   }{
-    \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{()}
+    \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{\nat}
   }{w-t-delete}
   %
   \end{center}
@@ -773,26 +782,26 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 %  \judgbox{\typechecks{\Gamma}{C}{\tau_C}{\Gamma'}}{,,Under environment $\Gammas$, the context $\src{C}$ has type $\src{\tau_{C}}$ and yields environment $\src{\Gamma'}$.''}
 
   \begin{center}
-  \typerule{$t-ctx$}{
+  \typerule{$t-\text{ctx}$}{
     \typechecks{}{e_1}{\nat}&
     \typechecks{y:\nat}{e_2}{\nat}
 	}{
   \typechecks{}{context\ e_1\ e_2}{\nat\to\nat}
 	}{w-t-ctx}
   %
-  \typerule{$t-comp$}{
+  \typerule{$t-\text{comp}$}{
     \typechecks{x:\nat}{e}{\nat}&
 	}{
   \typechecks{}{comp\ e}{\nat}
 	}{w-t-comp}
   %
-  \typerule{$t-wprog$}{
+  \typerule{$t-\text{wprog}$}{
     \typechecks{\Gamma}{e}{\nat}
 	}{
   \typechecks{}{prog\ e}{\nat}
 	}{w-t-prog}
   %
-  \typerule{$t-prog$}{
+  \typerule{$t-\text{prog}$}{
     \typechecks{}{\Delta}{\Gamma}&
     \typechecks{\Gamma}{e}{\nat}
 	}{
@@ -803,18 +812,18 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \typerule{$Tempty\Delta$}{
+    \typerule{$T\text{empty}\Delta$}{
     }{
     \typechecks{}{\hole{\cdot}}{\hole{\cdot}}
     }{t-empty-store}
     %
-    \typerule{$Tref\nat$}{
+    \typerule{$T\text{ref}\nat$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
     \typechecks{}{x\mapsto\loc^\poisonless,\Delta}{x:\ptr,\Gamma}
     }{t-ptr-store}
     %
-    \typerule{$Tref\nat poison$}{
+    \typerule{$T\text{ref}\nat\text{poison}$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
     \typechecks{}{x\mapsto\loc^\poisoned,\Delta}{\Gamma}
@@ -824,7 +833,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    $$\src{context\ e_0\ e_1}\hole{\src{component\ e_p}} = \src{prog\ (let\ y:=let\ x:=e_0\ in\ e_p\ in\ e_1)}$$
+    $$\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ (let\ y:=let\ x:=e_0\ in\ e_p\ in\ e_1)}$$
   \end{center}
 }{w-plugging}{$\mmlA$ plugging of contexts and components.}
 
@@ -846,13 +855,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
 
 \myfig{
-  \judgbox{\exprevals{\configs}{K[e]}{\configs'}{K[e']}{a}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{a}$.''}
+  \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{a}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{a}$.''}
   \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{a}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting event $\src{a}$.''}
   %
-  \typerule{$e-ctx$}{
+  \typerule{$e-\text{ctx}$}{
     \exprevals{\configs}{e}{\configs'}{e'}{a}
   }{
-    \exprevals{\configs}{K[e]}{\configs'}{K[e']}{a}
+    \execs[]{\configs}{K[e]}{\configs'}{K[e']}{a}
   }{w-e-ectx}
   %
   \typerule{$e-\src{\oplus}$}{
@@ -932,20 +941,30 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \judgbox{\execs{\configs}{e}{\configs'}{e'}{As}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting list of events $\src{\bar{a}}$.''}
+    \judgbox{\execs{\configs}{e}{\configs'}{e'}{\bar{a}}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting list of events $\src{\bar{a}}$.''}
     %
-    \typerule{$e-refl$}{
+    \typerule{$e-\text{refl}$}{
     }{
       \execs{\configs}{e}{\configs}{e}{\hole{\cdot}}
     }{w-e-trans}
-    \typerule{$e-trans$}{
-      \exprevals{\configs}{e}{\configs'}{e'}{a}&
+    \typerule{$e-\text{trans}$}{
+      \execs[]{\configs}{e}{\configs'}{e'}{a}&
       \execs{\configs'}{e'}{\configs''}{e''}{\bar{a}}&
     }{
       \execs{\configs}{e}{\configs''}{e''}{a \cdot \bar{a}}
     }{w-e-trans}
   \end{center}
 }{w-steps}{Trace prefix generation given a $\mmlA$ program using the reflexive-transitive closure.}
+
+\myfig{
+  \begin{center}
+  \typerule{$e-\text{wprog}$}{
+    \execs{\hole{\cdot};\hole{\cdot}}{e}{\configs}{v}{\bar{a}}
+  }{
+  \wexecs{prog\ e}{v}{\bar{a}}
+  }{w-e-prog}
+  \end{center}
+}{wprog-run}{Running a whole $\mmlA$ program.}
 
 \myfig{
   \begin{gather*}
@@ -1124,7 +1143,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\src{tmsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
+  We define the property $\src{smsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
   \begin{itemize}
     \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Read\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
     \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Write\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
@@ -1135,17 +1154,94 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 % C like memory model, explain why! (ptr + 5) and later (ptr + 5) objects might not be the same
 
 \begin{lemma}[$\mmlA$ is not spatially memory safe]
-  There is an $\mmlA$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
+  There is a well-typed $\mmlA$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
   $\rsat{\src{p}}{\src{smsafe}}$
 \end{lemma}
-\begin{proof} %TODO: counterexample must be a component, not a program
-  Pick the program $\src{prog\ let\ x:=new\ 42\ in\ let \_ = x[1337]\ in\ delete\ x}$ and run it using the initial configuration $\src{\Omega_{0}}$.
-  The program generates a trace prefix $\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{Dealloc\ \loc}$.
-  But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$
+\begin{proof}
+  Pick the component $\src{comp\ let\ z:=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
+  It typechecks.\\[0.3cm]
+  Now pick $\src{context\ }(\src{42})\ (\src{y})$.\\[0.3cm]
+  Plugging yields \\$\src{prog}\ (\src{let\ y=let\ x=42\ in\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w\ in\ y})$.\\[0.3cm]
+  Running the whole program yields trace prefix\\$\src{\trace}=\src{\emptyevent}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{\emptyevent}\cdot\src{Dealloc\ \loc}\cdot\src{\emptyevent}\cdot\src{\emptyevent}$.\\[0.3cm]
+  \Cref{def:spatmemsafe} requires $\src{Alloc\ \loc\ 42}\in\src{\trace}$ and $\src{Read\ \loc\ 1337}$, which hold.\\[0.3cm]
+  But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$.
 \end{proof}
 
-\begin{lemma}[$\alpha$-conv. Typing]
-  Given $\src{\Gamma},\src{e},$ and $\src{\tau}$,
+\begin{lemma}[Authentic Weaken]
+  If
+  \begin{assumptions}
+    \item $\traceagree[\delta_0]{\src{\trace}}{\trace}$
+    \item $\delta_0\subseteq\delta_1$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\traceagree[\delta_1]{\src{\trace}}{\trace}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\traceagree[\delta_0]{\src{\trace}}{\trace}$.
+\end{proof}
+
+\begin{lemma}[Monitor Step Subset]\label{lem:monitor-step-subset}
+  If
+  \begin{assumptions}
+    \item $\monitorcheck[]{T}{T'}{a}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $T\subseteq_2 T'$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Monitor Steps Subset]\label{lem:monitor-steps-subset}
+  If
+  \begin{assumptions}
+    \item $\monitorcheck{T}{T'}{a}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $T\subseteq_2 T'$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Easy induction on $\monitorcheck{T}{T'}{a}$ using \Cref{lem:monitor-step-subset}.
+\end{proof}
+
+\begin{lemma}[Monitor Step Back No-Elem Propagation]\label{lem:monitor-step-no-elem-prop}
+  If
+  \begin{assumptions}
+    \item $\monitorcheck[]{T}{T'}{a}$
+    \item $\loc\not\in\pi_1\ T'$
+    \item $\loc\not\in\pi_2\ T'$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\loc\not\in\pi_1 T$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Monitor Steps Back No-Elem Propagation]\label{lem:monitor-steps-no-elem-prop}
+  If
+  \begin{assumptions}
+    \item $\monitorcheck{T}{T'}{a}$
+    \item $\loc\not\in\pi_1\ T'$
+    \item $\loc\not\in\pi_2\ T'$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\loc\not\in\pi_1 T$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+
+\begin{lemma}[$\alpha$-conv. Typing]\label{lem:alpha-conv-typing}
+  If
   \begin{assumptions}
     \item $\typechecks{\Gamma}{e}{\tau}$
   \end{assumptions}
@@ -1154,9 +1250,11 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \item $\typechecks{\Gamma[z:\tau'/x:\tau]}{e[z/x]}{\tau}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \begin{lemma}[Substitution]
-  Given $\src{x},\src{\tau'},\src{\Gamma_1},\src{e},\src{\tau},\src{\Gamma_2},\src{v},\src{\tau},$ and $\src{\Gamma}$,
+  If
   \begin{assumptions}
     \item $\typechecks{x:\tau',\Gamma_1}{e}{\tau}$
     \item $\typechecks{\Gamma_2}{v}{\tau'}$
@@ -1167,9 +1265,11 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \item $\typechecks{\Gamma_3}{e[v/x]}{\tau}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
-\begin{lemma}[Base/Ctx Preservation]
-  Given $\src{\Omega},\src{e},\configs,\src{\configs'},\src{e'},$ and $\src{a}$,
+\begin{lemma}[Base Preservation]\label{lem:base-preservation}
+  If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{a}$
@@ -1179,9 +1279,25 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
-\begin{lemma}[Steps Preservation]
-  Given $\src{\Omega},\src{e},\configs,\src{\configs'},\src{e'},$ and $\src{a}$,
+\begin{lemma}[Ctx Preservation]\label{lem:ctx-preservation}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\execs[]{\configs}{e}{\configs'}{e'}{a}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+  \end{goals}.
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
+  If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\execs{\configs}{e}{\configs'}{e'}{a}$
@@ -1191,9 +1307,11 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \begin{lemma}[Progress]
-  Given $\src{\Omega},\src{e},$ and $\src{v}$,
+  If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
   \end{assumptions}
@@ -1202,49 +1320,78 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \item $\src{e}=\src{v}$ or $\exists \src{\Omega'}\ \src{e'}\ \src{a}, \execs{\configs}{e}{\configs'}{e'}{a}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
-\begin{lemma}[Base/Ctx \gls{tms} via Monitor]
-  Given $\src{\Omega},\src{e},\configs,\src{e'},$ and $\src{a}$
+\begin{lemma}[Base \gls{tms} via Monitor]
+  If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{a}$
     \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists a\ \delta'$
+  Then $\exists a\ \delta'\ T',$
   \begin{goals}
     \item $\delta\subseteq\delta'$
     \item $\traceagree[\delta']{a}{\src{a}}$
-    \item $\exists T', \monitorcheck[]{T}{T'}{a}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+    \item $\monitorcheck[]{T}{T'}{a}$
+    \item $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Ctx \gls{tms} via Monitor]
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\execs[]{\configs}{e}{\configs'}{e'}{a}$
+    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+  \end{assumptions}
+  Then $\exists a\ \delta'\ T',$
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\traceagree[\delta']{a}{\src{a}}$
+    \item $\monitorcheck[]{T}{T'}{a}$
+    \item $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+  \end{goals}.
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \begin{lemma}[Steps \gls{tms} via Monitor]
-  Given $\src{\Omega},\src{e},\configs,\src{e'},$ and $\src{a}$
+  If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\execs{\configs}{e}{\configs'}{e'}{a}$
     \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists a, \delta',$
+  Then $\exists a \delta' T',$
   \begin{goals}
     \item $\delta\subseteq\delta'$
     \item $\traceagree[\delta']{a}{\src{a}}$
-    \item $\exists T', \monitorcheck{T}{T'}{a}$ and $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+    \item $\monitorcheck{T}{T'}{a}$
+    \item $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \begin{lemma}[$\mmlA$ is \gls{tms} via Monitor]
-  Given $\src{e},\src{\bar{a}},\src{v},$ and $\src{\configs}$
+  If
   \begin{assumptions}
   \item $\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e}{\nat}$
   \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\configs}{v}{\bar{a}}$
   \end{assumptions}
-  Then $\exists \bar{a}, \delta,$
+  Then $\exists \bar{a} \delta T,$
   \begin{goals}
     \item $\traceagree{\bar{a}}{\src{\bar{a}}}$
-    \item $\exists T,\monitorcheck{\emptyset}{T}{\bar{a}}$ and $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+    \item $\monitorcheck{\emptyset}{T}{\bar{a}}$
+    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \clearpage
 

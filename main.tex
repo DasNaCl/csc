@@ -970,9 +970,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
     \begin{aligned}
       \mi{Abstract\ References}~L :=& \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~T \subseteq L \\
+      \mi{Abstract\ Store}~T \subseteq L\times L \\
       \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
-      \mi{References\ Agreement}~\delta :& \src{L}\to L
+      \mi{References\ Agreement}~\delta :& \src{L}\to L \\[0.6cm]
+      T\subseteq_2 T' &\text{ iff } \pi_2 T \subseteq \pi_2 T'
     \end{aligned}
   \end{gather*}
 }{tms-monitor}{\gls{tms} Monitor.}
@@ -985,21 +986,24 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{tms-empty}
     %
     \typerule{TMS-Use}{
-      \loc\in T
+      \loc\in \pi_1 T &
+      \loc\not\in \pi_2 T &
     }{
     \monitorcheck[]{T}{T}{\text{Use}\ \loc}
     }{tms-use}
     %
     \typerule{TMS-Alloc}{
-      T'=T\cup\left\{\loc\right\}&
-      \loc\not\in T
+      T'=\left(\pi_1 T\cup\left\{\loc\right\}, \pi_2 T\right)&
+      \loc\not\in \pi_1 T&
+      \loc\not\in \pi_2 T&
     }{
     \monitorcheck[]{T}{T'}{\text{Alloc}\ \loc}
     }{tms-alloc}
     %
     \typerule{TMS-Dealloc}{
-      \loc\in T &
-      T'=T\setminus\left\{\loc\right\}
+      \loc\in \pi_1 T &
+      \loc\not\in \pi_2 T &
+      T'=\left(\pi_1 T\setminus\left\{\loc\right\},\pi_2 T\right)
     }{
     \monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}
     }{tms-dealloc}
@@ -1339,6 +1343,50 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
+  Induction on $\exprevals{\configs}{e}{\configs'}{e'}{a}$.
+\paragraph{$\src{e}=\src{free\ x}$:}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
+    \item\label{asm:basetmsmonitor:storeagree} $\storeagree{T}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
+  \end{assumptions}
+  Then $\exists a\ \delta'\ T',$
+  \begin{goals}
+    \item\label{goal:basetmsmonitor:subseteq} $\delta\subseteq\delta'$
+    \item\label{goal:basetmsmonitor:traceagree} $\traceagree[\delta']{a}{\src{Dealloc\ \loc}}$
+    \item $\monitorcheck[]{T}{T'}{a}$
+    \item $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \end{goals}.
+
+  Choose $a=\text{Dealloc\ }\loc$ and $\delta'=\delta$.
+
+  \Cref{goal:basetmsmonitor:subseteq}, $\delta\subseteq\delta$, follows trivially.
+
+  For $\traceagree{\text{Dealloc}\ \loc}{\src{Dealloc\ \loc}}$ (\Cref{goal:basetmsmonitor:traceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
+
+  The inversion yields two cases:
+  \subparagraph{\Cref{tr:store-cons-agree}:}
+  If
+  \begin{assumptions}
+  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item $\storeagree{T_1}{\Delta_1}$
+  \item $\delta(\src{\loc})=\loc$
+  \item $\storeagree{T_2}{\Delta_2}$
+  \item $T=T_1\cup\left\{\loc\right\}\cup T_2$
+  \end{assumptions}
+  then $\exists T'$,
+  \begin{goals}
+    \item\label{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$
+    \item\label{goal:basetmsmonitor:storeagree1} $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \end{goals}.
+
+  Choose $T'=T_1\cup T_2$.
+
+  \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
+
+  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
+
+  \subparagraph{\Cref{tr:store-ignore-agree}:} TODO
 \end{incompleteproof}
 
 \begin{lemma}[Ctx \gls{tms} via Monitor]

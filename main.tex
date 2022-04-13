@@ -1348,12 +1348,12 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
-    \item\label{asm:basetmsmonitor:storeagree} $\storeagree{T}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
+    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagree{T}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
   \end{assumptions}
   Then $\exists a\ \delta'\ T',$
   \begin{goals}
-    \item\label{goal:basetmsmonitor:subseteq} $\delta\subseteq\delta'$
-    \item\label{goal:basetmsmonitor:traceagree} $\traceagree[\delta']{a}{\src{Dealloc\ \loc}}$
+    \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta\subseteq\delta'$
+    \item\label[goal]{goal:basetmsmonitor:traceagree} $\traceagree[\delta']{a}{\src{Dealloc\ \loc}}$
     \item $\monitorcheck[]{T}{T'}{a}$
     \item $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
@@ -1369,15 +1369,15 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
   \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
-  \item $\storeagree{T_1}{\Delta_1}$
+  \item $\storeagree{T_1}{\src{\Delta_1}}$
   \item $\delta(\src{\loc})=\loc$
-  \item $\storeagree{T_2}{\Delta_2}$
+\item $\storeagree{T_2}{\src{\Delta_2}}$
   \item $T=T_1\cup\left\{\loc\right\}\cup T_2$
   \end{assumptions}
   then $\exists T'$,
   \begin{goals}
-    \item\label{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$
-    \item\label{goal:basetmsmonitor:storeagree1} $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $T'=T_1\cup T_2$.
@@ -1386,7 +1386,30 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
   \Cref{goal:basetmsmonitor:storeagree1}, $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
 
-  \subparagraph{\Cref{tr:store-ignore-agree}:} TODO
+  \subparagraph{\Cref{tr:store-ignore-agree}:}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item $\storeagree{T_1}{\src{\Delta_1}}$
+  \item $\delta(\src{\loc})=\loc$
+  \item $\storeagree{T_2}{\src{\Delta_2}}$
+  \item $T=T_1\cup T_2$
+  \end{assumptions}
+  then $\exists T'$,
+  \begin{goals}
+  \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \end{goals}.
+
+  Invert \Cref{asm:basetmsmonitor:typing} to get
+  \begin{assumptions}
+  \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{\Gammas}$
+  \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{free\ x}{\nat}$
+  \end{assumptions}.
+
+Due to \Cref{asm:basetmsmonitor:storechecks}, we know $\src{x:\ptr}\not\in\Gammas$.
+
+But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \end{incompleteproof}
 
 \begin{lemma}[Ctx \gls{tms} via Monitor]

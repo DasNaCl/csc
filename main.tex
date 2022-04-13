@@ -970,10 +970,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
     \begin{aligned}
       \mi{Abstract\ References}~L :=& \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~T \subseteq L\times L \\
+      \mi{Abstract\ Store}~T :=\{A : L, F : L\} \\
       \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
       \mi{References\ Agreement}~\delta :& \src{L}\to L \\[0.6cm]
-      T\subseteq_2 T' &\text{ iff } \pi_2 T \subseteq \pi_2 T'
+      T\subseteq_F T' &\text{ iff } T.F \subseteq T'.F\\
+      a\not\in T' &\text{ iff } a \not\in {T'.A} \wedge a \not\in {T'.F}\\
+      \{\loc\}\cup T &:= \{A : \{\loc\}\cup T.A, F : T.F\}\\
     \end{aligned}
   \end{gather*}
 }{tms-monitor}{\gls{tms} Monitor.}
@@ -986,24 +988,23 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{tms-empty}
     %
     \typerule{TMS-Use}{
-      \loc\in \pi_1 T &
-      \loc\not\in \pi_2 T &
+      \loc\in T.A &
+      \loc\not\in T.F &
     }{
     \monitorcheck[]{T}{T}{\text{Use}\ \loc}
     }{tms-use}
     %
     \typerule{TMS-Alloc}{
-      T'=\left(\pi_1 T\cup\left\{\loc\right\}, \pi_2 T\right)&
-      \loc\not\in \pi_1 T&
-      \loc\not\in \pi_2 T&
+      T'=\left\{A:T.A\cup\left\{\loc\right\}, F:T.F\right\}&
+      \loc\not\in T&
     }{
     \monitorcheck[]{T}{T'}{\text{Alloc}\ \loc}
     }{tms-alloc}
     %
     \typerule{TMS-Dealloc}{
-      \loc\in \pi_1 T &
-      \loc\not\in \pi_2 T &
-      T'=\left(\pi_1 T\setminus\left\{\loc\right\},\pi_2 T\right)
+      \loc\in T.A &
+      \loc\not\in T.F &
+      T'=\left\{A:T.A\setminus\left\{\loc\right\},F: T.F\right\}
     }{
     \monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}
     }{tms-dealloc}
@@ -1193,7 +1194,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{assumptions}
   Then
   \begin{goals}
-    \item $T\subseteq_2 T'$
+    \item $T\subseteq_F T'$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -1206,7 +1207,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{assumptions}
   Then
   \begin{goals}
-    \item $T\subseteq_2 T'$
+    \item $T\subseteq_F T'$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -1217,12 +1218,12 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
     \item $\monitorcheck[]{T}{T'}{a}$
-    \item $\loc\not\in\pi_1\ T'$
-    \item $\loc\not\in\pi_2\ T'$
+    \item $\loc\not\in T'.A$
+    \item $\loc\not\in T'.F$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\loc\not\in\pi_1 T$
+    \item $\loc\not\in T.A$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -1232,12 +1233,12 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
     \item $\monitorcheck{T}{T'}{a}$
-    \item $\loc\not\in\pi_1\ T'$
-    \item $\loc\not\in\pi_2\ T'$
+    \item $\loc\not\in T'.A$
+    \item $\loc\not\in T'.F$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\loc\not\in\pi_1 T$
+    \item $\loc\not\in T.A$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -1344,7 +1345,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \end{lemma}
 \begin{incompleteproof}
   Induction on $\exprevals{\configs}{e}{\configs'}{e'}{a}$.
-\paragraph{$\src{e}=\src{free\ x}$:}
+  \begin{description}
+\item[$\src{e}=\src{free\ x}$:]
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
@@ -1365,7 +1367,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   For $\traceagree{\text{Dealloc}\ \loc}{\src{Dealloc\ \loc}}$ (\Cref{goal:basetmsmonitor:traceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
 
   The inversion yields two cases:
-  \subparagraph{\Cref{tr:store-cons-agree}:}
+  \begin{description}
+\item[\Cref{tr:store-cons-agree}:]
   If
   \begin{assumptions}
   \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
@@ -1386,7 +1389,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
   \Cref{goal:basetmsmonitor:storeagree1}, $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
 
-  \subparagraph{\Cref{tr:store-ignore-agree}:}
+\item[\Cref{tr:store-ignore-agree}:]
   If
   \begin{assumptions}
   \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
@@ -1410,6 +1413,9 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 Due to \Cref{asm:basetmsmonitor:storechecks}, we know $\src{x:\ptr}\not\in\Gammas$.
 
 But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
+\end{description}
+
+\end{description}
 \end{incompleteproof}
 
 \begin{lemma}[Ctx \gls{tms} via Monitor]

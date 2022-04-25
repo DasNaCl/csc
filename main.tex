@@ -593,10 +593,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
-  \mi{State}\ \configs \bnfdef\ \config{H}{\Delta} \\
+  \mi{State}\ \configs \bnfdef\ \sconfig{H}{\Delta} \\
   \end{aligned}
   \end{gather*}
-}{while-syntax}{Syntax of $\mmlA$}
+}{mmla-syntax}{Syntax of $\mmlA$}
 
 \begin{definition}[NoPtr]
   We write $\src{\noptr{\Gamma}}$ if for any $\src{x}, \src{\tau}$, if $\src{x} : \src{\tau}\in\src{\Gamma}$, then $\taus\not=\ptr$.
@@ -874,28 +874,28 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \src{\loc}\in\text{dom }\src{H}\implies\src{v}=\src{H}(\src{\loc+n}) &
     \src{\loc}\not\in\text{dom }\src{H}\implies\src{v}=\src{1729}
   }{
-    \exprevals{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
   }{w-e-get}
   %
   \typerule{$e-\src{set}$}{
     \src{H'} = \src{H}(\src{\loc+n}\mapsto \src{v})
   }{
-    \exprevals{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\config{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\sconfig{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{w-e-set}
   %
   \typerule{$e-\src{let}-\src{x}$}{
   }{
-    \exprevals{\config{H}{\Delta}}{let\ x:=y\ in\ e}{\config{H}{\Delta}}{e[y/x]}{\emptyevent}
+    \exprevals{\sconfig{H}{\Delta}}{let\ x:=y\ in\ e}{\sconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
   }{w-e-let-x}
   %
   \typerule{$e-\src{let}-\src{v}$}{
   }{
-    \exprevals{\config{H}{\Delta}}{let\ x:=v\ in\ e}{\config{H}{\Delta}}{e[v/x]}{\emptyevent}
+    \exprevals{\sconfig{H}{\Delta}}{let\ x:=v\ in\ e}{\sconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
   }{w-e-let-v}
   %
   \typerule{$e-\src{delete}$}{
   }{
-    \exprevals{\config{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\config{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\sconfig{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
   }{w-e-let-new}
   %
   \typerule{$e-\src{new}$}{
@@ -903,7 +903,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \text{fresh}\ \src{z} &
     \src{H'} = \src{H} \ll \src{n} &
   }{
-  \exprevals{\config{H}{\Delta}}{let\ x=new\ n\ in\ e}{\config{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
 }{w-expr-eval}{Evaluation of $\mmlA$ expressions.}
@@ -1473,6 +1473,107 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \end{incompleteproof}
 
 \clearpage
+%%%%
+%% TARGET
+
+\myfig{
+	\vspace{-1em}
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x := e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
+    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x}
+  \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times}\}\\
+  %
+  \mi{Values}~\trg{v} \bnfdef&\ \trg{n}\in\trg{\nat} \hspace{0.5cm}
+  \mi{References}~\trg{\loc}\in\trg{\nat} \\
+  %
+  \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \dots \hspace{0.5cm}
+  %
+  \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
+  %
+  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc^\poison},\Deltat\\
+  %
+  \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
+  %
+  \mi{State}\ \configt \bnfdef\ \tconfig{H}{\Delta} \\
+  \end{aligned}
+  \end{gather*}
+}{mmlat-syntax}{Syntax of $\mmlAt$}
+
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
+      \trg{let\ x:=K\ in\ e}\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x:=new\ K\ in\ e}
+    \end{aligned}
+  \end{gather*}
+}{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
+
+\myfig{
+  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$, it evaluates under\\configuration $\configt$ to $\trg{e'}$ and new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{a}$.''}
+  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{a}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and new configuration $\trg{\configt'}$,\\emitting event $\trg{a}$.''}
+  %
+  \typerule{$e-\text{ctx}$}{
+    \exprevalt{\configt}{e}{\configt'}{e'}{a}
+  }{
+    \exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}
+  }{tw-e-ectx}
+  %
+  \typerule{$e-\trg{\oplus}$}{
+    \trg{n_1}+\trg{n_2}=\trg{n_3}
+  }{
+    \exprevalt{\configt}{n_1+n_2}{\configt}{n_3}{\emptyevent}
+  }{tw-e-oplus}
+  % TODO
+  \typerule{$e-\trg{get}$}{
+    \trg{\loc}\in\text{dom }\trg{H}\implies\trg{v}=\trg{H}(\trg{\loc+n}) &
+    \trg{\loc}\not\in\text{dom }\trg{H}\implies\trg{v}=\trg{1729}
+  }{
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
+  }{tw-e-get}
+  %
+  \typerule{$e-\trg{set}$}{
+    \trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})
+  }{
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\tconfig{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
+  }{tw-e-set}
+  %
+  \typerule{$e-\trg{let}-\trg{x}$}{
+  }{
+    \exprevalt{\tconfig{H}{\Delta}}{let\ x:=y\ in\ e}{\tconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
+  }{tw-e-let-x}
+  %
+  \typerule{$e-\trg{let}-\trg{v}$}{
+  }{
+    \exprevalt{\tconfig{H}{\Delta}}{let\ x:=v\ in\ e}{\tconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
+  }{tw-e-let-v}
+  %
+  \typerule{$e-\trg{delete}$}{
+  }{
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\tconfig{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
+  }{tw-e-let-new}
+  %
+  \typerule{$e-\trg{new}$}{
+    \text{fresh}\ \trg{\loc}&
+    \text{fresh}\ \trg{z} &
+    \trg{H'} = \trg{H} \ll \trg{n} &
+  }{
+  \exprevalt{\tconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\tconfig{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
+  }{tw-e-let-new}
+  %
+}{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
+
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ References}~L :=& \nat \hspace{0.5cm}
+      \mi{Abstract\ Store}~T :=\{A : L, F : L\} \\
+      \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
+      \mi{References\ Agreement}~\delta :& \trg{L}\to L \\[0.6cm]
+    \end{aligned}
+  \end{gather*}
+}{sms-monitor}{\gls{sms} Monitor.}
+
 
 \bibliographystyle{plain}
 \bibliography{library}

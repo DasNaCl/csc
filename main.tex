@@ -969,13 +969,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ References}~L :=& \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~T :=\{A : L, F : L\} \\
+      \mi{Abstract\ References}~L \subseteq& \nat \hspace{0.5cm}
+      \mi{Abstract\ Store}~\tmsmonitor :=\{A : L, F : L\} \\
       \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
-      \mi{References\ Agreement}~\delta :& \src{L}\to L \\[0.6cm]
-      T\subseteq_F T' &\text{ iff } T.F \subseteq T'.F\\
-      a\not\in T' &\text{ iff } a \not\in {T'.A} \wedge a \not\in {T'.F}\\
-      \{\loc\}\cup T &:= \{A : \{\loc\}\cup T.A, F : T.F\}\\
+      \mi{References\ Agreement}~\delta_{\text{tms}} :& \src{L}\to L \\[0.6cm]
+      \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
+      a\not\in \tmsmonitor['] &\text{ iff } a \not\in {\tmsmonitor['.A]} \wedge a \not\in {\tmsmonitor['.F]}\\
+      \{\loc\}\cup \tmsmonitor∃ &:= \{A : \{\loc\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
     \end{aligned}
   \end{gather*}
 }{tms-monitor}{\gls{tms} Monitor.}
@@ -984,41 +984,41 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     \typerule{TMS-Empty}{
     }{
-    \monitorcheck[]{\emptyset}{\emptyset}{\varepsilon}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\varepsilon}
     }{tms-empty}
     %
     \typerule{TMS-Use}{
-      \loc\in T.A &
-      \loc\not\in T.F &
+      \loc\in \tmsmonitor[.A] &
+      \loc\not\in \tmsmonitor[.F] &
     }{
-    \monitorcheck[]{T}{T}{\text{Use}\ \loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\text{Use}\ \loc}
     }{tms-use}
     %
     \typerule{TMS-Alloc}{
-      T'=\left\{A:T.A\cup\left\{\loc\right\}, F:T.F\right\}&
-      \loc\not\in T&
+      \tmsmonitor[']=\left\{A:\tmsmonitor[.A]\cup\left\{\loc\right\}, F:\tmsmonitor[.F]\right\}&
+      \loc\not\in \tmsmonitor&
     }{
-    \monitorcheck[]{T}{T'}{\text{Alloc}\ \loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Alloc}\ \loc}
     }{tms-alloc}
     %
     \typerule{TMS-Dealloc}{
-      \loc\in T.A &
-      \loc\not\in T.F &
-      T'=\left\{A:T.A\setminus\left\{\loc\right\},F: T.F\right\}
+      \loc\in \tmsmonitor[.A] &
+      \loc\not\in \tmsmonitor[.F] &
+      \tmsmonitor[']=\left\{A:\tmsmonitor[.A]\setminus\left\{\loc\right\},F: \tmsmonitor[.F]\right\}
     }{
-    \monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}
     }{tms-dealloc}
     %
     \typerule{TMS-Refl}{
     }{
-    \monitorcheck{T}{T}{\hole{\cdot}}
+    \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}}
     }{tms-refl}
     %
     \typerule{TMS-Trans}{
-    \monitorcheck[]{T}{T'}{a}&
-    \monitorcheck{T'}{T''}{\bar{a}}&
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}&
+    \monitorcheck{\tmsmonitor[']}{\tmsmonitor['']}{\bar{a}}&
     }{
-    \monitorcheck{T}{T''}{a\cdot\bar{a}}
+    \monitorcheck{\tmsmonitor}{\tmsmonitor['']}{a\cdot\bar{a}}
     }{tms-trans}
   \end{center}
 }{tms-step}{Steps of \gls{tms} Monitor.}
@@ -1026,40 +1026,40 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \typerule{Alloc-Authentic}{
-      \delta(\src{\loc})=\loc
+    \typerule{TMS-Alloc-Authentic}{
+      \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-      \traceagree{\src{Alloc\ \loc\ n}}{\text{Alloc}\ \loc}
+      \tmstraceagree{\src{Alloc\ \loc\ n}}{\text{Alloc}\ \loc}
     }{tms-alloc-auth}
     %
-    \typerule{Dealloc-Authentic}{
-      \delta(\src{\loc})=\loc
+    \typerule{TMS-Dealloc-Authentic}{
+      \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-    \traceagree{\src{Dealloc\ \loc\ n}}{\text{Dealloc}\ \loc}
+    \tmstraceagree{\src{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
     }{tms-dealloc-auth}
     %
-    \typerule{Get-Authentic}{
-      \delta(\src{\loc})=\loc
+    \typerule{TMS-Get-Authentic}{
+      \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-    \traceagree{\src{Get\ \loc\ n}}{\text{Use}\ \loc}
+    \tmstraceagree{\src{Get\ \loc\ n}}{\text{Use}\ \loc}
     }{tms-get-auth}
     %
-    \typerule{Set-Authentic}{
-      \delta(\src{\loc})=\loc
+    \typerule{TMS-Set-Authentic}{
+      \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-      \traceagree{\src{Set\ \loc\ n\ v}}{\text{Use}\ \loc}
+      \tmstraceagree{\src{Set\ \loc\ n\ v}}{\text{Use}\ \loc}
     }{tms-set-auth}
     %
-    \typerule{Refl-Authentic}{
+    \typerule{TMS-Refl-Authentic}{
     }{
-    \traceagree{\src{\hole{\cdot}}}{\hole{\cdot}}
+    \tmstraceagree{\src{\hole{\cdot}}}{\hole{\cdot}}
     }{tms-refl-auth}
     %
-    \typerule{Trans-Authentic}{
-      \traceagree{\src{a}}{a} &
-      \traceagree{\src{\bar{a}}}{\bar{a}}
+    \typerule{TMS-Trans-Authentic}{
+      \tmstraceagree{\src{a}}{a} &
+      \tmstraceagree{\src{\bar{a}}}{\bar{a}}
     }{
-      \traceagree{\src{a}\cdot\src{\bar{a}}}{a\cdot\bar{a}}
+      \tmstraceagree{\src{a}\cdot\src{\bar{a}}}{a\cdot\bar{a}}
     }{tms-trans-auth}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
@@ -1072,17 +1072,17 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{store-empty-agree}
     %
     \typerule{Cons-Agree}{
-      \delta\left(\src{\loc}\right)=\loc&
-      \storeagree{T}{\src{\Delta}}
+      \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
+      \storeagree{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagree{\left\{\loc\right\}\cup T}{\src{x\mapsto\loc^\poisonless,\Delta}}
+      \storeagree{\left\{\loc\right\}\cup \tmsmonitor}{\src{x\mapsto\loc^\poisonless,\Delta}}
     }{store-cons-agree}
     %
     \typerule{Ignore-Agree}{
-      \delta\left(\src{\loc}\right)=\loc&
-      \storeagree{T}{\src{\Delta}}
+      \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
+      \storeagree{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagree{T}{\src{x\mapsto\loc^\poisoned,\Delta}}
+      \storeagree{\tmsmonitor}{\src{x\mapsto\loc^\poisoned,\Delta}}
     }{store-ignore-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
@@ -1175,26 +1175,26 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Authentic Weaken]
   If
   \begin{assumptions}
-    \item $\traceagree[\delta_0]{\src{\trace}}{\trace}$
-    \item $\delta_0\subseteq\delta_1$
+    \item $\tmstraceagree[\delta_0]{\src{\trace}}{\trace}$
+    \item $\delta_{\text{tms}}_0\subseteq\delta_{\text{tms}}_1$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\traceagree[\delta_1]{\src{\trace}}{\trace}$
+    \item $\tmstraceagree[\delta_1]{\src{\trace}}{\trace}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on $\traceagree[\delta_0]{\src{\trace}}{\trace}$.
+  Induction on $\tmstraceagree[\delta_0]{\src{\trace}}{\trace}$.
 \end{proof}
 
 \begin{lemma}[Monitor Step Subset]\label{lem:monitor-step-subset}
   If
   \begin{assumptions}
-    \item $\monitorcheck[]{T}{T'}{a}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $T\subseteq_F T'$
+    \item $\tmsmonitor\subseteq_F \tmsmonitor[']$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -1203,27 +1203,27 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Monitor Steps Subset]\label{lem:monitor-steps-subset}
   If
   \begin{assumptions}
-    \item $\monitorcheck{T}{T'}{a}$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $T\subseteq_F T'$
+    \item $\tmsmonitor\subseteq_F \tmsmonitor[']$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy induction on $\monitorcheck{T}{T'}{a}$ using \Cref{lem:monitor-step-subset}.
+  Easy induction on $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$ using \Cref{lem:monitor-step-subset}.
 \end{proof}
 
 \begin{lemma}[Monitor Step Back No-Elem Propagation]\label{lem:monitor-step-no-elem-prop}
   If
   \begin{assumptions}
-    \item $\monitorcheck[]{T}{T'}{a}$
-    \item $\loc\not\in T'.A$
-    \item $\loc\not\in T'.F$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\loc\not\in \tmsmonitor['].A$
+    \item $\loc\not\in \tmsmonitor['].F$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\loc\not\in T.A$
+    \item $\loc\not\in \tmsmonitor[.A]$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -1232,13 +1232,13 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Monitor Steps Back No-Elem Propagation]\label{lem:monitor-steps-no-elem-prop}
   If
   \begin{assumptions}
-    \item $\monitorcheck{T}{T'}{a}$
-    \item $\loc\not\in T'.A$
-    \item $\loc\not\in T'.F$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\loc\not\in \tmsmonitor['.A]$
+    \item $\loc\not\in \tmsmonitor['.F]$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\loc\not\in T.A$
+    \item $\loc\not\in \tmsmonitor[.A]$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -1333,14 +1333,14 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{a}$
-    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists a\ \delta'\ T',$
+  Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
-    \item $\delta\subseteq\delta'$
-    \item $\traceagree[\delta']{a}{\src{a}}$
-    \item $\monitorcheck[]{T}{T'}{a}$
-    \item $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+    \item $\tmstraceagree[\delta']{a}{\src{a}}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1350,21 +1350,21 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
-    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagree{T}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
+    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagree{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
   \end{assumptions}
-  Then $\exists a\ \delta'\ T',$
+  Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
-    \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta\subseteq\delta'$
-    \item\label[goal]{goal:basetmsmonitor:traceagree} $\traceagree[\delta']{a}{\src{Dealloc\ \loc}}$
-    \item $\monitorcheck[]{T}{T'}{a}$
-    \item $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+    \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+    \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{a}{\src{Dealloc\ \loc}}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
 
-  Choose $a=\text{Dealloc\ }\loc$ and $\delta'=\delta$.
+  Choose $a=\text{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
 
-  \Cref{goal:basetmsmonitor:subseteq}, $\delta\subseteq\delta$, follows trivially.
+  \Cref{goal:basetmsmonitor:subseteq}, $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}$, follows trivially.
 
-  For $\traceagree{\text{Dealloc}\ \loc}{\src{Dealloc\ \loc}}$ (\Cref{goal:basetmsmonitor:traceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
+  For $\tmstraceagree{\text{Dealloc}\ \loc}{\src{Dealloc\ \loc}}$ (\Cref{goal:basetmsmonitor:traceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta_{\text{tms}}(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
 
   The inversion yields two cases:
   \begin{description}
@@ -1372,36 +1372,36 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
   \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
-  \item $\storeagree{T_1}{\src{\Delta_1}}$
-  \item $\delta(\src{\loc})=\loc$
-\item $\storeagree{T_2}{\src{\Delta_2}}$
-  \item $T=T_1\cup\left\{\loc\right\}\cup T_2$
+  \item $\storeagree{\tmsmonitor[_1]}{\src{\Delta_1}}$
+  \item $\delta_{\text{tms}}(\src{\loc})=\loc$
+  \item $\storeagree{\tmsmonitor[_2]}{\src{\Delta_2}}$
+  \item $\tmsmonitor=\tmsmonitor[_1]\cup\left\{\loc\right\}\cup \tmsmonitor[_2]$
   \end{assumptions}
-  then $\exists T'$,
+  then $\exists \tmsmonitor[']$,
   \begin{goals}
-  \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
 
-  Choose $T'=T_1\cup T_2$.
+  Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
 
-  \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
+  \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
 
-  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
+  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
 
 \item[\Cref{tr:store-ignore-agree}:]
   If
   \begin{assumptions}
   \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
-  \item $\storeagree{T_1}{\src{\Delta_1}}$
-  \item $\delta(\src{\loc})=\loc$
-  \item $\storeagree{T_2}{\src{\Delta_2}}$
-  \item $T=T_1\cup T_2$
+  \item $\storeagree{\tmsmonitor[_1]}{\src{\Delta_1}}$
+  \item $\delta_{\text{tms}}(\src{\loc})=\loc$
+  \item $\storeagree{\tmsmonitor[_2]}{\src{\Delta_2}}$
+  \item $\tmsmonitor=\tmsmonitor[_1]\cup \tmsmonitor[_2]$
   \end{assumptions}
-  then $\exists T'$,
+  then $\exists \tmsmonitor[']$,
   \begin{goals}
-  \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{T}{T'}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagree[\delta']{T'}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
 
   Invert \Cref{asm:basetmsmonitor:typing} to get
@@ -1423,14 +1423,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\execs[]{\configs}{e}{\configs'}{e'}{a}$
-    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists a\ \delta'\ T',$
+  Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
-    \item $\delta\subseteq\delta'$
-    \item $\traceagree[\delta']{a}{\src{a}}$
-    \item $\monitorcheck[]{T}{T'}{a}$
-    \item $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+    \item $\tmstraceagree[\delta']{a}{\src{a}}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1441,14 +1441,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\execs{\configs}{e}{\configs'}{e'}{a}$
-    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists a\ \delta'\ T',$
+  Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
-    \item $\delta\subseteq\delta'$
-    \item $\traceagree[\delta']{a}{\src{a}}$
-    \item $\monitorcheck{T}{T'}{a}$
-    \item $\storeagree[\delta']{T'}{\src{\Omega'}.\src{\Delta}}$
+    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+    \item $\tmstraceagree[\delta']{a}{\src{a}}$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1462,11 +1462,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \item $\src{prog\ p}=\src{context}\ (\src{e_1})\ (\src{e_2})\src{\linker}{\src{component\ e_p}}$
   \item $\wexecs{prog\ p}{\configs}{v}{\bar{a}}$
   \end{assumptions}
-  Then $\exists \bar{a}\ \delta\ T,$
+  Then $\exists \bar{a}\ \delta_{\text{tms}}\ \tmsmonitor,$
   \begin{goals}
-    \item $\traceagree{\bar{a}}{\src{\bar{a}}}$
-    \item $\monitorcheck{\emptyset}{T}{\bar{a}}$
-    \item $\storeagree{T}{\src{\Omega}.\src{\Delta}}$
+    \item $\tmstraceagree{\bar{a}}{\src{\bar{a}}}$
+    \item $\monitorcheck{\emptyset}{\tmsmonitor}{\bar{a}}$
+    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1566,14 +1566,99 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ References}~L :=& \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~T :=\{A : L, F : L\} \\
-      \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
-      \mi{References\ Agreement}~\delta :& \trg{L}\to L \\[0.6cm]
+      \mi{Abstract\ References}~L \subseteq&\ \nat \hspace{0.5cm}
+      \mi{Abstract\ Store}~\smsmonitor :=\ L\times\nat \\
+      \mi{Abstract\ Events}~a \bnfdef&\ \emptyevent \mid \text{Alloc}\ \loc\ n \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc\ n \\
+    \mi{References\ Agreement}~\delta_{\text{sms}} :&\ \trg{L}\to L \\[0.6cm]
     \end{aligned}
   \end{gather*}
 }{sms-monitor}{\gls{sms} Monitor.}
 
+\myfig{
+  \begin{center}
+    \typerule{sms-Empty}{
+    }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\varepsilon}
+    }{sms-empty}
+    %
+    \typerule{sms-Use}{
+      (\loc,m)\in \smsmonitor[.A]&
+      n<m&
+    }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\text{Use}\ \loc\ n}
+    }{sms-use}
+    %
+    \typerule{sms-Alloc}{
+      \forall m,(\loc,m)\not\in \smsmonitor&
+      \smsmonitor[']=\smsmonitor\cup\left\{(\loc,n)\right\}&
+    }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\text{Alloc}\ \loc\ n}
+    }{sms-alloc}
+    %
+    \typerule{sms-Dealloc}{
+      (\loc,m)\in \smsmonitor[.A] &
+      \smsmonitor[']=\smsmonitor\setminus\left\{(\loc,m)\right\}
+    }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\text{Dealloc}\ \loc}
+    }{sms-dealloc}
+    %
+    \typerule{sms-Refl}{
+    }{
+    \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
+    }{sms-refl}
+    %
+    \typerule{sms-Trans}{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{a}&
+      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\bar{a}}&
+    }{
+    \monitorcheck{\smsmonitor}{\smsmonitor['']}{a\cdot\bar{a}}
+    }{sms-trans}
+  \end{center}
+}{sms-step}{Steps of \gls{sms} Monitor.}
+
+\myfig{
+  \begin{center}
+    \typerule{SMS-Alloc-Authentic}{
+      \delta_{\text{sms}}(\trg{\loc})=\loc
+    }{
+      \smstraceagree{\trg{Alloc\ \loc\ n}}{\text{Alloc}\ \loc\ n}
+    }{sms-alloc-auth}
+    %
+    \typerule{SMS-Dealloc-Authentic}{
+      \delta_{\text{sms}}(\trg{\loc})=\loc
+    }{
+    \smstraceagree{\trg{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
+    }{sms-dealloc-auth}
+    %
+    \typerule{SMS-Get-Authentic}{
+      \delta_{\text{sms}}(\trg{\loc})=\loc
+    }{
+    \smstraceagree{\trg{Get\ \loc\ n}}{\text{Use}\ \loc\ n}
+    }{sms-get-auth}
+    %
+    \typerule{SMS-Set-Authentic}{
+      \delta_{\text{sms}}(\trg{\loc})=\loc
+    }{
+      \smstraceagree{\trg{Set\ \loc\ n\ v}}{\text{Use}\ \loc\ n}
+    }{sms-set-auth}
+    %
+    \typerule{SMS-Refl-Authentic}{
+    }{
+    \smstraceagree{\trg{\hole{\cdot}}}{\hole{\cdot}}
+    }{sms-refl-auth}
+    %
+    \typerule{SMS-Trans-Authentic}{
+      \smstraceagree{\trg{a}}{a} &
+      \smstraceagree{\trg{\bar{a}}}{\bar{a}}
+    }{
+      \smstraceagree{\trg{a}\cdot\trg{\bar{a}}}{a\cdot\bar{a}}
+    }{sms-trans-auth}
+  \end{center}
+}{sms-trace-agreement}{Trace Agreement.}
+
+
+\clearpage
+\cleardoublepage
 
 \bibliographystyle{plain}
 \bibliography{library}

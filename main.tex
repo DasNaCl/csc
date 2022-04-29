@@ -584,9 +584,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{References}~\src{\loc}&\in\src{\nat} \hspace{0.5cm}
   %
   \mi{Variables}~\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
-  \mi{Context\ Types}~\src{\tau_{C}}~\bnfdef\ \src{\nat\to\nat}\\
   %
-  \mi{Poison}~&\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
+  \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
   \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc^\poison},\Deltas\\
@@ -594,6 +593,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
   \mi{State}\ \configs \bnfdef\ \sconfig{H}{\Delta} \\
+  %
+  \mi{Contexts}\ &\src{context\ e_0\ e_1} \hspace{0.5cm}
+  \mi{Components}\ \src{component\ e_p} \\
+  \mi{Whole\ Programs}\ &\src{prog\ e_0\ e_1\ e_2}\\ %todo
   \end{aligned}
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlA$}
@@ -789,10 +792,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typechecks{}{context\ e_1\ e_2}{\nat\to\nat}
 	}{w-t-ctx}
   %
-  \typerule{$t-\text{comp}$}{
+  \typerule{$t-\text{component}$}{
     \typechecks{x:\nat}{e}{\nat}&
 	}{
-  \typechecks{}{comp\ e}{\nat}
+  \typechecks{}{component\ e}{\nat}
 	}{w-t-comp}
   %
   \typerule{$t-\text{wprog}$}{
@@ -833,7 +836,14 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    $$\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ (let\ y:=let\ x:=e_0\ in\ e_p\ in\ e_1)}$$
+    $$
+    \typerule{plugging}{
+      \typechecks{}{context\ e_0\ e_1}{\nat\to\nat} &
+      \typechecks{x:\nat}{component\ e_p}{\nat}
+    }{
+    \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ (let\ y:=let\ x:=e_0\ in\ e_p\ in\ e_1)}
+    }{src-plugging}
+    $$
   \end{center}
 }{w-plugging}{$\mmlA$ plugging of contexts and components.}
 
@@ -959,6 +969,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
   \typerule{$e-\text{wprog}$}{
+    \typechecks{\hole{\cdot}}{e}{\nat} &
     \execs{\hole{\cdot};\hole{\cdot}}{e}{\configs}{v}{\bar{a}}
   }{
   \wexecs{prog\ e}{\configs}{v}{\bar{a}}
@@ -1454,19 +1465,23 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\begin{definition}[Trace is temporal memory safe via monitor.]
+  We say $\texttt{TMS}(\src{\bar{a}})$ iff $\exists \delta\ \bar{a}\ \tmsmonitor$ such that:
+  \begin{itemize}
+    \item $\tmstraceagree{\bar{a}}{\src{\bar{a}}}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\bar{a}}$
+  \end{itemize}
+\end{definition}
+
 \begin{lemma}[$\mmlA$ is \gls{tms} via Monitor]
   If
   \begin{assumptions}
-  \item $\typechecks{}{\src{component\ e_p}}{\nat}$
-  \item $\typechecks{}{\src{context\ e_1\ e_2}}{\nat\to\nat}$
   \item $\src{prog\ p}=\src{context}\ (\src{e_1})\ (\src{e_2})\src{\linker}{\src{component\ e_p}}$
   \item $\wexecs{prog\ p}{\configs}{v}{\bar{a}}$
   \end{assumptions}
   Then $\exists \bar{a}\ \delta_{\text{tms}}\ \tmsmonitor,$
   \begin{goals}
-    \item $\tmstraceagree{\bar{a}}{\src{\bar{a}}}$
-    \item $\monitorcheck{\emptyset}{\tmsmonitor}{\bar{a}}$
-    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+  \item $\texttt{TMS}(\src{\bar{a}})$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1481,7 +1496,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{gather*}
   \begin{aligned}
   \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x := e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
-    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x}
+    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \\
+    & \mid \trg{if\ e_1 < e_2\ then\ e_3\ else\ abort()} \\
+    & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}
   \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times}\}\\
   %
   \mi{Values}~\trg{v} \bnfdef&\ \trg{n}\in\trg{\nat} \hspace{0.5cm}
@@ -1495,7 +1512,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
   %
-  \mi{State}\ \configt \bnfdef\ \tconfig{H}{\Delta} \\
+  \mi{State}\ \configt \bnfdef\ \tconfig{H}{\Delta} \mid \trg{\lightning}\\
+  %
+  \mi{Contexts}\ &\trg{context\ e_0\ e_1} \hspace{0.5cm}
+  \mi{Components}\ \trg{component\ e_p} \\
+  \mi{Whole\ Programs}\ &\trg{prog\ e_0\ e_1\ e_2}\\ %todo
   \end{aligned}
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
@@ -1504,7 +1525,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{gather*}
     \begin{aligned}
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
-      \trg{let\ x:=K\ in\ e}\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x:=new\ K\ in\ e}
+      \trg{let\ x:=K\ in\ e}\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x:=new\ K\ in\ e} \\
+                     &\mid \trg{if\ K < e_1\ then\ e_2\ else\ abort()} \mid \trg{if\ n < K\ then\ e\ else\ abort()}
+                     \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}
     \end{aligned}
   \end{gather*}
 }{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
@@ -1518,6 +1541,28 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   }{
     \exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}
   }{tw-e-ectx}
+  %
+  \typerule{$e-\trg{\pi_1}$}{
+  }{
+    \exprevalt{\configt}{\pi_1\langle n_1;n_2\rangle}{\configt}{n_1}{\emptyevent}
+  }{tw-e-proj1}
+  %
+  \typerule{$e-\trg{\pi_2}$}{
+  }{
+    \exprevalt{\configt}{\pi_2\langle n_1;n_2\rangle}{\configt}{n_2}{\emptyevent}
+  }{tw-e-proj2}
+  %
+  \typerule{$e-\trg{if}-\trg{less}$}{
+    \trg{n_1}<\trg{n_2}
+  }{
+    \exprevalt{\configt}{if\ n_1<n_2\ then\ e\ else\ abort()}{\configt}{e}{\emptyevent}
+  }{tw-e-if-less}
+  %
+  \typerule{$e-\trg{if}-\trg{panic}$}{
+    \trg{n_1}\ge\trg{n_2}
+  }{
+    \exprevalt{\configt}{if\ n_1<n_2\ then\ e\ else\ abort()}{\lightning}{stuck}{\lightning}
+  }{tw-e-if-less}
   %
   \typerule{$e-\trg{\oplus}$}{
     \trg{n_1}+\trg{n_2}=\trg{n_3}
@@ -1696,6 +1741,18 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{tms-sms-trans}
   \end{center}
 }{sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
+
+\clearpage
+
+\myfig{
+  \begin{center}
+    $$
+    \begin{array}{rcl} % there is a bug! the = disappears without \ in front of it
+    \mmlAmmlAtcomp{e} &\ = & \trg{e} 
+    \end{array}
+    $$
+  \end{center}
+}{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
 
 \clearpage
 \cleardoublepage

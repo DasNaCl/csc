@@ -571,7 +571,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x := e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
+  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
     & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
@@ -586,8 +586,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
-  \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
-  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc^\poison},\Deltas\\
+  \mi{Importance}~\ \src{q_i}~\bnfdef&\  \mid \;\src{\diamond}\hspace{0.5cm}
+  \mi{Typing. Env.}~\src{\Gamma} \bnfdef\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc^\poison_{q_i}},\Deltas\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
@@ -681,14 +682,14 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{\Gamma_1}{e_1}{\nat} &
     \typechecks{x:\nat,\Gamma_2}{e_2}{\tau}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x:=e_1\ in\ e_2}{\tau}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\tau}
   }{t-let}
   %
   \typerule{$t-\src{new}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
     \typechecks{x:\ptr,\Gamma_2}{e_2}{\nat}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x:=new\ e_1\ in\ e_2}{nat}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=new\ e_1\ in\ e_2}{nat}
   }{w-t-new}
   %
   \typerule{$t-\src{delete}$}{
@@ -731,7 +732,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       closed\ X\ \src{e_0} &
       closed\ (\{x\}\uplus X)\ \src{e_1}
     }{
-      closed\ X\ \src{let\ x:=e_0\ in\ e_1}
+      closed\ X\ \src{let\ x=e_0\ in\ e_1}
     }{c-let}
     %
     \typerule{$c-set$}{
@@ -746,7 +747,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       closed\ X\ \src{e_0} &
       closed\ (\{x\}\uplus X)\ \src{e_1}
     }{
-      closed\ X\ \src{let\ x:=new\ e_0\ in\ e_1}
+      closed\ X\ \src{let\ x=new\ e_0\ in\ e_1}
     }{c-new}
     %
     \typerule{$c-delete$}{
@@ -760,22 +761,23 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
     \typerule{$program$}{
-      closed\ \emptyset\ \src{e}
+      \vdash_\copyright\src{component\ e_p}&
+      \vdash_\copyright\src{context\ e_0\ e_1}
     }{
-      \src{prog\ e}
+      \vdash_\copyright\src{prog\ e_0\ e_p\ e_1}
     }{w-program}
     %
     \typerule{$component$}{
       closed\ \{\src{x}\}\ \src{e}
     }{
-      \src{component\ e}
+      \vdash_\copyright\src{component\ e}
     }{w-component}
     %
     \typerule{$context$}{
       closed\ \emptyset\ \src{e_0} &
       closed\ \{\src{y}\}\ \src{e_1}
     }{
-      \src{context\ e_0\ e_1}
+      \vdash_\copyright\src{context\ e_0\ e_1}
     }{w-context}
   \end{center}
 }{w-programs}{$\mmlA$ programs, contexts, and components.}
@@ -798,9 +800,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 	}{w-t-comp}
   %
   \typerule{$t-\text{wprog}$}{
-    \typechecks{\Gamma}{e}{\nat}
+    \typechecks{}{context\ e_0\ e_1}{\nat\to\nat} &
+    \typechecks{}{component\ e_p}{\nat}
 	}{
-  \typechecks{}{prog\ e}{\nat}
+    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
 	}{w-t-prog}
   %
   \typerule{$t-\text{prog}$}{
@@ -819,6 +822,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{}{\hole{\cdot}}{\hole{\cdot}}
     }{t-empty-store}
     %
+    \typerule{$T\text{ignore}\Delta$}{
+    \typechecks{}{\Delta}{\Gamma}
+    }{
+    \typechecks{}{x\mapsto\loc^\rho_\diamond,\Delta}{\Gamma}
+    }{t-ignore-store}
+    %
     \typerule{$T\text{ref}\nat$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
@@ -831,7 +840,28 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{}{x\mapsto\loc^\poisoned,\Delta}{\Gamma}
     }{t-ptr-store}
   \end{center}
-}{store-ty}{$\mmlA$ store typing.}
+}{store-ty}{$\mmlAs$ store typing.}
+
+\myfig{
+  \begin{center}
+  \typerule{store-qualify}{
+    \src{\Delta'}=\src{\Delta^\diamond}
+  }{
+    \src{H;\Delta'}=\src{(H;\Delta)^\diamond}
+  }{t-store-q}
+  %
+  \typerule{store-mark-nil}{
+  }{
+    \src{\hole{\cdot}}=\src{\hole{\cdot}^\diamond}
+  }{t-store-mark-nil}
+  %
+  \typerule{store-mark-cons}{
+    \src{\Delta'}=\src{\Delta^\diamond}
+  }{
+  \src{x\mapsto\loc^\rho_\diamond,\Delta'}=\src{(x\mapsto\loc^\rho,\Delta)^\diamond}
+  }{t-store-mark-cons}
+  \end{center}
+}{store-qualified}{$\mmlAs$ state importance marker.}
 
 \myfig{
   \begin{center}
@@ -840,29 +870,29 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \typechecks{}{context\ e_0\ e_1}{\nat\to\nat} &
       \typechecks{x:\nat}{component\ e_p}{\nat}
     }{
-    \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ (let\ y:=let\ x:=e_0\ in\ e_p\ in\ e_1)}
+    \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ (let\ y=let\ x=e_0\ in\ e_p\ in\ e_1)}
     }{src-plugging}
     $$
   \end{center}
-}{w-plugging}{$\mmlA$ plugging of contexts and components.}
+}{w-plugging-s}{$\mmlAs$ plugging of contexts and components.}
 
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Write\ \loc\ n}
+  \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Write\ \loc\ n} \\
+  \mi{Qualified\ Events}~\src{q} \bnfdef& \src{a} \mid \src{a^\diamond}
   \end{aligned}
   \end{gather*}
-}{w-events}{Events of $\mmlA$.}
+}{w-events}{Events of $\mmlAs$.}
 
 \myfig{
   \begin{gather*}
     \begin{aligned}
       \src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus E}\mid \src{x[K]}\mid
-      \src{let\ x:=K\ in\ e}\mid \src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x:=new\ K\ in\ e}
+      \src{let\ x=K\ in\ e}\mid \src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e}
     \end{aligned}
   \end{gather*}
-}{w-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
-
+}{w-expr-eval-ectx}{Evaluation Contexts of $\mmlAs$.}
 \myfig{
   \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{a}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{a}$.''}
   \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{a}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting event $\src{a}$.''}
@@ -894,12 +924,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \typerule{$e-\src{let}-\src{x}$}{
   }{
-    \exprevals{\sconfig{H}{\Delta}}{let\ x:=y\ in\ e}{\sconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
+    \exprevals{\sconfig{H}{\Delta}}{let\ x=y\ in\ e}{\sconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
   }{w-e-let-x}
   %
   \typerule{$e-\src{let}-\src{v}$}{
   }{
-    \exprevals{\sconfig{H}{\Delta}}{let\ x:=v\ in\ e}{\sconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
+    \exprevals{\sconfig{H}{\Delta}}{let\ x=v\ in\ e}{\sconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
   }{w-e-let-v}
   %
   \typerule{$e-\src{delete}$}{
@@ -915,7 +945,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
-}{w-expr-eval}{Evaluation of $\mmlA$ expressions.}
+}{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
 
 \myfig{
   $$
@@ -968,24 +998,28 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
   \typerule{$e-\text{wprog}$}{
-    \typechecks{\hole{\cdot}}{e}{\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e}{\configs}{v}{\bar{a}}
+    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
+    \execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
+    \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
+    %\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0\ in\ e_p\ in\ e_1}{\configs}{v}{\overline{a}}
   }{
-  \wexecs{prog\ e}{\configs}{v}{\bar{a}}
+\wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
   }{w-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlA$ program.}
+\MK{Figure 16: Maybe mark unimportant stuff in $\src{\Omega_1}$}
 
 \myfig{
   \begin{gather*}
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq& \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~\tmsmonitor :=\{A : L, F : L\} \\
+      \mi{Abstract\ Store}~\tmsmonitor =\{A : L, F : L\} \\
       \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
       \mi{References\ Agreement}~\delta_{\text{tms}} :& \src{L}\to L \\[0.6cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
       a\not\in \tmsmonitor['] &\text{ iff } a \not\in {\tmsmonitor['.A]} \wedge a \not\in {\tmsmonitor['.F]}\\
-      \{\loc\}\cup \tmsmonitor &:= \{A : \{\loc\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
+      \{\loc\}\cup \tmsmonitor &= \{A : \{\loc\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
     \end{aligned}
   \end{gather*}
 }{tms-monitor}{\gls{tms} Monitor.}
@@ -1173,7 +1207,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   $\rsat{\src{p}}{\src{smsafe}}$
 \end{lemma}
 \begin{proof}
-  Pick the component $\src{comp\ let\ z:=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
+  Pick the component $\src{comp\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
   It typechecks.\\[0.3cm]
   Now pick $\src{context\ }(\src{42})\ (\src{y})$.\\[0.3cm]
   Plugging yields \\$\src{prog}\ (\src{let\ y=let\ x=42\ in\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w\ in\ y})$.\\[0.3cm]
@@ -1494,7 +1528,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x := e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
+  \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
     & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \\
     & \mid \trg{if\ e_1 < e_2\ then\ e_3\ else\ abort()} \\
     & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}
@@ -1524,12 +1558,32 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{gather*}
     \begin{aligned}
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
-      \trg{let\ x:=K\ in\ e}\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x:=new\ K\ in\ e} \\
+      \trg{let\ x=K\ in\ e}\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \\
                      &\mid \trg{if\ K < e_1\ then\ e_2\ else\ abort()} \mid \trg{if\ n < K\ then\ e\ else\ abort()}
                      \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}
     \end{aligned}
   \end{gather*}
-}{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlA$.}
+}{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
+
+\myfig{
+  \begin{center}
+    $$
+    \typerule{plugging}{
+    }{
+    \trg{context}\ (\trg{e_0})\ (\trg{e_1})\trg{\linker}{\trg{component\ e_p}} = \trg{prog\ (let\ y=let\ x=e_0\ in\ e_p\ in\ e_1)}
+    }{trg-plugging}
+    $$
+  \end{center}
+}{w-plugging-t}{$\mmlAt$ plugging of contexts and components.}
+
+
+\myfig{
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Read\ \loc\ n} \mid \trg{Write\ \loc\ n} \mid \trg{\lightning}
+  \end{aligned}
+  \end{gather*}
+}{w-events}{Events of $\mmlAt$.}
 
 \myfig{
   \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$, it evaluates under\\configuration $\configt$ to $\trg{e'}$ and new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{a}$.''}
@@ -1584,12 +1638,12 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \typerule{$e-\trg{let}-\trg{x}$}{
   }{
-    \exprevalt{\tconfig{H}{\Delta}}{let\ x:=y\ in\ e}{\tconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
+    \exprevalt{\tconfig{H}{\Delta}}{let\ x=y\ in\ e}{\tconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
   }{tw-e-let-x}
   %
   \typerule{$e-\trg{let}-\trg{v}$}{
   }{
-    \exprevalt{\tconfig{H}{\Delta}}{let\ x:=v\ in\ e}{\tconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
+    \exprevalt{\tconfig{H}{\Delta}}{let\ x=v\ in\ e}{\tconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
   }{tw-e-let-v}
   %
   \typerule{$e-\trg{delete}$}{
@@ -1607,11 +1661,12 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
 
+
 \myfig{
   \begin{gather*}
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq&\ \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~\smsmonitor :=\ L\times\nat \\
+      \mi{Abstract\ Store}~\smsmonitor =\ L\times\nat \\
       \mi{Abstract\ Events}~a \bnfdef&\ \emptyevent \mid \text{Alloc}\ \loc\ n \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc\ n \\
     \mi{References\ Agreement}~\delta_{\text{sms}} :&\ \trg{L}\to L \\[0.6cm]
     \end{aligned}
@@ -1743,15 +1798,45 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \clearpage
 
+\begin{definition}[Trace is temporal memory safe via monitor.]
+  We say $\texttt{TMS}(\trg{\bar{a}})$ iff $\exists \delta\ \bar{a}\ \tmsmonitor$ such that:
+  \begin{itemize}
+    \item $\tmstraceagree{\bar{a}}{\trg{\bar{a}}}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\bar{a}}$
+  \end{itemize}
+\end{definition}
+
+
+
 \myfig{
   \begin{center}
     $$
-    \begin{array}{rcl} % there is a bug! the = disappears without \ in front of it
-    \mmlAmmlAtcomp{e} &\ = & \trg{e} 
+    \begin{array}{rll} % there is a bug! the = disappears without \ in front of it 
+    \mmlAmmlAtcomp{x} &\ = & \trg{x} \\
+    \mmlAmmlAtcomp{v} &\ = & \trg{v} \\
+    \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \trg{e_1\oplus e_2} \\
+    \mmlAmmlAtcomp{x[e]} &\ = & \trg{x[e]} \\
+    \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ x=new\ e_1\ in\ e_2} \\
+    \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \trg{x[e_1]\leftarrow e_2} \\
+    \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ x= e_1\ in\ e_2} \\
+    \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ x} \\
     \end{array}
     $$
   \end{center}
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
+
+\begin{lemma}[Robust \gls{tms} Preservation]
+  If
+  \begin{assumptions}
+  \item $\wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a}}$
+  \item $\texttt{TMS}(\src{\bar{a}})$
+  \item $\wexec{\trg{prog\ e_0}\ \mmlAmmlAtcomp{e_p}\ \trg{e_1}}{\trg{\configt_1}}{\trg{v_1}}{\trg{\overline{a}}}$
+  \end{assumptions}
+  then
+  \begin{goals}
+  \item $\texttt{TMS}(\trg{\bar{a}})$
+  \end{goals}
+\end{lemma}
 
 \clearpage
 \cleardoublepage

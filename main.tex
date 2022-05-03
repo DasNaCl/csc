@@ -572,7 +572,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
   \begin{aligned}
   \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
-    & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{e^\diamond}
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
   \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
@@ -642,6 +642,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \judgbox{\typechecks{\Gamma}{e}{\taus}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\taus$.''}
 
   \begin{center}
+  \typerule{$t-\nat$}{
+    \typechecks{\Gamma}{e}{\nat}
+  }{
+    \typechecks{\Gamma}{e^\diamond}{\nat}
+  }{t-unimportant}
+  %
   \typerule{$t-\src{var}$}{
   \src{\noptr{\Gamma_1}}&
   \src{\noptr{x:\tau,\hole{\cdot}}}&
@@ -903,6 +909,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \execs[]{\configs}{K[e]}{\configs'}{K[e']}{a}
   }{w-e-ectx}
   %
+  \typerule{$e-\text{ctx}-\text{unimportant}$}{
+    \exprevals{\configs}{e}{\configs'}{e'}{a}
+  }{
+    \execs[]{\configs}{(K[e])^\diamond}{\configs'}{(K[e'])^\diamond}{a^\diamond}
+  }{w-e-ectx-unimportant}
+  %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}+\src{n_2}=\src{n_3}
   }{
@@ -999,12 +1011,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
   \typerule{$e-\text{wprog}$}{
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
-    \execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
-    \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
-    %\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0\ in\ e_p\ in\ e_1}{\configs}{v}{\overline{a}}
+%    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
+%    \execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
+%    \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
+    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}
   }{
-\wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\overline{a}}%a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
   }{w-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlA$ program.}
@@ -1480,7 +1492,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Steps \gls{tms} via Monitor]
+\begin{lemma}[Steps \gls{tms} via Monitor]\label{lem:generaltms:monitor}
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
@@ -1509,16 +1521,42 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[$\mmlA$ is \gls{tms} via Monitor]
   If
   \begin{assumptions}
-  \item $\src{prog\ p}=\src{context}\ (\src{e_1})\ (\src{e_2})\src{\linker}{\src{component\ e_p}}$
-  \item $\wexecs{prog\ p}{\configs}{v}{\bar{a}}$
+  \item $\src{prog\ e_0\ e_p\ e_1}=\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}}$
+  \item\label{asm:mmlatmsviamonitor:run} $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\bar{a}}$
   \end{assumptions}
-  Then $\exists \bar{a}\ \delta_{\text{tms}}\ \tmsmonitor,$
+  Then
   \begin{goals}
   \item $\texttt{TMS}(\src{\bar{a}})$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  By \Cref{tr:store-empty-agree}:
+  \begin{equation}
+    \storeagree{\emptyset}{\src{\emptyset}}\label{asm:mmlatmsviamonitor:agree}
+  \end{equation}
+
+  Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
+  \begin{itemize}
+    \item[$H_0$:] $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
+    \item[$H_1$:]\label{asm:mmlatmsviamonitor:run2} $\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}$
+  \end{itemize}
+
+  Note that $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$ is equivalent to:
+  \begin{equation}
+    \typechecks{}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\nat}\label{asm:mmlatmsviamonitor:checks}
+  \end{equation}
+
+  Now obtain witnesses $\overline{a}, \delta_{\text{TMS}}'$, and $\tmsmonitor'$ from supplying \Cref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:agree}, \Cref{asm:mmlatmsviamonitor:run2}, and \Cref{asm:mmlatmsviamonitor:checks} and the respective assumptions:
+
+  \begin{itemize}
+    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+    \item $\tmstraceagree[\delta']{a}{\src{a}}$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+  \end{itemize}
+
+  $\texttt{TMS}(\src{\overline{a}})$ follows trivially by choosing as witnesses the ones obtained from applying the lemma.
+\end{proof}
 
 \clearpage
 %%%%
@@ -1837,6 +1875,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \item $\texttt{TMS}(\trg{\bar{a}})$
   \end{goals}
 \end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \clearpage
 \cleardoublepage

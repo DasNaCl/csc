@@ -1124,21 +1124,21 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     \typerule{Empty-Agree}{
     }{
-      \storeagree{\emptyset}{\src{\hole{\cdot}}}
+      \storeagreetms{\emptyset}{\src{\hole{\cdot}}}
     }{store-empty-agree}
     %
     \typerule{Cons-Agree}{
       \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
-      \storeagree{\tmsmonitor}{\src{\Delta}}
+      \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagree{\left\{\loc\right\}\cup \tmsmonitor}{\src{x\mapsto\loc^\poisonless,\Delta}}
+      \storeagreetms{\left\{\loc\right\}\cup \tmsmonitor}{\src{x\mapsto\loc^\poisonless,\Delta}}
     }{store-cons-agree}
     %
     \typerule{Ignore-Agree}{
       \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
-      \storeagree{\tmsmonitor}{\src{\Delta}}
+      \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagree{\tmsmonitor}{\src{x\mapsto\loc^\poisoned,\Delta}}
+      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc^\poisoned,\Delta}}
     }{store-ignore-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
@@ -1389,14 +1389,14 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{a}$
-    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item $\tmstraceagree[\delta']{a}{\src{a}}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \item $\storeagreetms[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1406,14 +1406,14 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
-    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagree{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
+    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
   \end{assumptions}
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{a}{\src{Dealloc\ \loc}}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $a=\text{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
@@ -1428,36 +1428,36 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
   \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
-  \item $\storeagree{\tmsmonitor[_1]}{\src{\Delta_1}}$
+  \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
-  \item $\storeagree{\tmsmonitor[_2]}{\src{\Delta_2}}$
+  \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
   \item $\tmsmonitor=\tmsmonitor[_1]\cup\left\{\loc\right\}\cup \tmsmonitor[_2]$
   \end{assumptions}
   then $\exists \tmsmonitor[']$,
   \begin{goals}
   \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
 
   \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
 
-  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
+  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
 
 \item[\Cref{tr:store-ignore-agree}:]
   If
   \begin{assumptions}
   \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
-  \item $\storeagree{\tmsmonitor[_1]}{\src{\Delta_1}}$
+  \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
-  \item $\storeagree{\tmsmonitor[_2]}{\src{\Delta_2}}$
+  \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
   \item $\tmsmonitor=\tmsmonitor[_1]\cup \tmsmonitor[_2]$
   \end{assumptions}
   then $\exists \tmsmonitor[']$,
   \begin{goals}
   \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
   \end{goals}.
 
   Invert \Cref{asm:basetmsmonitor:typing} to get
@@ -1479,14 +1479,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\execs[]{\configs}{e}{\configs'}{e'}{a}$
-    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item $\tmstraceagree[\delta']{a}{\src{a}}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1497,14 +1497,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
     \item $\execs{\configs}{e}{\configs'}{e'}{a}$
-    \item $\storeagree{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item $\tmstraceagree[\delta']{a}{\src{a}}$
     \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1532,7 +1532,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{proof}
   By \Cref{tr:store-empty-agree}:
   \begin{equation}
-    \storeagree{\emptyset}{\src{\emptyset}}\label{asm:mmlatmsviamonitor:agree}
+    \storeagreetms{\emptyset}{\src{\emptyset}}\label{asm:mmlatmsviamonitor:agree}
   \end{equation}
 
   Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
@@ -1552,7 +1552,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item $\tmstraceagree[\delta']{a}{\src{a}}$
     \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagree[\delta_{\text{tms}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{itemize}
 
   $\texttt{TMS}(\src{\overline{a}})$ follows trivially by choosing as witnesses the ones obtained from applying the lemma.

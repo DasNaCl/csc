@@ -572,7 +572,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
   \begin{aligned}
   \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
-  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{e^\diamond}
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
   \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
@@ -588,7 +588,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Importance}~\ \src{i}~\bnfdef&\  \mid \;\src{\diamond}\hspace{0.5cm}
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
-  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc^\poison_{i}},\Deltas\\
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison^{i}},\Deltas\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
@@ -642,12 +642,6 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \judgbox{\typechecks{\Gamma}{e}{\taus}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\taus$.''}
 
   \begin{center}
-  \typerule{$t-\nat$}{
-    \typechecks{\Gamma}{e}{\nat}
-  }{
-    \typechecks{\Gamma}{e^\diamond}{\nat}
-  }{t-unimportant}
-  %
   \typerule{$t-\src{var}$}{
   \src{\noptr{\Gamma_1}}&
   \src{\noptr{x:\tau,\hole{\cdot}}}&
@@ -828,22 +822,16 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{}{\hole{\cdot}}{\hole{\cdot}}
     }{t-empty-store}
     %
-    \typerule{$T\text{ignore}\Delta$}{
-    \typechecks{}{\Delta}{\Gamma}
-    }{
-    \typechecks{}{x\mapsto\loc^\rho_\diamond,\Delta}{\Gamma}
-    }{t-ignore-store}
-    %
     \typerule{$T\text{ref}\nat$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
-    \typechecks{}{x\mapsto\loc^\poisonless,\Delta}{x:\ptr,\Gamma}
+    \typechecks{}{x\mapsto\loc_\poisonless,\Delta}{x:\ptr,\Gamma}
     }{t-ptr-store}
     %
     \typerule{$T\text{ref}\nat\text{poison}$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
-    \typechecks{}{x\mapsto\loc^\poisoned,\Delta}{\Gamma}
+    \typechecks{}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
     }{t-ptr-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
@@ -851,20 +839,20 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
   \typerule{store-qualify}{
-    \src{\Delta'}=\src{\Delta^\diamond}
+    \src{\Delta^\diamond}=\src{\Delta'}
   }{
-    \src{H;\Delta'}=\src{(H;\Delta)^\diamond}
+    \src{(H;\Delta)^\diamond}=\src{H;\Delta'}
   }{t-store-q}
   %
   \typerule{store-mark-nil}{
   }{
-    \src{\hole{\cdot}}=\src{\hole{\cdot}^\diamond}
+    \src{\hole{\cdot}^\diamond}=\src{\hole{\cdot}}
   }{t-store-mark-nil}
   %
   \typerule{store-mark-cons}{
-    \src{\Delta'}=\src{\Delta^\diamond}
+    \src{\Delta^\diamond}=\src{\Delta'}
   }{
-  \src{x\mapsto\loc^\rho_\diamond,\Delta'}=\src{(x\mapsto\loc^\rho,\Delta)^\diamond}
+    \src{(x\mapsto\loc_\rho,\Delta)^\diamond}=\src{x\mapsto\loc_\rho^\diamond,\Delta'}
   }{t-store-mark-cons}
   \end{center}
 }{store-qualified}{$\mmlAs$ state importance marker.}
@@ -873,8 +861,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     $$
     \typerule{plugging}{
-      \typechecks{}{context\ e_0\ e_1}{\nat\to\nat} &
-      \typechecks{x:\nat}{component\ e_p}{\nat}
+      \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
     }{
     \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ e_0\ e_p\ e_1}
     }{src-plugging}
@@ -909,12 +896,6 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \execs[]{\configs}{K[e]}{\configs'}{K[e']}{a}
   }{w-e-ectx}
   %
-  \typerule{$e-\text{ctx}-\text{unimportant}$}{
-    \exprevals{\configs}{e}{\configs'}{e'}{a}
-  }{
-    \execs[]{\configs}{(K[e])^\diamond}{\configs'}{(K[e'])^\diamond}{a^\diamond}
-  }{w-e-ectx-unimportant}
-  %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}+\src{n_2}=\src{n_3}
   }{
@@ -925,13 +906,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \src{\loc}\in\text{dom }\src{H}\implies\src{v}=\src{H}(\src{\loc+n}) &
     \src{\loc}\not\in\text{dom }\src{H}\implies\src{v}=\src{1729}
   }{
-    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Read\ \loc\ n}
   }{w-e-get}
   %
   \typerule{$e-\src{set}$}{
     \src{H'} = \src{H}(\src{\loc+n}\mapsto \src{v})
   }{
-    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\sconfig{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]\leftarrow v}{\sconfig{H'}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{w-e-set}
   %
   \typerule{$e-\src{let}-\src{x}$}{
@@ -946,7 +927,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \typerule{$e-\src{delete}$}{
   }{
-    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\sconfig{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{delete\ x}{\sconfig{H}{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
   }{w-e-let-new}
   %
   \typerule{$e-\src{new}$}{
@@ -954,7 +935,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \text{fresh}\ \src{z} &
     \src{H'} = \src{H} \ll \src{n} &
   }{
-  \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
 }{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
@@ -1011,12 +992,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
   \typerule{$e-\text{wprog}$}{
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} &
-%    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
-%    \execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
-%    \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
-    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
+    \execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
+    \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
+%    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\overline{a}}%a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
   }{w-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlA$ program.}
@@ -1117,6 +1098,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{
       \tmstraceagree{\src{a}\cdot\src{\bar{a}}}{a\cdot\bar{a}}
     }{tms-trans-auth}
+    %
+    \typerule{TMS-Trans-Authentic-Ignore}{
+      \tmstraceagree{\src{\bar{a}}}{\bar{a}}
+    }{
+      \tmstraceagree{\src{a^\diamond}\cdot\src{\bar{a}}}{\bar{a}}
+    }{tms-trans-auth-ignore}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
 
@@ -1131,14 +1118,20 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagreetms{\left\{\loc\right\}\cup \tmsmonitor}{\src{x\mapsto\loc^\poisonless,\Delta}}
+      \storeagreetms{\left\{\loc\right\}\cup \tmsmonitor}{\src{x\mapsto\loc_\poisonless,\Delta}}
     }{store-cons-agree}
     %
-    \typerule{Ignore-Agree}{
+    \typerule{Poison-Agree}{
       \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc^\poisoned,\Delta}}
+      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\poisoned,\Delta}}
+    }{store-poison-agree}
+    %
+    \typerule{Ignore-Agree}{
+      \storeagreetms{\tmsmonitor}{\src{\Delta}}
+    }{
+      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\rho^\diamond,\Delta}}
     }{store-ignore-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
@@ -1314,7 +1307,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Substitution]
+\begin{lemma}[Substitution]\label{lem:substitution}
   If
   \begin{assumptions}
     \item $\typechecks{x:\tau',\Gamma_1}{e}{\tau}$
@@ -1405,15 +1398,15 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \item[$\src{e}=\src{free\ x}$:]
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
-    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
+    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
+    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
   \end{assumptions}
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{a}{\src{Dealloc\ \loc}}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $a=\text{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
@@ -1427,7 +1420,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \item[\Cref{tr:store-cons-agree}:]
   If
   \begin{assumptions}
-  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
   \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
   \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -1436,19 +1429,19 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   then $\exists \tmsmonitor[']$,
   \begin{goals}
   \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
 
   \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
 
-  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
+  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
 
-\item[\Cref{tr:store-ignore-agree}:]
+\item[\Cref{tr:store-poison-agree}:]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
   \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
   \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -1457,12 +1450,12 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   then $\exists \tmsmonitor[']$,
   \begin{goals}
   \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
   Invert \Cref{asm:basetmsmonitor:typing} to get
   \begin{assumptions}
-  \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{\Gammas}$
+  \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{\Gammas}$
   \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{free\ x}{\nat}$
   \end{assumptions}.
 
@@ -1496,14 +1489,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
-    \item $\execs{\configs}{e}{\configs'}{e'}{a}$
+    \item $\execs{\configs}{e}{\configs'}{e'}{\overline{a}}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+  Then $\exists \overline{a}\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{a}{\src{a}}$
-    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
+    \item $\tmstraceagree[\delta']{\overline{a}}{\src{\overline{a}}}$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\overline{a}}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
@@ -1530,32 +1523,83 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{goals}.
 \end{lemma}
 \begin{proof}
+  Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
+  \begin{assumptions}
+    \item[$H_0$:] $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
+    %\item[$H_1$:]\label[ass]{asm:mmlatmsviamonitor:run2} $\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}$
+    \item[$H_1$:]\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}}$
+    \item[$H_2$:]\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}}$
+    \item[$H_3$:]\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}}$
+    \item[$H_4$:] $\src{\overline{a}}=\src{\overline{a_0^\diamond}}\cdot\src{\overline{a_p}}\cdot\src{\overline{a_1^\diamond}}$
+  \end{assumptions}
   By \Cref{tr:store-empty-agree}:
   \begin{equation}
-    \storeagreetms{\emptyset}{\src{\emptyset}}\label{asm:mmlatmsviamonitor:agree}
+    \storeagreetms[\emptyset]{\emptyset}{\src{\emptyset}}\label{asm:mmlatmsviamonitor:agreeempty}
   \end{equation}
 
-  Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
-  \begin{itemize}
-    \item[$H_0$:] $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
-    \item[$H_1$:]\label{asm:mmlatmsviamonitor:run2} $\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}$
-  \end{itemize}
+  Invert $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$ and invert the subsequent result to get:
+  \begin{assumptions}
+    \item[$H^t_0$:]\label[ass]{asm:mmlatmsviamonitor:type0} $\typechecks{\hole{\cdot}}{e_0}{\nat}$
+    \item[$H^t_1$:]\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:nat}{e_p}{\nat}$
+    \item[$H^t_2$:]\label[ass]{asm:mmlatmsviamonitor:type1} $\typechecks{y:nat}{e_1}{\nat}$
+  \end{assumptions}
 
-  Note that $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$ is equivalent to:
+  By \Cref{tr:t-empty-store} and \Cref{asm:mmlatmsviamonitor:type1}, we have 
   \begin{equation}
-    \typechecks{}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\nat}\label{asm:mmlatmsviamonitor:checks}
+    \typechecks{}{\hole{\cdot}\triangleright e_0}{\nat}\label{asm:mmlatmsviamonitor:storetypenil}
   \end{equation}
 
-  Now obtain witnesses $\overline{a}, \delta_{\text{TMS}}'$, and $\tmsmonitor'$ from supplying \Cref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:agree}, \Cref{asm:mmlatmsviamonitor:run2}, and \Cref{asm:mmlatmsviamonitor:checks} and the respective assumptions:
+%  The assumptions of $\Cref{lem:generaltms:monitor}$ are satisfied by \Cref{asm:mmlatmsviamonitor:storetypenil}, $H_1$ (\Cref{asm:mmlatmsviamonitor:exec0}), and \Cref{asm:mmlatmsviamonitor:agreeempty}.
 
-  \begin{itemize}
-    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{a}{\src{a}}$
-    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
-  \end{itemize}
+ % Therefore, we get witnesses $\overline{a_0}$, $\delta_{\text{tms}}^{(0)}$, and $\tmsmonitor[^{(0)}]$ such that:
+ % \begin{assumptions}
+ %   \item $\emptyset\subseteq\delta_{\text{tms}}^{(0)}$
+ %   \item $\tmstraceagree[\delta^{(0)}]{\overline{a_0}}{\src{\overline{a_0}}}$
+ %   \item $\monitorcheck{\emptyset}{\tmsmonitor[^{(0)}]}{\overline{a_0}}$
+ %   \item $\storeagreetms[\delta^{(0)}]{\tmsmonitor[^{(0)}]}{\src{\Omega_0}.\src{\Delta}}$
+ % \end{assumptions}
 
-  $\texttt{TMS}(\src{\overline{a}})$ follows trivially by choosing as witnesses the ones obtained from applying the lemma.
+  Plugging $H^t_0$ (\Cref{asm:mmlatmsviamonitor:type0}) and $H_1$ (\Cref{asm:mmlatmsviamonitor:exec0}) into \Cref{lem:steps-preservation} and inverting the result, we obtain
+  \begin{assumptions}
+    \item $\typechecks{}{\Omega_0.\Delta}{\Gamma_0}$
+    \item $\typechecks{\Gamma_0}{v_0}{\nat}$
+  \end{assumptions}
+
+  Note that $\src{\Gamma_0} = \src{\hole{\cdot}} \circ \src{\Gamma_0}$.\MK{technical lemma needed}
+
+  Using $H^t_1$ (\Cref{asm:mmlatmsviamonitor:type0}) we apply \Cref{lem:substitution} to obtain:
+  \begin{equation}
+    \typechecks{\Gamma_0}{e_p[v_0/x]}{\nat}\label{asm:mmlatmsviamonitor:typesubstx}
+  \end{equation}
+
+  What follows is $\typechecks{}{\Omega_0\triangleright e_p}{\nat}$, which equivalent to $\typechecks{}{\Omega_0^\diamond\triangleright e_p}{\nat}$.
+
+  By induction on $\src{\Omega_0^\diamond}$ using \Cref{tr:store-ignore-agree}, we have:
+  \begin{equation}
+    \storeagreetms[\emptyset]{\emptyset}{\src{\Omega_0.\Delta^\diamond}}\label{asm:mmlatmsviamonitor:agree}
+  \end{equation}
+
+  Now obtain witnesses $\overline{a_p}$, $\delta_{\text{tms}}^{(p)}$, and $\tmsmonitor$ from supplying \Cref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:typesubstx}, $H_2$ (\Cref{asm:mmlatmsviamonitor:execp}), and \Cref{asm:mmlatmsviamonitor:agree}, such that:
+
+  \begin{assumptions}
+    \item $\emptyset\subseteq\delta_{\text{tms}}^{(p)}$
+    \item $\tmstraceagree[\delta_{\text{tms}}^{(p)}]{\overline{a_p}}{\src{\overline{a_p}}}$
+    \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a_p}}$
+    \item $\storeagreetms[\delta_{\text{tms}}^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
+  \end{assumptions}
+
+  ABCDEFG
+
+% Now obtain witnesses $\overline{a}, \delta_{\text{TMS}}'$, and $\tmsmonitor'$ from supplying \Cref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:agree}, \Cref{asm:mmlatmsviamonitor:run2}, and \Cref{asm:mmlatmsviamonitor:checks} and the respective assumptions:
+
+% \begin{itemize}
+%   \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+%   \item $\tmstraceagree[\delta']{a}{\src{a}}$
+%   \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{a}$
+%   \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+% \end{itemize}
+
+% $\texttt{TMS}(\src{\overline{a}})$ follows trivially by choosing as witnesses the ones obtained from applying the lemma.
 \end{proof}
 
 \clearpage
@@ -1579,7 +1623,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
   %
-  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc^\poison},\Deltat\\
+  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\\
   %
   \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
   %
@@ -1665,13 +1709,13 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \trg{\loc}\in\text{dom }\trg{H}\implies\trg{v}=\trg{H}(\trg{\loc+n}) &
     \trg{\loc}\not\in\text{dom }\trg{H}\implies\trg{v}=\trg{1729}
   }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Read\ \loc\ n}
   }{tw-e-get}
   %
   \typerule{$e-\trg{set}$}{
     \trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})
   }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\tconfig{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]\leftarrow v}{\tconfig{H'}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{tw-e-set}
   %
   \typerule{$e-\trg{let}-\trg{x}$}{
@@ -1686,7 +1730,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \typerule{$e-\trg{delete}$}{
   }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\tconfig{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{delete\ x}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
   }{tw-e-let-new}
   %
   \typerule{$e-\trg{new}$}{
@@ -1694,7 +1738,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \text{fresh}\ \trg{z} &
     \trg{H'} = \trg{H} \ll \trg{n} &
   }{
-  \exprevalt{\tconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\tconfig{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevalt{\tconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\tconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{tw-e-let-new}
   %
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
@@ -1790,6 +1834,12 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \smstraceagree{\trg{a}\cdot\trg{\bar{a}}}{a\cdot\bar{a}}
     }{sms-trans-auth}
+    %
+    \typerule{SMS-Trans-Authentic-Ignore}{
+      \smstraceagree{\trg{\bar{a}}}{\bar{a}}
+    }{
+      \smstraceagree{\trg{a^\diamond}\cdot\trg{\bar{a}}}{\bar{a}}
+    }{sms-trans-auth-ignore}
   \end{center}
 }{sms-trace-agreement}{Trace Agreement.}
 

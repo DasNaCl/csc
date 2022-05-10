@@ -586,9 +586,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
-  \mi{Importance}~\ \src{q_i}~\bnfdef&\  \mid \;\src{\diamond}\hspace{0.5cm}
+  \mi{Importance}~\ \src{i}~\bnfdef&\  \mid \;\src{\diamond}\hspace{0.5cm}
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
-  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc^\poison_{q_i}},\Deltas\\
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison^{i}},\Deltas\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
@@ -831,19 +831,19 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typerule{$T\text{ignore}\Delta$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
-    \typechecks{}{x\mapsto\loc^\rho_\diamond,\Delta}{\Gamma}
+    \typechecks{}{x\mapsto\loc_\rho^\diamond,\Delta}{\Gamma}
     }{t-ignore-store}
     %
     \typerule{$T\text{ref}\nat$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
-    \typechecks{}{x\mapsto\loc^\poisonless,\Delta}{x:\ptr,\Gamma}
+    \typechecks{}{x\mapsto\loc_\poisonless,\Delta}{x:\ptr,\Gamma}
     }{t-ptr-store}
     %
     \typerule{$T\text{ref}\nat\text{poison}$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
-    \typechecks{}{x\mapsto\loc^\poisoned,\Delta}{\Gamma}
+    \typechecks{}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
     }{t-ptr-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
@@ -851,20 +851,20 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
   \typerule{store-qualify}{
-    \src{\Delta'}=\src{\Delta^\diamond}
+    \src{\Delta^\diamond}=\src{\Delta'}
   }{
-    \src{H;\Delta'}=\src{(H;\Delta)^\diamond}
+    \src{(H;\Delta)^\diamond}=\src{H;\Delta'}
   }{t-store-q}
   %
   \typerule{store-mark-nil}{
   }{
-    \src{\hole{\cdot}}=\src{\hole{\cdot}^\diamond}
+    \src{\hole{\cdot}^\diamond}=\src{\hole{\cdot}}
   }{t-store-mark-nil}
   %
   \typerule{store-mark-cons}{
-    \src{\Delta'}=\src{\Delta^\diamond}
+    \src{\Delta^\diamond}=\src{\Delta'}
   }{
-  \src{x\mapsto\loc^\rho_\diamond,\Delta'}=\src{(x\mapsto\loc^\rho,\Delta)^\diamond}
+    \src{(x\mapsto\loc_\rho,\Delta)^\diamond}=\src{x\mapsto\loc_\rho^\diamond,\Delta'}
   }{t-store-mark-cons}
   \end{center}
 }{store-qualified}{$\mmlAs$ state importance marker.}
@@ -873,8 +873,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     $$
     \typerule{plugging}{
-      \typechecks{}{context\ e_0\ e_1}{\nat\to\nat} &
-      \typechecks{x:\nat}{component\ e_p}{\nat}
+      \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
     }{
     \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ e_0\ e_p\ e_1}
     }{src-plugging}
@@ -925,13 +924,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \src{\loc}\in\text{dom }\src{H}\implies\src{v}=\src{H}(\src{\loc+n}) &
     \src{\loc}\not\in\text{dom }\src{H}\implies\src{v}=\src{1729}
   }{
-    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Read\ \loc\ n}
   }{w-e-get}
   %
   \typerule{$e-\src{set}$}{
     \src{H'} = \src{H}(\src{\loc+n}\mapsto \src{v})
   }{
-    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\sconfig{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]\leftarrow v}{\sconfig{H'}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{w-e-set}
   %
   \typerule{$e-\src{let}-\src{x}$}{
@@ -946,7 +945,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \typerule{$e-\src{delete}$}{
   }{
-    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\sconfig{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{delete\ x}{\sconfig{H}{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
   }{w-e-let-new}
   %
   \typerule{$e-\src{new}$}{
@@ -954,7 +953,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \text{fresh}\ \src{z} &
     \src{H'} = \src{H} \ll \src{n} &
   }{
-  \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
 }{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
@@ -1131,14 +1130,14 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagreetms{\left\{\loc\right\}\cup \tmsmonitor}{\src{x\mapsto\loc^\poisonless,\Delta}}
+      \storeagreetms{\left\{\loc\right\}\cup \tmsmonitor}{\src{x\mapsto\loc_\poisonless,\Delta}}
     }{store-cons-agree}
     %
     \typerule{Ignore-Agree}{
       \delta_{\text{tms}}\left(\src{\loc}\right)=\loc&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc^\poisoned,\Delta}}
+      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\poisoned,\Delta}}
     }{store-ignore-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
@@ -1405,15 +1404,15 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \item[$\src{e}=\src{free\ x}$:]
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
-    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}$
+    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
+    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
   \end{assumptions}
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{a}{\src{Dealloc\ \loc}}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
-    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $a=\text{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
@@ -1427,7 +1426,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \item[\Cref{tr:store-cons-agree}:]
   If
   \begin{assumptions}
-  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
   \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
   \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -1436,19 +1435,19 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   then $\exists \tmsmonitor[']$,
   \begin{goals}
   \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
 
   \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
 
-  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
+  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-ignore-agree}.
 
 \item[\Cref{tr:store-ignore-agree}:]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc^\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
   \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
   \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -1457,12 +1456,12 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   then $\exists \tmsmonitor[']$,
   \begin{goals}
   \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}$
+  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
   Invert \Cref{asm:basetmsmonitor:typing} to get
   \begin{assumptions}
-  \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{\Gammas}$
+  \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{\Gammas}$
   \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{free\ x}{\nat}$
   \end{assumptions}.
 
@@ -1579,7 +1578,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
   %
-  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc^\poison},\Deltat\\
+  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\\
   %
   \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
   %
@@ -1665,13 +1664,13 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \trg{\loc}\in\text{dom }\trg{H}\implies\trg{v}=\trg{H}(\trg{\loc+n}) &
     \trg{\loc}\not\in\text{dom }\trg{H}\implies\trg{v}=\trg{1729}
   }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Read\ \loc\ n}
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Read\ \loc\ n}
   }{tw-e-get}
   %
   \typerule{$e-\trg{set}$}{
     \trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})
   }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{x[n]\leftarrow v}{\tconfig{H'}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]\leftarrow v}{\tconfig{H'}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{tw-e-set}
   %
   \typerule{$e-\trg{let}-\trg{x}$}{
@@ -1686,7 +1685,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \typerule{$e-\trg{delete}$}{
   }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc^\poison,\Delta_2}}{delete\ x}{\tconfig{H}{\Delta_1,x\mapsto\loc^\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{delete\ x}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
   }{tw-e-let-new}
   %
   \typerule{$e-\trg{new}$}{
@@ -1694,7 +1693,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \text{fresh}\ \trg{z} &
     \trg{H'} = \trg{H} \ll \trg{n} &
   }{
-  \exprevalt{\tconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\tconfig{H'}{z\mapsto \loc^\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevalt{\tconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\tconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{tw-e-let-new}
   %
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}

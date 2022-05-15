@@ -34,6 +34,10 @@
 \newtheorem{example}{Example}
 \newtheorem{definition}{Definition}
 \newtheorem{lemma}{Lemma}
+\newcounter{theoremcounter}
+\newcounter{importanttheoremcounter}
+\newtheorem{theorem}[theoremcounter]{Theorem}
+\newtheorem{importanttheorem}[importanttheoremcounter]{Theorem}
 
 \usepackage{mmmacros}
 % \usepackage{./../mmmacros}
@@ -567,6 +571,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \section{Case Study}
 
+\subsection{Source Language}
+\subsubsection{Syntax}
+
 \myfig{
 	\vspace{-1em}
   \begin{gather*}
@@ -587,8 +594,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
   \mi{Importance}~\ \src{i}~\bnfdef&\  \mid \;\src{\diamond}\hspace{0.5cm}
-  \mi{Typing. Env.}~\src{\Gamma} \bnfdef\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau} \hspace{0.5cm}
-  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison^{i}},\Deltas\\
+  \mi{Typing. Env.}~\src{\Gamma} \bnfdef\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau}\\
+  \mi{Store}~\src{\Delta} \bnfdef&\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison^{i}},\Deltas\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
@@ -601,6 +608,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlA$}
 
+\subsubsection{Static Semantics}
 \begin{definition}[NoPtr]
   We write $\src{\noptr{\Gamma}}$ if for any $\src{x}, \src{\tau}$, if $\src{x} : \src{\tau}\in\src{\Gamma}$, then $\taus\not=\ptr$.
 \end{definition}
@@ -699,64 +707,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{w-t-delete}
   %
   \end{center}
-}{w-expr-ty}{Checking of $\mmlA$ expressions.}
-
-\myfig{
-  \begin{center}
-    \typerule{$c-lit$}{
-    }{
-      closed\ X\ \src{v}
-    }{c-lit}
-    %
-    \typerule{$c-var$}{
-      x\in X
-    }{
-      closed\ X\ \src{x}
-    }{c-var}
-    %
-    \typerule{$c-binop$}{
-      closed\ X\ \src{e_1}&
-      closed\ X\ \src{e_2}
-    }{
-      closed\ X\ \src{e_1\oplus e_2}
-    }{c-binop}
-    %
-    \typerule{$c-get$}{
-      x\in X&
-      closed\ X\ \src{e}
-    }{
-      closed\ X\ \src{x[e]}
-    }{c-get}
-    %
-    \typerule{$c-let$}{
-      closed\ X\ \src{e_0} &
-      closed\ (\{x\}\uplus X)\ \src{e_1}
-    }{
-      closed\ X\ \src{let\ x=e_0\ in\ e_1}
-    }{c-let}
-    %
-    \typerule{$c-set$}{
-      x\in X&
-      closed\ X\ \src{e_0} &
-      closed\ X\ \src{e_1} &
-    }{
-      closed\ X\ \src{x[e_0]\leftarrow e_1}
-    }{w-c-set}
-    %
-    \typerule{$c-new$}{
-      closed\ X\ \src{e_0} &
-      closed\ (\{x\}\uplus X)\ \src{e_1}
-    }{
-      closed\ X\ \src{let\ x=new\ e_0\ in\ e_1}
-    }{c-new}
-    %
-    \typerule{$c-delete$}{
-      x\in X
-    }{
-      closed\ X\ \src{delete\ x}
-    }{c-delete}
-  \end{center}
-}{w-closed}{Predicate checking whether an $\mmlA$ expression is closed or not}
+}{w-expr-ty}{Checking of $\mmlAs$ expressions.}
 
 \myfig{
   \begin{center}
@@ -780,7 +731,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \vdash_\copyright\src{context\ e_0\ e_1}
     }{w-context}
   \end{center}
-}{w-programs}{$\mmlA$ programs, contexts, and components.}
+}{w-programs}{$\mmlAs$ programs, contexts, and components.}
 
 \myfig{
 %  \judgbox{\typechecks{\Gamma}{C}{\tau_C}{\Gamma'}}{,,Under environment $\Gammas$, the context $\src{C}$ has type $\src{\tau_{C}}$ and yields environment $\src{\Gamma'}$.''}
@@ -813,7 +764,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typechecks{}{H;\Delta\triangleright e}{\nat}
 	}{w-t-prog}
   \end{center}
-}{w-program-ty}{Checking of $\mmlA$ contexts, components, programs, and whole programs.}
+}{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
 
 \myfig{
   \begin{center}
@@ -838,6 +789,20 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
+    $$
+    \typerule{plugging}{
+      \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
+    }{
+    \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ e_0\ e_p\ e_1}
+    }{src-plugging}
+    $$
+  \end{center}
+}{w-plugging-s}{$\mmlAs$ plugging of contexts and components.}
+
+\subsubsection{Dynamic Semantics}
+
+\myfig{
+  \begin{center}
   \typerule{store-qualify}{
     \src{\Delta^\diamond}=\src{\Delta'}
   }{
@@ -856,19 +821,6 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{t-store-mark-cons}
   \end{center}
 }{store-qualified}{$\mmlAs$ state importance marker.}
-
-\myfig{
-  \begin{center}
-    $$
-    \typerule{plugging}{
-      \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
-    }{
-    \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ e_0\ e_p\ e_1}
-    }{src-plugging}
-    $$
-  \end{center}
-}{w-plugging-s}{$\mmlAs$ plugging of contexts and components.}
-
 \myfig{
   \begin{gather*}
   \begin{aligned}
@@ -882,13 +834,15 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
     \begin{aligned}
       \src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus E}\mid \src{x[K]}\mid
-      \src{let\ x=K\ in\ e}\mid \src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e}
+      \src{let\ x=K\ in\ e}\\
+                     &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e}
     \end{aligned}
   \end{gather*}
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlAs$.}
+
 \myfig{
-  \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{q}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{q}$.''}
-  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{q}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting event $\src{q}$.''}
+  \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{q}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{q}$.''}
+  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{q}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{q}$.''}
   %
   \typerule{$e-\text{ctx}$}{
     \exprevals{\configs}{e}{\configs'}{e'}{a}
@@ -1001,8 +955,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{w-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlA$ program.}
-\MK{Figure 16: Maybe mark unimportant stuff in $\src{\Omega_1}$}
+\MK{\Cref{fig:wprog-run}: Maybe mark unimportant stuff in $\src{\Omega_1}$}
 
+\subsubsection{\gls*{tms} Monitor}
 \myfig{
   \begin{gather*}
     \begin{aligned}
@@ -1136,7 +1091,63 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
 
-\clearpage
+\begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
+  We define the property $\src{tmsafe}(\src{\trace})$ as a conjunction of the following conditions:
+  \begin{itemize}
+    \item $\src{Alloc\ \loc\ s}\le_{\src{\trace}}\src{Dealloc\ \loc}$
+    \item $\neg(\src{Read\ \loc\ n}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
+    \item $\neg(\src{Write\ \loc\ n\ v}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
+    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Read\ \loc\ n})$
+    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Write\ \loc\ n\ v})$
+    \item $\src{Dealloc\ \loc}\in!\;\src{\trace}$
+    \item $\src{Alloc\ \loc\ s}\in!\;\src{\trace}$
+    % \makebox(0,0){\put(0,3.0\normalbaselineskip){ %
+    % $\left.\rule{0pt}{1.32\normalbaselineskip}\right\}$ no reallocs, references are unique}}
+  \end{itemize}
+\end{definition}
+% relaxed temporal memory safety       -> define garbage collector
+% generalize this over Γ, τ
+% might need an 'invariant'  -> connect typing to evaluation states
+% might need to do an induction on evaluation steps
+
+% might not need to do an induction at the general step, but for the primitive step we need it
+
+\begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
+  We define the property $\src{smsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
+  \begin{itemize}
+    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Read\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
+    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Write\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
+  \end{itemize}
+\end{definition}
+
+\begin{importanttheorem}[$\mmlA$ is \gls{tms} via Monitor]
+  If
+  \begin{assumptions}
+  \item $\src{prog\ e_0\ e_p\ e_1}=\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}}$
+  \item\label{asm:mmlatmsviamonitor:run} $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\bar{a}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\texttt{TMS}(\src{\bar{a}})$
+  \end{goals}.
+\end{importanttheorem}
+For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
+
+\begin{importanttheorem}[$\mmlAs$ is not spatially memory safe]
+  There is a well-typed $\mmlAs$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
+  $\rsat{\src{p}}{\src{smsafe}}$
+\end{importanttheorem}
+\begin{proof}
+  Pick the component $\src{comp\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
+  It typechecks.\\[0.3cm]
+  Now pick $\src{context\ }(\src{42})\ (\src{y})$.\\[0.3cm]
+  Plugging yields \\$\src{prog}\ (\src{let\ y=let\ x=42\ in\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w\ in\ y})$.\\[0.3cm]
+  Running the whole program yields trace prefix\\$\src{\trace}=\src{\emptyevent}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{\emptyevent}\cdot\src{Dealloc\ \loc}\cdot\src{\emptyevent}\cdot\src{\emptyevent}$.\\[0.3cm]
+  \Cref{def:spatmemsafe} requires $\src{Alloc\ \loc\ 42}\in\src{\trace}$ and $\src{Read\ \loc\ 1337}$, which hold.\\[0.3cm]
+  But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$.
+\end{proof}
+
+\subsubsection{Auxiliary Definitions and Lemmas}\label{sec:mmla:aux}
 
 \begin{lemma}[Weaken Closedness]
   For any two sets $X,Y$ and an expression $\src{e}$, when
@@ -1173,53 +1184,6 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
   $\exists n, \trace[n] = e_{0}\implies \exists m, \trace[m] = e_{1} \wedge n<m$
 \end{definition}
-
-\begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
-  We define the property $\src{tmsafe}(\src{\trace})$ as a conjunction of the following conditions:
-  \begin{itemize}
-    \item $\src{Alloc\ \loc\ s}\le_{\src{\trace}}\src{Dealloc\ \loc}$
-    \item $\neg(\src{Read\ \loc\ n}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
-    \item $\neg(\src{Write\ \loc\ n\ v}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
-    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Read\ \loc\ n})$
-    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Write\ \loc\ n\ v})$
-    \item $\src{Dealloc\ \loc}\in!\;\src{\trace}$
-    \item $\src{Alloc\ \loc\ s}\in!\;\src{\trace}$
-    % \makebox(0,0){\put(0,3.0\normalbaselineskip){ %
-    % $\left.\rule{0pt}{1.32\normalbaselineskip}\right\}$ no reallocs, references are unique}}
-  \end{itemize}
-\end{definition}
-% relaxed temporal memory safety       -> define garbage collector
-% generalize this over Γ, τ
-% might need an 'invariant'  -> connect typing to evaluation states
-% might need to do an induction on evaluation steps
-
-% might not need to do an induction at the general step, but for the primitive step we need it
-
-
-\begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\src{smsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
-  \begin{itemize}
-    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Read\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
-    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Write\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
-  \end{itemize}
-\end{definition}
-
-% provenance : where does the pointer come from
-% C like memory model, explain why! (ptr + 5) and later (ptr + 5) objects might not be the same
-
-\begin{lemma}[$\mmlA$ is not spatially memory safe]
-  There is a well-typed $\mmlA$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
-  $\rsat{\src{p}}{\src{smsafe}}$
-\end{lemma}
-\begin{proof}
-  Pick the component $\src{comp\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
-  It typechecks.\\[0.3cm]
-  Now pick $\src{context\ }(\src{42})\ (\src{y})$.\\[0.3cm]
-  Plugging yields \\$\src{prog}\ (\src{let\ y=let\ x=42\ in\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w\ in\ y})$.\\[0.3cm]
-  Running the whole program yields trace prefix\\$\src{\trace}=\src{\emptyevent}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{\emptyevent}\cdot\src{Dealloc\ \loc}\cdot\src{\emptyevent}\cdot\src{\emptyevent}$.\\[0.3cm]
-  \Cref{def:spatmemsafe} requires $\src{Alloc\ \loc\ 42}\in\src{\trace}$ and $\src{Read\ \loc\ 1337}$, which hold.\\[0.3cm]
-  But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$.
-\end{proof}
 
 \begin{lemma}[Authentic Weaken]
   If
@@ -1519,7 +1483,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:store-ignore-agree}.
 \end{proof}
 
-\begin{lemma}[$\mmlA$ is \gls{tms} via Monitor]
+\begin{theorem}[$\mmlAs$ is \gls{tms} via Monitor]\label{thm:mmlAs:tmssafe}
   If
   \begin{assumptions}
   \item $\src{prog\ e_0\ e_p\ e_1}=\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}}$
@@ -1529,7 +1493,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \begin{goals}
   \item $\texttt{TMS}(\src{\bar{a}})$
   \end{goals}.
-\end{lemma}
+\end{theorem}
 \begin{proof}
   Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
   \begin{passumptions}{H}
@@ -1598,6 +1562,10 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 \end{proof}
 
 \clearpage
+
+\subsection{Target Language}
+\subsubsection{Syntax}
+
 %%%%
 %% TARGET
 
@@ -1631,13 +1599,15 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
 
+\subsubsection{Dynamic Semantics}
+
 \myfig{
   \begin{gather*}
     \begin{aligned}
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
-      \trg{let\ x=K\ in\ e}\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \\
+      \trg{let\ x=K\ in\ e}\\
+                     &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}\\
                      &\mid \trg{if\ K < e_1\ then\ e_2\ else\ abort()} \mid \trg{if\ n < K\ then\ e\ else\ abort()}
-                     \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}
     \end{aligned}
   \end{gather*}
 }{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
@@ -1663,8 +1633,8 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 }{w-events}{Events of $\mmlAt$.}
 
 \myfig{
-  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$, it evaluates under\\configuration $\configt$ to $\trg{e'}$ and new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{a}$.''}
-  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{a}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and new configuration $\trg{\configt'}$,\\emitting event $\trg{a}$.''}
+  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{a}$.''}
+  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{a}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{a}$.''}
   %
   \typerule{$e-\text{ctx}$}{
     \exprevalt{\configt}{e}{\configt'}{e'}{a}
@@ -1738,6 +1708,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   %
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
 
+\subsubsection{\gls*{sms} Monitor}
 
 \myfig{
   \begin{gather*}
@@ -1890,6 +1861,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 \end{definition}
 
 
+\subsection{Compiler}
 
 \myfig{
   \begin{center}

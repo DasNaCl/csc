@@ -997,7 +997,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
 %    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
   }{w-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlA$ program.}
@@ -1524,40 +1524,40 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \end{lemma}
 \begin{proof}
   Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
-  \begin{assumptions}
-    \item[$H_0$:] $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
-    %\item[$H_1$:]\label[ass]{asm:mmlatmsviamonitor:run2} $\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}$
-    \item[$H_1$:]\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}}$
-    \item[$H_2$:]\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}}$
-    \item[$H_3$:]\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}}$
-    \item[$H_4$:] $\src{\overline{a}}=\src{\overline{a_0^\diamond}}\cdot\src{\overline{a_p}}\cdot\src{\overline{a_1^\diamond}}$
-  \end{assumptions}
+  \begin{passumptions}{H}
+    \item $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
+    %\ite]\label[ass]{asm:mmlatmsviamonitor:run2} $\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}}$
+    \item $\src{\overline{a}}=\src{\overline{a_0^\diamond}}\cdot\src{\overline{a_p}}\cdot\src{\overline{a_1^\diamond}}$
+  \end{passumptions}
   By \Cref{tr:store-empty-agree}:
   \begin{equation}
     \storeagreetms[\emptyset]{\emptyset}{\src{\emptyset}}\label{asm:mmlatmsviamonitor:agreeempty}
   \end{equation}
 
   Invert $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$ and invert the subsequent result to get:
-  \begin{assumptions}
-    \item[$H^t_0$:]\label[ass]{asm:mmlatmsviamonitor:type0} $\typechecks{\hole{\cdot}}{e_0}{\nat}$
-    \item[$H^t_1$:]\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:nat}{e_p}{\nat}$
-    \item[$H^t_2$:]\label[ass]{asm:mmlatmsviamonitor:type1} $\typechecks{y:nat}{e_1}{\nat}$
-  \end{assumptions}
+  \begin{passumptions}{H^t}
+    \item\label[ass]{asm:mmlatmsviamonitor:type0} $\typechecks{\hole{\cdot}}{e_0}{\nat}$
+    \item\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:nat}{e_p}{\nat}$
+    \item\label[ass]{asm:mmlatmsviamonitor:type1} $\typechecks{y:nat}{e_1}{\nat}$
+  \end{passumptions}
 
   By \Cref{tr:t-empty-store} and \Cref{asm:mmlatmsviamonitor:type1}, we have 
   \begin{equation}
     \typechecks{}{\hole{\cdot}\triangleright e_0}{\nat}\label{asm:mmlatmsviamonitor:storetypenil}
   \end{equation}
 
-  Plugging $H^t_0$ (\Cref{asm:mmlatmsviamonitor:type0}) and $H_1$ (\Cref{asm:mmlatmsviamonitor:exec0}) into \Cref{lem:steps-preservation} and inverting the result, we obtain
-  \begin{assumptions}
+  Plugging \Cref{asm:mmlatmsviamonitor:type0} and \Cref{asm:mmlatmsviamonitor:exec0} into \Cref{lem:steps-preservation} and inverting the result, we obtain
+  \begin{passumptions}{G}
     \item $\typechecks{}{\Omega_0.\Delta}{\Gamma_0}$
     \item $\typechecks{\Gamma_0}{v_0}{\nat}$
-  \end{assumptions}
+  \end{passumptions}
 
   Note that $\src{\Gamma_0} = \src{\hole{\cdot}} \circ \src{\Gamma_0}$.\MK{technical lemma needed}
 
-  Using $H^t_1$ (\Cref{asm:mmlatmsviamonitor:type0}) we apply \Cref{lem:substitution} to obtain:
+  Using \Cref{asm:mmlatmsviamonitor:type0} we apply \Cref{lem:substitution} to obtain:
   \begin{equation}
     \typechecks{\Gamma_0}{e_p[v_0/x]}{\nat}\label{asm:mmlatmsviamonitor:typesubstx}
   \end{equation}
@@ -1569,14 +1569,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \storeagreetms[\emptyset]{\emptyset}{\src{\Omega_0.\Delta^\diamond}}\label{asm:mmlatmsviamonitor:agree}
   \end{equation}
 
-  Now obtain witnesses $\overline{a_p}$, $\delta_{\text{TMS}}^{(p)}$, and $\tmsmonitor$ from supplying \Cref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:typesubstx}, $H_2$ (\Cref{asm:mmlatmsviamonitor:execp}), and \Cref{asm:mmlatmsviamonitor:agree}, such that:
+  Now obtain witnesses $\overline{a_p}$, $\delta_{\text{TMS}}^{(p)}$, and $\tmsmonitor$ from supplying \Cref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:typesubstx}, \Cref{asm:mmlatmsviamonitor:execp}, and \Cref{asm:mmlatmsviamonitor:agree}, such that:
 
-  \begin{assumptions}
-    \item[$F_0$:] $\emptyset\subseteq\delta_{\text{TMS}}^{(p)}$
-    \item[$F_1$:]\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\overline{a_p}}{\src{\overline{a_p}}}$
-    \item[$F_2$:]\label[ass]{asm:mmlatmsviamonitor:monitorcheckasm} $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a_p}}$
-    \item[$F_3$:] $\storeagreetms[\delta^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
-  \end{assumptions}
+  \begin{passumptions}{F}
+    \item $\emptyset\subseteq\delta_{\text{TMS}}^{(p)}$
+    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\overline{a_p}}{\src{\overline{a_p}}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:monitorcheckasm} $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a_p}}$
+    \item $\storeagreetms[\delta^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
+  \end{passumptions}
 
   Now instantiate with $\delta_{\text{TMS}}^{(p)}$, $\overline{a_p}$, and $\tmsmonitor$, so the remaining goals are:
 
@@ -1588,6 +1588,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   For \Cref{asm:mmlatmsviamonitor:traceagree}, note that by \Cref{tr:tms-trans-auth-ignore}, we can reduce it to $\tmstraceagree[\delta^{(p)}]{\overline{a_p}}{\src{\overline{a_p}}}$\MK{needs a technical lemma}, which is fulfilled by \Cref{asm:mmlatmsviamonitor:traceagreeasm}.
 
   \Cref{asm:mmlatmsviamonitor:monitorcheck} follows immediately by \Cref{asm:mmlatmsviamonitor:monitorcheckasm}.
+
 \end{proof}
 
 \clearpage

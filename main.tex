@@ -824,7 +824,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Write\ \loc\ n} \\
+  \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Set\ \loc\ n} \\
   \mi{Qualified\ Events}~\src{q} \bnfdef& \src{a} \mid \src{a^\diamond}
   \end{aligned}
   \end{gather*}
@@ -927,7 +927,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \judgbox{\execs{\configs}{e}{\configs'}{e'}{\bar{a}}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new configuration $\src{\configs'}$,\\emitting list of events $\src{\bar{a}}$.''}
+    \judgbox{\execs{\configs}{e}{\configs'}{e'}{\bar{a}}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\bar{a}}$.''}
     %
     \typerule{$e-\text{refl}$}{
     }{
@@ -1018,6 +1018,11 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
+    \typerule{TMS-Internal-Authentic}{
+    }{
+      \tmstraceagree{\src{\varepsilon}}{\varepsilon}
+    }{tms-internal-auth}
+    %
     \typerule{TMS-Alloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
@@ -1096,9 +1101,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{itemize}
     \item $\src{Alloc\ \loc\ s}\le_{\src{\trace}}\src{Dealloc\ \loc}$
     \item $\neg(\src{Read\ \loc\ n}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
-    \item $\neg(\src{Write\ \loc\ n\ v}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
+    \item $\neg(\src{Set\ \loc\ n\ v}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
     \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Read\ \loc\ n})$
-    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Write\ \loc\ n\ v})$
+    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Set\ \loc\ n\ v})$
     \item $\src{Dealloc\ \loc}\in!\;\src{\trace}$
     \item $\src{Alloc\ \loc\ s}\in!\;\src{\trace}$
     % \makebox(0,0){\put(0,3.0\normalbaselineskip){ %
@@ -1116,7 +1121,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   We define the property $\src{smsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
   \begin{itemize}
     \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Read\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
-    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Write\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
+    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Set\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
   \end{itemize}
 \end{definition}
 
@@ -1627,7 +1632,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Read\ \loc\ n} \mid \trg{Write\ \loc\ n} \mid \trg{\lightning}
+  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Read\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAt$.}
@@ -1765,6 +1770,11 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 
 \myfig{
   \begin{center}
+    \typerule{SMS-Internal-Authentic}{
+    }{
+      \smstraceagree{\trg{\varepsilon}}{\varepsilon}
+    }{sms-internal-auth}
+    %
     \typerule{SMS-Alloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
@@ -1861,12 +1871,14 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 \end{definition}
 
 
-\subsection{Compiler}
+\subsection{Robust \gls*{tms} Preserving Compiler}
+
+\subsubsection{Compiler}
 
 \myfig{
   \begin{center}
     $$
-    \begin{array}{rll} % there is a bug! the = disappears without \ in front of it 
+    \begin{array}{rll}
     \mmlAmmlAtcomp{x} &\ = & \trg{x} \\
     \mmlAmmlAtcomp{v} &\ = & \trg{v} \\
     \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \trg{e_1\oplus e_2} \\
@@ -1880,18 +1892,116 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \end{center}
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
 
-\begin{lemma}[Robust \gls{tms} Preservation]
+\subsubsection{Partial Trace-based Backtranslation}
+
+\myfig{
+  \begin{center}
+    \typerule{backtrans-create-symb}{
+      \trg{\loc}\not\in\operatorname{dom}\Game &
+      \text{fresh}\ \src{x} &
+    }{
+      \Game'=\Game\cup\left\{\trg{\loc}\mapsto\src{x}\right\}
+    }{backtrans-create-symb}
+    \typerule{backtrans-nocreate-symb}{
+      \trg{\loc}\in\operatorname{dom}\Game &
+    }{
+      \Game'=\Game
+    }{backtrans-nocreate-symb}
+    %
+    \typerule{backtrans-lookup-symb}{
+      \trg{\loc}\in\operatorname{dom}\Game
+    }{
+      \Game(\trg{\loc}) = \src{x}
+    }{backtrans-lookup-symb}
+    $$
+    \begin{array}{rll} 
+      \mmlAmmlAtbackv{v} &\ = & \src{v} \\[0.5cm]
+      %
+      \mmlAmmlAtbackdetail{\hole{\cdot}} &\ = & \Game,\src{42} \\
+      %
+      \mmlAmmlAtbackdetail{(Alloc\ \loc\ n)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                       &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
+                                                                       &&\Game'',\src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e} \\
+      %
+      \mmlAmmlAtbackdetail{(Dealloc\ \loc)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                      &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
+                                                                      &&\Game'',\src{delete\ }\Game'(\trg{\loc})\src{; e}\\
+      %
+      \mmlAmmlAtbackdetail{(Get\ \loc\ n)^\diamond\cdot\overline{a}} &\ = &\text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                     &&\text{let }\Game'',\src{e}=\mmlAmmlAtback{\overline{a}}\text{\ in}\\
+                                                                     &&\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{];e} \\
+      %
+      \mmlAmmlAtbackdetail{(Set\ \loc\ n\ v)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                        &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\\
+                                                                        &&\Game'',\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{]\leftarrow }\mmlAmmlAtbackv{v}\src{; e} \\
+      \mmlAmmlAtbackdetail{a\cdot\overline{a}} &\ = & \Game,\src{42}\\[0.5cm]
+      %
+      \mmlAmmlAtbackdetailz{\hole{\cdot}} &\ = & \trg{\hole{\cdot}}\\ 
+      \mmlAmmlAtbackdetailz{a^\diamond\cdot\overline{a}} &\ = & \mmlAmmlAtbackdetailz{\overline{a}}\\ 
+      \mmlAmmlAtbackdetailz{a\cdot\overline{a}} &\ = & \trg{a\cdot\overline{a}}\\[0.5cm]
+      %
+      \mmlAmmlAtbackdetailo{\hole{\cdot}} &\ = & \trg{\hole{\cdot}}\\ 
+      \mmlAmmlAtbackdetailo{a^\diamond\cdot\overline{a}} &\ = & \trg{a^\diamond\cdot\overline{a}}\\ 
+      \mmlAmmlAtbackdetailo{a\cdot\overline{a}} &\ = & \mmlAmmlAtbackdetailo{\overline{a}}\\[0.5cm]
+      %
+      \mmlAmmlAtback{\overline{a}} &\ = & \text{let }\Game,\src{e_1}=\mmlAmmlAtbackdetail[\emptyset]{\overline{a}}\text{\ in}\\
+                                   &&\text{let }\_,\src{e_2}=\mmlAmmlAtbackdetail{ \mmlAmmlAtbackdetailo{\mmlAmmlAtbackdetailz{\overline{a}}} }\text{\ in}\\
+                                   &&\src{context\ e_1\ e_2} \\
+    \end{array}
+    $$
+  \end{center}
+}{tms-pres-backtrans}{Partial Trace-Based Backtranslation from }%$\mmlAs$ to $\mmlAt$.}
+The trace-based backtranslation is partial since we leave the translation undefined for the event $\trg{\lightning}$.
+This is fine, because where we use the backtranslation, we know the trace won't contain $\trg{\lightning}$.
+We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
+
+\subsubsection{Proofs and Auxiliary Lemmas}
+
+\begin{definition}[Cross-Language Trace Agreement]
+  We say $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$ iff
+  $$
+  \exists \overline{a}, \tmstraceagree{\overline{a}}{\src{\overline{a}}}
+                  \wedge\tmstraceagree{\overline{a}}{\trg{\overline{a}}}
+  $$
+\end{definition}
+
+\begin{definition}[Cross-Language Store Agreement]
+  We say $\storeagreetms{\src{\Omega}}{\trg{\Omega}}$ iff
+  $$
+  \exists \tmsmonitor, \storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}
+                 \wedge\storeagreetms{\tmsmonitor}{\trg{\Omega}.\trg{\Delta}}
+  $$
+
+  For convenience, we may also use $\storeagreetms{\src{\Delta}}{\trg{\Delta}}$ or $\storeagreetms{\src{\Omega}.\src{\Delta}}{\trg{\Omega}.\trg{\Delta}}$ with the obvious meaning.
+\end{definition}
+
+\begin{lemma}[Backtranslation correct]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item $\wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a}}$
-  \item $\texttt{TMS}(\src{\bar{a}})$
-  \item $\wexec{\trg{prog\ e_0}\ \mmlAmmlAtcomp{e_p}\ \trg{e_1}}{\trg{\configt_1}}{\trg{v_1}}{\trg{\overline{a}}}$
+  \item $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{\ e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
+  \item $\src{context\ e_1\ e_2}=\mmlAmmlAtback{\overline{a}}$
+  \end{assumptions}
+  then $\exists \configs\ \src{v}\ \src{\overline{a}}\ \delta_{tms}$
+  \begin{goals}
+  \item $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}$
+  \item $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\refstepcounter{theoremcounter}
+\begin{theorem}[Robust \gls{tms} Preservation]
+  If
+  \begin{assumptions}
+  \item $\forall \src{e_1}\ \src{e_2}\ \src{\overline{a}}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}\rightarrow\texttt{TMS}(\src{\bar{a}})$
+  \item $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
   \end{assumptions}
   then
   \begin{goals}
   \item $\texttt{TMS}(\trg{\bar{a}})$
   \end{goals}
-\end{lemma}
+\end{theorem}
 \begin{incompleteproof}
 \end{incompleteproof}
 

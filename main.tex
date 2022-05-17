@@ -824,7 +824,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Read\ \loc\ n} \mid \src{Set\ \loc\ n} \\
+  \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \\
   \mi{Qualified\ Events}~\src{q} \bnfdef& \src{a} \mid \src{a^\diamond}
   \end{aligned}
   \end{gather*}
@@ -860,7 +860,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \src{\loc}\in\text{dom }\src{H}\implies\src{v}=\src{H}(\src{\loc+n}) &
     \src{\loc}\not\in\text{dom }\src{H}\implies\src{v}=\src{1729}
   }{
-    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Read\ \loc\ n}
+    \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Get\ \loc\ n}
   }{w-e-get}
   %
   \typerule{$e-\src{set}$}{
@@ -1100,9 +1100,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   We define the property $\src{tmsafe}(\src{\trace})$ as a conjunction of the following conditions:
   \begin{itemize}
     \item $\src{Alloc\ \loc\ s}\le_{\src{\trace}}\src{Dealloc\ \loc}$
-    \item $\neg(\src{Read\ \loc\ n}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
+    \item $\neg(\src{Get\ \loc\ n}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
     \item $\neg(\src{Set\ \loc\ n\ v}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
-    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Read\ \loc\ n})$
+    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Get\ \loc\ n})$
     \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Set\ \loc\ n\ v})$
     \item $\src{Dealloc\ \loc}\in!\;\src{\trace}$
     \item $\src{Alloc\ \loc\ s}\in!\;\src{\trace}$
@@ -1120,7 +1120,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
   We define the property $\src{smsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
   \begin{itemize}
-    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Read\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
+    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Get\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
     \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Set\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
   \end{itemize}
 \end{definition}
@@ -1147,8 +1147,8 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   It typechecks.\\[0.3cm]
   Now pick $\src{context\ }(\src{42})\ (\src{y})$.\\[0.3cm]
   Plugging yields \\$\src{prog}\ (\src{let\ y=let\ x=42\ in\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w\ in\ y})$.\\[0.3cm]
-  Running the whole program yields trace prefix\\$\src{\trace}=\src{\emptyevent}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Read\ \loc\ 1337}\cdot\src{\emptyevent}\cdot\src{Dealloc\ \loc}\cdot\src{\emptyevent}\cdot\src{\emptyevent}$.\\[0.3cm]
-  \Cref{def:spatmemsafe} requires $\src{Alloc\ \loc\ 42}\in\src{\trace}$ and $\src{Read\ \loc\ 1337}$, which hold.\\[0.3cm]
+  Running the whole program yields trace prefix\\$\src{\trace}=\src{\emptyevent}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Get\ \loc\ 1337}\cdot\src{\emptyevent}\cdot\src{Dealloc\ \loc}\cdot\src{\emptyevent}\cdot\src{\emptyevent}$.\\[0.3cm]
+  \Cref{def:spatmemsafe} requires $\src{Alloc\ \loc\ 42}\in\src{\trace}$ and $\src{Get\ \loc\ 1337}$, which hold.\\[0.3cm]
   But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$.
 \end{proof}
 
@@ -1632,7 +1632,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Read\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}
+  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAt$.}
@@ -1679,7 +1679,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     \trg{\loc}\in\text{dom }\trg{H}\implies\trg{v}=\trg{H}(\trg{\loc+n}) &
     \trg{\loc}\not\in\text{dom }\trg{H}\implies\trg{v}=\trg{1729}
   }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Read\ \loc\ n}
+    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Get\ \loc\ n}
   }{tw-e-get}
   %
   \typerule{$e-\trg{set}$}{
@@ -1712,6 +1712,54 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   }{tw-e-let-new}
   %
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
+
+\subsubsection{Proofs and Auxiliary Lemmas}
+
+\begin{lemma}[Determinism of Step]\label{lem:determ:step}
+  If
+  \begin{assumptions}
+  \item $\exprevalt{\Omega}{e}{\Omega'}{v_1}{a}$
+  \item $\exprevalt{\Omega}{e}{\Omega''}{v_2}{a}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{v'}=\trg{v''}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Determinism of Ctx-Step]\label{lem:determ:ctxstep}
+  If
+  \begin{assumptions}
+  \item $\exect[]{\Omega}{e}{\Omega'}{v_1}{a}$
+  \item $\exect[]{\Omega}{e}{\Omega''}{v_2}{a}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{v'}=\trg{v''}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Determinism of Steps]\label{lem:determ:steps}
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\Omega'}{v_1}{\bar{a}}$
+  \item $\exect{\Omega}{e}{\Omega''}{v_2}{\bar{a}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{v'}=\trg{v''}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 
 \subsubsection{\gls*{sms} Monitor}
 
@@ -1887,8 +1935,22 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \trg{x[e_1]\leftarrow e_2} \\
     \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ x= e_1\ in\ e_2} \\
     \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ x} \\[0.5cm]
+    %
     \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \left[\mmlAmmlAtcomp{v}/\mmlAmmlAtcomp{x}\right]\\[0.5cm]
-    TODO&:&compile operational state
+    %
+    \mmlAmmlAtcomp{\Omega}_\delta&\ = & \text{let\ }\src{H};\src{\Delta}=\src{\Omega}\text{\ in}\\
+                          && \text{let\ }\trg{\Omega}=\mmlAmmlAtcomp{H}_\delta;\mmlAmmlAtcomp{\Delta}_\delta\text{\ in}\\
+                          && \trg{\Omega} \\
+    \mmlAmmlAtcomp{\emptyset}_\delta &\ = & \trg{\emptyset}\\
+    \mmlAmmlAtcomp{n,H}_\delta &\ = & \mmlAmmlAtcomp{n}\trg{,}\mmlAmmlAtcomp{H}_\delta\\
+    \mmlAmmlAtcomp{x\mapsto\loc,\Delta}_\delta &\ = &\mmlAmmlAtcomp{x}_\delta\trg{\mapsto}\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\Delta}\\[0.5cm]
+    %
+    \mmlAmmlAtcomp{\hole{\cdot}}_\delta&\ = & \trg{\hole{\cdot}}\\
+    \mmlAmmlAtcomp{\varepsilon^i,\bar{a}}_\delta&\ = & \trg{\varepsilon,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{(Alloc\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Alloc\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{(Dealloc\ \loc)^i,\bar{a}}_\delta&\ = & \trg{Dealloc\ }\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{(Get\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Get\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{(Set\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Set\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
     \end{array}
     $$
   \end{center}
@@ -1959,6 +2021,71 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 
+\begin{lemma}[Determinism of Compiler]\label{lem:determcomp}
+  If and only if
+  \begin{assumptions}
+  \item\label[ass]{asm:compdeterm:unequal} $\mmlAmmlAtcomp{e_1}\not=\mmlAmmlAtcomp{e_2}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\src{e_1}\not=\src{e_2}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Forward Simulation]\label{lem:forwardsim}
+  If
+  \begin{assumptions}
+    \item $\execs{\Omega}{e}{\Omega'}{v}{\bar{a}}$
+  \end{assumptions}
+  Then $\exists\delta$,
+  \begin{goals}
+    \item $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\bar{a}}_\delta}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+  induction on $\src{e}$
+\end{incompleteproof}
+
+\begin{lemma}[Expression Correctness]
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\bar{a}}_\delta}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\execs{\Omega}{e}{\Omega'}{v}{\src{\bar{a}}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  We prove this by contradiction, so say:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:exprcorrect:exec2} $\execs{\Omega}{e}{\Omega''}{v'}{\bar{a}}$
+    \item\label[ass]{asm:exprcorrect:unequal1} $\src{v}\not=\src{v'}$
+    \item\label[ass]{asm:exprcorrect:unequal2} $\src{\Omega'}\not=\src{\Omega''}$
+      \MK{Should also have an $\overline{a'}\not=\bar{a}$}
+  \end{passumptions}
+
+  Apply \thmref{lem:forwardsim} on \Cref{asm:exprcorrect:exec2} to get:
+  \begin{passumptions}{F}
+    \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\bar{a}}_\delta}$
+  \end{passumptions}
+
+  The compiler is deterministic, so using \Cref{asm:exprcorrect:unequal1} on \thmref{lem:determcomp} gives:
+  \begin{passumptions}{G}
+    \item\label[ass]{asm:exprcorrect:compiled:unequal} $\mmlAmmlAtcomp{v}\not=\mmlAmmlAtcomp{v'}$
+  \end{passumptions}
+
+  Using \Cref{asm:exprcorrect:exec1:trg} and \Cref{asm:exprcorrect:exec2:trg} on \thmref{lem:determ:steps} we have:
+  \begin{passumptions}{G}
+    \setcounter{enumi}{1}
+    \item\label[ass]{asm:exprcorrect:compiled:equal} $\mmlAmmlAtcomp{v}=\mmlAmmlAtcomp{v'}$
+  \end{passumptions}
+  
+  \Cref{asm:exprcorrect:compiled:equal} contradicts \Cref{asm:exprcorrect:compiled:unequal}.
+\end{proof}
+
 \begin{definition}[Cross-Language Trace Agreement]
   We say $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$ iff
   $$
@@ -1979,34 +2106,6 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   For convenience, we may also use $\storeagreetms{\src{\Delta}}{\trg{\Delta}}$ or $\storeagreetms{\src{\Omega}.\src{\Delta}}{\trg{\Omega}.\trg{\Delta}}$ with the obvious meaning.
 \end{definition}
 
-\begin{lemma}[Forward Simulation]
-  If
-  \begin{assumptions}
-    \item $\execs{\Omega}{e}{\Omega'}{v}{\src{\bar{a}}}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\trg{\bar{a}}}$
-    \item $\tmstraceagree{\src{\bar{a}}}{\trg{\bar{a}}}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
-
-\begin{lemma}[Expression Correctness]
-  If
-  \begin{assumptions}
-    \item $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\trg{\bar{a}}}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $\execs{\Omega}{e}{\Omega'}{v}{\src{\bar{a}}}$
-    \item $\tmstraceagree{\src{\bar{a}}}{\trg{\bar{a}}}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
-
 
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
@@ -2014,7 +2113,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \item $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{\ e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
   \item $\src{context\ e_1\ e_2}=\mmlAmmlAtback{\overline{a}}$
   \end{assumptions}
-  then $\exists \configs\ \src{v}\ \src{\overline{a}}\ \delta_{tms}$
+  then $\exists \configs\ \src{v}\ \src{\overline{a}}\ \delta_{tms}$,
   \begin{goals}
   \item $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}$
   \item $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$
@@ -2054,8 +2153,8 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
     \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
   \end{passumptions}
 
-  We split $\delta_{tms}$ into ${\delta^{\color{\stlccol}\bullet}}_{tms}$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}$.
-  By \Cref{def:trg:trace:tms}, our goal can be instantiated with ${\delta^{\color{\stlccol}\bullet}}_{tms}$, $\overline{a}$, and $\tmsmonitor$, so what is left to show is:
+  We split $\delta_{tms}$ into ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
+  By \Cref{def:trg:trace:tms}, our goal can be instantiated with ${\delta^{\color{\ulccol}\bullet}}_{tms}$, $\overline{a}$, and $\tmsmonitor$, so what is left to show is:
   \begin{goals}
     \item $\tmstraceagree[{\delta^{\color{\ulccol}\bullet}}]{\overline{a}}{\trg{\overline{a}}}$
     \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$

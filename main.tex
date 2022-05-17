@@ -1472,7 +1472,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{definition}[Trace is temporal memory safe via monitor.]
+\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
   We say $\texttt{TMS}(\src{\bar{a}})$ iff $\exists \delta\ \bar{a}\ \tmsmonitor$ such that:
   \begin{itemize}
     \item $\tmstraceagree{\bar{a}}{\src{\bar{a}}}$
@@ -1862,7 +1862,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 
 \clearpage
 
-\begin{definition}[Trace is temporal memory safe via monitor.]
+\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:trg:trace:tms}
   We say $\texttt{TMS}(\trg{\bar{a}})$ iff $\exists \delta\ \bar{a}\ \tmsmonitor$ such that:
   \begin{itemize}
     \item $\tmstraceagree{\bar{a}}{\trg{\bar{a}}}$
@@ -1960,17 +1960,19 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{definition}[Cross-Language Trace Agreement]
   We say $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$ iff
   $$
-  \exists \overline{a}, \tmstraceagree{\overline{a}}{\src{\overline{a}}}
-                  \wedge\tmstraceagree{\overline{a}}{\trg{\overline{a}}}
+  \exists \overline{a}, \tmstraceagree[\delta^{\color{\stlccol}\bullet}]{\overline{a}}{\src{\overline{a}}}
+                  \wedge\tmstraceagree[\delta^{\color{\ulccol}\bullet}]{\overline{a}}{\trg{\overline{a}}}
   $$
+  where $\delta_{tms}={\delta^{\color{\stlccol}\bullet}}_{tms}\cup{\delta^{\color{\ulccol}\bullet}}_{tms}$ such that ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
 \end{definition}
 
 \begin{definition}[Cross-Language Store Agreement]
   We say $\storeagreetms{\src{\Omega}}{\trg{\Omega}}$ iff
   $$
-  \exists \tmsmonitor, \storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}
-                 \wedge\storeagreetms{\tmsmonitor}{\trg{\Omega}.\trg{\Delta}}
+  \exists \tmsmonitor, \storeagreetms[\delta^{\color{\stlccol}\bullet}]{\tmsmonitor}{\src{\Omega}.\src{\Delta}}
+                 \wedge\storeagreetms[\delta^{\color{\ulccol}\bullet}]{\tmsmonitor}{\trg{\Omega}.\trg{\Delta}}
   $$
+  where $\delta_{tms}={\delta^{\color{\stlccol}\bullet}}_{tms}\cup{\delta^{\color{\ulccol}\bullet}}_{tms}$ such that ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
 
   For convenience, we may also use $\storeagreetms{\src{\Delta}}{\trg{\Delta}}$ or $\storeagreetms{\src{\Omega}.\src{\Delta}}{\trg{\Omega}.\trg{\Delta}}$ with the obvious meaning.
 \end{definition}
@@ -1994,16 +1996,42 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{theorem}[Robust \gls{tms} Preservation]
   If
   \begin{assumptions}
-  \item $\forall \src{e_1}\ \src{e_2}\ \src{\overline{a}}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}\rightarrow\texttt{TMS}(\src{\bar{a}})$
-  \item $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
+  \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\overline{a}}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}\rightarrow\texttt{TMS}(\src{\bar{a}})$
+  \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
   \end{assumptions}
   then
   \begin{goals}
   \item $\texttt{TMS}(\trg{\bar{a}})$
   \end{goals}
 \end{theorem}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  We backtranslate the trace $\mmlAmmlAtback{\overline{a}} = \src{context\ e_1\ e_2}$ and immediately use it together with \Cref{asm:rtmsp:trgexec} to apply \thmref{lem:backtranslation:correct}:
+  \begin{passumptions}{H}
+  \item\label[ass]{asm:rtmsp:srcexec} $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}$
+  \item $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$
+  \end{passumptions}
+
+  We can specialize \Cref{asm:rtmsp:srctms} using $\src{e_1}$, $\src{e_2}$, $\src{\overline{a}}$, $\src{\Omega}$, $\src{v}$, and \Cref{asm:rtmsp:srcexec} to get:
+
+  \begin{passumptions}{H'}
+  \item\label[ass]{asm:rtmsp:srctms} $\texttt{TMS}(\src{\bar{a}})$
+  \end{passumptions}
+
+  By \Cref{def:src:trace:tms}, \Cref{asm:rtmsp:srctms} can be destructured as:
+  \begin{passumptions}{F}
+    \item $\tmstraceagree[\delta']{\overline{a}}{\src{\overline{a}}}$
+    \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
+  \end{passumptions}
+
+  We split $\delta_{tms}$ into ${\delta^{\color{\stlccol}\bullet}}_{tms}$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}$.
+  By \Cref{def:trg:trace:tms}, our goal can be instantiated with ${\delta^{\color{\stlccol}\bullet}}_{tms}$, $\overline{a}$, and $\tmsmonitor$, so what is left to show is:
+  \begin{goals}
+    \item $\tmstraceagree[{\delta^{\color{\ulccol}\bullet}}]{\overline{a}}{\trg{\overline{a}}}$
+    \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
+  \end{goals}
+
+  Both follow easily from existing assumptions. (note that ${\delta^{\color{\ulccol}\bullet}}_{tms}\subseteq\delta_{tms}$)
+\end{proof}
 
 \clearpage
 \cleardoublepage

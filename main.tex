@@ -954,7 +954,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
   }{w-e-prog}
   \end{center}
-}{wprog-run}{Running a whole $\mmlA$ program.}
+}{wprog-run}{Running a whole $\mmlAs$ program.}
 \MK{\Cref{fig:wprog-run}: Maybe mark unimportant stuff in $\src{\Omega_1}$}
 
 \subsubsection{\gls*{tms} Monitor}
@@ -1125,7 +1125,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{itemize}
 \end{definition}
 
-\begin{importanttheorem}[$\mmlA$ is \gls{tms} via Monitor]
+\begin{importanttheorem}[$\mmlAs$ is \gls{tms} via Monitor]
   If
   \begin{assumptions}
   \item $\src{prog\ e_0\ e_p\ e_1}=\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}}$
@@ -1713,6 +1713,19 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   %
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
 
+\myfig{
+  \begin{center}
+  \typerule{$e-\text{wprog}-trg$}{
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} \\
+    \exect{\Omega_0^\diamond}{e_p[v_0/x]}{\Omega_p}{v_p}{\overline{a_p}} &
+    \exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\overline{a_1}} &
+%    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\Omegas}{v}{\overline{a}}
+  }{
+    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
+  }{tw-e-prog}
+  \end{center}
+}{twprog-run}{Running a whole $\mmlAt$ program.}
+
 \subsubsection{Proofs and Auxiliary Lemmas}
 
 \begin{lemma}[Determinism of Step]\label{lem:determ:step}
@@ -1760,6 +1773,27 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\begin{definition}[Stuck Trace]\label{def:stuck:trgtrace}
+  A trace $\trg{\overline{a}}$ is stuck if it ends with $\trg{\lightning}$.
+\end{definition}
+
+\begin{definition}[Stuck State]\label{def:stuck:trgstate}
+  A state $\trg{\Omega}$ is stuck if it is equal to $\trg{\lightning}$.
+\end{definition}
+
+\begin{lemma}[Non-stuck Trace Generation]\label{lem:nonstuck:traces}
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\Omega'}{v}{\overline{a}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{\overline{a}}$ is not stuck.
+  \item $\trg{\Omega'}$ is not stuck.
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \subsubsection{\gls*{sms} Monitor}
 
@@ -1908,8 +1942,6 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \end{center}
 }{sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
 
-\clearpage
-
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:trg:trace:tms}
   We say $\texttt{TMS}(\trg{\bar{a}})$ iff $\exists \delta\ \bar{a}\ \tmsmonitor$ such that:
   \begin{itemize}
@@ -2048,7 +2080,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   induction on $\src{e}$
 \end{incompleteproof}
 
-\begin{lemma}[Expression Correctness]
+\begin{lemma}[Expression Correctness]\label{lem:expression:correctness}
   If
   \begin{assumptions}
     \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\bar{a}}_\delta}$
@@ -2106,12 +2138,41 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   For convenience, we may also use $\storeagreetms{\src{\Delta}}{\trg{\Delta}}$ or $\storeagreetms{\src{\Omega}.\src{\Delta}}{\trg{\Omega}.\trg{\Delta}}$ with the obvious meaning.
 \end{definition}
 
+\begin{lemma}[Compiling Traces Injectivity]\label{lem:comptrace:injective}\ \\
+  Given some injective $\delta$, $\mmlAmmlAtcomp{\overline{a}}_\delta$ is injective.
+\end{lemma}
+\begin{proof}
+  Induction on $\src{\overline{a}}$, trivial.
+\end{proof}
+
+\begin{lemma}[Non-Stuck Target Traces have Source Traces]\label{lem:comptrace:invertible}\ \\
+  Given injective $\delta$ and $\trg{\overline{a}}$ non-stuck, $\exists\src{\overline{a}}, \trg{\overline{a}}=\mmlAmmlAtcomp{\overline{a}}_\delta$.
+\end{lemma}
+\begin{proof}
+  Trivial induction on $\trg{\overline{a}}$ using \thmref{lem:comptrace:injective}.
+\end{proof}
+
+\begin{lemma}[Compiling Values Invertability]\label{lem:compvals:invertible}\ \\
+  $\mmlAmmlAtcomp{v}$ is invertible.
+\end{lemma}
+\begin{proof}
+  Trivial.
+\end{proof}
+
+\begin{lemma}[Invertible Operational State]\label{lem:invertible:opstate}\ \\
+  Given injective $\delta$ and $\trg{\Omega}$ non-stuck, $\exists\src{\Omega}, \trg{\Omega}=\mmlAmmlAtcomp{\Omega}_\delta$.
+\end{lemma}
+\begin{proof}
+  Trivial.
+\end{proof}
+
 
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{\ e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
+  \item\label[ass]{asm:backtranscorr:progexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{\ e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
   \item $\src{context\ e_1\ e_2}=\mmlAmmlAtback{\overline{a}}$
+  \item $\typechecks{}{component\ e_p}{\nat}$
   \end{assumptions}
   then $\exists \configs\ \src{v}\ \src{\overline{a}}\ \delta_{tms}$,
   \begin{goals}
@@ -2120,6 +2181,41 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  Inverting \Cref{asm:backtranscorr:progexec} gives:
+  \begin{passumptions}{H}
+  \item $\exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}}$
+  \item\label[ass]{asm:backtranscorr:compexecbase} $\exec{\trg{\Omega_0}}{\mmlAmmlAtcomp{e_p}\trg{[v_0/x]}}{\trg{\Omega_p}}{\trg{v_p}}{\trg{\overline{a_p}}}$
+  \item $\exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\overline{a_1}}$
+  \end{passumptions}
+
+  By \thmref{lem:compvals:invertible} we have $\mmlAmmlAtcomp{v_0}=\trg{v_0}$ and $\mmlAmmlAtcomp{v_p}=\trg{v_p}$.
+
+  Also note that $\mmlAmmlAtcomp{x}=\trg{x}$ by definition of the compiler.
+
+  Using \thmref{lem:nonstuck:traces} on \Cref{asm:backtranscorr:compexecbase} allows us to use \thmref{lem:comptrace:invertible} and \thmref{lem:invertible:opstate}, so $\trg{\overline{a_p}}=\mmlAmmlAtcomp{\overline{a_p}}_\delta$, $\trg{\Omega_0}=\mmlAmmlAtcomp{\Omega_0}_\delta$, and $\trg{\Omega_p}=\mmlAmmlAtcomp{\Omega_p}_\delta$.
+
+  Therefore, we can rewrite \Cref{asm:backtranscorr:compexecbase} as follows:
+  \begin{passumptions}{H'}
+    \setcounter{enumi}{1}
+    \item\label[ass]{asm:backtranscorr:compdexecbase} $\exec{\mmlAmmlAtcomp{\Omega_0}}{\mmlAmmlAtcomp{e_p}\trg{[}\mmlAmmlAtcomp{v_0}\trg{/}\mmlAmmlAtcomp{x}\trg{]}}{\mmlAmmlAtcomp{\Omega_p}}{\mmlAmmlAtcomp{v_p}}{\mmlAmmlAtcomp{\overline{a_p}}}$
+  \end{passumptions}
+
+  Plug \Cref{asm:backtranscorr:compdexecbase} into \thmref{lem:expression:correctness}:
+  \begin{passumptions}{G}
+    \item $\execs{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\src{\overline{a_p}}}$
+  \end{passumptions}
+
+  Idea:
+
+  have lemma where backtranslation always results in well typed context
+
+  combine that with well-typed component $\src{e_p}$
+
+  goal (i) trivial
+
+  goal (ii) no idea. we get the $\tmstraceagree[\delta^{\color{\stlccol}\bullet}]{\src{\overline{a}}}{\overline{a}}$ part by \thmref{thm:mmlAs:tmssafe} but no idea what to do about $\tmstraceagree[\delta^{\color{\ulccol}\bullet}]{\trg{\overline{a}}}{\overline{a}}$.
+
+
 \end{incompleteproof}
 
 \refstepcounter{theoremcounter}

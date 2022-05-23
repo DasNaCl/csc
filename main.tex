@@ -1672,7 +1672,8 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}
+  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n}\\
+                             & \mid \trg{\lightning} \mid \trg{Call\ ?n} \mid \trg{Ret\ !n}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAt$.}
@@ -1761,7 +1762,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     \exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\overline{a_1}} &
 %    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\Omegas}{v}{\overline{a}}
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0^\diamond\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1^\diamond}}
   }{tw-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -1842,7 +1843,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq&\ \nat \hspace{0.5cm}
       \mi{Abstract\ Store}~\smsmonitor =\ L\times\nat \\
-      \mi{Abstract\ Events}~a \bnfdef&\ \emptyevent \mid \text{Alloc}\ \loc\ n \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc\ n \\
+      \mi{Abstract\ Events}~a \bnfdef&\ \emptyevent \mid \text{Alloc}\ \loc\ n \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc\ n \mid \lightning\\
     \mi{References\ Agreement}~\delta_{\text{sms}} :&\ \trg{L}\to L \\[0.6cm]
     \end{aligned}
   \end{gather*}
@@ -1896,6 +1897,16 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     }{
       \smstraceagree{\trg{\varepsilon}}{\varepsilon}
     }{sms-internal-auth}
+    %
+    \typerule{SMS-Call-Authentic}{
+    }{
+      \smstraceagree{\trg{Call\ ?n}}{\varepsilon}
+    }{sms-call-auth}
+    %
+    \typerule{SMS-Ret-Authentic}{
+    }{
+      \smstraceagree{\trg{Ret\ !n}}{\varepsilon}
+    }{sms-ret-auth}
     %
     \typerule{SMS-Alloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc

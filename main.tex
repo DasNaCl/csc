@@ -593,9 +593,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
-  \mi{Importance}~\ \src{i}~\bnfdef&\  \mid \;\src{\diamond}\hspace{0.5cm}
-  \mi{Typing. Env.}~\src{\Gamma} \bnfdef\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau}\\
-  \mi{Store}~\src{\Delta} \bnfdef&\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison^{i}},\Deltas\\
+  \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\tau}\hspace{0.5cm}
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison},\Deltas\\
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
@@ -802,31 +801,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \subsubsection{Dynamic Semantics}
 
 \myfig{
-  \begin{center}
-  \typerule{store-qualify}{
-    \src{\Delta^\diamond}=\src{\Delta'}
-  }{
-    \src{(H;\Delta)^\diamond}=\src{H;\Delta'}
-  }{t-store-q}
-  %
-  \typerule{store-mark-nil}{
-  }{
-    \src{\hole{\cdot}^\diamond}=\src{\hole{\cdot}}
-  }{t-store-mark-nil}
-  %
-  \typerule{store-mark-cons}{
-    \src{\Delta^\diamond}=\src{\Delta'}
-  }{
-    \src{(x\mapsto\loc_\rho,\Delta)^\diamond}=\src{x\mapsto\loc_\rho^\diamond,\Delta'}
-  }{t-store-mark-cons}
-  \end{center}
-}{store-qualified}{$\mmlAs$ state importance marker.}
-\myfig{
   \begin{gather*}
   \begin{aligned}
   \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \\
                              & \src{\lightning} \mid \src{Call\ ?n} \mid \src{Ret\ !n} \\
-  \mi{Qualified\ Events}~\src{q} \bnfdef& \src{a} \mid \src{a^\diamond}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
@@ -896,37 +874,6 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 }{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
 
 \myfig{
-  $$
-  \begin{array}{lllcl}
-    H & \ll & n & = & match\ n\ with \\
-         &   &   & | & 0 \Rightarrow H \\
-         &   &   & | & S m \Rightarrow (\grow{H}{m}) :: 0 \\
-  \end{array}
-  $$
-  \vspace{0.5cm}
-
-  $$
-  \begin{array}{lllcl}
-           & H & n & = & match\ n,H\ with \\
-           &   &   & | & \_,[\ ] \Rightarrow None \\
-           &   &   & | & 0,x :: \_ \Rightarrow Some\ x \\
-           &   &   & | & S m,x :: xs \Rightarrow xs \ m \\
-  \end{array}
-  $$
-  \vspace{0.5cm}
-
-  $$
-  \begin{array}{lllcrl}
-    H & (n & \mapsto & v) = & match\ H\        & with  \\
-           &   &   & | & [\ ] \Rightarrow    & [\ ] \\
-           &   &   & | & x :: xs \Rightarrow & match\ n\ with \\
-           &   &   &   &                   | & 0 \Rightarrow v :: xs \\
-           &   &   &   &                   | & S m \Rightarrow x :: (xs\ (m\mapsto v)) \\
-  \end{array}
-  $$
-}{w-step-util}{Helper functions for heap manipulation.}
-
-\myfig{
   \begin{center}
     \judgbox{\execs{\configs}{e}{\configs'}{e'}{\bar{a}}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\bar{a}}$.''}
     %
@@ -948,15 +895,43 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typerule{$e-\text{wprog}$}{
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
-    \execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
+    \execs{\configs_0}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
     \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
 %    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0^\diamond\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1^\diamond}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
   }{w-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 \MK{\Cref{fig:wprog-run}: Maybe mark unimportant stuff in $\src{\Omega_1}$}
+
+\subsubsection{\gls*{tms}-Specific Events}
+\myfig{
+  \begin{gather*}
+  \begin{aligned}
+    \mi{Events}~\src{a_{tms}} \bnfdef&\ \specificevs{\emptyevent} \mid \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Get\ \loc\ n} \mid \specificevs{Set\ \loc\ n} \\
+                                     & \mid \specificevs{\lightning} \mid \specificevs{Call\ ?n} \mid \specificevs{Ret\ !n}\\
+  \end{aligned}
+  \end{gather*}
+}{w-specific-events}{\gls*{tms}-Specific Events of $\mmlAs$.}
+\myfig{
+  \begin{center}
+    $$
+    \begin{array}{rcl}
+      \tospecificevs{Alloc\ \loc\ n} &\ = & \specificevs{Alloc\ \loc\ n} \\
+      \tospecificevs{Dealloc\ \loc} &\ = & \specificevs{Dealloc\ \loc} \\
+      \tospecificevs{Get\ \loc\ n} &\ = & \specificevs{Use\ \loc\ n} \\
+      \tospecificevs{Set\ \loc\ n} &\ = & \specificevs{Use\ \loc\ n} \\
+      \tospecificevs{Call\ ?n} &\ = & \specificevs{Call\ ?n} \\
+      \tospecificevs{Ret\ !n} &\ = & \specificevs{Ret\ !n} \\
+      \tospecificevs{\lightning} &\ = & \specificevs{\lightning} \\[0.3cm]
+      %
+      \tospecificevctxs{\overline{a_0}\cdot Call\ ?n_1\cdot\overline{a_p}\cdot Ret\ !n_2\cdot\overline{a_1}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{\overline{a_0\cdot Call\ ?n_1\cdot Ret\ !n_2\cdot a_1}}\right)\\
+      \tospecificevcomps{\overline{a_0}\cdot Call\ ?n_1\cdot\overline{a_p}\cdot Ret\ !n_2\cdot\overline{a_1}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{\overline{Call\ ?n_1\cdot a_p \cdot Ret\ !n_2}}\right)\\
+    \end{array}
+    $$
+  \end{center}
+}{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{tms}-specific events.}
 
 \subsubsection{\gls*{tms} Monitor}
 \myfig{
@@ -1021,7 +996,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     \typerule{TMS-Internal-Authentic}{
     }{
-      \tmstraceagree{\src{\varepsilon}}{\varepsilon}
+      \tmstraceagree{\specificevs{\varepsilon}}{\varepsilon}
     }{tms-internal-auth}
     %
     \typerule{TMS-Call-Authentic}{
@@ -2054,74 +2029,6 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \end{center}
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
 
-\subsubsection{Partial Trace-based Backtranslation}
-
-\myfig{
-  \begin{center}
-    $$
-      \Game:\trg{L}\to\src{e}
-    $$
-    \typerule{backtrans-create-symb}{
-      \trg{\loc}\not\in\operatorname{dom}\Game &
-      \text{fresh}\ \src{x} &
-    }{
-      \Game'=\Game\cup\left\{\trg{\loc}\mapsto\src{x}\right\}
-    }{backtrans-create-symb}
-    \typerule{backtrans-nocreate-symb}{
-      \trg{\loc}\in\operatorname{dom}\Game &
-    }{
-      \Game'=\Game
-    }{backtrans-nocreate-symb}
-    %
-    \typerule{backtrans-lookup-symb}{
-      \trg{\loc}\in\operatorname{dom}\Game
-    }{
-      \Game(\trg{\loc}) = \src{x}
-    }{backtrans-lookup-symb}
-    $$
-    \begin{array}{rll} 
-      \mmlAmmlAtbackv{v} &\ = & \src{v} \\[0.5cm]
-      %
-      \mmlAmmlAtbackdetail{\hole{\cdot}} &\ = & \Game,\src{42} \\
-      %
-      \mmlAmmlAtbackdetail{(Alloc\ \loc\ n)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                       &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
-                                                                       &&\Game'',\src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e} \\
-      %
-      \mmlAmmlAtbackdetail{(Dealloc\ \loc)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                      &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
-                                                                      &&\Game'',\src{delete\ }\Game'(\trg{\loc})\src{; e}\\
-      %
-      \mmlAmmlAtbackdetail{(Get\ \loc\ n)^\diamond\cdot\overline{a}} &\ = &\text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                     &&\text{let }\Game'',\src{e}=\mmlAmmlAtback{\overline{a}}\text{\ in}\\
-                                                                     &&\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{];e} \\
-      %
-      \mmlAmmlAtbackdetail{(Set\ \loc\ n\ v)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                        &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\\
-                                                                        &&\Game'',\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{]\leftarrow }\mmlAmmlAtbackv{v}\src{; e} \\
-      \mmlAmmlAtbackdetail{a\cdot\overline{a}} &\ = & \Game,\src{42}\\[0.5cm]
-      %
-      \mmlAmmlAtbackdetailz{\hole{\cdot}} &\ = & \trg{\hole{\cdot}}\\ 
-      \mmlAmmlAtbackdetailz{a^\diamond\cdot\overline{a}} &\ = & \mmlAmmlAtbackdetailz{\overline{a}}\\ 
-      \mmlAmmlAtbackdetailz{a\cdot\overline{a}} &\ = & \trg{a\cdot\overline{a}}\\[0.5cm]
-      %
-      \mmlAmmlAtbackdetailo{\hole{\cdot}} &\ = & \trg{\hole{\cdot}}\\ 
-      \mmlAmmlAtbackdetailo{a^\diamond\cdot\overline{a}} &\ = & \trg{a^\diamond\cdot\overline{a}}\\ 
-      \mmlAmmlAtbackdetailo{a\cdot\overline{a}} &\ = & \mmlAmmlAtbackdetailo{\overline{a}}\\[0.5cm]
-      %
-      \mmlAmmlAtback{\overline{a}} &\ = & \text{let }\Game,\src{e_1}=\mmlAmmlAtbackdetail[\emptyset]{\overline{a}}\text{\ in}\\
-                                   &&\text{let }\_,\src{e_2}=\mmlAmmlAtbackdetail{ \mmlAmmlAtbackdetailo{\mmlAmmlAtbackdetailz{\overline{a}}} }\text{\ in}\\
-                                   &&\src{context\ e_1\ e_2} \\
-    \end{array}
-    $$
-  \end{center}
-}{tms-pres-backtrans}{Partial Trace-Based Backtranslation from }%$\mmlAs$ to $\mmlAt$.}
-The trace-based backtranslation is partial since we leave the translation undefined for the event $\trg{\lightning}$.
-This is fine, because where we use the backtranslation, we know the trace won't contain $\trg{\lightning}$.
-We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
-
-\subsubsection{Proofs and Auxiliary Lemmas}
-
 \begin{lemma}[Determinism of Compiler]\label{lem:determcomp}
   If and only if
   \begin{assumptions}
@@ -2186,6 +2093,69 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   
   \Cref{asm:exprcorrect:compiled:equal} contradicts \Cref{asm:exprcorrect:compiled:unequal}.
 \end{proof}
+
+
+\subsubsection{Partial Trace-based Backtranslation}
+
+\myfig{
+  \begin{center}
+    $$
+      \Game:\trg{L}\to\src{e}
+    $$
+    \typerule{backtrans-create-symb}{
+      \trg{\loc}\not\in\operatorname{dom}\Game &
+      \text{fresh}\ \src{x} &
+    }{
+      \Game'=\Game\cup\left\{\trg{\loc}\mapsto\src{x}\right\}
+    }{backtrans-create-symb}
+    \typerule{backtrans-nocreate-symb}{
+      \trg{\loc}\in\operatorname{dom}\Game &
+    }{
+      \Game'=\Game
+    }{backtrans-nocreate-symb}
+    %
+    \typerule{backtrans-lookup-symb}{
+      \trg{\loc}\in\operatorname{dom}\Game
+    }{
+      \Game(\trg{\loc}) = \src{x}
+    }{backtrans-lookup-symb}
+    $$
+    \begin{array}{rll} 
+      \mmlAmmlAtbackv{v} &\ = & \src{v} \\[0.5cm]
+      %
+      \mmlAmmlAtbackdetail{\hole{\cdot}} &\ = & \Game,\src{42} \\
+      %
+      \mmlAmmlAtbackdetail{(Alloc\ \loc\ n)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                       &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
+                                                                       &&\Game'',\src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e} \\
+      %
+      \mmlAmmlAtbackdetail{(Dealloc\ \loc)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                      &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
+                                                                      &&\Game'',\src{delete\ }\Game'(\trg{\loc})\src{; e}\\
+      %
+      \mmlAmmlAtbackdetail{(Get\ \loc\ n)^\diamond\cdot\overline{a}} &\ = &\text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                     &&\text{let }\Game'',\src{e}=\mmlAmmlAtback{\overline{a}}\text{\ in}\\
+                                                                     &&\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{];e} \\
+      %
+      \mmlAmmlAtbackdetail{(Set\ \loc\ n\ v)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
+                                                                        &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\\
+                                                                        &&\Game'',\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{]\leftarrow }\mmlAmmlAtbackv{v}\src{; e} \\
+      %
+      \mmlAmmlAtbackdetail{(Call\ ?n)^i\cdot\overline{a}} &\ = &\mmlAmmlAtbackdetail{\overline{a}}\\
+      \mmlAmmlAtbackdetail{(Ret\ !n)^i\cdot\overline{a}} &\ = &\mmlAmmlAtbackdetail{\overline{a}}\\[0.5cm]
+      %
+      \mmlAmmlAtback{\overline{a}} &\ = & \text{let }\Game,\src{e_1}=\mmlAmmlAtbackdetail[\emptyset]{\overline{a}}\text{\ in}\\
+                                   &&\text{let }\_,\src{e_2}=\mmlAmmlAtbackdetail{ \mmlAmmlAtbackdetailo{\mmlAmmlAtbackdetailz{\overline{a}}} }\text{\ in}\\
+                                   &&\src{context\ e_1\ e_2} \\
+    \end{array}
+    $$
+  \end{center}
+}{tms-pres-backtrans}{Partial Trace-Based Backtranslation from }%$\mmlAs$ to $\mmlAt$.}
+The trace-based backtranslation is partial since we leave the translation undefined for the event $\trg{\lightning}$.
+This is fine, because where we use the backtranslation, we know the trace won't contain $\trg{\lightning}$.
+We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
+
+\subsubsection{Proofs and Auxiliary Lemmas}
 
 \begin{definition}[Cross-Language Trace Agreement]
   We say $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$ iff

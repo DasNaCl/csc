@@ -1987,6 +1987,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \begin{center}
     $$
     \begin{array}{rll}
+    \delta&\ : & \src{L}\to\trg{L}\\[0.3cm]
     \mmlAmmlAtcomp{x} &\ = & \trg{x} \\
     \mmlAmmlAtcomp{v} &\ = & \trg{v} \\
     \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \trg{e_1\oplus e_2} \\
@@ -1998,13 +1999,6 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     %
     \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \left[\mmlAmmlAtcomp{v}/\mmlAmmlAtcomp{x}\right]\\[0.5cm]
     %
-    \mmlAmmlAtcomp{\Omega}_\delta&\ = & \text{let\ }\src{H};\src{\Delta}=\src{\Omega}\text{\ in}\\
-                          && \text{let\ }\trg{\Omega}=\mmlAmmlAtcomp{H}_\delta;\mmlAmmlAtcomp{\Delta}_\delta\text{\ in}\\
-                          && \trg{\Omega} \\
-    \mmlAmmlAtcomp{\emptyset}_\delta &\ = & \trg{\emptyset}\\
-    \mmlAmmlAtcomp{n,H}_\delta &\ = & \mmlAmmlAtcomp{n}\trg{,}\mmlAmmlAtcomp{H}_\delta\\
-    \mmlAmmlAtcomp{x\mapsto\loc,\Delta}_\delta &\ = &\mmlAmmlAtcomp{x}_\delta\trg{\mapsto}\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\Delta}\\[0.5cm]
-    %
     \mmlAmmlAtcomp{\hole{\cdot}}_\delta&\ = & \trg{\hole{\cdot}}\\
     \mmlAmmlAtcomp{\varepsilon^i,\bar{a}}_\delta&\ = & \trg{\varepsilon,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
     \mmlAmmlAtcomp{(Alloc\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Alloc\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
@@ -2013,6 +2007,27 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     \mmlAmmlAtcomp{(Set\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Set\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
     \end{array}
     $$
+    \typerule{compile-state}{
+      \src{H};\src{\Delta}=\src{\Omega}&
+      \trg{\Omega}=\mmlAmmlAtcomp{H};\mmlAmmlAtcomp{\Delta}
+    }{
+      \mmlAmmlAtcomp{\Omega}_\delta = \trg{\Omega}
+    }{compile-state}
+    %
+    \typerule{empty-compile}{
+    }{
+      \mmlAmmlAtcomp{\emptyset}_\delta = \trg{\emptyset}
+    }{compile-empty-heap}
+    %
+    \typerule{cons-heap-compile}{
+    }{
+      \mmlAmmlAtcomp{n,H}_\delta = \mmlAmmlAtcomp{n}\trg{,}\mmlAmmlAtcomp{H}_\delta
+    }{compile-cons-heap}
+    %
+    \typerule{cons-locmap-compile}{
+    }{
+      \mmlAmmlAtcomp{x\mapsto\loc,\Delta}_\delta = \mmlAmmlAtcomp{x}_\delta\trg{\mapsto}\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\Delta}
+    }{compile-cons-map}
   \end{center}
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
 
@@ -2020,6 +2035,9 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 
 \myfig{
   \begin{center}
+    $$
+      \Game:\trg{L}\to\src{e}
+    $$
     \typerule{backtrans-create-symb}{
       \trg{\loc}\not\in\operatorname{dom}\Game &
       \text{fresh}\ \src{x} &

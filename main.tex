@@ -825,6 +825,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
   \begin{aligned}
   \mi{Events}~\src{a} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \\
+                             & \src{\lightning} \mid \src{Call\ ?n} \mid \src{Ret\ !n} \\
   \mi{Qualified\ Events}~\src{q} \bnfdef& \src{a} \mid \src{a^\diamond}
   \end{aligned}
   \end{gather*}
@@ -951,7 +952,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
 %    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0^\diamond\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1^\diamond}}
   }{w-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -963,7 +964,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq& \nat \hspace{0.5cm}
       \mi{Abstract\ Store}~\tmsmonitor =\{A : L, F : L\} \\
-      \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \\
+      \mi{Abstract\ Events}~a \bnfdef& \emptyevent \mid \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \mid \lightning\\
       \mi{References\ Agreement}~\delta_{\text{tms}} :& \src{L}\to L \\[0.6cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
       a\not\in \tmsmonitor['] &\text{ iff } a \not\in {\tmsmonitor['.A]} \wedge a \not\in {\tmsmonitor['.F]}\\
@@ -1023,6 +1024,16 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \tmstraceagree{\src{\varepsilon}}{\varepsilon}
     }{tms-internal-auth}
     %
+    \typerule{TMS-Call-Authentic}{
+    }{
+      \tmstraceagree{\src{Call\ ?n}}{\varepsilon}
+    }{tms-call-auth}
+    %
+    \typerule{TMS-Ret-Authentic}{
+    }{
+      \tmstraceagree{\src{Ret\ !n}}{\varepsilon}
+    }{tms-ret-auth}
+    %
     \typerule{TMS-Alloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
@@ -1066,6 +1077,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{tms-trans-auth-ignore}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
+\MK{Skip Call and Ret events when folding over trace?}
 
 \myfig{
   \begin{center}

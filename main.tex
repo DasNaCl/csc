@@ -1021,17 +1021,11 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \tmstraceagree{\specificevs{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
     }{tms-dealloc-auth}
     %
-    \typerule{TMS-Get-Authentic}{
+    \typerule{TMS-Use-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-    \tmstraceagree{\specificevs{Get\ \loc\ n}}{\text{Use}\ \loc}
-    }{tms-get-auth}
-    %
-    \typerule{TMS-Set-Authentic}{
-      \delta_{\text{tms}}(\src{\loc})=\loc
-    }{
-      \tmstraceagree{\specificevs{Set\ \loc\ n\ v}}{\text{Use}\ \loc}
-    }{tms-set-auth}
+      \tmstraceagree{\specificevs{Use\ \loc\ n}}{\text{Use}\ \loc}
+    }{tms-use-auth}
     %
     \typerule{TMS-Refl-Authentic}{
     }{
@@ -1096,10 +1090,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   We define the property $\src{tmsafe}(\src{\overline{a_{ms}}})$ as a conjunction of the following conditions:
   \begin{itemize}
     \item $\specificevs{Alloc\ \loc\ s}\le_{\src{\overline{a_{ms}}}}\specificevs{Dealloc\ \loc}$
-    \item $\neg(\specificevs{Get\ \loc\ n}\le_{\src{\overline{a_{ms}}}}\specificevs{Alloc\ \loc\ s})$
-    \item $\neg(\specificevs{Set\ \loc\ n\ v}\le_{\src{\overline{a_{ms}}}}\specificevs{Alloc\ \loc\ s})$
-    \item $\neg(\specificevs{Dealloc\ \loc}\le_{\src{\overline{a_{ms}}}}\specificevs{Get\ \loc\ n})$
-    \item $\neg(\specificevs{Dealloc\ \loc}\le_{\src{\overline{a_{ms}}}}\specificevs{Set\ \loc\ n\ v})$
+    \item $\neg(\specificevs{Use\ \loc\ n}\le_{\src{\overline{a_{ms}}}}\specificevs{Alloc\ \loc\ s})$
+    \item $\neg(\specificevs{Dealloc\ \loc}\le_{\src{\overline{a_{ms}}}}\specificevs{Use\ \loc\ n})$
     \item $\specificevs{Dealloc\ \loc}\in!\;\src{\overline{a_{ms}}}$
     \item $\specificevs{Alloc\ \loc\ s}\in!\;\src{\overline{a_{ms}}}$
     % \makebox(0,0){\put(0,3.0\normalbaselineskip){ %
@@ -1114,10 +1106,9 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 % might not need to do an induction at the general step, but for the primitive step we need it
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\src{smsafe}\left(\src{\overline{a_{ms}}}\right)$ as a conjunction of the following conditions:
+  We define the property $\src{smsafe}\left(\src{\overline{a_{ms}}}\right)$ as follows:
   \begin{itemize}
-    \item If $\specificevs{Alloc\ \loc\ s}\in\src{\overline{a_{ms}}}$ and $\specificevs{Get\ \loc\ n}\in\src{\overline{a_{ms}}}$, then $\src{n}<\src{s}$
-    \item If $\specificevs{Alloc\ \loc\ s}\in\src{\overline{a_{ms}}}$ and $\specificevs{Set\ \loc\ n\ v}\in\src{\overline{a_{ms}}}$, then $\src{n}<\src{s}$
+    \item If $\specificevs{Alloc\ \loc\ s}\in\src{\overline{a_{ms}}}$ and $\specificevs{Use\ \loc\ n}\in\src{\overline{a_{ms}}}$, then $\src{n}<\src{s}$
   \end{itemize}
 \end{definition}
 
@@ -1511,8 +1502,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   Invert $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$ and invert the subsequent result to get:
   \begin{passumptions}{H^t}
     \item\label[ass]{asm:mmlatmsviamonitor:type0} $\typechecks{\hole{\cdot}}{e_0}{\nat}$
-    \item\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:nat}{e_p}{\nat}$
-    \item\label[ass]{asm:mmlatmsviamonitor:type1} $\typechecks{y:nat}{e_1}{\nat}$
+    \item\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:\nat}{e_p}{\nat}$
+    \item\label[ass]{asm:mmlatmsviamonitor:type1} $\typechecks{y:\nat}{e_1}{\nat}$
   \end{passumptions}
 
   By \Cref{tr:t-empty-store} and \Cref{asm:mmlatmsviamonitor:type1}, we have 
@@ -2080,12 +2071,12 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \trg{\loc}\not\in\operatorname{dom}\Game &
       \text{fresh}\ \src{x} &
     }{
-      \Game'=\Game\cup\left\{\trg{\loc}\mapsto\src{x}\right\}
+      \Game'[\trg{\loc}]=\Game\cup\left\{\trg{\loc}\mapsto\src{x}\right\}
     }{backtrans-create-symb}
     \typerule{backtrans-nocreate-symb}{
       \trg{\loc}\in\operatorname{dom}\Game &
     }{
-      \Game'=\Game
+      \Game'[\trg{\loc}]=\Game
     }{backtrans-nocreate-symb}
     %
     \typerule{backtrans-lookup-symb}{
@@ -2093,31 +2084,56 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \Game(\trg{\loc}) = \src{x}
     }{backtrans-lookup-symb}
+    %
+    %
+    %
+    \typerule{backtrans-value}{
+    }{
+      \mmlAmmlAtbackv{v} = \src{v}
+    }{backtrans-value}
+    %
+    \typerule{backtrans-empty}{
+    }{
+      \mmlAmmlAtbackdetail{\hole{\cdot}} = \Game,\src{42}
+    }{backtrans-empty}
+    %
+    \typerule{backtrans-alloc}{
+      \Game'=\Game[\trg{\loc}] &
+      \Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a_{ms}}} &
+    }{
+      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ n}\cdot\overline{a_{ms}}} = \Game'', \src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
+    }{backtrans-alloc}
+    %
+    \typerule{backtrans-dealloc}{
+      \Game'=\Game[\trg{\loc}] &
+      \Game'',\src{e} = \mmlAmmlAtbackdetail[\Game']{\overline{a_{ms}}} &
+    }{
+      \mmlAmmlAtbackdetail{\specificevt{Dealloc\ \loc}\cdot\overline{a_{ms}}} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
+    }{backtrans-dealloc}
+    %
+    \typerule{backtrans-use}{
+      \Game'=\Game[\trg{\loc}] &
+      \Game'',\src{e}=\mmlAmmlAtback{\overline{a_{ms}}} &
+      \src{x}=\Game'(\trg{\loc}) &
+    }{
+      \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\overline{a_{ms}}} = \src{x[}\mmlAmmlAtbackv{n}\src{];e}
+    }{backtrans-use}
+    %
+    \typerule{backtrans-call}{
+    }{
+      \mmlAmmlAtbackdetail{\specificevt{Call\ ?n}} = \mmlAmmlAtbackv{n}
+    % TODO: intuitively, we want `let x = n in call foo x`
+    }{backtrans-call}
+    %
+    \typerule{backtrans-ret}{
+    }{
+    \mmlAmmlAtbackdetail{\specificevt{Ret\ !n}} = \src{if\ y = }\mmlAmmlAtbackv{n}\src{\ then\ 1\ else\ 2}
+      %TODO: actually add if-else to src
+    }{backtrans-ret}
     $$
     \begin{array}{rll} 
-      \mmlAmmlAtbackv{v} &\ = & \src{v} \\[0.5cm]
       %
-      \mmlAmmlAtbackdetail{\hole{\cdot}} &\ = & \Game,\src{42} \\
-      %
-      \mmlAmmlAtbackdetail{(Alloc\ \loc\ n)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                       &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
-                                                                       &&\Game'',\src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e} \\
-      %
-      \mmlAmmlAtbackdetail{(Dealloc\ \loc)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                      &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\text{\ in}\\
-                                                                      &&\Game'',\src{delete\ }\Game'(\trg{\loc})\src{; e}\\
-      %
-      \mmlAmmlAtbackdetail{(Get\ \loc\ n)^\diamond\cdot\overline{a}} &\ = &\text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                     &&\text{let }\Game'',\src{e}=\mmlAmmlAtback{\overline{a}}\text{\ in}\\
-                                                                     &&\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{];e} \\
-      %
-      \mmlAmmlAtbackdetail{(Set\ \loc\ n\ v)^\diamond\cdot\overline{a}} &\ = & \text{let }\Game'=\Game[\trg{\loc}]\text{\ in}\\
-                                                                        &&\text{let }\Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a}}\\
-                                                                        &&\Game'',\Game'(\trg{\loc})\src{[}\mmlAmmlAtbackv{n}\src{]\leftarrow }\mmlAmmlAtbackv{v}\src{; e} \\
-      %
-      \mmlAmmlAtbackdetail{(Call\ ?n)^i\cdot\overline{a}} &\ = &\mmlAmmlAtbackdetail{\overline{a}}\\
-      \mmlAmmlAtbackdetail{(Ret\ !n)^i\cdot\overline{a}} &\ = &\mmlAmmlAtbackdetail{\overline{a}}\\[0.5cm]
-      %
+      % TODO: fix top-level backtranslation
       \mmlAmmlAtback{\overline{a}} &\ = & \text{let }\Game,\src{e_1}=\mmlAmmlAtbackdetail[\emptyset]{\overline{a}}\text{\ in}\\
                                    &&\text{let }\_,\src{e_2}=\mmlAmmlAtbackdetail{ \mmlAmmlAtbackdetailo{\mmlAmmlAtbackdetailz{\overline{a}}} }\text{\ in}\\
                                    &&\src{context\ e_1\ e_2} \\

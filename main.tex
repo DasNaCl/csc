@@ -905,15 +905,15 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 \MK{\Cref{fig:wprog-run}: Maybe mark unimportant stuff in $\src{\Omega_1}$}
 
-\subsubsection{\gls*{tms}-Specific Events}
+\subsubsection{\gls*{ms}-Specific Events}
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Events}~\src{a_{tms}} \bnfdef&\ \specificevs{\emptyevent} \mid \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Get\ \loc\ n} \mid \specificevs{Set\ \loc\ n} \\
-                                     & \mid \specificevs{\lightning} \mid \specificevs{Call\ ?n} \mid \specificevs{Ret\ !n}\\
+    \mi{Events}~\src{a_{ms}} \bnfdef&\ \specificevs{\emptyevent} \mid \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Get\ \loc\ n} \mid \specificevs{Set\ \loc\ n} \\
+                                    & \mid \specificevs{\lightning} \mid \specificevs{Call\ ?n} \mid \specificevs{Ret\ !n}\\
   \end{aligned}
   \end{gather*}
-}{w-specific-events}{\gls*{tms}-Specific Events of $\mmlAs$.}
+}{w-specific-events}{\gls*{ms}-Specific Events of $\mmlAs$.}
 \myfig{
   \begin{center}
     $$
@@ -931,7 +931,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \end{array}
     $$
   \end{center}
-}{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{tms}-specific events.}
+}{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
 
 \subsubsection{\gls*{tms} Monitor}
 \myfig{
@@ -1001,36 +1001,36 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     %
     \typerule{TMS-Call-Authentic}{
     }{
-      \tmstraceagree{\src{Call\ ?n}}{\varepsilon}
+      \tmstraceagree{\specificevs{Call\ ?n}}{\varepsilon}
     }{tms-call-auth}
     %
     \typerule{TMS-Ret-Authentic}{
     }{
-      \tmstraceagree{\src{Ret\ !n}}{\varepsilon}
+      \tmstraceagree{\specificevs{Ret\ !n}}{\varepsilon}
     }{tms-ret-auth}
     %
     \typerule{TMS-Alloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-      \tmstraceagree{\src{Alloc\ \loc\ n}}{\text{Alloc}\ \loc}
+      \tmstraceagree{\specificevs{Alloc\ \loc\ n}}{\text{Alloc}\ \loc}
     }{tms-alloc-auth}
     %
     \typerule{TMS-Dealloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-    \tmstraceagree{\src{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
+    \tmstraceagree{\specificevs{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
     }{tms-dealloc-auth}
     %
     \typerule{TMS-Get-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-    \tmstraceagree{\src{Get\ \loc\ n}}{\text{Use}\ \loc}
+    \tmstraceagree{\specificevs{Get\ \loc\ n}}{\text{Use}\ \loc}
     }{tms-get-auth}
     %
     \typerule{TMS-Set-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-      \tmstraceagree{\src{Set\ \loc\ n\ v}}{\text{Use}\ \loc}
+      \tmstraceagree{\specificevs{Set\ \loc\ n\ v}}{\text{Use}\ \loc}
     }{tms-set-auth}
     %
     \typerule{TMS-Refl-Authentic}{
@@ -1040,19 +1040,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     %
     \typerule{TMS-Trans-Authentic}{
       \tmstraceagree{\src{a}}{a} &
-      \tmstraceagree{\src{\bar{a}}}{\bar{a}}
+      \tmstraceagree{\src{\overline{a_{ms}}}}{\overline{a}}
     }{
-      \tmstraceagree{\src{a}\cdot\src{\bar{a}}}{a\cdot\bar{a}}
+      \tmstraceagree{\src{a}\cdot\src{\overline{a_{ms}}}}{a\cdot\overline{a}}
     }{tms-trans-auth}
-    %
-    \typerule{TMS-Trans-Authentic-Ignore}{
-      \tmstraceagree{\src{\bar{a}}}{\bar{a}}
-    }{
-      \tmstraceagree{\src{a^\diamond}\cdot\src{\bar{a}}}{\bar{a}}
-    }{tms-trans-auth-ignore}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
-\MK{Skip Call and Ret events when folding over trace?}
 
 \myfig{
   \begin{center}
@@ -1074,25 +1067,41 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{
       \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\poisoned,\Delta}}
     }{store-poison-agree}
-    %
-    \typerule{Ignore-Agree}{
-      \storeagreetms{\tmsmonitor}{\src{\Delta}}
-    }{
-      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\rho^\diamond,\Delta}}
-    }{store-ignore-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
 
+We now define temporal and spatial memory safety in terms of traces on events $\src{e}$.
+
+\begin{definition}[Occurence]
+  Given an event $e$ and a trace $\trace$, the event $e$ occurs in $\trace$, written $e\in\trace$, iff
+
+  $\exists n, \trace[n]=e$
+\end{definition}
+
+\begin{definition}[Unicity]
+  Given an event $e$ and a trace $\trace$, the event $e$ occurs exactly once in $\trace$, written $e!_{\trace}$, iff
+
+  $\exists n, \trace[n]=e \wedge \nexists m, n\not= m \wedge \trace[m] = e$
+\end{definition}
+
+\begin{definition}[Sequentiality]
+  Given two events $e_{0},e_{1}$ and a trace $\trace$, event $e_{0}$ occurs before $e_{1}$ in $\trace$, written
+  $e_{0}\le_{\trace}e_{1}$, iff
+
+  $\exists n, \trace[n] = e_{0}\implies \exists m, \trace[m] = e_{1} \wedge n<m$
+\end{definition}
+
+
 \begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
-  We define the property $\src{tmsafe}(\src{\trace})$ as a conjunction of the following conditions:
+  We define the property $\src{tmsafe}(\src{\overline{a_{ms}}})$ as a conjunction of the following conditions:
   \begin{itemize}
-    \item $\src{Alloc\ \loc\ s}\le_{\src{\trace}}\src{Dealloc\ \loc}$
-    \item $\neg(\src{Get\ \loc\ n}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
-    \item $\neg(\src{Set\ \loc\ n\ v}\le_{\src{\trace}}\src{Alloc\ \loc\ s})$
-    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Get\ \loc\ n})$
-    \item $\neg(\src{Dealloc\ \loc}\le_{\src{\trace}}\src{Set\ \loc\ n\ v})$
-    \item $\src{Dealloc\ \loc}\in!\;\src{\trace}$
-    \item $\src{Alloc\ \loc\ s}\in!\;\src{\trace}$
+    \item $\specificevs{Alloc\ \loc\ s}\le_{\src{\overline{a_{ms}}}}\specificevs{Dealloc\ \loc}$
+    \item $\neg(\specificevs{Get\ \loc\ n}\le_{\src{\overline{a_{ms}}}}\specificevs{Alloc\ \loc\ s})$
+    \item $\neg(\specificevs{Set\ \loc\ n\ v}\le_{\src{\overline{a_{ms}}}}\specificevs{Alloc\ \loc\ s})$
+    \item $\neg(\specificevs{Dealloc\ \loc}\le_{\src{\overline{a_{ms}}}}\specificevs{Get\ \loc\ n})$
+    \item $\neg(\specificevs{Dealloc\ \loc}\le_{\src{\overline{a_{ms}}}}\specificevs{Set\ \loc\ n\ v})$
+    \item $\specificevs{Dealloc\ \loc}\in!\;\src{\overline{a_{ms}}}$
+    \item $\specificevs{Alloc\ \loc\ s}\in!\;\src{\overline{a_{ms}}}$
     % \makebox(0,0){\put(0,3.0\normalbaselineskip){ %
     % $\left.\rule{0pt}{1.32\normalbaselineskip}\right\}$ no reallocs, references are unique}}
   \end{itemize}
@@ -1105,10 +1114,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 % might not need to do an induction at the general step, but for the primitive step we need it
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\src{smsafe}\left(\src{\trace}\right)$ as a conjunction of the following conditions:
+  We define the property $\src{smsafe}\left(\src{\overline{a_{ms}}}\right)$ as a conjunction of the following conditions:
   \begin{itemize}
-    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Get\ \loc\ n}\in\src{\trace}$, then $\src{n}<\src{s}$
-    \item If $\src{Alloc\ \loc\ s}\in\src{\trace}$ and $\src{Set\ \loc\ n\ v}\in\src{\trace}$, then $\src{n}<\src{s}$
+    \item If $\specificevs{Alloc\ \loc\ s}\in\src{\overline{a_{ms}}}$ and $\specificevs{Get\ \loc\ n}\in\src{\overline{a_{ms}}}$, then $\src{n}<\src{s}$
+    \item If $\specificevs{Alloc\ \loc\ s}\in\src{\overline{a_{ms}}}$ and $\specificevs{Set\ \loc\ n\ v}\in\src{\overline{a_{ms}}}$, then $\src{n}<\src{s}$
   \end{itemize}
 \end{definition}
 
@@ -1120,7 +1129,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\texttt{TMS}(\src{\bar{a}})$
+  \item $\texttt{TMS}(\tospecificevs{\bar{a}})$
   \end{goals}.
 \end{importanttheorem}
 For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
@@ -1170,28 +1179,6 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{proof}
   Structural induction on $\src{e}$.
 \end{proof}
-
-We now define temporal and spatial memory safety in terms of traces on events $\src{e}$.
-
-\begin{definition}[Occurence]
-  Given an event $e$ and a trace $\trace$, the event $e$ occurs in $\trace$, written $e\in\trace$, iff
-
-  $\exists n, \trace[n]=e$
-\end{definition}
-
-\begin{definition}[Unicity]
-  Given an event $e$ and a trace $\trace$, the event $e$ occurs exactly once in $\trace$, written $e!_{\trace}$, iff
-
-  $\exists n, \trace[n]=e \wedge \nexists m, n\not= m \wedge \trace[m] = e$
-\end{definition}
-
-\begin{definition}[Sequentiality]
-  Given two events $e_{0},e_{1}$ and a trace $\trace$, event $e_{0}$ occurs before $e_{1}$ in $\trace$, written
-  $e_{0}\le_{\trace}e_{1}$, iff
-
-  $\exists n, \trace[n] = e_{0}\implies \exists m, \trace[m] = e_{1} \wedge n<m$
-\end{definition}
-
 \begin{lemma}[Authentic Weaken]
   If
   \begin{assumptions}
@@ -1371,7 +1358,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{a}{\src{a}}$
+    \item $\tmstraceagree[\delta']{\tospecificevs{a}}{a}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
@@ -1388,7 +1375,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{a}{\src{Dealloc\ \loc}}$
+    \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{\specificevs{Dealloc\ \loc}}{a}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
@@ -1397,7 +1384,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
   \Cref{goal:basetmsmonitor:subseteq}, $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}$, follows trivially.
 
-  For $\tmstraceagree{\text{Dealloc}\ \loc}{\src{Dealloc\ \loc}}$ (\Cref{goal:basetmsmonitor:traceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta_{\text{tms}}(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
+  For $\tmstraceagree{\specificevs{Dealloc\ \loc}}{\text{Dealloc}\ \loc}$ (\Cref{goal:basetmsmonitor:traceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta_{\text{tms}}(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
 
   The inversion yields two cases:
   \begin{description}
@@ -1461,7 +1448,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   Then $\exists a\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{a}{\src{a}}$
+    \item $\tmstraceagree[\delta']{\tospecificevs{a}}{a}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{a}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
@@ -1479,7 +1466,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   Then $\exists \overline{a}\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{\overline{a}}{\src{\overline{a}}}$
+    \item $\tmstraceagree[\delta']{\tospecificevs{\overline{a}}}{\overline{a}}$
     \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\overline{a}}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
@@ -1495,14 +1482,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{itemize}
 \end{definition}
 
-
-\begin{lemma}[Empty Agrees with $\src{\Delta^\diamond}$]\label{lem:storeagree:emptyignore}
-  $$\storeagreetms[\emptyset]{\emptyset}{\src{\Delta^\diamond}}$$
-\end{lemma}
-\begin{proof}
-By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:store-ignore-agree}.
-\end{proof}
-
 \begin{theorem}[$\mmlAs$ is \gls{tms} via Monitor]\label{thm:mmlAs:tmssafe}
   If
   \begin{assumptions}
@@ -1511,18 +1490,18 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\texttt{TMS}(\src{\bar{a}})$
+  \item $\texttt{TMS}(\tospecificevs{\overline{a}})$
   \end{goals}.
 \end{theorem}
-\begin{proof}
+\begin{incompleteproof}
   Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
   \begin{passumptions}{H}
     \item $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
     %\ite]\label[ass]{asm:mmlatmsviamonitor:run2} $\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_0^\diamond}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_0}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}}$
-    \item $\src{\overline{a}}=\src{\overline{a_0^\diamond}}\cdot\src{\overline{a_p}}\cdot\src{\overline{a_1^\diamond}}$
+    \item $\src{\overline{a}}=\src{\overline{a_0}}\cdot\src{Call\ ?v_0}\cdot\src{\overline{a_p}}\cdot\src{Ret\ !v_p}\cdot\src{\overline{a_1}}$
   \end{passumptions}
   By \Cref{tr:store-empty-agree}:
   \begin{equation}
@@ -1555,15 +1534,15 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \end{equation}
   By \Thmref{lem:storeagree:emptyignore}:
   \begin{equation}
-    \storeagreetms[\emptyset]{\emptyset}{\src{\Omega_0.\Delta^\diamond}}\label{asm:mmlatmsviamonitor:agree}
-  \end{equation}
+    \storeagreetms[\emptyset]{\emptyset}{\src{\Omega_0.\Delta}}\label{asm:mmlatmsviamonitor:agree}
+  \end{equation}\MK{need importance for store to be able to relate $\src{\Omega_0.\Delta}$ with $\emptyset$}
   What follows is $\typechecks{}{\Omega_0\triangleright e_p}{\nat}$, which equivalent to $\typechecks{}{\Omega_0^\diamond\triangleright e_p}{\nat}$.
 
   Now obtain witnesses $\overline{a_p}$, $\delta_{\text{TMS}}^{(p)}$, and $\tmsmonitor$ from supplying \Thmref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:typesubstx}, \Cref{asm:mmlatmsviamonitor:execp}, and \Cref{asm:mmlatmsviamonitor:agree}, such that:
 
   \begin{passumptions}{F}
     \item $\emptyset\subseteq\delta_{\text{TMS}}^{(p)}$
-    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\overline{a_p}}{\src{\overline{a_p}}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\tospecificevs{\overline{a_p}}}{\overline{a_p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:monitorcheckasm} $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a_p}}$
     \item $\storeagreetms[\delta^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
   \end{passumptions}
@@ -1571,7 +1550,7 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   Now instantiate the existential in our goal with $\delta_{\text{TMS}}^{(p)}$, $\overline{a_p}$, and $\tmsmonitor$, so the remaining goals are:
 
   \begin{goals}
-    \item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\overline{a_p}}{\src{\overline{a_0^\diamond\cdot a_p\cdot a_1^\diamond}}}$
+    \item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\overline{a_p}}{\src{\overline{a_0\cdot a_p\cdot a_1}}}$
     \item\label[goal]{asm:mmlatmsviamonitor:monitorcheck} and $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a_p}}$
   \end{goals}
 
@@ -1579,7 +1558,8 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 
   \Cref{asm:mmlatmsviamonitor:monitorcheck} follows immediately by \Cref{asm:mmlatmsviamonitor:monitorcheckasm}.
 
-\end{proof}
+\end{incompleteproof}
+\MK{REDO}
 
 \clearpage
 
@@ -1733,11 +1713,11 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \begin{center}
   \typerule{$e-\text{wprog}-trg$}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} \\
-    \exect{\Omega_0^\diamond}{e_p[v_0/x]}{\Omega_p}{v_p}{\overline{a_p}} &
+    \exect{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\overline{a_p}} &
     \exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\overline{a_1}} &
 %    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\Omegas}{v}{\overline{a}}
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0^\diamond\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1^\diamond}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
   }{tw-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -1870,41 +1850,41 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
   \begin{center}
     \typerule{SMS-Internal-Authentic}{
     }{
-      \smstraceagree{\trg{\varepsilon}}{\varepsilon}
+      \smstraceagree{\specificevt{\varepsilon}}{\varepsilon}
     }{sms-internal-auth}
     %
     \typerule{SMS-Call-Authentic}{
     }{
-      \smstraceagree{\trg{Call\ ?n}}{\varepsilon}
+      \smstraceagree{\specificevt{Call\ ?n}}{\varepsilon}
     }{sms-call-auth}
     %
     \typerule{SMS-Ret-Authentic}{
     }{
-      \smstraceagree{\trg{Ret\ !n}}{\varepsilon}
+      \smstraceagree{\specificevt{Ret\ !n}}{\varepsilon}
     }{sms-ret-auth}
     %
     \typerule{SMS-Alloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-      \smstraceagree{\trg{Alloc\ \loc\ n}}{\text{Alloc}\ \loc\ n}
+      \smstraceagree{\specificevt{Alloc\ \loc\ n}}{\text{Alloc}\ \loc\ n}
     }{sms-alloc-auth}
     %
     \typerule{SMS-Dealloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-    \smstraceagree{\trg{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
+    \smstraceagree{\specificevt{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
     }{sms-dealloc-auth}
     %
     \typerule{SMS-Get-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-    \smstraceagree{\trg{Get\ \loc\ n}}{\text{Use}\ \loc\ n}
+    \smstraceagree{\specificevt{Get\ \loc\ n}}{\text{Use}\ \loc\ n}
     }{sms-get-auth}
     %
     \typerule{SMS-Set-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-      \smstraceagree{\trg{Set\ \loc\ n\ v}}{\text{Use}\ \loc\ n}
+      \smstraceagree{\specificevt{Set\ \loc\ n\ v}}{\text{Use}\ \loc\ n}
     }{sms-set-auth}
     %
     \typerule{SMS-Refl-Authentic}{
@@ -1913,17 +1893,11 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     }{sms-refl-auth}
     %
     \typerule{SMS-Trans-Authentic}{
-      \smstraceagree{\trg{a}}{a} &
-      \smstraceagree{\trg{\bar{a}}}{\bar{a}}
+      \smstraceagree{\specificevt{a}}{a} &
+      \smstraceagree{\trg{\overline{a_{ms}}}}{\overline{a}}
     }{
-      \smstraceagree{\trg{a}\cdot\trg{\bar{a}}}{a\cdot\bar{a}}
+      \smstraceagree{\specificevt{a}\cdot\trg{\overline{a_{ms}}}}{a\cdot\overline{a}}
     }{sms-trans-auth}
-    %
-    \typerule{SMS-Trans-Authentic-Ignore}{
-      \smstraceagree{\trg{\bar{a}}}{\bar{a}}
-    }{
-      \smstraceagree{\trg{a^\diamond}\cdot\trg{\bar{a}}}{\bar{a}}
-    }{sms-trans-auth-ignore}
   \end{center}
 }{sms-trace-agreement}{Trace Agreement.}
 
@@ -1969,10 +1943,10 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
 }{sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
 
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:trg:trace:tms}
-  We say $\texttt{TMS}(\trg{\bar{a}})$ iff $\exists \delta\ \bar{a}\ \tmsmonitor$ such that:
+  We say $\texttt{TMS}(\trg{\overline{a_{ms}}})$ iff $\exists \delta\ \overline{a}\ \tmsmonitor$ such that:
   \begin{itemize}
-    \item $\tmstraceagree{\bar{a}}{\trg{\bar{a}}}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\bar{a}}$
+    \item $\tmstraceagree{\trg{\overline{a_{ms}}}}{\overline{a}}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
   \end{itemize}
 \end{definition}
 
@@ -2072,12 +2046,12 @@ By induction on $\src{\Delta^\diamond}$ and using \Cref{tr:store-empty-agree,tr:
     \item\label[ass]{asm:exprcorrect:exec2} $\execs{\Omega}{e}{\Omega''}{v'}{\bar{a}}$
     \item\label[ass]{asm:exprcorrect:unequal1} $\src{v}\not=\src{v'}$
     \item\label[ass]{asm:exprcorrect:unequal2} $\src{\Omega'}\not=\src{\Omega''}$
-      \MK{Should also have an $\overline{a'}\not=\bar{a}$}
+      \MK{Should also have an $\overline{a'}\not=\overline{a}$}
   \end{passumptions}
 
   Apply \thmref{lem:forwardsim} on \Cref{asm:exprcorrect:exec2} to get:
   \begin{passumptions}{F}
-    \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\bar{a}}_\delta}$
+    \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\overline{a}}_\delta}$
   \end{passumptions}
 
   The compiler is deterministic, so using \Cref{asm:exprcorrect:unequal1} on \thmref{lem:determcomp} gives:
@@ -2229,7 +2203,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   then $\exists \configs\ \src{v}\ \src{\overline{a}}\ \delta_{tms}$,
   \begin{goals}
   \item $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}$
-  \item $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$
+  \item $\tmstraceagree{\tospecificevs{\overline{a}}}{\tospecificevt{\overline{a}}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -2288,12 +2262,12 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{theorem}[Robust \gls{tms} Preservation]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\overline{a}}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}\rightarrow\texttt{TMS}(\src{\bar{a}})$
+  \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\overline{a}}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}\rightarrow\texttt{TMS}(\tospecificevs{\overline{a}})$
   \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
   \end{assumptions}
   then
   \begin{goals}
-  \item $\texttt{TMS}(\trg{\bar{a}})$
+  \item $\texttt{TMS}(\tospecificevt{\overline{a}})$
   \end{goals}
 \end{theorem}
 \begin{proof}
@@ -2301,7 +2275,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   Using that and backtranslating the trace $\mmlAmmlAtback{\overline{a}} = \src{context\ e_1\ e_2}$, immediately using both together with \Cref{asm:rtmsp:trgexec} to apply \thmref{lem:backtranslation:correct}:
   \begin{passumptions}{H}
   \item\label[ass]{asm:rtmsp:srcexec} $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}$
-  \item $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$
+  \item $\tmstraceagree{\tospecificevs{\overline{a}}}{\tospecificevt{\overline{a}}}$
   \end{passumptions}
 
   We can specialize \Cref{asm:rtmsp:srctms} using $\src{e_1}$, $\src{e_2}$, $\src{\overline{a}}$, $\src{\Omega}$, $\src{v}$, and \Cref{asm:rtmsp:srcexec} to get:
@@ -2312,14 +2286,14 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
   By \Cref{def:src:trace:tms}, \Cref{asm:rtmsp:srctms} can be destructured as:
   \begin{passumptions}{F}
-    \item $\tmstraceagree[\delta']{\overline{a}}{\src{\overline{a}}}$
+    \item $\tmstraceagree[\delta']{\tospecificevs{\overline{a}}}{\overline{a}}$
     \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
   \end{passumptions}
 
   We split $\delta_{tms}$ into ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
   By \Cref{def:trg:trace:tms}, our goal can be instantiated with ${\delta^{\color{\ulccol}\bullet}}_{tms}$, $\overline{a}$, and $\tmsmonitor$, so what is left to show is:
   \begin{goals}
-    \item $\tmstraceagree[{\delta^{\color{\ulccol}\bullet}}]{\overline{a}}{\trg{\overline{a}}}$
+    \item $\tmstraceagree[{\delta^{\color{\ulccol}\bullet}}]{\tospecificevt{\overline{a}}}{\overline{a}}$
     \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
   \end{goals}
 

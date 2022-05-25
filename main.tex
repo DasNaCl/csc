@@ -579,7 +579,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
   \begin{aligned}
   \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
-  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x}
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \\
+  & \mid \src{if\ e_1<e_2\ then\ e_3\ else\ e_4} \mid \src{abort()} 
   \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
   %
   \mi{Types}~\taus \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
@@ -605,7 +606,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Whole\ Programs}\ &\src{prog\ e_0\ e_1\ e_2}\\ %todo
   \end{aligned}
   \end{gather*}
-}{mmla-syntax}{Syntax of $\mmlA$}
+}{mmla-syntax}{Syntax of $\mmlAs$}
 
 \subsubsection{Static Semantics}
 \begin{definition}[NoPtr]
@@ -696,7 +697,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{\Gamma_1}{e_1}{\nat} &
     \typechecks{x:\ptr,\Gamma_2}{e_2}{\nat}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=new\ e_1\ in\ e_2}{nat}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=new\ e_1\ in\ e_2}{\nat}
   }{w-t-new}
   %
   \typerule{$t-\src{delete}$}{
@@ -705,6 +706,14 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{\nat}
   }{w-t-delete}
   %
+  \typerule{$t-\src{if}$}{
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{\Gamma_2}{e_2}{\nat} &
+    \typechecks{\Gamma_3}{e_3}{\tau} &
+    \typechecks{\Gamma_3}{e_4}{\tau}
+  }{
+    \typechecks{\Gamma_1\circ\Gamma_2\circ\Gamma_3}{if\ e_1 < e_2\ then\ e_3\ else\ e_4}{\tau}
+  }{w-t-if}
   \end{center}
 }{w-expr-ty}{Checking of $\mmlAs$ expressions.}
 
@@ -814,7 +823,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \begin{aligned}
       \src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus E}\mid \src{x[K]}\mid
       \src{let\ x=K\ in\ e}\\
-                     &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e}
+                     &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e} \\
+                     &\ \mid\src{if\ K<e'\ then\ e_1\ else\ e_2} \mid\src{if\ n<K\ then\ e_1\ else\ e_2}
     \end{aligned}
   \end{gather*}
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlAs$.}
@@ -824,6 +834,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{q}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{q}$.''}
   %
   \typerule{$e-\text{ctx}$}{
+    \configs\not=\src{\lightning} &
     \exprevals{\configs}{e}{\configs'}{e'}{a}
   }{
     \execs[]{\configs}{K[e]}{\configs'}{K[e']}{a}
@@ -871,6 +882,22 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
+  \typerule{$e-\src{if}-$less}{
+    n_1<n_2
+  }{
+  \exprevals{\Omega}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\emptyevent}
+  }{w-e-if-less}
+  %
+  \typerule{$e-\src{if}-$noless}{
+    n_1\ge n_2
+  }{
+  \exprevals{\Omega}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\emptyevent}
+  }{w-e-if-noless}
+  %
+  \typerule{$e-\src{abort}$}{
+  }{
+    \exprevals{\configs}{abort()}{\lightning}{stuck}{\lightning}
+  }{tw-e-abort}
 }{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
 
 \myfig{
@@ -1566,7 +1593,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{aligned}
   \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
     & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \\
-    & \mid \trg{if\ e_1 < e_2\ then\ e_3\ else\ abort()} \\
+    & \mid \trg{if\ e_1 < e_2\ then\ e_3\ else\ e_4} \mid \trg{abort()} \\
     & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}
   \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times}\}\\
   %
@@ -1598,7 +1625,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
       \trg{let\ x=K\ in\ e}\\
                      &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}\\
-                     &\mid \trg{if\ K < e_1\ then\ e_2\ else\ abort()} \mid \trg{if\ n < K\ then\ e\ else\ abort()}
+                     &\mid \trg{if\ K < e_1\ then\ e_2\ else\ e_3} \mid \trg{if\ n < K\ then\ e\ else\ e_4}
     \end{aligned}
   \end{gather*}
 }{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
@@ -1629,6 +1656,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{a}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{a}$.''}
   %
   \typerule{$e-\text{ctx}$}{
+    \configt\not=\trg{\lightning} &
     \exprevalt{\configt}{e}{\configt'}{e'}{a}
   }{
     \exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}
@@ -1644,17 +1672,22 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \exprevalt{\configt}{\pi_2\langle n_1;n_2\rangle}{\configt}{n_2}{\emptyevent}
   }{tw-e-proj2}
   %
-  \typerule{$e-\trg{if}-\trg{less}$}{
+  \typerule{$e-\trg{if}-$less}{
     \trg{n_1}<\trg{n_2}
   }{
-    \exprevalt{\configt}{if\ n_1<n_2\ then\ e\ else\ abort()}{\configt}{e}{\emptyevent}
+    \exprevalt{\configt}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\configt}{e_1}{\emptyevent}
   }{tw-e-if-less}
   %
-  \typerule{$e-\trg{if}-\trg{panic}$}{
+  \typerule{$e-\trg{if}-$noless}{
     \trg{n_1}\ge\trg{n_2}
   }{
-    \exprevalt{\configt}{if\ n_1<n_2\ then\ e\ else\ abort()}{\lightning}{stuck}{\lightning}
+    \exprevalt{\configt}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\configt}{e_2}{\emptyevent}
   }{tw-e-if-less}
+  %
+  \typerule{$e-\trg{abort}$}{
+  }{
+    \exprevalt{\configt}{abort()}{\lightning}{stuck}{\lightning}
+  }{tw-e-abort}
   %
   \typerule{$e-\trg{\oplus}$}{
     \trg{n_1}+\trg{n_2}=\trg{n_3}
@@ -1958,16 +1991,19 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ x=new\ e_1\ in\ e_2} \\
     \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \trg{x[e_1]\leftarrow e_2} \\
     \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ x= e_1\ in\ e_2} \\
-    \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ x} \\[0.5cm]
+    \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ x} \\
+    \mmlAmmlAtcomp{if\ e_1<e_2\ then\ e_3\ else\ e_4} &\ = & \trg{if\ }\mmlAmmlAtcomp{e_1}\trg{<}\mmlAmmlAtcomp{e_2}\\
+                                                      &&\trg{then\ }\mmlAmmlAtcomp{e_3} \\
+                                                      &&\trg{else\ }\mmlAmmlAtcomp{e_4} \\[0.5cm]
     %
     \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \left[\mmlAmmlAtcomp{v}/\mmlAmmlAtcomp{x}\right]\\[0.5cm]
     %
     \mmlAmmlAtcomp{\hole{\cdot}}_\delta&\ = & \trg{\hole{\cdot}}\\
-    \mmlAmmlAtcomp{\varepsilon^i,\bar{a}}_\delta&\ = & \trg{\varepsilon,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{(Alloc\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Alloc\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{(Dealloc\ \loc)^i,\bar{a}}_\delta&\ = & \trg{Dealloc\ }\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{(Get\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Get\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{(Set\ \loc\ n)^i,\bar{a}}_\delta&\ = & \trg{Set\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{\varepsilon,\bar{a}}_\delta&\ = & \trg{\varepsilon,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{Alloc\ \loc\ n,\bar{a}}_\delta&\ = & \trg{Alloc\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{Dealloc\ \loc,\bar{a}}_\delta&\ = & \trg{Dealloc\ }\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{Get\ \loc\ n,\bar{a}}_\delta&\ = & \trg{Get\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
+    \mmlAmmlAtcomp{Set\ \loc\ n,\bar{a}}_\delta&\ = & \trg{Set\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
     \end{array}
     $$
     \typerule{compile-state}{
@@ -2119,28 +2155,36 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\overline{a_{ms}}} = \src{x[}\mmlAmmlAtbackv{n}\src{];e}
     }{backtrans-use}
     %
-    \typerule{backtrans-call}{
+    \typerule{backtrans-abort}{
+      \src{e}=\mmlAmmlAtbackdetail{\overline{a_{ms}}}
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Call\ ?n}} = \mmlAmmlAtbackv{n}
-    % TODO: intuitively, we want `let x = n in call foo x`
-    }{backtrans-call}
+      \mmlAmmlAtbackdetail{\specificevt{\lightning}\cdot\overline{a_{ms}}} = \src{abort();e}
+    }{backtrans-abort}
     %
-    \typerule{backtrans-ret}{
+    \typerule{backtrans-internal}{
+      \src{e}=\mmlAmmlAtbackdetail{\overline{a_{ms}}}
     }{
-    \mmlAmmlAtbackdetail{\specificevt{Ret\ !n}} = \src{if\ y = }\mmlAmmlAtbackv{n}\src{\ then\ 1\ else\ 2}
-      %TODO: actually add if-else to src
-    }{backtrans-ret}
-    $$
-    \begin{array}{rll} 
-      %
-      % TODO: fix top-level backtranslation
-      \mmlAmmlAtback{\overline{a}} &\ = & \text{let }\Game,\src{e_1}=\mmlAmmlAtbackdetail[\emptyset]{\overline{a}}\text{\ in}\\
-                                   &&\text{let }\_,\src{e_2}=\mmlAmmlAtbackdetail{ \mmlAmmlAtbackdetailo{\mmlAmmlAtbackdetailz{\overline{a}}} }\text{\ in}\\
-                                   &&\src{context\ e_1\ e_2} \\
-    \end{array}
-    $$
+      \mmlAmmlAtbackdetail{\specificevt{\varepsilon}\cdot\overline{a_{ms}}} = \src{let\ \_ = 42\ in\ e}
+    }{backtrans-internal}
+    %
+%    \typerule{backtrans-call}{
+%    }{
+%      \mmlAmmlAtbackdetail{\specificevt{Call\ ?n}} = \mmlAmmlAtbackv{n}
+    % TODO: intuitively, we want `let x = n in call foo x`
+%    }{backtrans-call}
+    %
+%    \typerule{backtrans-ret}{
+%    }{
+%    \mmlAmmlAtbackdetail{\specificevt{Ret\ !n}} = \mmlAmmlAtbackv{n}
+%    }{backtrans-ret}
+    %
+    \typerule{backtrans-toplevel}{
+      \tospecificevctxt{\overline{a}} = \trg{\overline{a_0}\cdot Call\ ?n\cdot Ret\ !n\cdot \overline{a_1}} &
+    }{
+      \mmlAmmlAtback{\overline{a}} = \src{context\ }\mmlAmmlAtbackdetail{\overline{a_0}}\ \mmlAmmlAtbackdetail{\overline{a_1}}
+    }{backtrans-top}
   \end{center}
-}{tms-pres-backtrans}{Partial Trace-Based Backtranslation from }%$\mmlAs$ to $\mmlAt$.}
+}{tms-pres-backtrans}{Partial Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 The trace-based backtranslation is partial since we leave the translation undefined for the event $\trg{\lightning}$.
 This is fine, because where we use the backtranslation, we know the trace won't contain $\trg{\lightning}$.
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.

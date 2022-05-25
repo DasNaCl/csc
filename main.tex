@@ -2135,36 +2135,36 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     %
     \typerule{backtrans-alloc}{
       \Game'=\Game[\trg{\loc}] &
-      \Game'',\src{e}=\mmlAmmlAtbackdetail[\Game']{\overline{a_{ms}}} &
+      \mmlAmmlAtbackdetail[\Game']{\overline{a_{ms}}} = \Game'',\src{e} &
     }{
       \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ n}\cdot\overline{a_{ms}}} = \Game'', \src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
     }{backtrans-alloc}
     %
     \typerule{backtrans-dealloc}{
       \Game'=\Game[\trg{\loc}] &
-      \Game'',\src{e} = \mmlAmmlAtbackdetail[\Game']{\overline{a_{ms}}} &
+      \mmlAmmlAtbackdetail[\Game']{\overline{a_{ms}}} = \Game'',\src{e} &
     }{
       \mmlAmmlAtbackdetail{\specificevt{Dealloc\ \loc}\cdot\overline{a_{ms}}} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
     }{backtrans-dealloc}
     %
     \typerule{backtrans-use}{
       \Game'=\Game[\trg{\loc}] &
-      \Game'',\src{e}=\mmlAmmlAtback{\overline{a_{ms}}} &
       \src{x}=\Game'(\trg{\loc}) &
+      \mmlAmmlAtbackdetail[\Game']{\overline{a_{ms}}} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\overline{a_{ms}}} = \src{x[}\mmlAmmlAtbackv{n}\src{];e}
+      \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\overline{a_{ms}}} = \Game'',\src{x[}\mmlAmmlAtbackv{n}\src{];e}
     }{backtrans-use}
     %
     \typerule{backtrans-abort}{
-      \src{e}=\mmlAmmlAtbackdetail{\overline{a_{ms}}}
+      \mmlAmmlAtbackdetail{\overline{a_{ms}}} = \Game',\src{e}
     }{
-      \mmlAmmlAtbackdetail{\specificevt{\lightning}\cdot\overline{a_{ms}}} = \src{abort();e}
+      \mmlAmmlAtbackdetail{\specificevt{\lightning}\cdot\overline{a_{ms}}} = \Game',\src{abort();e}
     }{backtrans-abort}
     %
     \typerule{backtrans-internal}{
-      \src{e}=\mmlAmmlAtbackdetail{\overline{a_{ms}}}
+      \mmlAmmlAtbackdetail{\overline{a_{ms}}} = \Game',\src{e}
     }{
-      \mmlAmmlAtbackdetail{\specificevt{\varepsilon}\cdot\overline{a_{ms}}} = \src{let\ \_ = 42\ in\ e}
+      \mmlAmmlAtbackdetail{\specificevt{\varepsilon}\cdot\overline{a_{ms}}} = \Game',\src{let\ \_ = 42\ in\ e}
     }{backtrans-internal}
     %
 %    \typerule{backtrans-call}{
@@ -2179,9 +2179,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 %    }{backtrans-ret}
     %
     \typerule{backtrans-toplevel}{
-      \tospecificevctxt{\overline{a}} = \trg{\overline{a_0}\cdot Call\ ?n\cdot Ret\ !n\cdot \overline{a_1}} &
+      \tospecificevctxt{\overline{a}} = \trg{\overline{a_0}\cdot Call\ ?n\cdot Ret\ !n\cdot \overline{a_1}} \\
+      \mmlAmmlAtbackdetail[\emptyset]{\overline{a_0}} = \Game,\src{e_0} &
+      \mmlAmmlAtbackdetail[\Game]{\overline{a_1}} = \Game',\src{e_1} &
     }{
-      \mmlAmmlAtback{\overline{a}} = \src{context\ }\mmlAmmlAtbackdetail{\overline{a_0}}\ \mmlAmmlAtbackdetail{\overline{a_1}}
+      \mmlAmmlAtback{\overline{a}} = \src{context\ e_0\ e_1}
     }{backtrans-top}
   \end{center}
 }{tms-pres-backtrans}{Partial Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}

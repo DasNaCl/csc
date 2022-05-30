@@ -830,8 +830,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlAs$.}
 
 \myfig{
-  \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{q}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{q}$.''}
-  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{q}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{q}$.''}
+  \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{a}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{a}$.''}
+  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{a}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{a}$.''}
   %
   \typerule{$e-\text{ctx}$}{
     \configs\not=\src{\lightning} &
@@ -904,18 +904,25 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     \judgbox{\execs{\configs}{e}{\configs'}{e'}{\bar{a}}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\bar{a}}$.''}
     %
-    \typerule{$e-\text{refl}$}{
+    \typerule{$es-\text{refl}$}{
     }{
       \execs{\configs}{e}{\configs}{e}{\hole{\cdot}}
-    }{w-e-trans}
-    \typerule{$e-\text{trans}$}{
+    }{ws-e-refl}
+    \typerule{$es-\text{trans}-$important}{
       \execs[]{\configs}{e}{\configs'}{e'}{a}&
       \execs{\configs'}{e'}{\configs''}{e''}{\bar{a}}&
+      \src{a}\not=\src{\emptyevent}
     }{
       \execs{\configs}{e}{\configs''}{e''}{a \cdot \bar{a}}
-    }{w-e-trans}
+    }{ws-e-trans-important}
+    \typerule{$es-\text{trans}-$unimportant}{
+      \execs[]{\configs}{e}{\configs'}{e'}{\emptyevent}&
+      \execs{\configs'}{e'}{\configs''}{e''}{\bar{a}}&
+    }{
+      \execs{\configs}{e}{\configs''}{e''}{\bar{a}}
+    }{ws-e-trans-unimportant}
   \end{center}
-}{w-steps}{Trace prefix generation given a $\mmlA$ program using the reflexive-transitive closure.}
+}{w-steps}{Trace prefix generation given a $\mmlAs$ program using the reflexive-transitive closure.}
 
 \myfig{
   \begin{center}
@@ -1735,14 +1742,38 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
-  \typerule{$e-\text{wprog}-trg$}{
+    \judgbox{\exect{\configt}{e}{\configt'}{e'}{\overline{a}}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting list of events $\trg{\overline{a}}$.''}
+    %
+    \typerule{$et-\text{refl}$}{
+    }{
+      \exect{\configt}{e}{\configt}{e}{\hole{\cdot}}
+    }{wt-e-refl}
+    \typerule{$et-\text{trans}-$important}{
+      \exect[]{\configt}{e}{\configt'}{e'}{a}&
+      \exect{\configt'}{e'}{\configt''}{e''}{\overline{a}}&
+      \trg{a}\not=\trg{\emptyevent}
+    }{
+      \exect{\configt}{e}{\configt''}{e''}{a \cdot \bar{a}}
+    }{wt-e-trans-important}
+    \typerule{$et-\text{trans}-$unimportant}{
+      \exect[]{\configt}{e}{\configt'}{e'}{\emptyevent}&
+      \exect{\configt'}{e'}{\configt''}{e''}{\overline{a}}&
+    }{
+      \exect{\configt}{e}{\configt''}{e''}{\overline{a}}
+    }{wt-e-trans-unimportant}
+  \end{center}
+}{wt-steps}{Trace prefix generation given a $\mmlAt$ program using the reflexive-transitive closure.}
+
+\myfig{
+  \begin{center}
+  \typerule{$e-\text{wprog}-\trg{trg}$}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} \\
     \exect{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\overline{a_p}} &
     \exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\overline{a_1}} &
 %    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\Omegas}{v}{\overline{a}}
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
-  }{tw-e-prog}
+  }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
 
@@ -1986,47 +2017,87 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \delta&\ : & \src{L}\to\trg{L}\\[0.3cm]
     \mmlAmmlAtcomp{x} &\ = & \trg{x} \\
     \mmlAmmlAtcomp{v} &\ = & \trg{v} \\
-    \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \trg{e_1\oplus e_2} \\
-    \mmlAmmlAtcomp{x[e]} &\ = & \trg{x[e]} \\
-    \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ x=new\ e_1\ in\ e_2} \\
-    \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \trg{x[e_1]\leftarrow e_2} \\
-    \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ x= e_1\ in\ e_2} \\
-    \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ x} \\
+    \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \mmlAmmlAtcomp{e_1} \trg{\oplus} \mmlAmmlAtcomp{e_2} \\
+    \mmlAmmlAtcomp{x[e]} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e}\trg{]} \\
+    \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=new\ }\mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
+    \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e_1}\trg{]\leftarrow }\mmlAmmlAtcomp{e_2} \\
+    \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=} \mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
+    \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ }\mmlAmmlAtcomp{x} \\
     \mmlAmmlAtcomp{if\ e_1<e_2\ then\ e_3\ else\ e_4} &\ = & \trg{if\ }\mmlAmmlAtcomp{e_1}\trg{<}\mmlAmmlAtcomp{e_2}\\
                                                       &&\trg{then\ }\mmlAmmlAtcomp{e_3} \\
                                                       &&\trg{else\ }\mmlAmmlAtcomp{e_4} \\[0.5cm]
     %
     \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \left[\mmlAmmlAtcomp{v}/\mmlAmmlAtcomp{x}\right]\\[0.5cm]
-    %
-    \mmlAmmlAtcomp{\hole{\cdot}}_\delta&\ = & \trg{\hole{\cdot}}\\
-    \mmlAmmlAtcomp{\varepsilon,\bar{a}}_\delta&\ = & \trg{\varepsilon,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{Alloc\ \loc\ n,\bar{a}}_\delta&\ = & \trg{Alloc\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{Dealloc\ \loc,\bar{a}}_\delta&\ = & \trg{Dealloc\ }\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{Get\ \loc\ n,\bar{a}}_\delta&\ = & \trg{Get\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
-    \mmlAmmlAtcomp{Set\ \loc\ n,\bar{a}}_\delta&\ = & \trg{Set\ }\delta(\src{\loc})\trg{\ n,}\mmlAmmlAtcomp{\bar{a}}_\delta\\
     \end{array}
     $$
-    \typerule{compile-state}{
-      \src{H};\src{\Delta}=\src{\Omega}&
-      \trg{\Omega}=\mmlAmmlAtcomp{H};\mmlAmmlAtcomp{\Delta}
-    }{
-      \mmlAmmlAtcomp{\Omega}_\delta = \trg{\Omega}
-    }{compile-state}
     %
-    \typerule{empty-compile}{
+    \typerule{empty-trace-eq}{
     }{
-      \mmlAmmlAtcomp{\emptyset}_\delta = \trg{\emptyset}
-    }{compile-empty-heap}
+      \xlangtraceeq{\hole{\cdot}}{\hole{\cdot}}
+    }{empty-trace-eq}
     %
-    \typerule{cons-heap-compile}{
+    \typerule{cons-trace-eq}{
+      \xlangeventeq{a}{a} &
+      \xlangtraceeq{\overline{a}}{\overline{a}}
     }{
-      \mmlAmmlAtcomp{n,H}_\delta = \mmlAmmlAtcomp{n}\trg{,}\mmlAmmlAtcomp{H}_\delta
+      \xlangtraceeq{a\cdot\overline{a}}{a\cdot\overline{a}}
+    }{cons-trace-eq}
+    %
+    \typerule{alloc-event-eq}{
+      \mmlAmmlAtcomp{n}=\trg{n} &
+      \delta(\src{\loc})=\trg{\loc}
+    }{
+      \xlangeventeq{Alloc\ \loc\ n}{Alloc\ \loc\ n}
+    }{alloc-event-eq}
+    %
+    \typerule{dealloc-event-eq}{
+      \delta(\src{\loc})=\trg{\loc}
+    }{
+      \xlangeventeq{Dealloc\ \loc}{Dealloc\ \loc}
+    }{dealloc-event-eq}
+    %
+    \typerule{get-event-eq}{
+      \mmlAmmlAtcomp{n} = \trg{n} &
+      \delta(\src{\loc}) = \trg{\loc}
+    }{
+      \xlangeventeq{Get\ \loc\ n}{Get\ \loc\ n}
+    }{get-event-eq}
+    %
+    \typerule{set-event-eq}{
+      \mmlAmmlAtcomp{n} = \trg{n} &
+      \delta(\src{\loc}) = \trg{\loc}
+    }{
+      \xlangeventeq{Set\ \loc\ n}{Set\ \loc\ n}
+    }{get-event-eq}
+    %
+    \typerule{state-eq}{
+      \src{\Omega}=\src{\Delta;H} &
+      \trg{\Omega}=\trg{\Delta;H} \\
+      \xlangstateeq{\Delta}{\Delta} &
+      \xlangstateeq{H}{H}
+    }{
+      \xlangstateeq{\Omega}{\Omega}
+    }{state-eq}
+    %
+    \typerule{empty-heap-or-map-eq}{
+    }{
+      \xlangstateeq{\hole{\cdot}}{\hole{\cdot}}
+    }{compile-empty-heap-or-map-eq}
+    %
+    \typerule{cons-heap-eq}{
+      \mmlAmmlAtcomp{n}=\trg{n} &
+      \xlangstateeq{H}{H}
+    }{
+      \xlangstateeq{n,H}{n,H}
     }{compile-cons-heap}
     %
-    \typerule{cons-locmap-compile}{
+    \typerule{cons-locmap-eq}{
+      \mmlAmmlAtcomp{x} = \trg{x} &
+      \delta(\src{\loc}) = \trg{\loc} &
+      \xlangstateeq{\Delta}{\Delta}
     }{
-      \mmlAmmlAtcomp{x\mapsto\loc,\Delta}_\delta = \mmlAmmlAtcomp{x}_\delta\trg{\mapsto}\delta(\src{\loc})\trg{,}\mmlAmmlAtcomp{\Delta}
-    }{compile-cons-map}
+      \xlangstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}
+    }{cons-locmap-eq}
   \end{center}
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
 
@@ -2227,11 +2298,11 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   Trivial induction on $\trg{\overline{a}}$ using \thmref{lem:comptrace:injective}.
 \end{proof}
 
-\begin{lemma}[Compiling Values Invertability]\label{lem:compvals:invertible}\ \\
-  $\mmlAmmlAtcomp{v}$ is invertible.
+\begin{lemma}[Value Insertion]\label{lem:compvals:insertion}\ \\
+  Given $\src{v}=\mmlAmmlAtbackv{v}$, then $\mmlAmmlAtcomp{v}=\trg{v}$.
 \end{lemma}
 \begin{proof}
-  Trivial.
+  Immediate.
 \end{proof}
 
 \begin{lemma}[Invertible Operational State]\label{lem:invertible:opstate}\ \\

@@ -749,18 +749,18 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{}{e_1}{\nat}&
     \typechecks{y:\nat}{e_2}{\nat}
 	}{
-  \typechecks{}{context\ e_1\ e_2}{\nat\to\nat}
+  \typechecks{}{context\ e_1\ e_2}{\nat}
 	}{w-t-ctx}
   %
   \typerule{$t-\text{component}$}{
     \typechecks{x:\nat}{e}{\nat}&
 	}{
-  \typechecks{}{component\ e}{\nat}
+  \typechecks{}{component\ e}{\nat\to\nat}
 	}{w-t-comp}
   %
   \typerule{$t-\text{wprog}$}{
-    \typechecks{}{context\ e_0\ e_1}{\nat\to\nat} &
-    \typechecks{}{component\ e_p}{\nat}
+    \typechecks{}{context\ e_0\ e_1}{\nat} &
+    \typechecks{}{component\ e_p}{\nat\to\nat}
 	}{
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
 	}{w-t-prog}
@@ -927,14 +927,27 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
   \typerule{$e-\text{wprog}$}{
-    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} &
+    \typechecks{}{component\ e_p}{\nat\to\nat} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
     \execs{\configs_0}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
     \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\overline{a_1}} &
-%    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
-  }{w-e-prog}
+  }{ws-e-prog}
+  \typerule{$e-\text{wprog}-$fail0}{
+    \typechecks{}{component\ e_p}{\nat\to\nat} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\overline{a_0}} \\
+  }{
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0}}
+  }{ws-e-prog-fail0}
+  \typerule{$e-\text{wprog}-$fail1}{
+    \typechecks{}{component\ e_p}{\nat\to\nat} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\overline{a_0}} \\
+    \execs{\configs_0}{e_p[v_0/x]}{\configs_p}{v_p}{\overline{a_p}} &
+    \execs{\configs_p}{e_1[v_p/y]}{\lightning}{stuck}{\overline{a_1}} &
+  }{
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
+  }{ws-e-prog-fail1}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 \MK{\Cref{fig:wprog-run}: Maybe mark unimportant stuff in $\src{\Omega_1}$}
@@ -1178,7 +1191,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Plugging Well-Typed]\label{lem:plugging:welltyped}
   If
   \begin{assumptions}
-  \item $\typechecks{}{context\ e_0\ e_1}{\nat\to\nat}$
+  \item $\typechecks{}{context\ e_0\ e_1}{\nat}$
   \item $\typechecks{}{component\ e_p}{\nat}$
   \end{assumptions}
   Then
@@ -1773,6 +1786,24 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 %    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\Omegas}{v}{\overline{a}}
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
+  }{wt-e-prog}
+  \typerule{$e-\text{wprog}-\trg{trg}-$fail0}{
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\overline{a_0}} \\
+  }{
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0}}
+  }{wt-e-prog-fail0}
+  \typerule{$e-\text{wprog}-\trg{trg}-$failp}{
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} &
+    \exect{\Omega_0}{e_p[v_0/x]}{\lightning}{stuck}{\overline{a_p}} &
+  }{
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0\cdot Call\ ?v_0\cdot a_p}}
+  }{wt-e-prog-failp}
+  \typerule{$e-\text{wprog}-\trg{trg}$-fail1}{
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} \\
+    \exect{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\overline{a_p}} &
+    \exect{\Omega_p}{e_1[v_p/y]}{\lightning}{stuck}{\overline{a_1}} &
+  }{
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
   }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}

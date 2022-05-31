@@ -1052,15 +1052,6 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \typerule{TMS-Call-Authentic}{
-    }{
-      \tmstraceagree{\specificevs{Call\ ?n}}{\varepsilon}
-    }{tms-call-auth}
-    %
-    \typerule{TMS-Ret-Authentic}{
-    }{
-      \tmstraceagree{\specificevs{Ret\ !n}}{\varepsilon}
-    }{tms-ret-auth}
     %
     \typerule{TMS-Alloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
@@ -1091,6 +1082,18 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{
       \tmstraceagree{\src{\msevent}\cdot\src{\mstrace}}{\event\cdot\trace}
     }{tms-trans-auth}
+    %
+    \typerule{TMS-Call-Authentic}{
+      \tmstraceagree{\src{\mstrace}}{\trace}
+    }{
+      \tmstraceagree{\specificevs{Call\ ?n}\cdot\src{\mstrace}}{\trace}
+    }{tms-call-auth}
+    %
+    \typerule{TMS-Ret-Authentic}{
+      \tmstraceagree{\src{\mstrace}}{\trace}
+    }{
+      \tmstraceagree{\src{\mstrace}\cdot\specificevs{Ret\ !n}}{\trace}
+    }{tms-ret-auth}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
 
@@ -1178,7 +1181,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\texttt{TMS}(\tospecificevs{\trace})$
+  \item $\texttt{TMS}(\tospecificevctxs{\trace})$
   \end{goals}.
 \end{importanttheorem}
 For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
@@ -1559,7 +1562,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \item $\texttt{TMS}(\tospecificevctxs{\trace})$
   \end{goals}.
 \end{theorem}
-\begin{incompleteproof}
+\begin{proof}
   Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
   \begin{passumptions}{H}
     \item $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
@@ -1567,7 +1570,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}}$
     \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\qconfig{_0}}{e_p[v_0/x]}{\configs_p}{v_p}{\trace{_p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\trace{_1}}$
-    \item $\src{\trace}=\src{\trace{_0}}\cdot\src{Call\ ?v_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !v_p}\cdot\src{\trace{_1}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{\trace{_0}}\cdot\src{Call\ ?v_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !v_p}\cdot\src{\trace{_1}}$
   \end{passumptions}
   Note that the other cases don't apply, since it is assumed here (\Cref{asm:mmlatmsviamonitor:run}) that the program terminates in a value instead of $\src{stuck}$.
   By \Cref{tr:store-empty-agree}:
@@ -1611,26 +1614,24 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
   \begin{passumptions}{F}
     \item $\emptyset\subseteq\delta_{\text{TMS}}^{(p)}$
-    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\tospecificevs{\trace{_p}}}{\trace{_p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\tospecificevs{\trace{_p}}}$
     \item\label[ass]{asm:mmlatmsviamonitor:monitorcheckasm} $\monitorcheck{\emptyset}{\tmsmonitor}{\trace{_p}}$
     \item $\storeagreetms[\delta^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
   \end{passumptions}
 
   %%% BIGGGGTODO  AAAAAAAA
-  Note that $\theta\left(\right)=\specificevs{Call\ ?v_0}\cdot\mstrace{_p}\cdot\specificevs{Ret\ !v_p}$
-  Now instantiate the existential in our goal with $\delta_{\text{TMS}}^{(p)}$, $\trace{_p}$, and $\tmsmonitor$, so the remaining goals are:
+  \noindent
+  Now instantiate the existential in our goal with $\delta_{\text{TMS}}^{(p)}$, $\trace{_p}$, and $\tmsmonitor$.
+  Note that $\tospecificevctxs{\trace}=\specificevs{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificevs{Ret\ !v_p}$ by \Cref{asm:mmlatmsviamonitor:tracedef}, so the remaining goals are:
 
   \begin{goals}
-\item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\src{\trace{_0}\cdot \trace{_p}\cdot \trace{_1}}}$
+    \item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\specificevs{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificevs{Ret\ !v_p}}$
     \item\label[goal]{asm:mmlatmsviamonitor:monitorcheck} and $\monitorcheck{\emptyset}{\tmsmonitor}{\trace{_p}}$
   \end{goals}
 
-  For \Cref{asm:mmlatmsviamonitor:traceagree}, note that by \Cref{tr:tms-trans-auth-ignore}, we can reduce it to $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\src{\trace{_p}}}$\MK{needs a technical lemma}, which is fulfilled by \Cref{asm:mmlatmsviamonitor:traceagreeasm}.
-
+  For \Cref{asm:mmlatmsviamonitor:traceagree}, note that by \Cref{tr:tms-call-auth} and \Cref{tr:tms-ret-auth}, we can reduce it to $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\tospecificevs{\trace{_p}}}$, which is fulfilled by \Cref{asm:mmlatmsviamonitor:traceagreeasm}.
   \Cref{asm:mmlatmsviamonitor:monitorcheck} follows immediately by \Cref{asm:mmlatmsviamonitor:monitorcheckasm}.
-
-\end{incompleteproof}
-\MK{REDO}
+\end{proof}
 
 \clearpage
 
@@ -2490,9 +2491,10 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   We split $\delta_{tms}$ into ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
   By \Cref{def:trg:trace:tms}, our goal can be instantiated with ${\delta^{\color{\ulccol}\bullet}}_{tms}$, $\overline{a}$, and $\tmsmonitor$, so what is left to show is:
   \begin{goals}
-    \item $\tmstraceagree[{\delta^{\color{\ulccol}\bullet}}]{\tospecificevt{\overline{a}}}{\overline{a}}$
+    \item $\tmstraceagree[{\delta^{\color{\ulccol}\bullet}}]{\specificevs{Call\ ?n}\cdot\tospecificevt{\overline{a}}\cdot\specificevs{Ret\ !n}}{\overline{a}}$
     \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
   \end{goals}
+tms-call-auth
 
   Both follow easily from existing assumptions. (note that ${\delta^{\color{\ulccol}\bullet}}_{tms}\subseteq\delta_{tms}$)
 \end{proof}

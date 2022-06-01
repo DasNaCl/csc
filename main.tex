@@ -2264,7 +2264,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     %
     \typerule{backtrans-value}{
     }{
-      \mmlAmmlAtbackv{v} = \src{v}
+      \mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}
     }{backtrans-value}
     %
     \typerule{backtrans-empty}{
@@ -2274,37 +2274,31 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     %
     \typerule{backtrans-alloc}{
       \Game'=\Game[\trg{\loc}] &
-      \mmlAmmlAtbackdetail[\Game']{\overline{\mstrace}} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ n}\cdot\overline{\mstrace}} = \Game'', \src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
+      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
     }{backtrans-alloc}
     %
     \typerule{backtrans-dealloc}{
       \Game'=\Game[\trg{\loc}] &
-      \mmlAmmlAtbackdetail[\Game']{\overline{\mstrace}} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Dealloc\ \loc}\cdot\overline{\mstrace}} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
+      \mmlAmmlAtbackdetail{\specificevt{Dealloc\ \loc}\cdot\mstrace} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
     }{backtrans-dealloc}
     %
     \typerule{backtrans-use}{
       \Game'=\Game[\trg{\loc}] &
       \src{x}=\Game'(\trg{\loc}) &
-      \mmlAmmlAtbackdetail[\Game']{\overline{\mstrace}} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\overline{\mstrace}} = \Game'',\src{x[}\mmlAmmlAtbackv{n}\src{];e}
+      \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{x[}\mmlAmmlAtbackv{n}\src{];e}
     }{backtrans-use}
     %
     \typerule{backtrans-abort}{
-      \mmlAmmlAtbackdetail{\overline{\mstrace}} = \Game',\src{e}
+      \mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}
     }{
-      \mmlAmmlAtbackdetail{\specificevt{\lightning}\cdot\overline{\mstrace}} = \Game',\src{abort();e}
+      \mmlAmmlAtbackdetail{\specificevt{\lightning}\cdot\mstrace} = \Game',\src{abort();e}
     }{backtrans-abort}
-    %
-    \typerule{backtrans-internal}{
-      \mmlAmmlAtbackdetail{\overline{\mstrace}} = \Game',\src{e}
-    }{
-      \mmlAmmlAtbackdetail{\specificevt{\varepsilon}\cdot\overline{\mstrace}} = \Game',\src{let\ \_ = 42\ in\ e}
-    }{backtrans-internal}
     %
 %    \typerule{backtrans-call}{
 %    }{
@@ -2318,76 +2312,47 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 %    }{backtrans-ret}
     %
     \typerule{backtrans-toplevel}{
-      \tospecificevctxt{\overline{a}} = \trg{\overline{a_0}\cdot Call\ ?n\cdot Ret\ !n\cdot \overline{a_1}} \\
-      \mmlAmmlAtbackdetail[\emptyset]{\overline{a_0}} = \Game,\src{e_0} &
-      \mmlAmmlAtbackdetail[\Game]{\overline{a_1}} = \Game',\src{e_1} &
+      \tospecificevctxt{\trace} = \trg{\mstrace[_0]}\cdot \specificevt{Call\ ?n}\cdot \specificevt{Ret\ !n}\cdot \trg{\mstrace[_1]} \\
+      \mmlAmmlAtbackdetail[\emptyset]{\mstrace[_0]} = \Game,\src{e_0} &
+      \mmlAmmlAtbackdetail[\Game]{\mstrace[_1]} = \Game',\src{e_1} &
     }{
-      \mmlAmmlAtback{\overline{a}} = \src{context\ e_0\ e_1}
+      \mmlAmmlAtback{\trace} = \src{context\ e_0\ e_1}
     }{backtrans-top}
   \end{center}
 }{tms-pres-backtrans}{Partial Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
-The trace-based backtranslation is partial since we leave the translation undefined for the event $\trg{\lightning}$.
-This is fine, because where we use the backtranslation, we know the trace won't contain $\trg{\lightning}$.
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 
-\begin{definition}[Cross-Language Trace Agreement]
-  We say $\tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$ iff
-  $$
-  \exists \overline{a}, \tmstraceagree[\delta^{\color{\stlccol}\bullet}]{\overline{a}}{\src{\overline{a}}}
-                  \wedge\tmstraceagree[\delta^{\color{\ulccol}\bullet}]{\overline{a}}{\trg{\overline{a}}}
-  $$
-  where $\delta_{tms}={\delta^{\color{\stlccol}\bullet}}_{tms}\cup{\delta^{\color{\ulccol}\bullet}}_{tms}$ such that ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
-\end{definition}
-
-\begin{definition}[Cross-Language Store Agreement]
-  We say $\storeagreetms{\src{\Omega}}{\trg{\Omega}}$ iff
-  $$
-  \exists \tmsmonitor, \storeagreetms[\delta^{\color{\stlccol}\bullet}]{\tmsmonitor}{\src{\Omega}.\src{\Delta}}
-                 \wedge\storeagreetms[\delta^{\color{\ulccol}\bullet}]{\tmsmonitor}{\trg{\Omega}.\trg{\Delta}}
-  $$
-  where $\delta_{tms}={\delta^{\color{\stlccol}\bullet}}_{tms}\cup{\delta^{\color{\ulccol}\bullet}}_{tms}$ such that ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
-
-  For convenience, we may also use $\storeagreetms{\src{\Delta}}{\trg{\Delta}}$ or $\storeagreetms{\src{\Omega}.\src{\Delta}}{\trg{\Omega}.\trg{\Delta}}$ with the obvious meaning.
-\end{definition}
-
-\begin{lemma}[Compiling Traces Injectivity]\label{lem:comptrace:injective}\ \\
-  Given some injective $\delta$, $\mmlAmmlAtcomp{\overline{a}}_\delta$ is injective.
-\end{lemma}
-\begin{proof}
-  Induction on $\src{\overline{a}}$, trivial.
-\end{proof}
-
 \begin{lemma}[Non-Stuck Target Traces have Source Traces]\label{lem:comptrace:invertible}\ \\
-  Given injective $\delta$ and $\trg{\overline{a}}$ non-stuck, $\exists\src{\overline{a}}, \trg{\overline{a}}=\mmlAmmlAtcomp{\overline{a}}_\delta$.
+  Given $\delta$ and $\trg{\trace}$ non-stuck, $\exists\src{\trace}, \xlangtraceeq{\trace}{\trace}$
 \end{lemma}
 \begin{proof}
-  Trivial induction on $\trg{\overline{a}}$ using \thmref{lem:comptrace:injective}.
+  Induction on $\trg{\trace}$
 \end{proof}
+\MK{we don't know anything about this $\delta$, besides $\delta:\src{L}\to\trg{L}$}
 
 \begin{lemma}[Value Insertion]\label{lem:compvals:insertion}\ \\
-  Given $\src{v}=\mmlAmmlAtbackv{v}$, then $\mmlAmmlAtcomp{v}=\trg{v}$.
+  Given $\src{\valueexpr}=\mmlAmmlAtbackv{\valueexpr}$, then $\mmlAmmlAtcomp{\valueexpr}=\trg{\valueexpr}$.
 \end{lemma}
 \begin{proof}
   Immediate.
 \end{proof}
 
 \begin{lemma}[Invertible Operational State]\label{lem:invertible:opstate}\ \\
-  Given injective $\delta$ and $\trg{\Omega}$ non-stuck, $\exists\src{\Omega}, \trg{\Omega}=\mmlAmmlAtcomp{\Omega}_\delta$.
+  Given $\delta$ and $\trg{\Omega}$ non-stuck, $\exists\src{\Omega}, \xlangstateeq{\Omega}{\Omega}$.
 \end{lemma}
-\begin{proof}
-  Trivial.
-\end{proof}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \begin{lemma}[Backtranslation is Well-Typed]\label{lem:backtranslation:welltyped}
   If
   \begin{assumptions}
-  \item $\trg{\overline{a}}$ not stuck
+  \item $\trg{\trace}$ not stuck
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\typecheck{}{\mmlAmmlAtback{\overline{a}}}{\src{\nat\to\nat}}$
+  \item $\typecheck{}{\mmlAmmlAtback{\trace}}{\src{\nat}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -2395,27 +2360,35 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \end{incompleteproof}
 
 
+%\begin{lemma}[Call Correctness]\label{lem:call:correctness}
+%  If
+%  \begin{assumptions}
+%  \item $\typechecks{}{component\ e_p}{\nat\to\nat}$
+%  \item $\wexec{\trg{prog\ e_1\ }\mmlAmmlAtcomp{e_p}\trg{\ e_2}}{\trg{\Omega'}}{\trg{e}}{\trg{\trace}}$
+%  \end{assumptions}
+%\end{lemma}
+
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
   \item\label[ass]{asm:backtranscorr:progexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{\ e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
   \item\label[ass]{asm:backtranscorr:component:typechecks} $\typechecks{}{component\ e_p}{\nat}$
   \end{assumptions}
-  then $\exists \configs\ \src{v}\ \src{\overline{a}}\ \delta_{tms}$,
+  then $\exists \configs\ \src{\valueexpr}\ \src{\trace}\ \delta_{tms}$,
   \begin{goals}
-  \item $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}$
-  \item $\tmstraceagree{\tospecificevs{\overline{a}}}{\tospecificevt{\overline{a}}}$
+  \item $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{\valueexpr}{\trace}$
+  \item $\tmstraceagree{\tospecificevctxs{\trace}}{\tospecificevctxt{\trace}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
   Inverting \Cref{asm:backtranscorr:progexec} gives:
   \begin{passumptions}{H}
-  \item $\exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}}$
-  \item\label[ass]{asm:backtranscorr:compexecbase} $\exec{\trg{\Omega_0}}{\mmlAmmlAtcomp{e_p}\trg{[v_0/x]}}{\trg{\Omega_p}}{\trg{v_p}}{\trg{\overline{a_p}}}$
-  \item $\exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\overline{a_1}}$
+  \item $\exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace[_0]}$
+  \item\label[ass]{asm:backtranscorr:compexecbase} $\exec{\trg{\Omega_0}}{\mmlAmmlAtcomp{e_p}\trg{[\valueexpr_0/x]}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
+  \item $\exect{\Omega_p}{e_1[\valueexpr_p/y]}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
   \end{passumptions}
 
-  By \thmref{lem:compvals:invertible} we have $\mmlAmmlAtcomp{v_0}=\trg{v_0}$ and $\mmlAmmlAtcomp{v_p}=\trg{v_p}$.
+  By \thmref{lem:compvals:insertion} we have $\mmlAmmlAtcomp{\valueexpr_0}=\trg{\valueexpr_0}$ and $\mmlAmmlAtcomp{\valueexpr_p}=\trg{\valueexpr_p}$.
 
   Also note that $\mmlAmmlAtcomp{x}=\trg{x}$ by definition of the compiler.
 

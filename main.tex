@@ -780,13 +780,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{}{component\ e_p}{\nat\to\nat}
 	}{
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
-	}{w-t-prog}
+	}{w-t-wprog}
   %
   \typerule{$t-\text{prog}$}{
     \typechecks{}{\Delta}{\Gamma}&
     \typechecks{\Gamma}{e}{\nat}
 	}{
-  \typechecks{}{H;\Delta\triangleright e}{\nat}
+  \typechecks{}{(H;\Delta)^i\triangleright e}{\nat}
 	}{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
@@ -1566,7 +1566,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
   \begin{passumptions}{H}
     \item $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
-    %\ite]\label[ass]{asm:mmlatmsviamonitor:run2} $\execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\configs}{v}{\overline{a}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}}$
     \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\qconfig{_0}}{e_p[v_0/x]}{\configs_p}{v_p}{\trace{_p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\trace{_1}}$
@@ -1658,7 +1657,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
   %
-  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\\
+  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\hspace{0.5cm}
+  \mi{Final\ Result}\ \trg{\finalexpr} \bnfdef\ \trg{\valueexpr} \mid \trg{stuck} \\
   %
   \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
   %
@@ -1666,7 +1666,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   %
   \mi{Contexts}\ &\trg{context\ e_0\ e_1} \hspace{0.5cm}
   \mi{Components}\ \trg{component\ e_p} \\
-  \mi{Whole\ Programs}\ &\trg{prog\ e_0\ e_1\ e_2}\\ %todo
+  \mi{Whole\ Programs}\ &\trg{prog\ e_0\ e_1\ e_2}\hspace{0.5cm}
+  \mi{Marked\ State}\ \qconfigt[i] \bnfdef\ \configt\mid \qconfigt\\
   \end{aligned}
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
@@ -1679,7 +1680,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
       \trg{let\ x=K\ in\ e}\\
                      &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}\\
-                     &\mid \trg{if\ K < e_1\ then\ e_2\ else\ e_3} \mid \trg{if\ n < K\ then\ e\ else\ e_4}
+                     &\mid \trg{if\ K < e_1\ then\ e_2\ else\ e_3} \mid \trg{if\ n < K\ then\ e_1\ else\ e_2}
     \end{aligned}
   \end{gather*}
 }{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
@@ -1699,21 +1700,21 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\trg{a} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n}\\
+  \mi{Events}~\trg{\event} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n}\\
                              & \mid \trg{\lightning} \mid \trg{Call\ ?n} \mid \trg{Ret\ !n}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAt$.}
 
 \myfig{
-  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{a}$.''}
-  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{a}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{a}$.''}
+  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
+  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{\event}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{\event}$.''}
   %
   \typerule{$e-\text{ctx}$}{
     \configt\not=\trg{\lightning} &
-    \exprevalt{\configt}{e}{\configt'}{e'}{a}
+    \exprevalt{\configt}{e}{\configt'}{e'}{\event}
   }{
-    \exect[]{\configt}{K[e]}{\configt'}{K[e']}{a}
+    \exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}
   }{tw-e-ectx}
   %
   \typerule{$e-\trg{\pi_1}$}{
@@ -1789,24 +1790,24 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
-    \judgbox{\exect{\configt}{e}{\configt'}{e'}{\overline{a}}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting list of events $\trg{\overline{a}}$.''}
+    \judgbox{\exect{\configt}{e}{\configt'}{e'}{\trace}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting list of events $\trg{\trace}$.''}
     %
     \typerule{$et-\text{refl}$}{
     }{
       \exect{\configt}{e}{\configt}{e}{\hole{\cdot}}
     }{wt-e-refl}
     \typerule{$et-\text{trans}-$important}{
-      \exect[]{\configt}{e}{\configt'}{e'}{a}&
-      \exect{\configt'}{e'}{\configt''}{e''}{\overline{a}}&
+      \exect[]{\configt}{e}{\configt'}{e'}{\event}&
+      \exect{\configt'}{e'}{\configt''}{e''}{\trace}&
       \trg{a}\not=\trg{\emptyevent}
     }{
-      \exect{\configt}{e}{\configt''}{e''}{a \cdot \bar{a}}
+      \exect{\configt}{e}{\configt''}{e''}{\event \cdot \trace}
     }{wt-e-trans-important}
     \typerule{$et-\text{trans}-$unimportant}{
       \exect[]{\configt}{e}{\configt'}{e'}{\emptyevent}&
-      \exect{\configt'}{e'}{\configt''}{e''}{\overline{a}}&
+      \exect{\configt'}{e'}{\configt''}{e''}{\trace}&
     }{
-      \exect{\configt}{e}{\configt''}{e''}{\overline{a}}
+      \exect{\configt}{e}{\configt''}{e''}{\trace}
     }{wt-e-trans-unimportant}
   \end{center}
 }{wt-steps}{Trace prefix generation given a $\mmlAt$ program using the reflexive-transitive closure.}
@@ -1814,30 +1815,29 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \myfig{
   \begin{center}
   \typerule{$e-\text{wprog}-\trg{trg}$}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} \\
-    \exect{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\overline{a_p}} &
-    \exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\overline{a_1}} &
-%    \execs{\hole{\cdot};\hole{\cdot}}{let\ y=let\ x=e_0^\diamond\ in\ e_p\ in\ e_1^\diamond}{\Omegas}{v}{\overline{a}}
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\trace{_0}} \\
+    \exect{\qconfigt{_0}}{e_p[v_0/x]}{\Omega_p}{v_p}{\trace{_p}} &
+    \exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\trace{_1}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}\cdot Ret\ !v_p\cdot \trace{_1}}
   }{wt-e-prog}
   \typerule{$e-\text{wprog}-\trg{trg}-$fail0}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\overline{a_0}} \\
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}}
   }{wt-e-prog-fail0}
   \typerule{$e-\text{wprog}-\trg{trg}-$failp}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} &
-    \exect{\Omega_0}{e_p[v_0/x]}{\lightning}{stuck}{\overline{a_p}} &
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\trace{_0}} &
+    \exect{\Omega_0}{e_p[v_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0\cdot Call\ ?v_0\cdot a_p}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}}
   }{wt-e-prog-failp}
   \typerule{$e-\text{wprog}-\trg{trg}$-fail1}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\overline{a_0}} \\
-    \exect{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\overline{a_p}} &
-    \exect{\Omega_p}{e_1[v_p/y]}{\lightning}{stuck}{\overline{a_1}} &
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\trace{_0}} \\
+    \exect{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\trace{_p}} &
+    \exect{\Omega_p}{e_1[v_p/y]}{\lightning}{stuck}{\trace{_1}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\overline{a_0\cdot Call\ ?v_0\cdot a_p\cdot Ret\ !v_p\cdot a_1}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}\cdot Ret\ !v_p\cdot \trace{_1}}
   }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -1847,8 +1847,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Determinism of Step]\label{lem:determ:step}
   If
   \begin{assumptions}
-  \item $\exprevalt{\Omega}{e}{\Omega'}{v_1}{a}$
-  \item $\exprevalt{\Omega}{e}{\Omega''}{v_2}{a}$
+  \item $\exprevalt{\Omega}{e}{\Omega'}{v_1}{\event}$
+  \item $\exprevalt{\Omega}{e}{\Omega''}{v_2}{\event}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1862,8 +1862,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Determinism of Ctx-Step]\label{lem:determ:ctxstep}
   If
   \begin{assumptions}
-  \item $\exect[]{\Omega}{e}{\Omega'}{v_1}{a}$
-  \item $\exect[]{\Omega}{e}{\Omega''}{v_2}{a}$
+  \item $\exect[]{\Omega}{e}{\Omega'}{v_1}{\event}$
+  \item $\exect[]{\Omega}{e}{\Omega''}{v_2}{\event}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1877,8 +1877,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Determinism of Steps]\label{lem:determ:steps}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{v_1}{\bar{a}}$
-  \item $\exect{\Omega}{e}{\Omega''}{v_2}{\bar{a}}$
+  \item $\exect{\Omega}{e}{\Omega'}{v_1}{\trace}$
+  \item $\exect{\Omega}{e}{\Omega''}{v_2}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1890,7 +1890,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \end{incompleteproof}
 
 \begin{definition}[Stuck Trace]\label{def:stuck:trgtrace}
-  A trace $\trg{\overline{a}}$ is stuck if it ends with $\trg{\lightning}$.
+  A trace $\trg{\trace}$ is stuck if it ends with $\trg{\lightning}$.
 \end{definition}
 
 \begin{definition}[Stuck State]\label{def:stuck:trgstate}
@@ -1900,11 +1900,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Non-stuck Trace Generation]\label{lem:nonstuck:traces}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{v}{\overline{a}}$
+  \item $\exect{\Omega}{e}{\Omega'}{v}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\trg{\overline{a}}$ is not stuck.
+  \item $\trg{\trace}$ is not stuck.
   \item $\trg{\Omega'}$ is not stuck.
   \end{goals}
 \end{lemma}
@@ -1918,7 +1918,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq&\ \nat \hspace{0.5cm}
       \mi{Abstract\ Store}~\smsmonitor =\ L\times\nat \\
-      \mi{Abstract\ Events}~a \bnfdef&\ \emptyevent \mid \text{Alloc}\ \loc\ n \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc\ n \mid \lightning\\
+      \mi{Abstract\ Events}~\event \bnfdef&\ \text{Alloc}\ \loc\ n \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc\ n \mid \lightning\\
     \mi{References\ Agreement}~\delta_{\text{sms}} :&\ \trg{L}\to L \\[0.6cm]
     \end{aligned}
   \end{gather*}
@@ -1926,11 +1926,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
-    \typerule{sms-Empty}{
-    }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\varepsilon}
-    }{sms-empty}
-    %
     \typerule{sms-Use}{
       (\loc,m)\in \smsmonitor[.A]&
       n<m&
@@ -1958,31 +1953,16 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{sms-refl}
     %
     \typerule{sms-Trans}{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{a}&
-      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\bar{a}}&
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\event}&
+      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\trace}&
     }{
-    \monitorcheck{\smsmonitor}{\smsmonitor['']}{a\cdot\bar{a}}
+    \monitorcheck{\smsmonitor}{\smsmonitor['']}{\event\cdot\trace}
     }{sms-trans}
   \end{center}
 }{sms-step}{Steps of \gls{sms} Monitor.}
 
 \myfig{
   \begin{center}
-    \typerule{SMS-Internal-Authentic}{
-    }{
-      \smstraceagree{\specificevt{\varepsilon}}{\varepsilon}
-    }{sms-internal-auth}
-    %
-    \typerule{SMS-Call-Authentic}{
-    }{
-      \smstraceagree{\specificevt{Call\ ?n}}{\varepsilon}
-    }{sms-call-auth}
-    %
-    \typerule{SMS-Ret-Authentic}{
-    }{
-      \smstraceagree{\specificevt{Ret\ !n}}{\varepsilon}
-    }{sms-ret-auth}
-    %
     \typerule{SMS-Alloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
@@ -2013,11 +1993,24 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{sms-refl-auth}
     %
     \typerule{SMS-Trans-Authentic}{
-      \smstraceagree{\specificevt{a}}{a} &
-      \smstraceagree{\trg{\overline{\mstrace}}}{\overline{a}}
+      \smstraceagree{\specificevt{\event}}{\event} &
+      \smstraceagree{\trg{\mstrace}}{\trace}
     }{
-      \smstraceagree{\specificevt{a}\cdot\trg{\overline{\mstrace}}}{a\cdot\overline{a}}
+      \smstraceagree{\specificevt{\event}\cdot\trg{\mstrace}}{\event\cdot\trace}
     }{sms-trans-auth}
+    %
+    \typerule{SMS-Call-Authentic}{
+      \smstraceagree{\trg{\mstrace}}{\trace}
+    }{
+      \smstraceagree{\specificevt{Call\ ?n}\cdot\trg{\mstrace}}{\trace}
+    }{sms-call-auth}
+    %
+    \typerule{SMS-Ret-Authentic}{
+      \smstraceagree{\trg{\mstrace}}{\trace}
+    }{
+      \smstraceagree{\trg{\mstrace}\cdot\specificevt{Ret\ !n}}{\trace}
+    }{sms-ret-auth}
+    %
   \end{center}
 }{sms-trace-agreement}{Trace Agreement.}
 
@@ -2040,12 +2033,12 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{use-dealloc}
     %
     \typerule{tms-sms-E}{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{a} & 
-    a\prec a' &
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{a'} &
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\trace} & 
+    \event\prec \event['] &
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\trace[']} &
     T = \tmsmonitor\times\smsmonitor
     }{
-    \monitorcheck[]{T}{T}{a}
+    \monitorcheck[]{T}{T}{\event}
     }{tms-sms-empty}
     %
     \typerule{tms-sms-Refl}{
@@ -2054,19 +2047,19 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{tms-sms-refl}
     %
     \typerule{tms-sms-Trans}{
-      \monitorcheck[]{T}{T'}{a}&
-      \monitorcheck{T'}{T''}{\bar{a}}&
+      \monitorcheck[]{T}{T'}{\event}&
+      \monitorcheck{T'}{T''}{\trace}&
     }{
-    \monitorcheck{T}{T''}{a\cdot\bar{a}}
+    \monitorcheck{T}{T''}{\event\cdot\trace}
     }{tms-sms-trans}
   \end{center}
 }{sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
 
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:trg:trace:tms}
-  We say $\texttt{TMS}(\trg{\overline{\mstrace}})$ iff $\exists \delta\ \overline{a}\ \tmsmonitor$ such that:
+  We say $\texttt{TMS}(\trg{\mstrace})$ iff $\exists \delta\ \trace\ \tmsmonitor$ such that:
   \begin{itemize}
-    \item $\tmstraceagree{\trg{\overline{\mstrace}}}{\overline{a}}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
+    \item $\tmstraceagree{\trg{\mstrace}}{\trace}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\trace}$
   \end{itemize}
 \end{definition}
 
@@ -2090,7 +2083,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ }\mmlAmmlAtcomp{x} \\
     \mmlAmmlAtcomp{if\ e_1<e_2\ then\ e_3\ else\ e_4} &\ = & \trg{if\ }\mmlAmmlAtcomp{e_1}\trg{<}\mmlAmmlAtcomp{e_2}\\
                                                       &&\trg{then\ }\mmlAmmlAtcomp{e_3} \\
-                                                      &&\trg{else\ }\mmlAmmlAtcomp{e_4} \\[0.5cm]
+                                                      &&\trg{else\ }\mmlAmmlAtcomp{e_4} \\
+    \mmlAmmlAtcomp{stuck} &\ = & \trg{stuck}\\[0.5cm]
     %
     \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \left[\mmlAmmlAtcomp{v}/\mmlAmmlAtcomp{x}\right]\\[0.5cm]
     \end{array}
@@ -2102,10 +2096,10 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{empty-trace-eq}
     %
     \typerule{cons-trace-eq}{
-      \xlangeventeq{a}{a} &
-      \xlangtraceeq{\overline{a}}{\overline{a}}
+      \xlangeventeq{\event}{\event} &
+      \xlangtraceeq{\trace}{\trace}
     }{
-      \xlangtraceeq{a\cdot\overline{a}}{a\cdot\overline{a}}
+      \xlangtraceeq{\event\cdot\trace}{\event\cdot\trace}
     }{cons-trace-eq}
     %
     \typerule{alloc-event-eq}{
@@ -2182,11 +2176,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Forward Simulation]\label{lem:forwardsim}
   If
   \begin{assumptions}
-    \item $\execs{\Omega}{e}{\Omega'}{v}{\bar{a}}$
+    \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
   \end{assumptions}
-  Then $\exists\delta$,
+  Then $\exists\delta\ \trg{\Omega}\ \trg{\Omega'}\ \trg{\trace}$,
   \begin{goals}
-    \item $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\bar{a}}_\delta}$
+    \item $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
+    \item $\xlangtraceeq{\trace}{\trace}$
+    \item $\xlangstateeq{\Omega}{\Omega}$
+    \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -2196,36 +2193,42 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Expression Correctness]\label{lem:expression:correctness}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\bar{a}}_\delta}$
+  \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
+  \item $\xlangtraceeq{\trace}{\trace}$
+  \item $\xlangstateeq{\Omega}{\Omega}$
+  \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\execs{\Omega}{e}{\Omega'}{v}{\src{\bar{a}}}$
+  \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
   \end{goals}
 \end{lemma}
 \begin{proof}
   We prove this by contradiction, so say:
   \begin{passumptions}{H}
-    \item\label[ass]{asm:exprcorrect:exec2} $\execs{\Omega}{e}{\Omega''}{v'}{\bar{a}}$
-    \item\label[ass]{asm:exprcorrect:unequal1} $\src{v}\not=\src{v'}$
+    \item\label[ass]{asm:exprcorrect:exec2} $\execs{\Omega}{e}{\Omega''}{\finalexpr'}{\trace}$
+    \item\label[ass]{asm:exprcorrect:unequal1} $\src{\finalexpr}\not=\src{\finalexpr'}$
     \item\label[ass]{asm:exprcorrect:unequal2} $\src{\Omega'}\not=\src{\Omega''}$
       \MK{Should also have an $\overline{a'}\not=\overline{a}$}
   \end{passumptions}
 
   Apply \thmref{lem:forwardsim} on \Cref{asm:exprcorrect:exec2} to get:
   \begin{passumptions}{F}
-    \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\mmlAmmlAtcomp{\Omega}}{\mmlAmmlAtcomp{e}}{\mmlAmmlAtcomp{\Omega'}}{\mmlAmmlAtcomp{v}}{\mmlAmmlAtcomp{\overline{a}}_\delta}$
+    \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\trg{\Omega_\exists}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_\exists''}}{\mmlAmmlAtcomp{\finalexpr'}}{\trg{\trace_\exists}}$
+    \item $\xlangtraceeq{\trace}{\trace_\exists}$
+    \item $\xlangstateeq{\Omega}{\Omega_\exists}$
+    \item $\xlangstateeq{\Omega''}{\Omega''_\exists}$
   \end{passumptions}
 
   The compiler is deterministic, so using \Cref{asm:exprcorrect:unequal1} on \thmref{lem:determcomp} gives:
   \begin{passumptions}{G}
-    \item\label[ass]{asm:exprcorrect:compiled:unequal} $\mmlAmmlAtcomp{v}\not=\mmlAmmlAtcomp{v'}$
+    \item\label[ass]{asm:exprcorrect:compiled:unequal} $\mmlAmmlAtcomp{\finalexpr}\not=\mmlAmmlAtcomp{\finalexpr'}$
   \end{passumptions}
 
   Using \Cref{asm:exprcorrect:exec1:trg} and \Cref{asm:exprcorrect:exec2:trg} on \thmref{lem:determ:steps} we have:
   \begin{passumptions}{G}
     \setcounter{enumi}{1}
-    \item\label[ass]{asm:exprcorrect:compiled:equal} $\mmlAmmlAtcomp{v}=\mmlAmmlAtcomp{v'}$
+    \item\label[ass]{asm:exprcorrect:compiled:equal} $\mmlAmmlAtcomp{\finalexpr}=\mmlAmmlAtcomp{\finalexpr'}$
   \end{passumptions}
   
   \Cref{asm:exprcorrect:compiled:equal} contradicts \Cref{asm:exprcorrect:compiled:unequal}.

@@ -972,7 +972,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Events}~\src{\mstrace} \bnfdef&\ \specificevs{\emptyevent} \mid \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Get\ \loc\ n} \mid \specificevs{Set\ \loc\ n} \\
+    \mi{Events}~\src{\mstrace} \bnfdef&\ \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Get\ \loc\ n} \mid \specificevs{Set\ \loc\ n} \\
                                     & \mid \specificevs{\lightning} \mid \specificevs{Call\ ?n} \mid \specificevs{Ret\ !n}\\
   \end{aligned}
   \end{gather*}
@@ -1092,7 +1092,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typerule{TMS-Ret-Authentic}{
       \tmstraceagree{\src{\mstrace}}{\trace}
     }{
-      \tmstraceagree{\src{\mstrace}\cdot\specificevs{Ret\ !n}}{\trace}
+      \tmstraceagree{\specificevs{Ret\ !n}\cdot\src{\mstrace}}{\trace}
     }{tms-ret-auth}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
@@ -2070,11 +2070,16 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
+    \begin{gather*}
+    \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
+    \judgbox{\mmlAmmlAtcomp{e}=\trg{e}}{,,Compile $\mmlAs$ expression $\src{e}$ to $\mmlAt$ expression $\trg{e}$.''}\\
+    \judgbox{\mmlAmmlAtcomp{\left[\valueexpr / x\right]}=\trg{\left[\valueexpr / x\right]}}{,,Compile $\mmlAs$ substitution to $\mmlAt$ substitution.''}
+    \end{gather*}
     $$
     \begin{array}{rll}
-    \delta&\ : & \src{L}\to\trg{L}\\[0.3cm]
     \mmlAmmlAtcomp{x} &\ = & \trg{x} \\
     \mmlAmmlAtcomp{v} &\ = & \trg{v} \\
+    \mmlAmmlAtcomp{stuck} &\ = & \trg{stuck}\\
     \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \mmlAmmlAtcomp{e_1} \trg{\oplus} \mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{x[e]} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e}\trg{]} \\
     \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=new\ }\mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
@@ -2083,13 +2088,16 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ }\mmlAmmlAtcomp{x} \\
     \mmlAmmlAtcomp{if\ e_1<e_2\ then\ e_3\ else\ e_4} &\ = & \trg{if\ }\mmlAmmlAtcomp{e_1}\trg{<}\mmlAmmlAtcomp{e_2}\\
                                                       &&\trg{then\ }\mmlAmmlAtcomp{e_3} \\
-                                                      &&\trg{else\ }\mmlAmmlAtcomp{e_4} \\
-    \mmlAmmlAtcomp{stuck} &\ = & \trg{stuck}\\[0.5cm]
+                                                      &&\trg{else\ }\mmlAmmlAtcomp{e_4} \\[0.5cm]
     %
-    \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \left[\mmlAmmlAtcomp{v}/\mmlAmmlAtcomp{x}\right]\\[0.5cm]
+    \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \trg{\left[\right.}\mmlAmmlAtcomp{v}\trg{/}\mmlAmmlAtcomp{x}\trg{\left.\right]}\\[0.5cm]
     \end{array}
     $$
-    %
+  \end{center}
+}{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
+\myfig{
+  \begin{center}
+    \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ is morally equal to the $\mmlAt$ trace $\trg{\trace}$.''} \\
     \typerule{empty-trace-eq}{
     }{
       \xlangtraceeq{\hole{\cdot}}{\hole{\cdot}}
@@ -2128,6 +2136,12 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \xlangeventeq{Set\ \loc\ n}{Set\ \loc\ n}
     }{get-event-eq}
+  \end{center}
+}{tms-pres-trace-relation}{Trace Relation from $\mmlAs$ to $\mmlAt$.}
+\myfig{
+  \begin{center}
+    \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
+    \judgbox{\xlangstateeq{\Omega}{\Omega}}{,,The $\mmlAs$ state $\configs$ is morally equal to the $\mmlAt$ state $\configt$.''} \\
     %
     \typerule{state-eq}{
       \src{\Omega}=\src{\Delta;H} &
@@ -2157,8 +2171,42 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \xlangstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}
     }{cons-locmap-eq}
+    \vspace{0.5cm}
+    $\;$
+    %
+    \judgbox{\atled(\trg{\loc})=\src{\loc}}{,,The $\mmlAt$ memory location $\trg{\loc}$ corresponds to\\the $\mmlAs$ memory location $\src{\loc}$.''} \\
+    \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ is morally equal to the $\mmlAs$ state $\configs$.''} \\
+    %
+    \typerule{back-state-eq}{
+      \trg{\Omega}=\trg{\Delta;H} &
+      \src{\Omega}=\src{\Delta;H} \\
+      \xlangbackstateeq{\Delta}{\Delta} &
+      \xlangbackstateeq{H}{H}
+    }{
+      \xlangbackstateeq{\Omega}{\Omega}
+    }{back-state-eq}
+    %
+    \typerule{back-empty-heap-or-map-eq}{
+    }{
+      \xlangbackstateeq{\hole{\cdot}}{\hole{\cdot}}
+    }{back-compile-empty-heap-or-map-eq}
+    %
+    \typerule{back-cons-heap-eq}{
+      \mmlAmmlAtbackv{n}=\src{n} &
+      \xlangbackstateeq{H}{H}
+    }{
+      \xlangbackstateeq{n,H}{n,H}
+    }{back-compile-cons-heap}
+    %
+    \typerule{back-cons-locmap-eq}{
+      %\mmlAmmlAtcomp{x}=\trg{x} &  % TODO: α equivalent!
+      \atled(\trg{\loc}) = \src{\loc} &
+      \xlangbackstateeq{\Delta}{\Delta}
+    }{
+      \xlangbackstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}
+    }{back-cons-locmap-eq}
   \end{center}
-}{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
+}{tms-pres-state-relations}{State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
 
 \begin{lemma}[Determinism of Compiler]\label{lem:determcomp}
   If and only if
@@ -2359,77 +2407,25 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   induction on $\trg{\overline{a}}$
 \end{incompleteproof}
 
-
-%\begin{lemma}[Call Correctness]\label{lem:call:correctness}
-%  If
-%  \begin{assumptions}
-%  \item $\typechecks{}{component\ e_p}{\nat\to\nat}$
-%  \item $\wexec{\trg{prog\ e_1\ }\mmlAmmlAtcomp{e_p}\trg{\ e_2}}{\trg{\Omega'}}{\trg{e}}{\trg{\trace}}$
-%  \end{assumptions}
-%\end{lemma}
-
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:backtranscorr:progexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{\ e_2}}{\trg{\configt}}{\trg{v}}{\trg{\overline{a}}}$
-  \item\label[ass]{asm:backtranscorr:component:typechecks} $\typechecks{}{component\ e_p}{\nat}$
+  \item $\exect{\Omega}{e}{\Omega'}{\finalexpr}{\specificevt{Ret\ !n_0}\cdot\trace\cdot\specificevt{Call\ ?n_1}}$
+  \item $\mmlAmmlAtbackdetail{\specificevt{Ret\ !n_0}\cdot\trace\cdot\specificevt{Call\ ?n_1}}=\src{e}$
+  \item $\xlangstateeq{\Omega}{\Omega}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
-  then $\exists \configs\ \src{\valueexpr}\ \src{\trace}\ \delta_{tms}$,
+  then $\exists \delta'\ \atled'\ \configs\ \src{\trace}$,
   \begin{goals}
-  \item $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{\valueexpr}{\trace}$
-  \item $\tmstraceagree{\tospecificevctxs{\trace}}{\tospecificevctxt{\trace}}$
+  \item $\delta\subseteq\delta'$
+  \item $\atled\subseteq\atled'$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv{\finalexpr}}{\src{\trace}}$
+  \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\xlangbackstateeq[\atled']{\Omega'}{\Omega'}$
+  \item ${\tospecificevs{\trace}}\thexlangtraceeq{\tospecificevt{\trace}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
-  Inverting \Cref{asm:backtranscorr:progexec} gives:
-  \begin{passumptions}{H}
-  \item $\exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace[_0]}$
-  \item\label[ass]{asm:backtranscorr:compexecbase} $\exec{\trg{\Omega_0}}{\mmlAmmlAtcomp{e_p}\trg{[\valueexpr_0/x]}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
-  \item $\exect{\Omega_p}{e_1[\valueexpr_p/y]}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
-  \end{passumptions}
-
-  By \thmref{lem:compvals:insertion} we have $\mmlAmmlAtcomp{\valueexpr_0}=\trg{\valueexpr_0}$ and $\mmlAmmlAtcomp{\valueexpr_p}=\trg{\valueexpr_p}$.
-
-  Also note that $\mmlAmmlAtcomp{x}=\trg{x}$ by definition of the compiler.
-
-  We build a $\delta_\times:\src{L}\to\trg{L}$ by going over $\trg{\overline{a_0\cdot a_p\cdot a_1}}$ and associating each $\trg{\loc}$ for any event with a corresponding $\src{\loc}$.\MK{fishy. intuitively, this is what we should get out of backtranslation correctness, but we need it to change our assumption suitably so that we can compile $\src{\Omega}$ and $\src{\overline{a}}$}
-
-  Using \thmref{lem:nonstuck:traces} on \Cref{asm:backtranscorr:compexecbase} allows us to use \thmref{lem:comptrace:invertible} and \thmref{lem:invertible:opstate} provided $\delta_\times$, so $\trg{\overline{a_p}}=\mmlAmmlAtcomp{\overline{a_p}}_{\delta_\times}$, $\trg{\Omega_0}=\mmlAmmlAtcomp{\Omega_0}_{\delta_\times}$, and $\trg{\Omega_p}=\mmlAmmlAtcomp{\Omega_p}_{\delta_\times}$.
-
-  Therefore, we can rewrite \Cref{asm:backtranscorr:compexecbase} as follows:
-  \begin{passumptions}{H'}
-    \setcounter{enumi}{1}
-    \item\label[ass]{asm:backtranscorr:compdexecbase} $\exec{\mmlAmmlAtcomp{\Omega_0}}{\mmlAmmlAtcomp{e_p}\trg{[}\mmlAmmlAtcomp{v_0}\trg{/}\mmlAmmlAtcomp{x}\trg{]}}{\mmlAmmlAtcomp{\Omega_p}}{\mmlAmmlAtcomp{v_p}}{\mmlAmmlAtcomp{\overline{a_p}}}$
-  \end{passumptions}
-
-  Plug \Cref{asm:backtranscorr:compdexecbase} into \thmref{lem:expression:correctness}:
-  \begin{passumptions}{G}
-    \item $\execs{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\src{\overline{a_p}}}$
-  \end{passumptions}
-
-  By \thmref{lem:backtranslation:welltyped} $\src{context\ e_1\ e_2}=\mmlAmmlAtback{\overline{a}}$ well-typed.
-
-  Using the previous result and \Cref{asm:backtranscorr:component:typechecks} we use \thmref{lem:plugging:welltyped}:
-  \begin{passumptions}{G}
-    \setcounter{enumi}{1}
-    \item\label[ass]{asm:progtypechecks} $\typechecks{}{prog\ e_1\ e_p\ e_2}{\nat}$
-  \end{passumptions}
-  
-  Shove \Cref{asm:progtypechecks} into \thmref{lem:toplevel:progress} to give us what we need to instantiate the existentials in our goal upto $\delta_{tms}$:
-  \begin{passumptions}{G}
-    \setcounter{enumi}{2}
-    \item\label[ass]{asm:progruns} $\wexecs{prog\ e_1\ e_p\ e_2}{\Omega}{v}{\overline{a}}$
-  \end{passumptions}
-  
-  \Cref{asm:progruns} has exactly the same shape as one part of the remaining goal, so what is left to show is
-
-  \begin{goals}
-  \item $\exists \delta_{tms}, \tmstraceagree{\src{\overline{a}}}{\trg{\overline{a}}}$\MK{instead of relating them over some abstract $\overline{a}$ we may just need to embrace a cross-language relation}
-  \end{goals}
-
-  we get the $\tmstraceagree[\delta^{\color{\stlccol}\bullet}]{\src{\overline{a}}}{\overline{a}}$ part by \thmref{thm:mmlAs:tmssafe} but no idea what to do about $\tmstraceagree[\delta^{\color{\ulccol}\bullet}]{\trg{\overline{a}}}{\overline{a}}$.
-
-
 \end{incompleteproof}
 
 \refstepcounter{theoremcounter}

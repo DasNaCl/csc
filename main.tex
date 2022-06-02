@@ -935,7 +935,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 }{w-steps}{Trace prefix generation given a $\mmlAs$ program using the reflexive-transitive closure.}
 
 \myfig{
-  \begin{center}%TODO: add third case, have lemma that shows that it is impossible to happen
+  \begin{center}
     \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\valueexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
@@ -951,6 +951,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}}
   }{ws-e-prog-fail0}
+  \typerule{$e-\text{wprog}-$failp}{
+    \typechecks{}{component\ e_p}{\nat\to\nat} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}} \\
+    \execs{\qconfig_0}{e_p[v_0/x]}{\lightning}{stuck}{\trace{_p}} &
+  }{
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}}
+  }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail1}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}} \\
@@ -973,6 +980,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 }{w-specific-events}{\gls*{ms}-Specific Events of $\mmlAs$.}
 \myfig{
   \begin{center}
+    \judgbox{\tospecificevs{\event} = \src{\msevent}}{,,Project an $\mmlAs$ event $\src{\event}$ to $\src{\msevent}$.''}
+    \judgbox{\tospecificevctxs{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, cutting off the component part.''}
+    \judgbox{\tospecificevcomps{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, cutting off the context part.''}
     $$
     \begin{array}{rcl}
       \tospecificevs{Alloc\ \loc\ n} &\ = & \specificevs{Alloc\ \loc\ n} \\
@@ -1007,6 +1017,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
+    \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}}{,,Given abstract state $\tmsmonitor$, step to abstract state $\tmsmonitor'$\\ emitting an abstract event $\event$.''}
+    \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\trace}}{,,Reflexive-Transitive closure of above judgement.\\$\trace$ is a list of abstract events.''}
     \typerule{TMS-Use}{
       \loc\in \tmsmonitor[.A] &
       \loc\not\in \tmsmonitor[.F] &
@@ -1046,6 +1058,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
+    \judgbox{\delta_{\text{tms}}(\src{\loc})=\loc}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to abstract memory locations $\loc$.''}
+    \judgbox{\tmstraceagree{\src{\msevent}}{\event}}{,,Memory-Safety specific event $\src{\msevent}$ describes same action as $\event$.''}
+    \judgbox{\tmstraceagree{\src{\mstrace}}{\trace}}{,,Memory-Safety specific trace $\src{\mstrace}$ describes same trace as $\trace$.''}
     %
     \typerule{TMS-Alloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
@@ -1093,6 +1108,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
+    \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta^i}}}{,,The abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
     \typerule{Empty-Agree}{
     }{
       \storeagreetms{\emptyset}{\src{\hole{\cdot}}}
@@ -1808,6 +1824,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
+    \judgbox{\wexect{prog\ e_0\ e_p\ e_1}{\configt}{\valueexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ e_0\ e_p\ e_1}$,\\giving dynamic state $\configt$  and emitting trace $\trg{\trace}$.''}
   \typerule{$e-\text{wprog}-\trg{trg}$}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\trace{_0}} \\
     \exect{\qconfigt{_0}}{e_p[v_0/x]}{\Omega_p}{v_p}{\trace{_p}} &
@@ -1920,6 +1937,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
+    \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\event}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\event$.''}
+    \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\trace}}{,,Reflexive-Transitive closure of above judgement.\\$\trace$ is a list of abstract events.''}
+    %
     \typerule{sms-Use}{
       (\loc,m)\in \smsmonitor[.A]&
       n<m&
@@ -1957,6 +1977,10 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
+    \judgbox{\delta_{\text{sms}}(\trg{\loc})=\loc}{,,A map from $\mmlAt$ memory locations $\trg{\loc}$ to abstract memory locations $\loc$.''}
+    \judgbox{\smstraceagree{\trg{\msevent}}{\event}}{,,Memory-Safety specific event $\trg{\msevent}$ describes same action as $\event$.''}
+    \judgbox{\smstraceagree{\trg{\mstrace}}{\trace}}{,,Memory-Safety specific trace $\trg{\mstrace}$ describes same trace as $\trace$.''}
+    %
     \typerule{SMS-Alloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
@@ -2277,13 +2301,12 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \end{proof}
 
 
-\subsubsection{Partial Trace-based Backtranslation}
+\subsubsection{Trace-based Backtranslation}
 
 \myfig{
   \begin{center}
-    $$
-      \Game:\trg{L}\to\src{e}
-    $$
+    \judgbox{\Game(\trg{\loc}) = \src{x}}{,,Map from $\mmlAt$ locations to $\mmlAs$ variable names.''}
+    \judgbox{\Game[\trg{\loc}] = \Game'}{,,Extend $\Game$ with $\trg{\loc}$ and call the extension $\Game'$.''}
     \typerule{backtrans-create-symb}{
       \trg{\loc}\not\in\operatorname{dom}\Game &
       \text{fresh}\ \src{x} &
@@ -2301,9 +2324,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \Game(\trg{\loc}) = \src{x}
     }{backtrans-lookup-symb}
-    %
-    %
-    %
+  \end{center}
+}{backtrans-locs-to-var}{\varmapbacktransds to keep track of $\mmlAt$ locations and $\mmlAs$ variables.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}}{,,Map an $\mmlAt$ value to an $\mmlAs$ value.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtback{\trace} = \src{context\ e_0\ e_1}}{,,Given $\mmlAt$ trace, construct an $\mmlAs$ expression that\\morally does what the trace describes.''}$\;$\\
     \typerule{backtrans-value}{
     }{
       \mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}
@@ -2361,7 +2389,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \mmlAmmlAtback{\trace} = \src{context\ e_0\ e_1}
     }{backtrans-top}
   \end{center}
-}{tms-pres-backtrans}{Partial Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
+}{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
 \subsubsection{Proofs and Auxiliary Lemmas}

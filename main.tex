@@ -939,32 +939,32 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\valueexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[v_0/x]}{\configs_p}{v_p}{\trace{_p}} &
-    \execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\trace{_1}} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\valueexpr_0}{\trace{_0}} \\
+    \execs{\qconfig_0}{e_p[\valueexpr_0/x]}{\configs_p}{\valueexpr_p}{\trace{_p}} &
+    \execs{\configs_p}{e_1[\valueexpr_p/y]}{\configs_1}{\valueexpr_1}{\trace{_1}} &
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}\cdot Ret\ !v_p\cdot \trace{_1}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}\cdot Call\ ?\valueexpr_1}
   }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail0}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
   }{ws-e-prog-fail0}
   \typerule{$e-\text{wprog}-$failp}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[v_0/x]}{\lightning}{stuck}{\trace{_p}} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\valueexpr_0}{\trace{_0}} \\
+    \execs{\qconfig_0}{e_p[\valueexpr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}}
   }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail1}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[v_0/x]}{\configs_p}{v_p}{\trace{_p}} &
-    \execs{\configs_p}{e_1[v_p/y]}{\lightning}{stuck}{\trace{_1}} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\valueexpr_0}{\trace{_0}} \\
+    \execs{\qconfig_0}{e_p[\valueexpr_0/x]}{\configs_p}{\valueexpr_p}{\trace{_p}} &
+    \execs{\configs_p}{e_1[\valueexpr_p/y]}{\lightning}{stuck}{\trace{_1}} &
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}\cdot Ret\ !v_p\cdot \trace{_1}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}}
   }{ws-e-prog-fail1}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -973,7 +973,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Events}~\src{\mstrace} \bnfdef&\ \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Get\ \loc\ n} \mid \specificevs{Set\ \loc\ n} \\
+    \mi{Events}~\src{\mstrace} \bnfdef&\ \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Use\ \loc\ n} \\
                                     & \mid \specificevs{\lightning} \mid \specificevs{Call\ ?n} \mid \specificevs{Ret\ !n}\\
   \end{aligned}
   \end{gather*}
@@ -981,8 +981,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
     \judgbox{\tospecificevs{\event} = \src{\msevent}}{,,Project an $\mmlAs$ event $\src{\event}$ to $\src{\msevent}$.''}
-    \judgbox{\tospecificevctxs{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, cutting off the component part.''}
-    \judgbox{\tospecificevcomps{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, cutting off the context part.''}
+    \judgbox{\tospecificevcomps{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring context.''}
+    \judgbox{\tospecificevctxs{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring component.''}
     $$
     \begin{array}{rcl}
       \tospecificevs{Alloc\ \loc\ n} &\ = & \specificevs{Alloc\ \loc\ n} \\
@@ -993,8 +993,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \tospecificevs{Ret\ !n} &\ = & \specificevs{Ret\ !n} \\
       \tospecificevs{\lightning} &\ = & \specificevs{\lightning} \\[0.3cm]
       %
-      \tospecificevctxs{\trace{_0}\cdot Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_1}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{\trace{_0}\cdot Call\ ?n_1\cdot Ret\ !n_2\cdot \trace{_1}}\right)\\
-    \tospecificevcomps{\trace{_0}\cdot Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_1}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
+      \tospecificevctxs{Ret\ !n_1\cdot\trace{_1}\cdot Call\ ?n_2\cdot\trace{_p}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Ret\ !n_1\cdot \trace{_1} \cdot Call\ ?n_2}\right)\\
+      \tospecificevcomps{Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_1}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
     \end{array}
     $$
   \end{center}
@@ -1826,29 +1826,29 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{center}
     \judgbox{\wexect{prog\ e_0\ e_p\ e_1}{\configt}{\valueexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ e_0\ e_p\ e_1}$,\\giving dynamic state $\configt$  and emitting trace $\trg{\trace}$.''}
   \typerule{$e-\text{wprog}-\trg{trg}$}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\trace{_0}} \\
-    \exect{\qconfigt{_0}}{e_p[v_0/x]}{\Omega_p}{v_p}{\trace{_p}} &
-    \exect{\Omega_p}{e_1[v_p/y]}{\Omega_1}{v_1}{\trace{_1}} &
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} \\
+    \exect{\qconfigt{_0}}{e_p[\valueexpr_0/x]}{\Omega_p}{\valueexpr_p}{\trace{_p}} &
+    \exect{\Omega_p}{e_1[\valueexpr_p/y]}{\Omega_1}{\valueexpr_1}{\trace{_1}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{v_1}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}\cdot Ret\ !v_p\cdot \trace{_1}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{\valueexpr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}\cdot Call\ ?v_1}
   }{wt-e-prog}
   \typerule{$e-\text{wprog}-\trg{trg}-$fail0}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot \trace{_0}}
   }{wt-e-prog-fail0}
   \typerule{$e-\text{wprog}-\trg{trg}-$failp}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\trace{_0}} &
-    \exect{\Omega_0}{e_p[v_0/x]}{\lightning}{stuck}{\trace{_p}} &
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} &
+    \exect{\Omega_0}{e_p[\valueexpr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}}
   }{wt-e-prog-failp}
   \typerule{$e-\text{wprog}-\trg{trg}$-fail1}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{v_0}{\trace{_0}} \\
-    \exect{\Omega_0}{e_p[v_0/x]}{\Omega_p}{v_p}{\trace{_p}} &
-    \exect{\Omega_p}{e_1[v_p/y]}{\lightning}{stuck}{\trace{_1}} &
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} \\
+    \exect{\Omega_0}{e_p[\valueexpr_0/x]}{\Omega_p}{\valueexpr_p}{\trace{_p}} &
+    \exect{\Omega_p}{e_1[\valueexpr_p/y]}{\lightning}{stuck}{\trace{_1}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{\trace{_0}\cdot Call\ ?v_0\cdot \trace{_p}\cdot Ret\ !v_p\cdot \trace{_1}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot \trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}}
   }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -2115,7 +2115,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
 \myfig{
   \begin{center}
-    \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ is morally equal to the $\mmlAt$ trace $\trg{\trace}$.''} \\
+    \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ describes the same actions as $\mmlAt$ trace $\trg{\trace}$.''} \\
     \typerule{empty-trace-eq}{
     }{
       \xlangtraceeq{\hole{\cdot}}{\hole{\cdot}}
@@ -2159,7 +2159,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \myfig{
   \begin{center}
     \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
-    \judgbox{\xlangstateeq{\Omega}{\Omega}}{,,The $\mmlAs$ state $\configs$ is morally equal to the $\mmlAt$ state $\configt$.''} \\
+    \judgbox{\xlangstateeq{\Omega}{\Omega}}{,,The $\mmlAs$ state $\configs$ agrees with the $\mmlAt$ state $\configt$.''} \\
     %
     \typerule{state-eq}{
       \src{\Omega}=\src{\Delta;H} &
@@ -2193,7 +2193,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     $\;$
     %
     \judgbox{\atled(\trg{\loc})=\src{\loc}}{,,The $\mmlAt$ memory location $\trg{\loc}$ corresponds to\\the $\mmlAs$ memory location $\src{\loc}$.''} \\
-    \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ is morally equal to the $\mmlAs$ state $\configs$.''} \\
+    \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ agrees with the $\mmlAs$ state $\configs$.''} \\
     %
     \typerule{back-state-eq}{
       \trg{\Omega}=\trg{\Delta;H} &
@@ -2225,6 +2225,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{back-cons-locmap-eq}
   \end{center}
 }{tms-pres-state-relations}{State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
+
 
 \begin{lemma}[Determinism of Compiler]\label{lem:determcomp}
   If and only if
@@ -2262,11 +2263,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
   \item $\xlangtraceeq{\trace}{\trace}$
   \item $\xlangstateeq{\Omega}{\Omega}$
-  \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+  \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -2275,7 +2276,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item\label[ass]{asm:exprcorrect:exec2} $\execs{\Omega}{e}{\Omega''}{\finalexpr'}{\trace}$
     \item\label[ass]{asm:exprcorrect:unequal1} $\src{\finalexpr}\not=\src{\finalexpr'}$
     \item\label[ass]{asm:exprcorrect:unequal2} $\src{\Omega'}\not=\src{\Omega''}$
-      \MK{Should also have an $\overline{a'}\not=\overline{a}$}
   \end{passumptions}
 
   Apply \thmref{lem:forwardsim} on \Cref{asm:exprcorrect:exec2} to get:
@@ -2331,7 +2331,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{center}
     \judgbox{\mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}}{,,Map an $\mmlAt$ value to an $\mmlAs$ value.''}$\;$\\
     \judgbox{\mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.''}$\;$\\
-    \judgbox{\mmlAmmlAtback{\trace} = \src{context\ e_0\ e_1}}{,,Given $\mmlAt$ trace, construct an $\mmlAs$ expression that\\morally does what the trace describes.''}$\;$\\
+    \judgbox{\mmlAmmlAtback{\trace} = \src{context\ e_0\ e_1}}{,,Given $\mmlAt$ trace, construct an $\mmlAs$ expression that\\does what the trace describes.''}$\;$\\
     \typerule{backtrans-value}{
     }{
       \mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}
@@ -2370,16 +2370,17 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \mmlAmmlAtbackdetail{\specificevt{\lightning}\cdot\mstrace} = \Game',\src{abort();e}
     }{backtrans-abort}
     %
-%    \typerule{backtrans-call}{
-%    }{
-%      \mmlAmmlAtbackdetail{\specificevt{Call\ ?n}} = \mmlAmmlAtbackv{n}
-    % TODO: intuitively, we want `let x = n in call foo x`
-%    }{backtrans-call}
-    %
-%    \typerule{backtrans-ret}{
-%    }{
-%    \mmlAmmlAtbackdetail{\specificevt{Ret\ !n}} = \mmlAmmlAtbackv{n}
-%    }{backtrans-ret}
+    \typerule{backtrans-call}{
+      \mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}
+    }{
+      \mmlAmmlAtbackdetail{\specificevt{Call\ ?n}\cdot\mstrace} = \Game',\mmlAmmlAtbackv{n}\src{;e}
+    }{backtrans-call}
+   %
+    \typerule{backtrans-ret}{
+      \mmlAmmlAtbackdetail{\mstrace} = \Game', \src{e}
+    }{
+      \mmlAmmlAtbackdetail{\specificevt{Ret\ !n}} = \Game',\mmlAmmlAtbackv{n}\src{;e}
+    }{backtrans-ret}
     %
     \typerule{backtrans-toplevel}{
       \tospecificevctxt{\trace} = \trg{\mstrace[_0]}\cdot \specificevt{Call\ ?n}\cdot \specificevt{Ret\ !n}\cdot \trg{\mstrace[_1]} \\
@@ -2393,6 +2394,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
 \subsubsection{Proofs and Auxiliary Lemmas}
+
+\begin{definition}[Mimicking Locations]\label{def:location:mimicking}
+  For two functions $\delta,\atled$ we say that they mimick each other iff 
+  $$\forall \src{\loc}\ \trg{\loc}, \delta\left(\src{\loc}\right) = \trg{\loc} \Leftrightarrow \atled\left(\trg{\loc}\right) = \src{\loc}$$
+\end{definition}
 
 \begin{lemma}[Non-Stuck Target Traces have Source Traces]\label{lem:comptrace:invertible}\ \\
   Given $\delta$ and $\trg{\trace}$ non-stuck, $\exists\src{\trace}, \xlangtraceeq{\trace}{\trace}$
@@ -2429,25 +2435,65 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   induction on $\trg{\overline{a}}$
 \end{incompleteproof}
 
+\begin{lemma}[State Agreement Insertion]\label{lem:backtranslation:stateagreement:insertion}
+  If
+  \begin{assumptions}
+  \item\label[ass]{ass:stateagreeinsertion:agree} $\xlangstateeq{\Omega}{\Omega}$
+  \item\label[ass]{ass:stateagreeinsertion:deltasagree} Mimicking $\delta,\atled$ \thmref{def:location:mimicking}
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\xlangstateeq{\Omega}{\Omega}$ (\Cref{ass:stateagreeinsertion:agree}).
+  The only maybe interesting case is for \Cref{tr:cons-locmap-eq}.
+
+  We have
+  \begin{passumptions}{H}
+  \item $\mmlAmmlAtcomp{x}=\trg{x}$
+  \item\label[ass]{asm:stateagreeinsertion:delta} $\delta\left(\src{\loc}\right) = \trg{\loc}$
+  \item $\xlangstateeq{\Delta}{\Delta}$
+  \end{passumptions}
+  and
+  \begin{passumptions}{\IH}
+  \item\label[ass]{asm:stateagreeinsertion:ih} $\xlangbackstateeq{\Delta}{\Delta}$
+  \end{passumptions}
+  and what we need to show is
+  \begin{goals}
+  \item $\xlangbackstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}$
+  \end{goals}
+
+  By \Cref{tr:back-cons-locmap-eq}, our goals change to:
+  \begin{goals}
+  \item $\atled\left(\trg{\loc}\right) = \src{\loc}$
+  \item $\xlangbackstateeq{\Delta}{\Delta}$
+  \end{goals}
+
+  Claims follow using \Cref{ass:stateagreeinsertion:deltasagree} and \Cref{asm:stateagreeinsertion:delta,asm:stateagreeinsertion:ih}.
+\end{proof}
+
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\finalexpr}{\specificevt{Ret\ !n_0}\cdot\trace\cdot\specificevt{Call\ ?n_1}}$
-  \item $\mmlAmmlAtbackdetail{\specificevt{Ret\ !n_0}\cdot\trace\cdot\specificevt{Call\ ?n_1}}=\src{e}$
+  \item $\exect{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+  \item $\mmlAmmlAtbackdetail{\specificevt{Ret\ !n_0}\cdot\trace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
   \item $\xlangstateeq{\Omega}{\Omega}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
-  then $\exists \delta'\ \atled'\ \configs\ \src{\trace}$,
+  then $\exists \delta'\ \atled'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
   \item $\atled\subseteq\atled'$
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv{\finalexpr}}{\src{\trace}}$
   \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\xlangbackstateeq[\atled']{\Omega'}{\Omega'}$
-  \item ${\tospecificevs{\trace}}\thexlangtraceeq{\tospecificevt{\trace}}$
+  \item ${\tospecificevctxs{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}}\thexlangtraceeq{\tospecificevctxt{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  % Cannot use expr correctness, because e is target
 \end{incompleteproof}
 
 \refstepcounter{theoremcounter}
@@ -2463,6 +2509,21 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \end{goals}
 \end{theorem}
 \begin{proof}
+  Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so we immediately disregard the failure cases:
+  \begin{passumptions}{H}
+  \item $\exect{\emptyset;\emptyset}{e_1}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
+  \item $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
+  \item $\exect{\Omega_p}{e_2}{\Omega_2}{\valueexpr_2}{\trace[_2]}$
+  \item $\trg{\trace}=\trg{Ret\ !0 \cdot \trace[_1] \cdot Call\ ?v_1 \cdot \trace[_p] \cdot Ret\ ?v_p \cdot \trace[_2] \cdot Call\ ?v_2}$
+  \end{passumptions}
+
+
+
+
+
+
+
+
   We get $\typechecks{}{component\ e_p}{\nat}$ from inverting a sutible number of times \Cref{asm:rtmsp:srctms}.
   Using that and backtranslating the trace $\mmlAmmlAtback{\overline{a}} = \src{context\ e_1\ e_2}$, immediately using both together with \Cref{asm:rtmsp:trgexec} to apply \thmref{lem:backtranslation:correct}:
   \begin{passumptions}{H}

@@ -992,9 +992,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \tospecificevs{Call\ ?n} &\ = & \specificevs{Call\ ?n} \\
       \tospecificevs{Ret\ !n} &\ = & \specificevs{Ret\ !n} \\
       \tospecificevs{\lightning} &\ = & \specificevs{\lightning} \\[0.3cm]
+      \tospecificevs{\trace} &\ = & \operatorname{map}\ \thetospecificfilter\ \src{\trace}\\[0.5cm]
       %
       \tospecificevctxs{Ret\ !n_1\cdot\trace{_1}\cdot Call\ ?n_2\cdot\trace{_p}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Ret\ !n_1\cdot \trace{_1} \cdot Call\ ?n_2}\right)\\
-      \tospecificevcomps{Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_1}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
+      \tospecificevcomps{Ret\ !n_0 \cdot \trace{_1}\cdot Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_2}\cdot Call\ n_3} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
     \end{array}
     $$
   \end{center}
@@ -1191,7 +1192,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\texttt{TMS}(\tospecificevctxs{\trace})$
+  \item $\texttt{TMS}(\tospecificevcomps{\trace})$
   \end{goals}.
 \end{importanttheorem}
 For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
@@ -1569,7 +1570,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\texttt{TMS}(\tospecificevctxs{\trace})$
+  \item $\texttt{TMS}(\tospecificevcomps{\trace})$
   \end{goals}.
 \end{theorem}
 \begin{proof}
@@ -1579,7 +1580,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}}$
     \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\qconfig{_0}}{e_p[v_0/x]}{\configs_p}{v_p}{\trace{_p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\trace{_1}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{\trace{_0}}\cdot\src{Call\ ?v_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !v_p}\cdot\src{\trace{_1}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace{_0}}\cdot\src{Call\ ?v_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !v_p}\cdot\src{\trace{_1}\cdot\src{Call\ ?v_1}}$
   \end{passumptions}
   Note that the other cases don't apply, since it is assumed here (\Cref{asm:mmlatmsviamonitor:run}) that the program terminates in a value instead of $\src{stuck}$.
   By \Cref{tr:store-empty-agree}:
@@ -1628,10 +1629,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item $\storeagreetms[\delta^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
   \end{passumptions}
 
-  %%% BIGGGGTODO  AAAAAAAA
   \noindent
   Now instantiate the existential in our goal with $\delta_{\text{TMS}}^{(p)}$, $\trace{_p}$, and $\tmsmonitor$.
-  Note that $\tospecificevctxs{\trace}=\specificevs{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificevs{Ret\ !v_p}$ by \Cref{asm:mmlatmsviamonitor:tracedef}, so the remaining goals are:
+  Note that $\tospecificevcomps{\trace}=\specificevs{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificevs{Ret\ !v_p}$ by \Cref{asm:mmlatmsviamonitor:tracedef}, so the remaining goals are:
 
   \begin{goals}
     \item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\specificevs{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificevs{Ret\ !v_p}}$
@@ -2495,6 +2495,22 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{incompleteproof}
   % Cannot use expr correctness, because e is target
 \end{incompleteproof}
+
+\begin{lemma}[Agreement Propagation]\label{lem:trace:agreement:propagation}
+  If
+  \begin{assumptions}
+  \item $\delta$ injective
+  \item $\xlangtraceeq{\mstrace}{\mstrace}$
+  \item $\tmstraceagree[\delta^{\src{\bullet}}]{\src{\mstrace}}{\trace}$
+  \end{assumptions}
+  Then $\exists \delta^{\trg{\bullet}}_{\text{tms}}$,
+  \begin{goals}
+  \item $\tmstraceagree[\delta^{\trg{\bullet}}]{\trg{\mstrace}}{\trace}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  
+\end{proof}
 
 \refstepcounter{theoremcounter}
 \begin{theorem}[Robust \gls{tms} Preservation]

@@ -882,7 +882,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typerule{$e-\src{delete}$}{
   }{
     \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{delete\ x}{\sconfig{H}{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
-  }{w-e-let-new}
+  }{w-e-delete}
   %
   \typerule{$e-\src{new}$}{
     \text{fresh}\ \src{\loc}&
@@ -907,7 +907,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \typerule{$e-\src{abort}$}{
   }{
     \exprevals{\configs}{abort()}{\lightning}{stuck}{\lightning}
-  }{tw-e-abort}
+  }{w-e-abort}
 }{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
 
 \myfig{
@@ -1388,7 +1388,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Progress]
+\begin{lemma}[Progress]\label{lem:progress}
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
@@ -1786,7 +1786,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \typerule{$e-\trg{delete}$}{
   }{
     \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{delete\ x}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
-  }{tw-e-let-new}
+  }{tw-e-delete}
   %
   \typerule{$e-\trg{new}$}{
     \text{fresh}\ \trg{\loc}&
@@ -2167,6 +2167,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \xlangeventeq{Ret\ !n}{Ret\ !n}
     }{ret-event-eq}
+    %
+    \typerule{internal-event-eq}{
+    }{
+      \xlangeventeq{\varepsilon}{\varepsilon}
+    }{internal-event-eq}
   \end{center}
 }{tms-pres-trace-relation}{Trace Relation from $\mmlAs$ to $\mmlAt$.}
 \myfig{
@@ -2253,16 +2258,178 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\begin{lemma}[Step Forward Simulation]\label{lem:step:forwardsim}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{\finalexpr}{\event}$
+    \item $\xlangstateeq{\Omega}{\Omega}$
+    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+  \end{assumptions}
+  Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\event}}$
+    \item $\xlangeventeq{\event}{\event}$
+    \item $\xlangstateeq{\Omega'}{\Omega'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+  We proceed by induction on \Cref{asm:step:forwardsim:srcstep}.
+  \begin{description}
+    \item \textbf{Case $\exprevals{\Omega}{n_1+n_2}{\Omega}{n_3}{\varepsilon}$:}
+
+      If
+      \begin{passumptions}{H}
+      \item\label[ass]{asm:step:forwardsim:case1:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \item $\typechecks{}{\Omega\triangleright n_1+n_2}{\nat}$
+      \item\label[ass]{asm:step:forwardsim:case1:additioneq} $n_3=n_1+n_2$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{n_1+n_2}}{\trg{\Omega'}}{\mmlAmmlAtcomp{n_3}}{\trg{\event}}$
+        \item $\xlangeventeq{\varepsilon}{\event}$
+        \item $\xlangstateeq{\Omega}{\Omega'}$
+      \end{goals}
+
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\Omega}$, and $\trg{\event}=\trg{\varepsilon}$, so that what is left to prove is:
+      \begin{goals}
+        \item\label[goal]{goal:step:forwardsim:case1:deltasubset} $\delta\subseteq\delta$
+        \item\label[goal]{goal:step:forwardsim:case1:eval} $\expreval{\trg{\Omega}}{\trg{n_1+n_2}}{\trg{\Omega}}{\trg{n_3}}{\trg{\varepsilon}}$
+        \item\label[goal]{goal:step:forwardsim:case1:eventeq} $\xlangeventeq{\varepsilon}{\varepsilon}$
+        \item\label[goal]{goal:step:forwardsim:case1:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:case1:deltasubset} follows immediately from reflexivity of the subset relation.
+
+      \Cref{goal:step:forwardsim:case1:eval} follows using \Cref{tr:tw-e-oplus} and \Cref{asm:step:forwardsim:case1:additioneq}.
+
+      \Cref{goal:step:forwardsim:case1:eventeq} follows using \Cref{tr:internal-event-eq}.
+
+      \Cref{goal:step:forwardsim:case1:stateeq} follows using \Cref{asm:step:forwardsim:case1:stateeq}.
+
+    \item \textbf{Case $\exprevals{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}$:}
+
+      If
+      \begin{passumptions}{H}
+      \item\label[ass]{asm:step:forwardsim:case2:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$
+      \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright delete\ x}{\nat}$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\mmlAmmlAtcomp{delete\ x}}{\trg{\Omega'}}{\mmlAmmlAtcomp{0}}{\trg{\event}}$
+        \item $\xlangeventeq{Dealloc\ \loc}{\event}$
+        \item $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{\Omega'}$
+      \end{goals}
+
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}$, and $\trg{\event}=\trg{Dealloc\ \loc}$, so that what is left to prove is:
+      \begin{goals}
+      \item\label[goal]{goal:step:forwardsim:case2:deltasubset} $\delta\subseteq\delta$
+      \item\label[goal]{goal:step:forwardsim:case2:eval} $\expreval{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\trg{delete\ x}}{\trg{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{\trg{0}}{\trg{Dealloc\ \loc}}$
+      \item\label[goal]{goal:step:forwardsim:case2:eventeq} $\xlangeventeq{Dealloc\ \loc}{Dealloc\ \loc}$
+      \item\label[goal]{goal:step:forwardsim:case2:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:case2:deltasubset} follows immediately from reflexivity of the subset relation.
+
+      \Cref{goal:step:forwardsim:case2:eval} follows using \Cref{tr:tw-e-delete}.
+
+      For \Cref{goal:step:forwardsim:case2:eventeq}, apply \Cref{tr:dealloc-event-eq}, what is left to show is $\delta(\src{\loc})=\trg{\loc}$.
+
+      Similarily for \Cref{goal:step:forwardsim:case2:stateeq}, apply \Cref{tr:state-eq,tr:cons-locmap-eq} ,,suitably''\MK{needs technical lemma: splitting} so that what is left to show is
+      $\xlangstateeq{H}{H}$, $\xlangstateeq{\Delta_1}{\Delta_1}$, $\xlangstateeq{\Delta_2}{\Delta_2}$, $\mmlAmmlAtcomp{x}=\trg{x}$, and, like in the previous case, $\delta(\src{\loc})=\trg{\loc}$.
+
+      $\mmlAmmlAtcomp{x}=\trg{x}$ follows by definition of the compiler, anything else follows immediately by inverting \Cref{asm:step:forwardsim:case2:stateeq} ,,suitably''\MK{needs technical lemma: splitting}.
+
+    \item \textbf{Case $\exprevals{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Get\ \loc\ n}$:}
+
+      If
+      \begin{passumptions}{H}
+      \item\label[ass]{asm:step:forwardsim:case3:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$
+      \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright x[n]}{\nat}$
+      \item\label[ass]{asm:step:forwardsim:case3:dom1} $\src{\loc}\in\operatorname{dom} \src{H}\implies\src{v}=\src{H}(\src{\loc+n})$
+      \item\label[ass]{asm:step:forwardsim:case3:dom2} $\src{\loc}\not\in\operatorname{dom} \src{H}\implies\src{v}=\src{1729}$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\mmlAmmlAtcomp{x[n]}}{\trg{\Omega'}}{\mmlAmmlAtcomp{v}}{\trg{\event}}$
+        \item $\xlangeventeq{Get\ \loc\ n}{\event}$
+        \item $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{\Omega'}$
+      \end{goals}
+
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, and $\trg{\event}=\trg{Get\ \loc\ n}$, so that what is left to prove is:
+      \begin{goals}
+      \item\label[goal]{goal:step:forwardsim:case3:deltasubset} $\delta\subseteq\delta$
+        \setcounter{enumi}{2}
+      \item\label[goal]{goal:step:forwardsim:case3:eventeq} $\xlangeventeq{Get\ \loc\ n}{Get\ \loc\ n}$
+      \item\label[goal]{goal:step:forwardsim:case3:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$
+        \setcounter{enumi}{1}
+      \item\label[goal]{goal:step:forwardsim:case3:eval} $\expreval{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\trg{x[n]}}{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\trg{v}}{\trg{Get\ \loc\ n}}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:case3:deltasubset} follows immediately from reflexivity of the subset relation.
+
+      For \Cref{goal:step:forwardsim:case2:eventeq}, invert \Cref{asm:step:forwardsim:case3:stateeq} ,,suitably''\MK{technical lemma needed: splitting} to obtain the assumption $\delta(\src{\loc})=\trg{\loc}$. The claim then follows by applying \Cref{tr:get-event-eq}.
+
+      \Cref{goal:step:forwardsim:case2:stateeq} follows immediately from \Cref{asm:step:forwardsim:case3:stateeq}.
+
+      \Cref{goal:step:forwardsim:case3:eval} is a bit technical. First apply \Cref{tr:tw-e-get}, what is left to show is:
+      \begin{goals}
+        \setcounter{enumi}{4}
+      \item $\trg{\loc}\in\operatorname{dom} \trg{H}\implies\trg{v}=\trg{H}(\trg{\loc+n})$
+      \item $\trg{\loc}\not\in\operatorname{dom} \trg{H}\implies\trg{v}=\trg{1729}$
+      \end{goals}
+
+      Now, note that $\src{\loc}\in\operatorname{dom}\src{H}\Leftrightarrow\delta(\src{\loc})=\trg{\loc}\in\operatorname{dom}\trg{H}$.\MK{This is a technical lemma...}
+      We continue with a case distinction.
+      \begin{description}
+        \item \textbf{Case $\src{\loc}\in\operatorname{dom}\src{H}$:}
+          
+          \Cref{asm:step:forwardsim:case3:dom1} gives $\src{v}=\src{H}(\src{\loc+n})$.
+          Since $\trg{v}=\mmlAmmlAtcomp{v}$, $\trg{v}=\mmlAmmlAtcomp{H(\loc+n)}$.
+          Using \Cref{asm:step:forwardsim:case3:stateeq}\MK{technical lemma}, $\trg{v}=\trg{H(\loc+n)}$, done.
+
+        \item \textbf{Case $\src{\loc}\not\in\operatorname{dom}\src{H}$:}
+
+          \Cref{asm:step:forwardsim:case3:dom2} gives $\src{v}=\src{1729}$.
+          Since $\trg{v}=\mmlAmmlAtcomp{v}$, $\trg{v}=\mmlAmmlAtcomp{1729}=\trg{1729}$, done.
+      \end{description}
+
+  \end{description}
+\end{incompleteproof}
+
+\begin{lemma}[Ctx Step Forward Simulation]\label{lem:ctxstep:forwardsim}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:step:forwardsim:srcstep} $\execs[]{\Omega}{e}{\Omega'}{\finalexpr}{\event}$
+    \item $\xlangstateeq{\Omega}{\Omega}$
+    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+  \end{assumptions}
+  Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\event}}$
+    \item $\xlangeventeq{\event}{\event}$
+    \item $\xlangstateeq{\Omega'}{\Omega'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 \begin{lemma}[Forward Simulation]\label{lem:forwardsim}
   If
   \begin{assumptions}
     \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+    \item $\xlangstateeq{\Omega}{\Omega}$
+    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
-  Then $\exists\delta\ \trg{\Omega}\ \trg{\Omega'}\ \trg{\trace}$,
+  Then $\exists\delta'\ \trg{\Omega'}\ \trg{\trace}$,
   \begin{goals}
+    \item $\delta\subseteq\delta'$
     \item $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
     \item $\xlangtraceeq{\trace}{\trace}$
-    \item $\xlangstateeq{\Omega}{\Omega}$
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
@@ -2274,43 +2441,59 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   If
   \begin{assumptions}
   \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
-  \item $\xlangtraceeq{\trace}{\trace}$
   \item $\xlangstateeq{\Omega}{\Omega}$
+  \item\label[ass]{lem:expr:corr:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
-  Then
+  Then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
+  \item $\delta\subseteq\delta'$
   \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
-  \item $\xlangstateeq{\Omega'}{\Omega'}$
+  \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\xlangtraceeq[\delta']{\trace}{\trace}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  We prove this by contradiction, so say:
-  \begin{passumptions}{H}
-    \item\label[ass]{asm:exprcorrect:exec2} $\execs{\Omega}{e}{\Omega''}{\finalexpr'}{\trace}$
-    \item\label[ass]{asm:exprcorrect:unequal1} $\src{\finalexpr}\not=\src{\finalexpr'}$
-    \item\label[ass]{asm:exprcorrect:unequal2} $\src{\Omega'}\not=\src{\Omega''}$
-  \end{passumptions}
+  We prove this by contradiction. Thus, we are given arbitrary $\delta',\ \src{\Omega'}$, and $\src{\trace}$.
+  There are four cases, each of which needs to lead to a contradiction.
+  \begin{description}
+    \item\label[ass]{lem:expr:corr:first} \textbf{Assume} $\delta'\subset\delta$\textbf{:}
 
-  Apply \thmref{lem:forwardsim} on \Cref{asm:exprcorrect:exec2} to get:
-  \begin{passumptions}{F}
-    \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\trg{\Omega_\exists}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_\exists''}}{\mmlAmmlAtcomp{\finalexpr'}}{\trg{\trace_\exists}}$
-    \item $\xlangtraceeq{\trace}{\trace_\exists}$
-    \item $\xlangstateeq{\Omega}{\Omega_\exists}$
-    \item $\xlangstateeq{\Omega''}{\Omega''_\exists}$
-  \end{passumptions}
+      We admit this. \MK{obviously, we don't want to just assume this to be correct}
 
-  The compiler is deterministic, so using \Cref{asm:exprcorrect:unequal1} on \thmref{lem:determcomp} gives:
-  \begin{passumptions}{G}
-    \item\label[ass]{asm:exprcorrect:compiled:unequal} $\mmlAmmlAtcomp{\finalexpr}\not=\mmlAmmlAtcomp{\finalexpr'}$
-  \end{passumptions}
+    \item\label[ass]{lem:expr:corr:second} \textbf{Assume} $\neg\left(\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}\right)$\textbf{:}
 
-  Using \Cref{asm:exprcorrect:exec1:trg} and \Cref{asm:exprcorrect:exec2:trg} on \thmref{lem:determ:steps} we have:
-  \begin{passumptions}{G}
-    \setcounter{enumi}{1}
-    \item\label[ass]{asm:exprcorrect:compiled:equal} $\mmlAmmlAtcomp{\finalexpr}=\mmlAmmlAtcomp{\finalexpr'}$
-  \end{passumptions}
-  
-  \Cref{asm:exprcorrect:compiled:equal} contradicts \Cref{asm:exprcorrect:compiled:unequal}.
+      We apply \thmref{lem:progress} on \Cref{lem:expr:corr:typechecks}. Therefore, we know that $\src{e}$ reduces (or is a value).
+      However, it is assumed that $\neg\left(\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}\right)$, so assume:
+
+      \begin{passumptions}{H}
+        \item\label[ass]{asm:exprcorrect:exec2} $\execs{\Omega}{e}{\Omega''}{\finalexpr'}{\trace}$
+        \item\label[ass]{asm:exprcorrect:unequal1} $\src{\finalexpr}\not=\src{\finalexpr'}$
+        \item\label[ass]{asm:exprcorrect:unequal2} $\src{\Omega'}\not=\src{\Omega''}$
+      \end{passumptions}
+
+      Apply \thmref{lem:forwardsim} on \Cref{asm:exprcorrect:exec2} to get:
+      \begin{passumptions}{F}
+        \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\trg{\Omega_\exists}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_\exists''}}{\mmlAmmlAtcomp{\finalexpr'}}{\trg{\trace_\exists}}$
+        \item $\xlangtraceeq{\trace}{\trace_\exists}$
+        \item $\xlangstateeq{\Omega}{\Omega_\exists}$
+        \item $\xlangstateeq{\Omega''}{\Omega''_\exists}$
+      \end{passumptions}
+
+      The compiler is deterministic, so using \Cref{asm:exprcorrect:unequal1} on \thmref{lem:determcomp} gives:
+      \begin{passumptions}{G}
+        \item\label[ass]{asm:exprcorrect:compiled:unequal} $\mmlAmmlAtcomp{\finalexpr}\not=\mmlAmmlAtcomp{\finalexpr'}$
+      \end{passumptions}
+
+      Using \Cref{asm:exprcorrect:exec1:trg} and \Cref{asm:exprcorrect:exec2:trg} on \thmref{lem:determ:steps} we have:\MK{can't do this, trace may be different}
+      \begin{passumptions}{G}
+        \setcounter{enumi}{1}
+        \item\label[ass]{asm:exprcorrect:compiled:equal} $\mmlAmmlAtcomp{\finalexpr}=\mmlAmmlAtcomp{\finalexpr'}$
+      \end{passumptions}
+      
+      \Cref{asm:exprcorrect:compiled:equal} contradicts \Cref{asm:exprcorrect:compiled:unequal}.
+
+  \end{description}
+
 \end{proof}
 
 
@@ -2344,7 +2527,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{center}
     \judgbox{\mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}}{,,Map an $\mmlAt$ value to an $\mmlAs$ value.''}$\;$\\
     \judgbox{\mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.''}$\;$\\
-    \judgbox{\mmlAmmlAtback{\trace} = \src{context\ e_0\ e_1}}{,,Given $\mmlAt$ trace, construct an $\mmlAs$ expression that\\does what the trace describes.''}$\;$\\
     \typerule{backtrans-value}{
     }{
       \mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}
@@ -2394,14 +2576,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \mmlAmmlAtbackdetail{\specificevt{Ret\ !n}} = \Game',\mmlAmmlAtbackv{n}\src{;e}
     }{backtrans-ret}
-    %
-    \typerule{backtrans-toplevel}{
-      \tospecificevctxt{\trace} = \trg{\mstrace[_0]}\cdot \specificevt{Call\ ?n}\cdot \specificevt{Ret\ !n}\cdot \trg{\mstrace[_1]} \\
-      \mmlAmmlAtbackdetail[\emptyset]{\mstrace[_0]} = \Game,\src{e_0} &
-      \mmlAmmlAtbackdetail[\Game]{\mstrace[_1]} = \Game',\src{e_1} &
-    }{
-      \mmlAmmlAtback{\trace} = \src{context\ e_0\ e_1}
-    }{backtrans-top}
   \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
@@ -2452,7 +2626,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   If
   \begin{assumptions}
   \item\label[ass]{ass:stateagreeinsertion:agree} $\xlangstateeq{\Omega}{\Omega}$
-  \item\label[ass]{ass:stateagreeinsertion:deltasagree} Mimicking $\delta,\atled$ \thmref{def:location:mimicking}
+  \item\label[ass]{ass:stateagreeinsertion:deltasagree} Mimicking $\delta,\atled$ (see \thmref{def:location:mimicking})
   \end{assumptions}
   Then
   \begin{goals}
@@ -2487,6 +2661,23 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   Claims follow using \Cref{ass:stateagreeinsertion:deltasagree} and \Cref{asm:stateagreeinsertion:delta,asm:stateagreeinsertion:ih}.
 \end{proof}
 
+\begin{lemma}[Agreement Propagation]\label{lem:trace:agreement:propagation}
+  If
+  \begin{assumptions}
+  \item $\delta$ injective
+  \item\label[ass]{asm:trace:agreement:propagation:xagree} $\xlangtraceeq{\trace}{\trace}$, where $\delta:\src{L}\to\trg{L}$
+  \item $\tmstraceagree[\delta^{\src{\bullet}}]{\tospecificevs{\trace}}{\trace}$, where $\delta^{\src{\bullet}}_{tms}:\src{L}\to L$
+  \end{assumptions}
+  Then $\exists \delta^{\trg{\bullet}}_{\text{tms}}$,
+  \begin{goals}
+  \item $\tmstraceagree[\delta^{\trg{\bullet}}]{\tospecificevt{\trace}}{\trace}$, where $\delta^{\trg{\bullet}}_{tms}:\trg{L}\to L$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\xlangtraceeq{\trace}{\trace}$ (\Cref{asm:trace:agreement:propagation:xagree}).
+  The witness of the existential satisfies $\delta^{\trg{\bullet}}_{tms}(\delta(\src{\loc}))=\delta^{\src{\bullet}}_{tms}(\src{\loc})$.
+\end{proof}
+
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
@@ -2502,28 +2693,11 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv{\finalexpr}}{\src{\trace}}$
   \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\xlangbackstateeq[\atled']{\Omega'}{\Omega'}$
-  \item ${\tospecificevctxs{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}}\thexlangtraceeq{\tospecificevctxt{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta_1]\trg{Ret\ !n_0\cdot\trace[_1]\cdot Call\ ?n_1}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
-  % Cannot use expr correctness, because e is target
 \end{incompleteproof}
-
-\begin{lemma}[Agreement Propagation]\label{lem:trace:agreement:propagation}
-  If
-  \begin{assumptions}
-  \item $\delta$ injective
-  \item\label[ass]{asm:trace:agreement:propagation:xagree} $\xlangtraceeq{\mstrace}{\mstrace}$
-  \item $\tmstraceagree[\delta^{\src{\bullet}}]{\src{\mstrace}}{\trace}$
-  \end{assumptions}
-  Then $\exists \delta^{\trg{\bullet}}_{\text{tms}}$,
-  \begin{goals}
-  \item $\tmstraceagree[\delta^{\trg{\bullet}}]{\trg{\mstrace}}{\trace}$
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Induction on $\xlangbackstateeq{\mstrace}{\mstrace}$ (\Cref{asm:trace:agreement:propagation:xagree}).
-\end{proof}
 
 \refstepcounter{theoremcounter}
 \begin{theorem}[Robust \gls{tms} Preservation]
@@ -2531,6 +2705,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \begin{assumptions}
   \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\trace}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\trace}\rightarrow\texttt{TMS}(\tospecificevcomps{\trace})$
   \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{e_2}}{\trg{\configt}}{\trg{v}}{\trg{\trace}}$
+  \item\label[ass]{asm:rtmsp:component} $\typechecks{}{component\ e_p}{\nat\to\nat}$
   \end{assumptions}
   then
   \begin{goals}
@@ -2540,47 +2715,34 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{proof}
   Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so we immediately disregard the failure cases:
   \begin{passumptions}{H}
-  \item $\exect{\emptyset;\emptyset}{e_1}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
-  \item $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
+  \item\label[ass]{rtmsp:runt:e1} $\exect{\emptyset;\emptyset}{e_1}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
+  \item\label[ass]{rtmsp:runt:ep} $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
   \item $\exect{\Omega_p}{e_2}{\Omega_2}{\valueexpr_2}{\trace[_2]}$
   \item $\trg{\trace}=\trg{Ret\ !0 \cdot \trace[_1] \cdot Call\ ?v_1 \cdot \trace[_p] \cdot Ret\ ?v_p \cdot \trace[_2] \cdot Call\ ?v_2}$
   \end{passumptions}
 
+  \noindent
+  We backtranslate $\mmlAmmlAtbackdetail[\emptyset]{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}=\Game,\src{e_1}$.
+  Now note that $\xlangstateeq[\emptyset]{\emptyset}{\emptyset}$ by \Cref{tr:compile-empty-heap-or-map-eq}.
+  Analogousy, $\xlangbackstateeq[\emptyset]{\emptyset}{\emptyset}$ by \Cref{tr:back-compile-empty-heap-or-map-eq}.
+  Using these three facts, we apply \thmref{lem:backtranslation:correct} on \Cref{rtmsp:runt:e1}:
 
-
-
-
-
-
-
-  We get $\typechecks{}{component\ e_p}{\nat}$ from inverting a sutible number of times \Cref{asm:rtmsp:srctms}.
-  Using that and backtranslating the trace $\mmlAmmlAtback{\overline{a}} = \src{context\ e_1\ e_2}$, immediately using both together with \Cref{asm:rtmsp:trgexec} to apply \thmref{lem:backtranslation:correct}:
-  \begin{passumptions}{H}
-  \item\label[ass]{asm:rtmsp:srcexec} $\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\overline{a}}$
-  \item $\tmstraceagree{\tospecificevcomps{\overline{a}}}{\tospecificevcompt{\overline{a}}}$
+  \begin{passumptions}{H^{\tiny 1}}
+  \item $\emptyset\subseteq\delta_1$, where $\delta_1:\src{L}\to\trg{L}$
+  \item $\emptyset\subseteq\atled_1$, where $\atled_1:\trg{L}\to\src{L}$
+  \item $\exec{\src{\emptyset}}{\src{e_1}}{\src{\Omega_1}}{\mmlAmmlAtbackv{f}}{\src{\trace[_1]}}$
+  \item $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1}$
+  \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}}$
   \end{passumptions}
 
-  We can specialize \Cref{asm:rtmsp:srctms} using $\src{e_1}$, $\src{e_2}$, $\src{\overline{a}}$, $\src{\Omega}$, $\src{v}$, and \Cref{asm:rtmsp:srcexec} to get:
-
+  Using \thmref{lem:compvals:insertion}, we rewrite \Cref{rtmsp:runt:ep}:
   \begin{passumptions}{H'}
-  \item\label[ass]{asm:rtmsp:srctms} $\texttt{TMS}(\src{\bar{a}})$
+    \setcounter{enumi}{1}
+  \item\label[ass]{rtmsp:runt:ep:compv} $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
   \end{passumptions}
 
-  By \Cref{def:src:trace:tms}, \Cref{asm:rtmsp:srctms} can be destructured as:
-  \begin{passumptions}{F}
-    \item $\tmstraceagree[\delta']{\tospecificevs{\overline{a}}}{\overline{a}}$
-    \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
-  \end{passumptions}
 
-  We split $\delta_{tms}$ into ${\delta^{\color{\stlccol}\bullet}}_{tms}:\src{L}\to L$ and ${\delta^{\color{\ulccol}\bullet}}_{tms}:\trg{L}\to L$.
-  By \Cref{def:trg:trace:tms}, our goal can be instantiated with ${\delta^{\color{\ulccol}\bullet}}_{tms}$, $\overline{a}$, and $\tmsmonitor$, so what is left to show is:
-  \begin{goals}
-    \item $\tmstraceagree[{\delta^{\color{\ulccol}\bullet}}]{\specificevs{Call\ ?n}\cdot\tospecificevt{\overline{a}}\cdot\specificevs{Ret\ !n}}{\overline{a}}$
-    \item $\monitorcheck{\emptyset}{\tmsmonitor}{\overline{a}}$
-  \end{goals}
-tms-call-auth
 
-  Both follow easily from existing assumptions. (note that ${\delta^{\color{\ulccol}\bullet}}_{tms}\subseteq\delta_{tms}$)
 \end{proof}
 
 \clearpage

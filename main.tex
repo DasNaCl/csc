@@ -2273,7 +2273,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
+\begin{proof}
   We proceed by induction on \Cref{asm:step:forwardsim:srcstep}.
   \begin{description}
     \item \textbf{Case $\exprevals{\Omega}{n_1+n_2}{\Omega}{n_3}{\varepsilon}$:}
@@ -2312,16 +2312,18 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
       If
       \begin{passumptions}{H}
-      \item\label[ass]{asm:step:forwardsim:case2:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$
+      \item\label[ass]{asm:step:forwardsim:case2:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\trg{\Omega}}$
       \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright delete\ x}{\nat}$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
         \item $\delta\subseteq\delta'$
-        \item $\expreval{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\mmlAmmlAtcomp{delete\ x}}{\trg{\Omega'}}{\mmlAmmlAtcomp{0}}{\trg{\event}}$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{delete\ x}}{\trg{\Omega'}}{\mmlAmmlAtcomp{0}}{\trg{\event}}$
         \item $\xlangeventeq{Dealloc\ \loc}{\event}$
         \item $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{\Omega'}$
       \end{goals}
+
+      First note that $\trg{\Omega}=\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case2:stateeq}.\MK{technical lemma needed}
 
       Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}$, and $\trg{\event}=\trg{Dealloc\ \loc}$, so that what is left to prove is:
       \begin{goals}
@@ -2346,7 +2348,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
       If
       \begin{passumptions}{H}
-      \item\label[ass]{asm:step:forwardsim:case3:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$
+      \item\label[ass]{asm:step:forwardsim:case3:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega}$
       \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright x[n]}{\nat}$
       \item\label[ass]{asm:step:forwardsim:case3:dom1} $\src{\loc}\in\operatorname{dom} \src{H}\implies\src{v}=\src{H}(\src{\loc+n})$
       \item\label[ass]{asm:step:forwardsim:case3:dom2} $\src{\loc}\not\in\operatorname{dom} \src{H}\implies\src{v}=\src{1729}$
@@ -2354,10 +2356,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
         \item $\delta\subseteq\delta'$
-        \item $\expreval{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\mmlAmmlAtcomp{x[n]}}{\trg{\Omega'}}{\mmlAmmlAtcomp{v}}{\trg{\event}}$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{x[n]}}{\trg{\Omega'}}{\mmlAmmlAtcomp{v}}{\trg{\event}}$
         \item $\xlangeventeq{Get\ \loc\ n}{\event}$
-        \item $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{\Omega'}$
+        \item $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega'}$
       \end{goals}
+      First note that $\trg{\Omega}=\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case3:stateeq}.\MK{technical lemma needed}
 
       Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, and $\trg{\event}=\trg{Get\ \loc\ n}$, so that what is left to prove is:
       \begin{goals}
@@ -2371,9 +2374,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
       \Cref{goal:step:forwardsim:case3:deltasubset} follows immediately from reflexivity of the subset relation.
 
-      For \Cref{goal:step:forwardsim:case2:eventeq}, invert \Cref{asm:step:forwardsim:case3:stateeq} ,,suitably''\MK{technical lemma needed: splitting} to obtain the assumption $\delta(\src{\loc})=\trg{\loc}$. The claim then follows by applying \Cref{tr:get-event-eq}.
+      For \Cref{goal:step:forwardsim:case3:eventeq}, invert \Cref{asm:step:forwardsim:case3:stateeq} ,,suitably''\MK{technical lemma needed: splitting} to obtain the assumption $\delta(\src{\loc})=\trg{\loc}$. The claim then follows by applying \Cref{tr:get-event-eq}.
 
-      \Cref{goal:step:forwardsim:case2:stateeq} follows immediately from \Cref{asm:step:forwardsim:case3:stateeq}.
+      \Cref{goal:step:forwardsim:case3:stateeq} follows immediately from \Cref{asm:step:forwardsim:case3:stateeq}.
 
       \Cref{goal:step:forwardsim:case3:eval} is a bit technical. First apply \Cref{tr:tw-e-get}, what is left to show is:
       \begin{goals}
@@ -2397,8 +2400,82 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
           Since $\trg{v}=\mmlAmmlAtcomp{v}$, $\trg{v}=\mmlAmmlAtcomp{1729}=\trg{1729}$, done.
       \end{description}
 
+    \item \textbf{Case $\exprevals{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow v}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n}$:}
+
+      If
+      \begin{passumptions}{H}
+      \item\label[ass]{asm:step:forwardsim:case4:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega}$
+      \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright x[n]}{\nat}$
+      \item\label[ass]{asm:step:forwardsim:case4:update} $\src{H'}=\src{H}(\src{\loc+n}\mapsto\src{v})$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{x[n]\leftarrow v}}{\trg{\Omega'}}{\mmlAmmlAtcomp{v}}{\trg{\event}}$
+        \item $\xlangeventeq{Set\ \loc\ n}{\event}$
+        \item $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega'}$
+      \end{goals}
+      First note that $\trg{\Omega}=\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case4:stateeq}.\MK{technical lemma needed}
+
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, and $\trg{\event}=\trg{Set\ \loc\ n}$, so that what is left to prove is:
+      \begin{goals}
+      \item\label[goal]{goal:step:forwardsim:case4:deltasubset} $\delta\subseteq\delta$
+      \item\label[goal]{goal:step:forwardsim:case4:eval} $\expreval{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\trg{x[n]\leftarrow v}}{\trg{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{\trg{v}}{\trg{Set\ \loc\ n}}$
+      \item\label[goal]{goal:step:forwardsim:case4:eventeq} $\xlangeventeq{Set\ \loc\ n}{Set\ \loc\ n}$
+      \item\label[goal]{goal:step:forwardsim:case4:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:case4:deltasubset} follows immediately from reflexivity of the subset relation.
+
+      For \Cref{goal:step:forwardsim:case4:eval}, apply \Cref{tr:tw-e-set}.
+      What is left to prove is $\trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})$.
+      This follows by \Cref{asm:step:forwardsim:case4:stateeq}.\MK{technical lemma: compatibility with update}
+
+      Apply \Cref{tr:set-event-eq} on \Cref{goal:step:forwardsim:case4:eventeq}, what is left to show is $\mmlAmmlAtcomp{n}=\trg{n}$, which is trivial, and $\delta(\src{\loc})=\trg{\loc}$.
+      The latter can be obtained by a ,,suitable''\MK{technical lemma needed} inversion of \Cref{asm:step:forwardsim:case4:stateeq}.
+
+      \Cref{goal:step:forwardsim:case4:stateeq} is assumed in \Cref{asm:step:forwardsim:case4:stateeq}.
+
+    \item \textbf{Case $\exprevals{H;\Delta}{let\ x\ =\ new\ n\ in\ e}{H';z\mapsto\loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}$:}
+
+      If
+      \begin{passumptions}{H}
+      \item\label[ass]{asm:step:forwardsim:case5:stateeq} $\xlangstateeq{H;\Delta}{\Omega}$
+      \item $\typechecks{}{H;\Delta\triangleright let\ x\ =\ new\ n\ in\ e}{\nat}$
+      \item\label[ass]{asm:step:forwardsim:case5:update} $\src{H'}=\src{H}\ll\src{n}$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{let\ x\ =\ new\ n\ in\ e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e[z/x]}}{\trg{\event}}$
+        \item $\xlangeventeq{Alloc\ \loc\ n}{\event}$
+        \item $\xlangstateeq{H;z\mapsto\loc_\poisonless,\Delta}{\Omega'}$
+      \end{goals}
+      First note that $\trg{\Omega}=\trg{H;z\mapsto\loc_\poisonless,\Delta}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case5:stateeq}.\MK{technical lemma needed}
+
+      Instantiate the goal with $\delta'=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\},\ \trg{\Omega'}=\trg{H;z\mapsto\loc_\poisonless,\Delta}$, and $\trg{\event}=\trg{Alloc\ \loc\ n}$, so that what is left to prove is:
+
+      \begin{goals}
+      \item\label[goal]{goal:step:forwardsim:case5:deltasubset} $\delta\subseteq\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$
+    \item\label[goal]{goal:step:forwardsim:case5:eval} $\expreval{\trg{H;\Delta}}{\trg{let\ x\ =\ new\ n\ in\ }\mmlAmmlAtcomp{e}}{\trg{H;z\mapsto\loc_\poisonless,\Delta}}{\mmlAmmlAtcomp{e}[z/x]}{\trg{Alloc\ \loc\ n}}$
+      \item\label[goal]{goal:step:forwardsim:case5:eventeq} $\xlangeventeq[\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}]{Alloc\ \loc\ n}{Alloc\ \loc\ n}$
+      \item\label[goal]{goal:step:forwardsim:case5:stateeq} $\xlangstateeq[\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}]{H;z\mapsto\loc_\poisonless,\Delta}{H;z\mapsto\loc_\poisonless,\Delta}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:case5:deltasubset} follows by rewriting it as $\forall x, x\in\delta\implies x\in\delta\vee x\in\left\{\src{\loc}\mapsto\trg{\loc}\right\}$, then just choose the left side of the disjunction.
+
+      Apply \Cref{tr:tw-e-let-new} on \Cref{goal:step:forwardsim:case5:eval}, what is left to show is $\trg{H'} = \trg{H} \ll \trg{n}$.
+      This follows by \Cref{asm:step:forwardsim:case5:stateeq}.\MK{technical lemma: compatibility with grow}
+
+      Apply \Cref{tr:set-event-eq} on \Cref{goal:step:forwardsim:case5:eventeq}, what is left to show is $\mmlAmmlAtcomp{n}=\trg{n}$, follows immediately by definition of the compiler, and $(\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\})(\src{\loc})=\trg{\loc}$, which follows by definition.
+
+      Apply \Cref{tr:state-eq,tr:cons-locmap-eq} on \Cref{goal:step:forwardsim:case5:stateeq}, what is left to show is $\mmlAmmlAtcomp{x}=\trg{x}$, follows immediately by definition of the compiler, and $(\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\})(\src{\loc})=\trg{\loc}$, which follows by definition.
+
+    \item \textbf{Case $\exprevals{\Omega}{abort()}{\lightning}{stuck}{\lightning}$:}
+
+      $\cdots$
   \end{description}
-\end{incompleteproof}
+\end{proof}
 
 \begin{lemma}[Ctx Step Forward Simulation]\label{lem:ctxstep:forwardsim}
   If

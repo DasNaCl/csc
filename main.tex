@@ -801,7 +801,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{}{\Delta}{\Gamma}
     }{
     \typechecks{}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
-    }{t-ptr-store}
+    }{t-poison-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
 
@@ -957,7 +957,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \execs{\qconfig_0}{e_p[\valueexpr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}}
-  }{ws-e-prog}
+  }{ws-e-prog-failp}
   \typerule{$e-\text{wprog}-$fail1}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\valueexpr_0}{\trace{_0}} \\
@@ -1188,7 +1188,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   If
   \begin{assumptions}
   \item $\src{prog\ e_0\ e_p\ e_1}=\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}}$
-  \item\label{asm:mmlatmsviamonitor:run} $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\trace}$
+  \item $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1414,7 +1414,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Mid-Level Progress]\label{lem:toplevel:progress}
+\begin{lemma}[Mid-Level Progress]\label{lem:midlevel:progress}
   If
   \begin{assumptions}
     \item $\typechecks{}{component\ e_p}{\nat}$
@@ -1714,7 +1714,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
                              & \mid \trg{\lightning} \mid \trg{Call\ ?n} \mid \trg{Ret\ !n}
   \end{aligned}
   \end{gather*}
-}{w-events}{Events of $\mmlAt$.}
+}{tw-events}{Events of $\mmlAt$.}
 
 \myfig{
   \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
@@ -1747,7 +1747,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \trg{n_1}\ge\trg{n_2}
   }{
     \exprevalt{\configt}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\configt}{e_2}{\emptyevent}
-  }{tw-e-if-less}
+  }{tw-e-if-noless}
   %
   \typerule{$e-\trg{abort}$}{
   }{
@@ -1849,7 +1849,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \exect{\Omega_p}{e_1[\valueexpr_p/y]}{\lightning}{stuck}{\trace{_1}} &
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot \trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}}
-  }{wt-e-prog}
+  }{wt-e-prog-fail1}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
 
@@ -2071,7 +2071,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \monitorcheck{T}{T''}{\event\cdot\trace}
     }{tms-sms-trans}
   \end{center}
-}{sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
+}{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
 
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:trg:trace:tms}
   \MK{We need to change the agreement definitions from using $\delta_{tms}$ to just $\delta_{ms}$}
@@ -2480,7 +2480,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Ctx Step Forward Simulation]\label{lem:ctxstep:forwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:step:forwardsim:srcstep} $\execs[]{\Omega}{e}{\Omega'}{\finalexpr}{\event}$
+    \item\label[ass]{asm:ctxstep:forwardsim:srcstep} $\execs[]{\Omega}{e}{\Omega'}{\finalexpr}{\event}$
     \item $\xlangstateeq{\Omega}{\Omega}$
     \item $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}

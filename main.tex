@@ -2210,7 +2210,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \vspace{0.5cm}
     $\;$
     %
-    \judgbox{\atled(\trg{\loc})=\src{\loc}}{,,The $\mmlAt$ memory location $\trg{\loc}$ corresponds to\\the $\mmlAs$ memory location $\src{\loc}$.''} \\
+    \judgbox{\delta(\trg{\loc})=\src{\loc}}{,,The $\mmlAt$ memory location $\trg{\loc}$ corresponds to\\the $\mmlAs$ memory location $\src{\loc}$.''} \\
     \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ agrees with the $\mmlAs$ state $\configs$.''} \\
     %
     \typerule{back-state-eq}{
@@ -2235,8 +2235,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{back-compile-cons-heap}
     %
     \typerule{back-cons-locmap-eq}{
-      %\mmlAmmlAtcomp{x}=\trg{x} &  % TODO: α equivalent!
-      \atled(\trg{\loc}) = \src{\loc} &
+      \mmlAmmlAtcomp{x}=\trg{x} &  % TODO: α equivalent!
+      \delta(\src{\loc}) = \trg{\loc} &
       \xlangbackstateeq{\Delta}{\Delta}
     }{
       \xlangbackstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}
@@ -2698,11 +2698,6 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 
-\begin{definition}[Mimicking Locations]\label{def:location:mimicking}
-  For two functions $\delta,\atled$ we say that they mimick each other iff 
-  $$\forall \src{\loc}\ \trg{\loc}, \delta\left(\src{\loc}\right) = \trg{\loc} \Leftrightarrow \atled\left(\trg{\loc}\right) = \src{\loc}$$
-\end{definition}
-
 \begin{lemma}[Non-Stuck Target Traces have Source Traces]\label{lem:comptrace:invertible}\ \\
   Given $\delta$ and $\trg{\trace}$ non-stuck, $\exists\src{\trace}, \xlangtraceeq{\trace}{\trace}$
 \end{lemma}
@@ -2742,7 +2737,6 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   If
   \begin{assumptions}
   \item\label[ass]{ass:stateagreeinsertion:agree} $\xlangstateeq{\Omega}{\Omega}$
-  \item\label[ass]{ass:stateagreeinsertion:deltasagree} Mimicking $\delta,\atled$ (see \thmref{def:location:mimicking})
   \end{assumptions}
   Then
   \begin{goals}
@@ -2770,7 +2764,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
   By \Cref{tr:back-cons-locmap-eq}, our goals change to:
   \begin{goals}
-  \item $\atled\left(\trg{\loc}\right) = \src{\loc}$
+  \item $\delta\left(\src{\loc}\right) = \trg{\loc}$
   \item $\xlangbackstateeq{\Delta}{\Delta}$
   \end{goals}
 
@@ -2803,13 +2797,12 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \item $\xlangstateeq{\Omega}{\Omega}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
-  then $\exists \delta'\ \atled'\ \src{\Omega'}\ \src{\trace}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\atled\subseteq\atled'$
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv{\finalexpr}}{\src{\trace}}$
   \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\xlangbackstateeq[\atled']{\Omega'}{\Omega'}$
+  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta_1]\trg{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}$
   \end{goals}
 \end{lemma}
@@ -2846,7 +2839,6 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
   \begin{passumptions}{H^{\tiny 1}}
   \item $\emptyset\subseteq\delta_1$, where $\delta_1:\src{L}\to\trg{L}$
-  \item $\emptyset\subseteq\atled_1$, where $\atled_1:\trg{L}\to\src{L}$
   \item $\exec{\src{\emptyset}}{\src{e_1}}{\src{\Omega_1}}{\mmlAmmlAtbackv{f}}{\src{\trace[_1]}}$
   \item $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1}$
   \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}}$

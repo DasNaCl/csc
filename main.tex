@@ -992,7 +992,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \tospecificevs{Call\ ?n} &\ = & \specificevs{Call\ ?n} \\
       \tospecificevs{Ret\ !n} &\ = & \specificevs{Ret\ !n} \\
       \tospecificevs{\lightning} &\ = & \specificevs{\lightning} \\[0.3cm]
-      \tospecificevs{\trace} &\ = & \operatorname{map}\ \thetospecificfilter\ \src{\trace}\\[0.5cm]
+      \tospecificevs{\trace} &\ = & \operatorname{map}\ \thetospecificfilter\ (\operatorname{filter}\ \src{\varepsilon}\ \src{\trace})\\[0.5cm]
       %
       \tospecificevctxs{Ret\ !n_1\cdot\trace{_1}\cdot Call\ ?n_2\cdot\trace{_p}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Ret\ !n_1\cdot \trace{_1} \cdot Call\ ?n_2}\right)\\
       \tospecificevcomps{Ret\ !n_0 \cdot \trace{_1}\cdot Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_2}\cdot Call\ n_3} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
@@ -2179,6 +2179,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
     \judgbox{\xlangstateeq{\Omega}{\Omega}}{,,The $\mmlAs$ state $\configs$ agrees with the $\mmlAt$ state $\configt$.''} \\
     %
+    \typerule{state-$\lightning$-eq}{
+    }{
+      \xlangstateeq{\lightning}{\lightning}
+    }{state-fail-eq}
+    %
     \typerule{state-eq}{
       \src{\Omega}=\src{\Delta;H} &
       \trg{\Omega}=\trg{\Delta;H} \\
@@ -2212,6 +2217,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     %
     \judgbox{\delta(\trg{\loc})=\src{\loc}}{,,The $\mmlAt$ memory location $\trg{\loc}$ corresponds to\\the $\mmlAs$ memory location $\src{\loc}$.''} \\
     \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ agrees with the $\mmlAs$ state $\configs$.''} \\
+    %
+    \typerule{back-$\lightning$-eq}{
+    }{
+      \xlangbackstateeq{\lightning}{\lightning}
+    }{back-state-fail-eq}
     %
     \typerule{back-state-eq}{
       \trg{\Omega}=\trg{\Delta;H} &
@@ -2648,17 +2658,27 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \myfig{
   \begin{center}
     \judgbox{\mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}}{,,Map an $\mmlAt$ value to an $\mmlAs$ value.''}$\;$\\
-    \judgbox{\mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.''}$\;$\\
     \typerule{backtrans-value}{
     }{
       \mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}
     }{backtrans-value}
+  \end{center}
+}{backtrans-values}{Backtranslation of $\mmlAt$ values to $\mmlAs$ values.}
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.''}$\;$\\
+    %
+    \typerule{backtrans-empty}{
+    }{
+      \mmlAmmlAtbackdetail{\hole{\cdot}} = \Game, \src{42}
+    }{backtrans-empty}
     %
     \typerule{backtrans-alloc}{
       \Game'=\Game[\trg{\loc}] &
+      \Game'\left(\trg{\loc}\right) = \src{x} &
       \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ }\Game'(\trg{\loc})\src{ = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
+      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ x = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
     }{backtrans-alloc}
     %
     \typerule{backtrans-dealloc}{
@@ -2675,25 +2695,25 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{
       \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{x[}\mmlAmmlAtbackv{n}\src{];e}
     }{backtrans-use}
-    %
-    \typerule{backtrans-abort}{
-      \mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}
-    }{
-      \mmlAmmlAtbackdetail{\specificevt{\lightning}\cdot\mstrace} = \Game',\src{abort();e}
-    }{backtrans-abort}
-    %
-    \typerule{backtrans-call}{
-    }{
-      \mmlAmmlAtbackdetail{\specificevt{Call\ ?n}} = \Game',\mmlAmmlAtbackv{n}
-    }{backtrans-call}
-   %
-    \typerule{backtrans-ret}{
-      \mmlAmmlAtbackdetail{\mstrace} = \Game', \src{e}
-    }{
-      \mmlAmmlAtbackdetail{\specificevt{Ret\ !n}} = \Game',\mmlAmmlAtbackv{n}\src{;e}
-    }{backtrans-ret}
   \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAmmlAtback{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
+    %
+    \typerule{backtrans-top-level}{
+      \mmlAmmlAtbackdetail{\mstrace} = \Game', \src{e}
+    }{
+      \mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}, \Game', \src{e}
+    }{backtrans-top-level}
+    %
+    \typerule{backtrans-top-level-crash}{
+      \mmlAmmlAtbackdetail{\mstrace} = \Game', \src{e}
+    }{
+      \mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{\lightning}} = \Game', \src{e;abort()}
+    }{backtrans-top-level-crash}
+  \end{center}
+}{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
 \subsubsection{Proofs and Auxiliary Lemmas}
@@ -2768,7 +2788,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \item $\xlangbackstateeq{\Delta}{\Delta}$
   \end{goals}
 
-  Claims follow using \Cref{ass:stateagreeinsertion:deltasagree} and \Cref{asm:stateagreeinsertion:delta,asm:stateagreeinsertion:ih}.
+  Claims follow using \Cref{asm:stateagreeinsertion:delta,asm:stateagreeinsertion:ih}.
 \end{proof}
 
 \begin{lemma}[Agreement Propagation]\label{lem:trace:agreement:propagation}
@@ -2788,25 +2808,42 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   The witness of the existential satisfies $\delta^{\trg{\bullet}}_{tms}(\delta(\src{\loc}))=\delta^{\src{\bullet}}_{tms}(\src{\loc})$.
 \end{proof}
 
+\begin{lemma}[Backtranslation of Stuck Traces]\label{lem:backtranslation:stuck:correct}
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\lightning}{stuck}{\trace\cdot\lightning}$
+\item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)\cdot\specificevt{\lightning}$
+  \item $\mmlAmmlAtbackdetail{\specificevt{Ret\ !n_0}\cdot\mstrace}=\Game',\src{e}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\trace}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\exec{\configs}{\src{e}}{\src{\lightning}}{\src{stuck}}{\src{\trace\cdot\lightning}}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot\lightning}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot\trace\cdot \lightning}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
-  \item $\mstrace=\thetospecificfilter{\trace}$
+  \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
   \item $\mmlAmmlAtbackdetail{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
-  \item $\xlangstateeq{\Omega}{\Omega}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{f}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv{\finalexpr}}{\src{\trace}}$
-  \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{f}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta_1]\trg{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  First consider $\trg{\finalexpr}=\trg{stuck}$. In this case, we use \Cref{lem:backtranslation:stuck:correct,tr:back-state-fail-eq} and are done.
 \end{incompleteproof}
 
 \refstepcounter{theoremcounter}

@@ -2829,21 +2829,49 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtbackdetail{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
+  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{f}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{f}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
-  First consider $\trg{\finalexpr}=\trg{stuck}$. In this case, we use \Cref{lem:backtranslation:stuck:correct,tr:back-state-fail-eq} and are done.
+  Induction on $\trg{\trace}$.
+
+  \begin{description}
+  \item \textbf{Case $\trg{\trace}=\trg{\hole{\cdot}}$:}
+
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\hole{\cdot}}$
+  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta']{\Omega}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \end{goals}
+
+  By inversion on (b), what is left to show is:
+  $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\exec{\configs}{\src{42}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta']{\Omega}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \end{goals}
+
+  \end{description}
 \end{incompleteproof}
 
 \refstepcounter{theoremcounter}
@@ -2859,8 +2887,8 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \item $\texttt{TMS}(\tospecificevcompt{\trace})$
   \end{goals}
 \end{theorem}
-\begin{proof}
-  Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so we immediately disregard the failure cases:
+\begin{incompleteproof}
+  \MK{rework}Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so we immediately disregard the failure cases:
   \begin{passumptions}{H}
   \item\label[ass]{rtmsp:runt:e1} $\exect{\emptyset;\emptyset}{e_1}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
   \item\label[ass]{rtmsp:runt:ep} $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
@@ -2889,7 +2917,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
 
 
-\end{proof}
+\end{incompleteproof}
 
 \clearpage
 \cleardoublepage

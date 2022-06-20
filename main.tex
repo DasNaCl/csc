@@ -2116,6 +2116,29 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
 \myfig{
   \begin{center}
+    \begin{gather*}
+      \judgbox{\mmlAmmlAtcomp{K}=\trg{K}}{,,Compile $\mmlAs$ evaluation contexts to $\mmlAt$ evaluation contexts.''}
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+      \mmlAmmlAtcomp{\hole{\cdot}} &\ = & \trg{\hole{\cdot}} \\
+      \mmlAmmlAtcomp{K\oplus e} &\ = & \mmlAmmlAtcomp{K}\trg{\oplus}\mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{\valueexpr\oplus K} &\ = & \mmlAmmlAtcomp{\valueexpr}\trg{\oplus}\mmlAmmlAtcomp{K} \\
+      \mmlAmmlAtcomp{x[K]} &\ = & \trg{x[}\mmlAmmlAtcomp{K}\trg{]} \\
+      \mmlAmmlAtcomp{let\ x\ = K\ in\ e} &\ = & \trg{let\ x\ = }\mmlAmmlAtcomp{K}\trg{\ in\ }\mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{x[K]\leftarrow e} &\ = & \trg{x[}\mmlAmmlAtcomp{K}\trg{]\leftarrow} \mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{x[\valueexpr]\leftarrow K} &\ = & \trg{x[}\mmlAmmlAtcomp{\valueexpr}\trg{]\leftarrow }\mmlAmmlAtcomp{K} \\
+      \mmlAmmlAtcomp{let\ x\ = new\ K\ in\ e} &\ = & \trg{let\ x\ = new\ }\mmlAmmlAtcomp{K}\trg{\ in\ }\mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{if\ K<e'\ then\ e_{1}\ else\ e_{2}} &\ = & \trg{if\ }\mmlAmmlAtcomp{K}\trg{<}\mmlAmmlAtcomp{e'}\trg{\ then\ }\\
+                                                                &&\mmlAmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAmmlAtcomp{e_{2}} \\
+      \mmlAmmlAtcomp{if\ n<K\ then\ e_{1}\ else\ e_{2}} &\ = & \trg{if\ }\mmlAmmlAtcomp{n}\trg{<}\mmlAmmlAtcomp{K}\trg{\ then\ }\\
+                                                            &&\mmlAmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAmmlAtcomp{e_{2}} \\
+    \end{array}
+    $$
+  \end{center}
+}{tms-pres-compiler-ctx}{Compiling $\mmlAs$ evaluation contexts to $\mmlAt$ evaluation contexts.}
+\myfig{
+  \begin{center}
     \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ describes the same actions as $\mmlAt$ trace $\trg{\trace}$.''} \\
     \typerule{empty-trace-eq}{
     }{
@@ -2261,14 +2284,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Step Forward Simulation]\label{lem:step:forwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{\finalexpr}{\event}$
+    \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{e'}{\event}$
     \item $\xlangstateeq{\Omega}{\Omega}$
     \item $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
     \item $\delta\subseteq\delta'$
-    \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\event}}$
+    \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}}{\trg{\event}}$
     \item $\xlangeventeq{\event}{\event}$
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
@@ -2400,22 +2423,92 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{description}
 \end{incompleteproof}
 
+\begin{lemma}[Related non-crashing states]\label{lem:relatednoncrash}
+  If
+  \begin{assumptions}
+    \item $\src{\Omega}\not=\src{\lightning}$
+    \item $\xlangstateeq{\Omega}{\Omega}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\trg{\Omega}\not=\trg{\lightning}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Typing Plugged]\label{lem:ctxtyping:plugged}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\Omega\triangleright K[e]}{\nat}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 \begin{lemma}[Ctx Step Forward Simulation]\label{lem:ctxstep:forwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:step:forwardsim:srcstep} $\execs[]{\Omega}{e}{\Omega'}{\finalexpr}{\event}$
-    \item $\xlangstateeq{\Omega}{\Omega}$
-    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item\label[ass]{asm:ctxstep:forwardsim:srcstep} $\execs[]{\Omega}{e}{\Omega'}{e'}{\event}$
+    \item\label[ass]{asm:ctxstep:forwardsim:staterel} $\xlangstateeq{\Omega}{\Omega}$
+    \item\label[ass]{asm:ctxstep:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
     \item $\delta\subseteq\delta'$
-    \item $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\event}}$
+    \item $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}}{\trg{\event}}$
     \item $\xlangeventeq{\event}{\event}$
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  Induction on \Cref{asm:ctxstep:forwardsim:srcstep}:
+
+  If
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:ctxstep:forwardsim:nocrash} $\src{\Omega}\not=\src{\lightning}$
+    \item\label[ass]{asm:ctxstep:forwardsim:simplestep} $\exprevals{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$
+  \end{passumptions}
+  Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{K[e_{0}]}}{\trg{\Omega'}}{\mmlAmmlAtcomp{K[e_{0}']}}{\trg{\event}}$
+    \item $\xlangeventeq{\event}{\event}$
+    \item $\xlangstateeq{\Omega'}{\Omega'}$
+  \end{goals}
+
+  We augment \Cref{asm:ctxstep:fowrardsim:typechecks} using \thmref{lem:ctxtyping:plugged}.
+  \begin{passumptions}{H}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:ctxstep:forwardsim:e0typechecks} $\typechecks{}{\Omega\triangleright e_{0}}{\nat}$
+  \end{passumptions}
+  Withg \Cref{asm:ctxstep:forwardsim:simplestep,asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:e0typechecks} use \thmref{lem:step:forwardsim} to get witnesses $\delta', \trg{\Omega'},$ and $\trg{\event}$ such that:
+
+  \begin{passumptions}{F}
+    \item\label[ass]{asm:ctxstep:forwardsim:f1} $\delta\subseteq\delta'$
+    \item\label[ass]{asm:ctxstep:forwardsim:trgstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e_{0}'}}{\trg{\event}}$
+    \item\label[ass]{asm:ctxstep:forwardsim:f3} $\xlangeventeq{\event}{\event}$
+    \item\label[ass]{asm:ctxstep:forwardsim:f4} $\xlangstateeq{\Omega'}{\Omega'}$
+  \end{passumptions}
+
+  Immediately instantiate our goal with those witnesses and use \Cref{asm:ctxstep:forwardsim:f1,asm:ctxstep:forwardsim:f3,asm:ctxstep:forwardsim:f4}.
+  What is left to prove is
+  \begin{goals}
+    \setcounter{enumi}{1}
+    \item $\exec[]{\trg{\Omega}}{\trg{K[}\mmlAmmlAtcomp{e_{0}}\trg{]}}{\trg{\Omega'}}{\trg{K[}\mmlAmmlAtcomp{e_{0}'}\trg{]}}{\trg{\event}}$
+  \end{goals}
+  Use \Cref{tr:tw-e-ectx}, what is left to show is
+  \begin{goals}
+    \setcounter{enumi}{4}
+    \item\label[ass]{goal:ctxstep:forwardsim:nocrash} $\trg{\Omega}\not=\trg{\lightning}$
+    \item\label[goal]{goal:ctxstep:forwardsim:trgstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e_{0}'}}{\trg{\event}}$
+  \end{goals}
+  \Cref{goal:ctxstep:forwardsim:trgstep} follows immediately by \Cref{asm:ctxstep:forwardsim:trgstep}.
+  For \Cref{goal:ctxstep:forwardsim:nocrash}, we can use \thmref{lem:relatednoncrash} relying on \Cref{asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:nocrash}.
 \end{incompleteproof}
 
 \begin{lemma}[Forward Simulation]\label{lem:forwardsim}

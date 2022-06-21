@@ -2688,9 +2688,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Forward Simulation]\label{lem:forwardsim}
   If
   \begin{assumptions}
-    \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
-    \item $\xlangstateeq{\Omega}{\Omega}$
-    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item\label[ass]{asm:forwardsim:starstep} $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+    \item\label[ass]{asm:forwardsim:staterel} $\xlangstateeq{\Omega}{\Omega}$
+    \item\label[ass]{asm:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\trace}$,
   \begin{goals}
@@ -2701,7 +2701,72 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
-  induction on $\src{e}$
+  Induction on \Cref{asm:forwardsim:starstep}.
+  \begin{description}
+    \item \textbf{Case }$\execs{\Omega}{\finalexpr}{\Omega}{\finalexpr}{\hole{\cdot}}$\textbf{:}
+          Trivial. Witnesses are $\delta, \trg{\Omega}$, and $\trg{\hole{\cdot}}$, goals follow immediately by reflexivity of the respective relation.
+
+    \item \textbf{Cases }$\execs{\Omega}{e}{\Omega}{\finalexpr}{\event\cdot\trace}$ (\Cref{tr:ws-e-trans-important})\textbf{ and }\\$\execs{\Omega}{e}{\Omega}{\finalexpr}{\trace}$ (\Cref{tr:ws-e-trans-unimportant})\textbf{:}
+          \begin{passumptions}{H}
+            \item\label[ass]{asm:forwardsim:evnoteps} $\src{a}\not=\src{\varepsilon}$ (provided only in the case of \Cref{tr:ws-e-trans-important})
+            \item\label[ass]{asm:forwardsim:ctxstep} $\execs[]{\Omega}{e}{\Omega_{0}}{e_0}{\event}$
+            \item $\execs{\Omega_{0}}{e_0}{\Omega'}{\finalexpr}{\trace}$
+          \end{passumptions}
+          With the inductive hypothesis: $\forall\delta_{\forall}\ \trg{\Omega_{\forall}},\exists \delta_{\IH}\ \trg{\Omega_{\IH}}\ \trg{\trace[_{\IH}]},$
+          \begin{passumptions}{\IH}
+            \item $\delta_{\forall}\subseteq\delta_{\IH}$
+            \item $\exec{\trg{\Omega_{\forall}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega_{{\IH}}}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace[_{{\IH}}]}}$
+            \item\label[ass]{asm:forwardsim:justraceeq} $\xlangtraceeq[\delta_{\IH}]{\trace}{\trace[_{\IH}]}$
+            \item $\xlangstateeq[\delta_{\IH}]{\Omega_{0}}{\Omega_{\IH}}$
+          \end{passumptions}
+
+          Now apply \thmref{lem:ctxstep:forwardsim} on \Cref{asm:forwardsim:ctxstep} using \Cref{asm:forwardsim:staterel,asm:forwardsim:typechecks},
+          giving us witnesses $\delta_0\ \trg{\Omega_{0}}\ \trg{\event}$,
+          \begin{passumptions}{F}
+            \item\label[ass]{asm:forwardsim:deltasubset0} $\delta\subseteq\delta_{0}$
+            \item\label[ass]{asm:forwardsim:thectxstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\event}}$
+            \item\label[ass]{asm:forwardsim:eventeq} $\xlangeventeq[\delta_{0}]{\event}{\event}$
+            \item $\xlangstateeq[\delta_{0}]{\Omega_{0}}{\Omega_{0}}$
+          \end{passumptions}
+
+          Instantiate the inductive hypothesis with $\delta_{\forall}=\delta_{0}$ and $\trg{\Omega_{\forall}}=\trg{\Omega_{0}}$ and obtain witnesses
+          $\delta_{\IH}, \trg{\Omega_{\IH}}$, and $\trg{\trace[_{\IH}]}$ such that:
+          \begin{passumptions}{\IH'}
+            \item\label[ass]{asm:forwardsim:deltasubset:IH} $\delta_{0}\subseteq\delta_{\IH}$
+            \item\label[ass]{asm:forwardsim:steps} $\exec{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega_{{\IH}}}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace[_{{\IH}}]}}$
+            \item $\xlangtraceeq[\delta_{\IH}]{\trace}{\trace[_{\IH}]}$
+            \item $\xlangstateeq[\delta_{\IH}]{\Omega_{0}}{\Omega_{\IH}}$
+          \end{passumptions}
+
+          \begin{description}
+            \item \textbf{Case $\src{\event}\not=\src{\varepsilon}$:}
+                Our goal looks as follows: $\exists \delta'\ \trg{\Omega'}\ \trg{\trace}$,
+                \begin{goals}
+                  \item\label[goal]{goal:forwardsim:deltasubset} $\delta\subseteq\delta'$
+                  \item\label[goal]{goal:forwardsim:steps} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
+                  \item\label[goal]{goal:forwardsim:traceeq} $\xlangtraceeq{\event\cdot\trace}{\trace'}$
+                  \item\label[goal]{goal:forwardsim:staterel} $\xlangstateeq{\Omega'}{\Omega'}$
+                \end{goals}
+
+                Instantiate the goal with $\delta_{\IH}, \trg{\Omega_{\IH}}, \trg{\event\cdot\trace}$.
+                Note that $\delta\subseteq\delta_{\IH}$ (\Cref{goal:forwardsim:deltasubset}) follows by transitivity using \Cref{asm:forwardsim:deltasubset0,asm:forwardsim:deltasubset:IH}.
+                Similarily for \Cref{goal:forwardsim:staterel}.\MK{technical lemma...}
+
+                Apply \Cref{tr:wt-e-trans-important} on \Cref{goal:forwardsim:steps}. So, what is left to show is
+                \begin{goals}
+                  \setcounter{enumi}{2}
+                  \item\label[goal]{goal:forwardsim:tracerel} $\xlangtraceeq{\event\cdot\trace}{\event\cdot\trace}$
+                  \setcounter{enumi}{4}
+                  \item\label[goal]{goal:forwardsim:noeps:ctxstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\event}}$
+                  \item\label[goal]{goal:forwardsim:noeps:steps} $\exec{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega_{\IH}}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
+                \end{goals}
+                \Cref{goal:forwardsim:tracerel} follows from \Cref{asm:forwardsim:justraceeq,asm:forwardsim:eventeq} using \Cref{tr:cons-trace-eq}.
+                \Cref{goal:forwardsim:noeps:ctxstep} is proven by \Cref{asm:forwardsim:thectxstep}.
+                \Cref{goal:forwardsim:noeps:steps} is proven by \Cref{asm:forwardsim:steps}.
+            \item \textbf{Case $\src{\event}=\src{\varepsilon}$:}
+                Similar to the other case, but make use of \Cref{asm:forwardsim:evnoteps}.
+          \end{description}
+  \end{description}
 \end{incompleteproof}
 
 \begin{lemma}[Expression Correctness]\label{lem:expression:correctness}

@@ -2295,15 +2295,16 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   If
   \begin{assumptions}
     \item $\src{\Omega}\not=\src{\lightning}$
-    \item $\xlangstateeq{\Omega}{\Omega}$
+    \item\label[ass]{asm:relatedstates} $\xlangstateeq{\Omega}{\Omega}$
   \end{assumptions}
   Then
   \begin{goals}
     \item $\trg{\Omega}\not=\trg{\lightning}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Simple induction on \Cref{asm:relatedstates}.
+\end{proof}
 
 
 \begin{lemma}[Determinism of Compiler]\label{lem:determcomp}
@@ -2700,7 +2701,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
+\begin{proof}
   Induction on \Cref{asm:forwardsim:starstep}.
   \begin{description}
     \item \textbf{Case }$\execs{\Omega}{\finalexpr}{\Omega}{\finalexpr}{\hole{\cdot}}$\textbf{:}
@@ -2767,7 +2768,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
                 Similar to the other case, but make use of \Cref{asm:forwardsim:evnoteps}.
           \end{description}
   \end{description}
-\end{incompleteproof}
+\end{proof}
 
 \begin{lemma}[Expression Correctness]\label{lem:expression:correctness}
   If
@@ -3009,16 +3010,16 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\hole{\cdot}}$
+  \item\label[ass]{asm:backtranscorr:case0:exect} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\hole{\cdot}}$
   \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
   \end{goals}
 
   By inversion on (b), what is left to show is:
@@ -3026,8 +3027,48 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \begin{goals}
   \item $\delta\subseteq\delta'$
   \item $\exec{\configs}{\src{42}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \end{goals}
+
+  Instantiate our goal with $\delta' = \delta, \src{\Omega'}=\src{\Omega}, \src{\trace}=\src{\hole{\cdot}}, \src{\valueexpr}=\src{42}$, the first two goals follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.
+  What is left to show is:
+  \begin{goals}
+    \setcounter{enumi}{3}
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta]\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \end{goals}
+  Which follows from applying \Cref{tr:cons-trace-eq,tr:ret-event-eq,tr:call-event-eq} and \thmref{lem:compvals:insertion}.
+
+  \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
+          % TODO: Add induction hypothesis
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\event\cdot\trace}$
+  \item $\msevent\cdot\mstrace=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
+  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\msevent\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
+  \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \event\cdot\trace\cdot Call\ ?n_1}$
+  \end{goals}
+
+  The induction hypothesis is:
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
+  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
+  \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \event\cdot\trace\cdot Call\ ?n_1}$
   \end{goals}
 
   \end{description}

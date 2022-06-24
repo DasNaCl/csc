@@ -1409,7 +1409,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\src{e}=\src{\valueexpr}$\MK{note that we have a $\src{\valueexpr}$ and not $\src{\finalexpr}$. works as long we cannot typecheck $\src{abort}$} or $\exists \src{\Omega'}\ \src{e'}\ \src{\trace}, \execs{\configs}{e}{\configs'}{e'}{\trace}$
+  \item $\src{e}=\src{\valueexpr}$ or $\exists \src{\Omega'}\ \src{\valueexpr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\valueexpr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1902,13 +1902,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Determinism of Steps]\label{lem:determ:steps}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{v_1}{\trace}$
-  \item $\exect{\Omega}{e}{\Omega''}{v_2}{\trace}$
+  \item $\exect{\Omega}{e}{\Omega'}{v_1}{\trace[_{1}]}$
+  \item $\exect{\Omega}{e}{\Omega''}{v_2}{\trace[_{2}]}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\trg{v'}=\trg{v''}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\trace[_{1}]}=\trg{\trace[_{2}]}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -2252,7 +2253,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \vspace{0.5cm}
     $\;$
     %
-    \judgbox{\delta(\trg{\loc})=\src{\loc}}{,,The $\mmlAt$ memory location $\trg{\loc}$ corresponds to\\the $\mmlAs$ memory location $\src{\loc}$.''} \\
     \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ agrees with the $\mmlAs$ state $\configs$.''} \\
     %
     \typerule{back-$\lightning$-eq}{
@@ -2697,8 +2697,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{goals}
     \item $\delta\subseteq\delta'$
     \item $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
-    \item $\xlangtraceeq{\trace}{\trace}$
-    \item $\xlangstateeq{\Omega'}{\Omega'}$
+    \item $\xlangtraceeq[\delta']{\trace}{\trace}$
+    \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -2770,12 +2770,26 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{description}
 \end{proof}
 
+\begin{lemma}[Different Reduction]\label{lem:differentreduction}
+  If
+  \begin{assumptions}
+    \item $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$
+    \item $\execs{\Omega}{e}{\Omega'}{\valueexpr'}{\trace}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\src{\valueexpr}\not=\src{\valueexpr'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 \begin{lemma}[Expression Correctness]\label{lem:expression:correctness}
   If
   \begin{assumptions}
   \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
-  \item $\xlangstateeq{\Omega}{\Omega}$
-  \item\label[ass]{lem:expr:corr:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
+  \item\label[ass]{asm:exprcorrect:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+  \item\label[ass]{asm:expr:corr:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
   Then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
@@ -2785,9 +2799,76 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \item $\xlangtraceeq[\delta']{\trace}{\trace}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  We prove this by contradiction. So, we get the assumption:
+  \begin{passumptions}{I}
+    \item\label[ass]{asm:exprcorr:toplevel} $\forall\delta'\ \src{\Omega'}\ \src{\trace},\delta'\subset\delta\vee\neg\left(\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}\right)\vee\xlangstateneq[\delta']{\Omega'}{\Omega'}\vee\xlangtraceneq[\delta']{\trace}{\trace}$
+  \end{passumptions}
+  and need to prove $\bot$.
+  Apply \thmref{lem:progress} on \Cref{asm:expr:corr:typechecks}, so:
+  \begin{passumptions}{I}
+    \setcounter{enumi}{1}
+    \item\label[ass]{asm:exprcorr:progressor} $\src{e}=\src{\valueexpr}$ or $\exists\src{\Omega'}\ \src{\valueexpr}\ \src{\trace},\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
+  \end{passumptions}
+  Proceed by case anaylsis on \Cref{asm:exprcorr:progressor}.
+  \begin{description}
+    \item \textbf{Case $\src{e}=\src{\valueexpr}$:}
+      Specialize \Cref{asm:exprcorr:toplevel} for $\delta'=\delta$, $\src{\Omega'}=\src{\Omega},$ and $\src{\trace}=\src{\hole{\cdot}}$.
+      We proceed by case analysis:
 
+      Invert \Cref{asm:exprcorrect:exec1:trg} and proceed by case analysis:
+      \begin{description}
+        \item \textbf{Case $\delta\subset\delta$:} Trivial.
+        \item \textbf{Case }$\neg\left(\execs{\Omega}{\valueexpr}{\Omega}{\valueexpr}{\hole{\cdot}}\right)$\textbf{:}
+            Simply apply $\neg\left(\execs{\Omega}{\valueexpr}{\Omega}{\valueexpr}{\hole{\cdot}}\right)$ to the goal $\bot$ and use \Cref{tr:ws-e-refl}.
+        \item \textbf{Case }$\xlangstateneq{\Omega}{\Omega}$\textbf{:}
+            Apply $\xlangstateneq{\Omega}{\Omega}$ to the goal $\bot$ and use \Cref{asm:exprcorrect:stateeq}.
+        \item \textbf{Case }$\xlangtraceneq{\hole{\cdot}}{\hole{\cdot}}$\textbf{:}
+            Apply $\xlangtraceneq{\hole{\cdot}}{\hole{\cdot}}$ to the goal $\bot$, use \Cref{tr:empty-trace-eq}.
+      \end{description}
+
+    \item \textbf{Case }$\exists\src{\Omega'}\ \src{\valueexpr}\ \src{\trace},\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$\textbf{:}
+          First extract the witnesses and obtain:
+          \begin{passumptions}{H}
+            \item\label[ass]{asm:exprcorr:ereduce} $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+          \end{passumptions}
+
+
+          Apply \thmref{lem:forwardsim} to \Cref{asm:exprcorr:ereduce} with \Cref{asm:exprcorrect:stateeq,asm:expr:corr:typechecks} to get:
+          \begin{passumptions}{F}
+            \item\label[ass]{asm:exprcorrect:deltavsubset} $\delta\subseteq\delta_{v}$
+            \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_{v}'}}{\mmlAmmlAtcomp{\valueexpr}}{\trg{\trace[_{v}]}}$
+            \item\label[ass]{asm:exprcorrect:stateeq2} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega_{v}'}$
+            \item\label[ass]{asm:exprcorrect:traceeq2} $\xlangtraceeq[\delta_{v}]{\trace}{\trace[_{v}]}$
+          \end{passumptions}
+
+
+          Use \thmref{lem:determ:steps} on \Cref{asm:exprcorrect:exec1:trg,asm:exprcorrect:exec2:trg}, giving us:
+          \begin{passumptions}{K}
+            \item\label[ass]{asm:exprcorrect:compiledvalueseq} $\mmlAmmlAtcomp{v}=\mmlAmmlAtcomp{f}$
+            \item\label[ass]{asm:exprcorrect:stateequal} $\trg{\Omega'}=\trg{\Omega_{v}'}$
+            \item\label[ass]{asm:exprcorrect:traceequal} $\trg{\trace}=\trg{\trace[_{v}]}$
+          \end{passumptions}
+          Rewrite using \Cref{asm:exprcorrect:stateequal} in \Cref{asm:exprcorrect:stateeq2}, similarily \Cref{asm:exprcorrect:traceequal} in \Cref{asm:exprcorrect:traceeq2}:
+          \begin{passumptions}{F'}
+            \setcounter{enumi}{2}
+            \item\label[ass]{asm:exprcorrect:stateeq3} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega'}$
+            \item\label[ass]{asm:exprcorrect:traceeq3} $\xlangtraceeq[\delta_{v}]{\trace}{\trace}$
+          \end{passumptions}
+      Specialize \Cref{asm:exprcorr:toplevel} for $\delta'=\delta_{v}$, $\src{\Omega'}=\src{\Omega'},$ and $\src{\trace}=\src{\trace}$.
+      We proceed by case analysis:
+      \begin{description}
+        \item \textbf{Case $\neg\left(\delta\subseteq\delta_{v}\right)$:} Apply $\neg\left(\delta\subseteq\delta_{v}\right)$ on our goal $\bot$, then $\delta\subseteq\delta_{v}$ immediately follows from \Cref{asm:exprcorrect:deltavsubset}.
+
+        \item \textbf{Case }$\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$\textbf{:}
+          Using \Cref{asm:exprcorr:ereduce} and the assumption $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$, we conclude $\src{\valueexpr}\not=\src{f}$ using \thmref{lem:differentreduction}.
+          Apply \thmref{lem:determcomp} on \Cref{asm:exprcorrect:compiledvalueseq}, so $\src{\valueexpr}=\src{f}$, contradicting the above.
+
+        \item \textbf{Case }$\xlangstateneq[\delta_{v}]{\Omega'}{\Omega'}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:stateeq3}.
+        \item \textbf{Case }$\xlangtraceneq[\delta_{v}]{\trace}{\trace}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:traceeq3}.
+      \end{description}
+  \end{description}
+\end{proof}
 
 \subsubsection{Trace-based Backtranslation}
 
@@ -3046,7 +3127,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\event\cdot\trace}$
   \item $\msevent\cdot\mstrace=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
   \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\msevent\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
-  \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
+  \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
   \begin{goals}
@@ -3061,7 +3142,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
   \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
-  \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
   \begin{goals}

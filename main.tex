@@ -2965,7 +2965,6 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{proof}
   Induction on $\trg{\trace}$
 \end{proof}
-\MK{we don't know anything about this $\delta$, besides $\delta:\src{L}\to\trg{L}$}
 
 \begin{lemma}[Value Insertion]\label{lem:compvals:insertion}\ \\
   Given $\src{\valueexpr}=\mmlAmmlAtbackv{\valueexpr}$, then $\mmlAmmlAtcomp{\valueexpr}=\trg{\valueexpr}$.
@@ -3121,12 +3120,11 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   Which follows from applying \Cref{tr:cons-trace-eq,tr:ret-event-eq,tr:call-event-eq} and \thmref{lem:compvals:insertion}.
 
   \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
-          % TODO: Add induction hypothesis
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\event\cdot\trace}$
-  \item $\msevent\cdot\mstrace=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\msevent\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
+  \item\label{asm:backtranscorr:indu:step} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\event\cdot\trace}$
+  \item\label{asm:backtranscorr:indu:spectrace} $\trg{\msevent\cdot\mstrace}=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
+  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\msevent\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
   \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -3138,19 +3136,101 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \end{goals}
 
   The induction hypothesis is:
-  If
+  If $\forall \trg{\Omega_{\IH}}\ \trg{\Omega'_{\IH}}\ \trg{e_{\IH}}\ \trg{\valueexpr_{\IH}}\ \src{\Omega_{\IH}}\ \src{e_{\IH}}\ \delta_{\IH}\ \Game_{\IH}\ \Game_{\IH}',$
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
-  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\exect{\Omega_{\IH}}{e_{\IH}}{\Omega'_{\IH}}{\valueexpr_{\IH}}{\trace}$
+  \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
+  \item $\mmlAmmlAtback[\Game_{\IH}]{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game_{\IH}',\src{e_{\IH}}$
+  \item $\xlangbackstateeq[\delta_{\IH}]{\Omega_{\IH}}{\Omega_{\IH}}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
   \begin{goals}
-  \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \event\cdot\trace\cdot Call\ ?n_1}$
+  \item $\delta_{\IH}\subseteq\delta'$
+  \item $\exec{\src{\Omega_{\IH}}}{\src{e_{\IH}}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta']{\Omega'_{\IH}}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \trace\cdot Call\ ?n_1}$
   \end{goals}
+
+  We proceed by case-analysis on $\trg{\msevent}$.
+  \begin{description}
+    \item \textbf{Case $\trg{\msevent}=\specificevt{Alloc\ \loc\ n}$:}
+      Note that:
+      \begin{passumptions}{H}
+    \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Alloc\ \loc\ n}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e_a}$
+    \item $\Game_x=\Game[\trg{\loc}]$
+    \item $\src{x}=\Game_x(\trg{\loc})$
+    \item $\mmlAmmlAtback[\Game_x]{\mstrace}=\Game',\src{e_a}$
+      \end{passumptions}
+
+      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificevt{Alloc\ \loc\ n}=\trg{Alloc\ \loc\ n}$, subsequently inverting \Cref{asm:backtranscorr:indu:step} yields:
+      \begin{passumptions}{H}
+      \setcounter{enumi}{4}
+    \item $\trg{\Omega}=\trg{H;\Delta}$
+    \item $\trg{H'}=\grow{\trg{H}}{\trg{n}}$
+    \item\label[ass]{asm:backtranscorr:indu:allocstep} $\exect[]{H;\Delta}{let\ x = new\ n\ in\ e'}{H';z\mapsto\loc_{\poisonless},\Delta}{e'[z/x]}{Alloc\ \loc\ n}$
+    \item\label[ass]{asm:backtranscorr:indu:steps} $\exect{H';z\mapsto\loc_{\poisonless},\Delta}{e'}{\Omega''}{v}{\trace}$
+      \end{passumptions}
+
+      Let $\delta_x=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$, obviously $\delta\subseteq\delta_x$.
+      Using \Cref{asm:backtranscorr:case1:stateeq}, we apply \Cref{tr:back-cons-locmap-eq}\MK{we technically need a lemma that says we can apply it under monotone $\delta$, i.e. for "bigger" $\delta$} to get
+      \begin{passumptions}{H}
+        \setcounter{enumi}{8}
+      \item\label[ass]{asm:backtranscorr:indu:staterel} $\xlangbackstateeq[\delta_x]{H';z\mapsto\loc_{\poisonless},\Delta}{H';z\mapsto\loc_{\poisonless},\Delta}$
+      \end{passumptions}
+      thereby introducing some fresh $\src{z}$ and $\src{\loc}$.
+      Furthermore, the following assumptions are easily derivable from the existing ones:
+      \begin{passumptions}{H}
+        \setcounter{enumi}{9}
+      \item\label[ass]{asm:backtranscorr:indu:trace} $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
+      \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_x]{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e'}$
+      \end{passumptions}
+
+      We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{H';z,\mapsto\loc_{\poisonless},\Delta}$, $\trg{\Omega_{\IH}'}=\trg{\Omega''}$, $\trg{e_{\IH}}=\trg{e'[z/x]}$, $\trg{\valueexpr_{\IH}}=\trg{\valueexpr}$, $\src{\Omega_{\IH}}=\src{H';z\mapsto\loc_{\poisonless},\Delta}$, $\src{e_{\IH}}=\src{e_a}$, $\delta_{\IH}=\delta_x$, $\Game_{\IH}=\Game_x$, and $\Game_{\IH}'=\Game'$.
+      Whence, specialize it with \Cref{asm:backtranscorr:indu:steps,asm:backtranscorr:indu:trace,asm:backtranscorr:indu:backtrans,asm:backtranscorr:indu:staterel}, giving us:
+      \begin{passumptions}{F}
+      \item\label[ass]{asm:backtranscorr:indu:deltasubset} $\delta_x\subseteq\delta'$
+      \item\label[ass]{asm:backtranscorr:indu:afterallocstep} $\exec{\src{H';z\mapsto\loc_{\poisonless},\Delta}}{\src{e'[z/x]}}{\src{\configs''}}{\src{\valueexpr}}{\src{\trace}}$
+      \item\label[ass]{asm:backtranscorr:indu:finalstaterel} $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$
+      \item\label[ass]{asm:backtranscorr:indu:tracerel0} $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \trace\cdot Call\ ?n_1}$
+      \end{passumptions}
+      Note that we can weaken \Cref{asm:backtranscorr:indu:tracerel0} to:\MK{technical lemma}
+      \begin{passumptions}{F}
+        \setcounter{enumi}{3}
+      \item\label[ass]{asm:backtranscorr:indu:tracerel1} $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
+      \end{passumptions}
+
+      For the sake of clarity, we repeat our goal: 
+      $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+      \begin{goals}
+      \item $\delta\subseteq\delta'$
+      \item $\exec{\configs}{\src{let\ x=new\ n\ in\ e'}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+      \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega'}$
+      \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot {Alloc\ \loc\ n}\cdot\trace\cdot Call\ ?n_1}$
+      \end{goals}
+
+      Instantiate it with $\delta'=\delta'$, $\src{\Omega'} = \src{\Omega''}$, $\src{\trace}=\src{Alloc\ \loc\ n\cdot\trace}$, and $\src{v}=\src{v}$.
+      \begin{goals}
+      \item $\delta\subseteq\delta'$
+        
+        Follows by definition of $\delta_x$ and \Cref{asm:backtranscorr:indu:deltasubset}.
+      \item $\exec{\configs}{\src{let\ x=new\ n\ in\ e'}}{\src{\configs''}}{\src{\valueexpr}}{\src{Alloc\ \loc\ n\cdot\trace}}$
+
+        Apply \Cref{tr:ws-e-trans-important}, use \Cref{tr:w-e-let-new} and then we are done using \Cref{asm:backtranscorr:indu:afterallocstep} .
+      \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$
+
+        By \Cref{asm:backtranscorr:indu:finalstaterel}.
+      \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot Alloc\ \loc\ n\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot {Alloc\ \loc\ n}\cdot\trace\cdot Call\ ?n_1}$
+        
+      Easy using \Cref{tr:empty-trace-eq}, \Cref{tr:cons-trace-eq}, \Cref{tr:alloc-event-eq}, \Cref{tr:call-event-eq}, \Cref{tr:ret-event-eq}, and \thmref{lem:compvals:insertion}.
+      \end{goals}
+
+    \item \textbf{Case $\trg{\msevent}=\specificevt{Dealloc\ \loc}$:}
+      todo.
+
+    \item \textbf{Case $\trg{\msevent}=\specificevt{Use\ \loc\ n}$:}
+      todo.
+
+  \end{description}
 
   \end{description}
 \end{incompleteproof}

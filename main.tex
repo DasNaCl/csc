@@ -3253,20 +3253,19 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \begin{passumptions}{H}
   \item\label[ass]{rtmsp:runt:e1} $\exect{\emptyset;\emptyset}{e_1}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
   \item\label[ass]{rtmsp:runt:ep} $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
-  \item $\exect{\Omega_p}{e_2}{\Omega_2}{\valueexpr_2}{\trace[_2]}$
-  \item $\trg{\trace}=\trg{Ret\ !0 \cdot \trace[_1] \cdot Call\ ?v_1 \cdot \trace[_p] \cdot Ret\ ?v_p \cdot \trace[_2] \cdot Call\ ?v_2}$
+  \item\label[ass]{rtmsp:runt:e2} $\exect{\Omega_p}{e_2}{\Omega_2}{\valueexpr_2}{\trace[_2]}$
+  \item $\trg{\trace}=\trg{Ret\ !0 \cdot \trace[_1] \cdot Call\ ?v_1 \cdot \trace[_p] \cdot Ret\ !v_p \cdot \trace[_2] \cdot Call\ ?v_2}$
   \end{passumptions}
 
   \noindent
   We backtranslate $\mmlAmmlAtbackdetail[\emptyset]{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}=\Game,\src{e_1}$.
-  Now note that $\xlangstateeq[\emptyset]{\emptyset}{\emptyset}$ by \Cref{tr:compile-empty-heap-or-map-eq}.
   Analogousy, $\xlangbackstateeq[\emptyset]{\emptyset}{\emptyset}$ by \Cref{tr:back-compile-empty-heap-or-map-eq}.
-  Using these three facts, we apply \thmref{lem:backtranslation:correct} on \Cref{rtmsp:runt:e1}:
+  Using these facts, we apply \thmref{lem:backtranslation:correct} on \Cref{rtmsp:runt:e1}:
 
   \begin{passumptions}{H^{\tiny 1}}
   \item $\emptyset\subseteq\delta_1$, where $\delta_1:\src{L}\to\trg{L}$
   \item $\exec{\src{\emptyset}}{\src{e_1}}{\src{\Omega_1}}{\mmlAmmlAtbackv{f}}{\src{\trace[_1]}}$
-  \item $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1}$
+  \item $\xlangbackstateeq[\delta_1]{\Omega_1}{\Omega_1}$
   \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}}$
   \end{passumptions}
 
@@ -3276,7 +3275,23 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \item\label[ass]{rtmsp:runt:ep:compv} $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
   \end{passumptions}
 
+  Apply \thmref{lem:expression:correctness} on \Cref{rtmsp:runt:ep:compv} using $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1}$\MK{where do we get this?} and $\typechecks{}{\Omega\triangleright e_p}{\nat}$:
+  \begin{passumptions}{F}
+  \item $\delta_1\subseteq\delta_p$
+  \item $\exec{\src{\Omega_1}}{\src{e_p}}{\src{\Omega_p}}{\src{\valueexpr_p}}{\src{\trace[_p]}}$
+  \item $\xlangstateeq[\delta_p]{\Omega_p}{\Omega_p}$
+  \item $\xlangtraceeq[\delta_p]{\trace[_p]}{\trace[_p]}$
+  \end{passumptions}
 
+  We backtranslate $\mmlAmmlAtbackdetail[\Game]{Ret\ !v_p \cdot \trace[_2] \cdot Call\ ?v_2}=\Game',\src{e_2}$
+  Analogousy, $\xlangbackstateeq[\delta_p]{\Omega_p}{\Omega_p}$\MK{why}.
+  Using these facts, we apply $\thmref{lem:backtranslation:correct}$ on \Cref{rtmsp:runt:e2}:
+  \begin{passumptions}{H^{\tiny 2}}
+  \item $\delta_p\subseteq\delta_2$, where $\delta_2:\src{L}\to\trg{L}$
+  \item $\exec{\src{\Omega_p}}{\src{e_2}}{\src{\Omega_2}}{\mmlAmmlAtbackv{v_2}}{\src{\trace[_2]}}$
+  \item $\xlangbackstateeq[\delta_2]{\Omega_2}{\Omega_2}$
+  \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_2]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_2]\cdot Call\ ?v_1}}$
+  \end{passumptions}
 
 \end{incompleteproof}
 

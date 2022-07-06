@@ -1838,6 +1838,13 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
+    $$
+    \trg{\Omega^\diamond} = \trg{\Omega.H;}\text{fold}\ (\lambda \trg{\Delta}\ (\trg{x\mapsto\loc_\poison}).\trg{x\mapsto\loc_\poison^\diamond,\Delta})\ \trg{\hole{\cdot}}\ \trg{\Omega.\Delta}
+    $$
+  \end{center}
+}{twstate-irrelevant}{Irrelevant location marker of $\mmlAt$ operational state.}
+\myfig{
+  \begin{center}
     \judgbox{\wexect{prog\ e_0\ e_p\ e_1}{\configt}{\valueexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ e_0\ e_p\ e_1}$,\\giving dynamic state $\configt$  and emitting trace $\trg{\trace}$.''}
   \typerule{$e-\text{wprog}-\trg{trg}$}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} \\
@@ -1853,13 +1860,13 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   }{wt-e-prog-fail0}
   \typerule{$e-\text{wprog}-\trg{trg}-$failp}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} &
-    \exect{\Omega_0}{e_p[\valueexpr_0/x]}{\lightning}{stuck}{\trace{_p}} &
+    \exect{\Omega_0^\diamond}{e_p[\valueexpr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}}
   }{wt-e-prog-failp}
   \typerule{$e-\text{wprog}-\trg{trg}$-fail1}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} \\
-    \exect{\Omega_0}{e_p[\valueexpr_0/x]}{\Omega_p}{\valueexpr_p}{\trace{_p}} &
+    \exect{\Omega_0^\diamond}{e_p[\valueexpr_0/x]}{\Omega_p}{\valueexpr_p}{\trace{_p}} &
     \exect{\Omega_p}{e_1[\valueexpr_p/y]}{\lightning}{stuck}{\trace{_1}} &
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot \trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}}
@@ -2248,8 +2255,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \delta(\src{\loc}) = \trg{\loc} &
       \xlangstateeq{\Delta}{\Delta}
     }{
-      \xlangstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}
+      \xlangstateeq{x\mapsto\loc_\poison,\Delta}{x\mapsto\loc_\poison,\Delta}
     }{cons-locmap-eq}
+    %
+    \typerule{cons-locmap-eq-unimportant}{
+      \xlangstateeq{\Delta}{\Delta}
+    }{
+      \xlangstateeq{\Delta}{x\mapsto\loc_\poison^\diamond,\Delta}
+    }{cons-locmap-eq-unimportant}
     \vspace{0.5cm}
     $\;$
     %
@@ -2282,14 +2295,33 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{back-compile-cons-heap}
     %
     \typerule{back-cons-locmap-eq}{
-      \mmlAmmlAtcomp{x}=\trg{x} &  % TODO: α equivalent!
+      \mmlAmmlAtcomp{x}=\trg{x} &
       \delta(\src{\loc}) = \trg{\loc} &
       \xlangbackstateeq{\Delta}{\Delta}
     }{
-      \xlangbackstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}
+      \xlangbackstateeq{x\mapsto\loc_\poison,\Delta}{x\mapsto\loc_\poison,\Delta}
     }{back-cons-locmap-eq}
+    %
+    \typerule{back-cons-locmap-eq-unimportant}{
+      \xlangbackstateeq{\Delta}{\Delta}
+    }{
+      \xlangbackstateeq{x\mapsto\loc_\poison^\diamond,\Delta}{\Delta}
+    }{back-cons-locmap-eq-unimportant}
   \end{center}
 }{tms-pres-state-relations}{State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
+
+\begin{lemma}[State equality coincides]\label{lem:stateinsertion}
+  Iff
+  \begin{assumptions}
+  \item $\xlangstateeq{\Omega}{\Omega^\diamond}$
+  \end{assumptions}
+  then
+  \begin{goals}
+  \item $\xlangbackstateeq{\Omega^\diamond}{\Omega}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \begin{lemma}[Related non-crashing states]\label{lem:relatednoncrash}
   If
@@ -3252,8 +3284,8 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \MK{rework}Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so we immediately disregard the failure cases:
   \begin{passumptions}{H}
   \item\label[ass]{rtmsp:runt:e1} $\exect{\emptyset;\emptyset}{e_1}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
-  \item\label[ass]{rtmsp:runt:ep} $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
-  \item\label[ass]{rtmsp:runt:e2} $\exect{\Omega_p}{e_2}{\Omega_2}{\valueexpr_2}{\trace[_2]}$
+  \item\label[ass]{rtmsp:runt:ep} $\exec{\trg{\Omega_1^\diamond}}{\mmlAmmlAtcomp{e_p}\trg{[\valueexpr_1/x]}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
+  \item\label[ass]{rtmsp:runt:e2} $\exect{\Omega_p}{e_2[\valueexpr_p/y]}{\Omega_2}{\valueexpr_2}{\trace[_2]}$
   \item $\trg{\trace}=\trg{Ret\ !0 \cdot \trace[_1] \cdot Call\ ?v_1 \cdot \trace[_p] \cdot Ret\ !v_p \cdot \trace[_2] \cdot Call\ ?v_2}$
   \end{passumptions}
 
@@ -3264,34 +3296,68 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 
   \begin{passumptions}{H^{\tiny 1}}
   \item $\emptyset\subseteq\delta_1$, where $\delta_1:\src{L}\to\trg{L}$
-  \item $\exec{\src{\emptyset}}{\src{e_1}}{\src{\Omega_1}}{\mmlAmmlAtbackv{f}}{\src{\trace[_1]}}$
-  \item $\xlangbackstateeq[\delta_1]{\Omega_1}{\Omega_1}$
+  \item\label[ass]{rtmsp:runt:execs1} $\exec{\src{\emptyset}}{\src{e_1}}{\src{\Omega_1}}{\mmlAmmlAtbackv{\valueexpr_1}}{\src{\trace[_1]}}$
+  \item\label[ass]{rtmsp:runt:statebackeq} $\xlangbackstateeq[\delta_1]{\Omega_1^\diamond}{\Omega_1}$\MK{this is not what we get from backtrans-corr, but this is what we need here}
   \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}}$
   \end{passumptions}
 
   Using \thmref{lem:compvals:insertion}, we rewrite \Cref{rtmsp:runt:ep}:
   \begin{passumptions}{H'}
     \setcounter{enumi}{1}
-  \item\label[ass]{rtmsp:runt:ep:compv} $\exec{\trg{\Omega_1}}{\mmlAmmlAtcomp{e_p}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
+\item\label[ass]{rtmsp:runt:ep:compv0} $\exec{\trg{\Omega_1^\diamond}}{\mmlAmmlAtcomp{e_p}\trg{[}\mmlAmmlAtcomp{\valueexpr_1}\trg{/x]}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
+  \end{passumptions}
+  By another technical lemma\MK{state it somewhere}, we rewrite again to push the substitution inwards:
+  \begin{passumptions}{H'}
+    \setcounter{enumi}{1}
+  \item\label[ass]{rtmsp:runt:ep:compv} $\exec{\trg{\Omega_1^\diamond}}{\mmlAmmlAtcomp{e_p[\valueexpr_1/x]}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
   \end{passumptions}
 
-  Apply \thmref{lem:expression:correctness} on \Cref{rtmsp:runt:ep:compv} using $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1}$\MK{where do we get this?} and $\typechecks{}{\Omega\triangleright e_p}{\nat}$:
+  Invert \Cref{asm:rtmsp:component} and observe that $\src{\valueexpr_1}$ is a value, so:
+  \begin{passumptions}{H'}
+    \setcounter{enumi}{1}
+  \item\label[ass]{rtmsp:runt:typechecks} $\typechecks{x:\nat}{e_p}{\nat}$
+  \item\label[ass]{rtmsp:runt:vtypechecks} $\typechecks{}{\valueexpr_1}{\nat}$
+  \end{passumptions}
+  Now use \thmref{lem:substitution} and note that $\src{\hole{\cdot}}=\src{\hole{\cdot}}\circ\src{\hole{\cdot}}$ holds by \Cref{tr:t-empty-split}:
+  \begin{passumptions}{H'}
+    \setcounter{enumi}{3}
+  \item\label[ass]{rtmsp:runt:substtypechecks} $\typechecks{}{e_p[\valueexpr_1/x]}{\nat}$
+  \end{passumptions}
+  Using yet another technical lemma\MK{state it somewhere} on \Cref{rtmsp:runt:substtypechecks,rtmsp:runt:statebackeq}, we conclude:
+  \begin{passumptions}{H'}
+    \setcounter{enumi}{4}
+  \item\label[ass]{rtmsp:runt:optypechecks} $\typechecks{}{\Omega_1\triangleright e_p[\valueexpr_1/x]}{\nat}$
+  \end{passumptions}
+  Finally, use \thmref{lem:stateinsertion} on \Cref{rtmsp:runt:statebackeq}:
+  \begin{passumptions}{H'}
+    \setcounter{enumi}{5}
+    \item\label[ass]{rtmsp:runt:stateeq} $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1^\diamond}$
+  \end{passumptions}
+
+  Apply \thmref{lem:expression:correctness}\MK{expression correctness should be polymorphic over the importance of $\trg{\Omega}$} on \Cref{rtmsp:runt:ep:compv} using \Cref{rtmsp:runt:stateeq,rtmsp:runt:optypechecks}:
   \begin{passumptions}{F}
   \item $\delta_1\subseteq\delta_p$
-  \item $\exec{\src{\Omega_1}}{\src{e_p}}{\src{\Omega_p}}{\src{\valueexpr_p}}{\src{\trace[_p]}}$
-  \item $\xlangstateeq[\delta_p]{\Omega_p}{\Omega_p}$
+  \item\label[ass]{rtmsp:runt:execs2} $\exec{\src{\Omega_1}}{\src{e_p}}{\src{\Omega_p}}{\src{\valueexpr_p}}{\src{\trace[_p]}}$
+  \item\label[ass]{rtmsp:runt:stateeq2} $\xlangstateeq[\delta_p]{\Omega_p}{\Omega_p}$
   \item $\xlangtraceeq[\delta_p]{\trace[_p]}{\trace[_p]}$
   \end{passumptions}
 
   We backtranslate $\mmlAmmlAtbackdetail[\Game]{Ret\ !v_p \cdot \trace[_2] \cdot Call\ ?v_2}=\Game',\src{e_2}$
-  Analogousy, $\xlangbackstateeq[\delta_p]{\Omega_p}{\Omega_p}$\MK{why}.
-  Using these facts, we apply $\thmref{lem:backtranslation:correct}$ on \Cref{rtmsp:runt:e2}:
+  Using \thmref{lem:stateinsertion} on \Cref{rtmsp:runt:stateeq2}, we get:
+  \begin{passumptions}{F}
+    \setcounter{enumi}{4}
+  \item\label[ass]{rtmsp:runt:statebackeq2} $\xlangbackstateeq[\delta_p]{\Omega_p}{\Omega_p}$
+  \end{passumptions}
+
+  Using these facts, we apply \thmref{lem:backtranslation:correct}\MK{backtranslation needs to be generalized over substitutions} on \Cref{rtmsp:runt:e2}:
   \begin{passumptions}{H^{\tiny 2}}
   \item $\delta_p\subseteq\delta_2$, where $\delta_2:\src{L}\to\trg{L}$
-  \item $\exec{\src{\Omega_p}}{\src{e_2}}{\src{\Omega_2}}{\mmlAmmlAtbackv{v_2}}{\src{\trace[_2]}}$
-  \item $\xlangbackstateeq[\delta_2]{\Omega_2}{\Omega_2}$
-  \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_2]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_2]\cdot Call\ ?v_1}}$
+  \item\label[ass]{rtmsp:runt:execs3} $\exec{\src{\Omega_p}}{\src{e_2[v_p/y]}}{\src{\Omega_2}}{\mmlAmmlAtbackv{v_2}}{\src{\trace[_2]}}$
+  \item $\xlangbackstateeq[\delta_2]{\Omega_2^\diamond}{\Omega_2}$
+  \item ${\src{Ret\ !}\mmlAmmlAtbackv{v_p}\src{\cdot\trace[_2]\cdot Call\ ?}\mmlAmmlAtbackv{v_2}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !v_p\cdot\trace[_2]\cdot Call\ ?v_2}}$
   \end{passumptions}
+
+  Combine \Cref{rtmsp:runt:execs1,rtmsp:runt:execs2,rtmsp:runt:execs3} using \Cref{tr:ws-e-prog} then apply\MK{can't apply, the goal is on $\theta(\trg{\trace})$} \Cref{asm:rtmsp:srctms} and we are done.
 
 \end{incompleteproof}
 

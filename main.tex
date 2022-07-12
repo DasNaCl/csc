@@ -580,8 +580,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{aligned}
   \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
   & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \\
-  & \mid \src{if\ e_1<e_2\ then\ e_3\ else\ e_4} \mid \src{abort()} 
-  \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times}\}\\
+  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} 
+  \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
   %
   \mi{Types}~\types \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
   %
@@ -606,7 +606,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Components}\ \src{component\ e_p} \\
   \mi{Whole\ Programs}\ &\src{prog\ e_0\ e_1\ e_2}\hspace{0.5cm}
   %
-  \mi{Final\ Result}\ \src{\finalexpr} \bnfdef\ \src{\valueexpr} \mid \src{stuck} \\
+  \mi{Final\ Result}\ \src{\finalexprnoerr} \bnfdef\ \src{\valueexpr} \mid \src{x} \hspace{0.5cm}
+  \src{\finalexpr} \bnfdef\ \src{\finalexprnoerr} \mid \src{stuck} \\
   \end{aligned}
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlAs$}
@@ -712,13 +713,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{\nat}
   }{w-t-delete}
   %
-  \typerule{$t-\src{if}$}{
+  \typerule{$t-\src{ifz}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
-    \typechecks{\Gamma_2}{e_2}{\nat} &
-    \typechecks{\Gamma_3}{e_3}{\type} &
-    \typechecks{\Gamma_3}{e_4}{\type}
+    \typechecks{\Gamma_2}{e_2}{\type} &
+    \typechecks{\Gamma_2}{e_3}{\type}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2\circ\Gamma_3}{if\ e_1 < e_2\ then\ e_3\ else\ e_4}{\type}
+    \typechecks{\Gamma_1\circ\Gamma_2}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type}
   }{w-t-if}
   \end{center}
 }{w-expr-ty}{Checking of $\mmlAs$ expressions.}
@@ -750,32 +750,50 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \judgbox{\typechecks{}{context\ e_1\ e_2}{\nat}}{,,$\mmlAs$ context $\src{context\ e_1\ e_2}$ typechecks.''}$\;$\\
-    \judgbox{\typechecks{}{component\ e_p}{\nat\to\nat}}{,,$\mmlAs$ component $\src{component\ e_p}$ typechecks.''}$\;$\\
+    \judgbox{\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
+  \typerule{int-$\src{\nat}$}{
+  }{
+    \src{\nat}\operatorname{int}
+  }{src-int-type-nat}
+  \typerule{int-$\src{\wptr}$}{
+  }{
+  \src{\wptr}\operatorname{int}
+  }{src-int-type-nat}
+  \end{center}
+}{src-int-types}{Interface types of $\mmlAs$.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\typecheck{}{\src{context\ e_1\ e_2}}{\src{\nat}[\src{\tau_1\to\tau_2}]}}{,,$\mmlAs$ context $\src{context\ e_1\ e_2}$ typechecks.''}$\;$\\
+    \judgbox{\typechecks{}{component\ e_p}{\tau_1\to\tau_2}}{,,$\mmlAs$ component $\src{component\ e_p}$ typechecks.''}$\;$\\
     \judgbox{\typechecks{}{program\ e_1\ e_p\ e_2}{\nat}}{,,$\mmlAs$ program $\src{program\ e_1\ e_p\ e_2}$ typechecks.''}$\;$\\
   \typerule{$t-\text{ctx}$}{
-    \typechecks{}{e_1}{\nat}&
-    \typechecks{y:\nat}{e_2}{\nat}
+    \typechecks{}{e_1}{\tau_1}&
+    \typechecks{y:\tau_2}{e_2}{\nat}&
+    \src{\tau_1}\operatorname{int}&
+    \src{\tau_2}\operatorname{int}&
 	}{
-  \typechecks{}{context\ e_1\ e_2}{\nat}
+  \typecheck{}{\src{context\ e_1\ e_2}}{\src{\nat}[\src{\tau_1\to\tau_2}]}
 	}{w-t-ctx}
   %
   \typerule{$t-\text{component}$}{
-    \typechecks{x:\nat}{e}{\nat}&
+    \typechecks{x:\tau_1}{e}{\tau_2}&
+    \src{\tau_1}\operatorname{int}&
+    \src{\tau_2}\operatorname{int}&
 	}{
-  \typechecks{}{component\ e}{\nat\to\nat}
+  \typechecks{}{component\ e}{\tau_1\to\tau_2}
 	}{w-t-comp}
   %
   \typerule{$t-\text{wprog}$}{
-    \typechecks{}{context\ e_0\ e_1}{\nat} &
-    \typechecks{}{component\ e_p}{\nat\to\nat}
+    \typecheck{}{\src{context\ e_0\ e_1}}{\src{\nat}[\src{\tau_1\to\tau_2}]} &
+    \typechecks{}{component\ e_p}{\tau_1\to\tau_2}
 	}{
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
 	}{w-t-wprog}
   %
   \judgbox{\typechecks{}{\qconfigs[i]\triangleright e}{\nat}}{,,$\mmlAs$ runtime program $\src{\qconfigs[i]\triangleright e}$ typechecks.''}$\;$\\
   \typerule{$t-\text{prog}$}{
-    \typechecks{}{\Delta}{\Gamma}&
+    \typechecks{}{\Delta^i}{\Gamma}&
     \typechecks{\Gamma}{e}{\nat}
 	}{
   \typechecks{}{(H;\Delta)^i\triangleright e}{\nat}
@@ -786,21 +804,27 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
     \judgbox{\typechecks{}{\Delta}{\Gamma}}{,,$\mmlAs$ location map $\Deltas$ yields static typing environment $\Gammas$.''}
-    \typerule{$T\text{empty}\Delta$}{
+    \typerule{$T\text{empty}\src{\Delta}$}{
     }{
     \typechecks{}{\hole{\cdot}}{\hole{\cdot}}
     }{t-empty-store}
     %
-    \typerule{$T\text{ref}\nat$}{
+    \typerule{$T\ptr$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
     \typechecks{}{x\mapsto\loc_\poisonless,\Delta}{x:\ptr,\Gamma}
     }{t-ptr-store}
     %
-    \typerule{$T\text{ref}\nat\text{poison}$}{
+    \typerule{$T\ptr\text{poison}$}{
     \typechecks{}{\Delta}{\Gamma}
     }{
     \typechecks{}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
+    }{t-poison-store}
+    %
+    \typerule{$T\wptr$}{
+    \typechecks{}{\Delta}{\Gamma}
+    }{
+    \typechecks{}{x\mapsto\loc_\poison^\diamond,\Delta}{x:\wptr,\Gamma}
     }{t-poison-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
@@ -834,7 +858,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus E}\mid \src{x[K]}\mid
       \src{let\ x=K\ in\ e}\\
                      &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e} \\
-                     &\ \mid\src{if\ K<e'\ then\ e_1\ else\ e_2} \mid\src{if\ n<K\ then\ e_1\ else\ e_2}
+                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2}
     \end{aligned}
   \end{gather*}
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlAs$.}
@@ -851,11 +875,11 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{w-e-ectx}
   %
   \typerule{$e-\src{\oplus}$}{
-    \src{n_1}+\src{n_2}=\src{n_3}
+    \src{n_1}\oplus\src{n_2}=\src{n_3}
   }{
-    \exprevals{\configs}{n_1+n_2}{\configs}{n_3}{\emptyevent}
+    \exprevals{\configs}{n_1\oplus n_2}{\configs}{n_3}{\emptyevent}
   }{w-e-oplus}
-  % TODO
+  %
   \typerule{$e-\src{get}$}{
     \src{\loc}\in\text{dom }\src{H}\implies\src{v}=\src{H}(\src{\loc+n}) &
     \src{\loc}\not\in\text{dom }\src{H}\implies\src{v}=\src{1729}
@@ -892,17 +916,15 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
-  \typerule{$e-\src{if}-$less}{
-    n_1<n_2
+  \typerule{$e-\src{ifz}-$true}{
   }{
-  \exprevals{\Omega}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\emptyevent}
-  }{w-e-if-less}
+  \exprevals{\Omega}{ifz\ 0\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\emptyevent}
+  }{w-e-if-true}
   %
-  \typerule{$e-\src{if}-$noless}{
-    n_1\ge n_2
+  \typerule{$e-\src{ifz}-$false}{
   }{
-  \exprevals{\Omega}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\emptyevent}
-  }{w-e-if-noless}
+  \exprevals{\Omega}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\emptyevent}
+  }{w-e-if-false}
   %
   \typerule{$e-\src{abort}$}{
   }{
@@ -936,14 +958,14 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\valueexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
+    \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\valueexpr_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[\valueexpr_0/x]}{\configs_p}{\valueexpr_p}{\trace{_p}} &
-    \execs{\configs_p}{e_1[\valueexpr_p/y]}{\configs_1}{\valueexpr_1}{\trace{_1}} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
+    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
+    \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\finalexprnoerr_1}{\trace{_1}} &
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{v_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}\cdot Call\ ?\valueexpr_1}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}\cdot Call\ ?\finalexprnoerr_1}
   }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail0}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
@@ -953,18 +975,18 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{ws-e-prog-fail0}
   \typerule{$e-\text{wprog}-$failp}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\valueexpr_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[\valueexpr_0/x]}{\lightning}{stuck}{\trace{_p}} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
+    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
   }{ws-e-prog-failp}
   \typerule{$e-\text{wprog}-$fail1}{
     \typechecks{}{component\ e_p}{\nat\to\nat} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\valueexpr_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[\valueexpr_0/x]}{\configs_p}{\valueexpr_p}{\trace{_p}} &
-    \execs{\configs_p}{e_1[\valueexpr_p/y]}{\lightning}{stuck}{\trace{_1}} &
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
+    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
+    \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\lightning}{stuck}{\trace{_1}} &
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}}
   }{ws-e-prog-fail1}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -1670,9 +1692,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{aligned}
   \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
     & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \\
-    & \mid \trg{if\ e_1 < e_2\ then\ e_3\ else\ e_4} \mid \trg{abort()} \\
+    & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \\
     & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}
-  \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times}\}\\
+  \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times},\trg{<}\}\\
   %
   \mi{Values}~\trg{v} \bnfdef&\ \trg{n}\in\trg{\nat} \hspace{0.5cm}
   \mi{References}~\trg{\loc}\in\trg{\nat} \\
@@ -1682,7 +1704,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
   %
   \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\hspace{0.5cm}
-  \mi{Final\ Result}\ \trg{\finalexpr} \bnfdef\ \trg{\valueexpr} \mid \trg{stuck} \\
+  \mi{Final\ Result}\ \trg{\finalexprnoerr} \bnfdef\ \trg{\valueexpr} \mid \trg{x} \hspace{0.5cm}
+  \trg{\finalexpr} \bnfdef\ \trg{\finalexprnoerr} \mid \trg{stuck} \\
   %
   \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
   %
@@ -1704,7 +1727,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
       \trg{let\ x=K\ in\ e}\\
                      &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}\\
-                     &\mid \trg{if\ K < e_1\ then\ e_2\ else\ e_3} \mid \trg{if\ n < K\ then\ e_1\ else\ e_2}
+                     &\mid \trg{ifz\ K\ then\ e_1\ else\ e_2}
     \end{aligned}
   \end{gather*}
 }{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
@@ -1751,17 +1774,15 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \exprevalt{\configt}{\pi_2\langle n_1;n_2\rangle}{\configt}{n_2}{\emptyevent}
   }{tw-e-proj2}
   %
-  \typerule{$e-\trg{if}-$less}{
-    \trg{n_1}<\trg{n_2}
+  \typerule{$e-\trg{ifz}-$true}{
   }{
-    \exprevalt{\configt}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\configt}{e_1}{\emptyevent}
-  }{tw-e-if-less}
+    \exprevalt{\configt}{ifz\ 0\ then\ e_1\ else\ e_2}{\configt}{e_1}{\emptyevent}
+  }{tw-e-if-true}
   %
-  \typerule{$e-\trg{if}-$noless}{
-    \trg{n_1}\ge\trg{n_2}
+  \typerule{$e-\trg{ifz}-$false}{
   }{
-    \exprevalt{\configt}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\configt}{e_2}{\emptyevent}
-  }{tw-e-if-noless}
+    \exprevalt{\configt}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\configt}{e_2}{\emptyevent}
+  }{tw-e-if-false}
   %
   \typerule{$e-\trg{abort}$}{
   }{
@@ -1839,19 +1860,26 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \myfig{
   \begin{center}
     $$
-    \trg{\Omega^\diamond} = \trg{\Omega.H;}\text{fold}\ (\lambda \trg{\Delta}\ (\trg{x\mapsto\loc_\poison}).\trg{x\mapsto\loc_\poison^\diamond,\Delta})\ \trg{\hole{\cdot}}\ \trg{\Omega.\Delta}
+    \begin{array}{rll}
+      \trg{\Omega^{\diamond(y)}} = \trg{\Omega.H;}\text{fold}&\ (\lambda \trg{\Delta}\ (\trg{x\mapsto\loc_\poison}).&if\ \trg{x}\not=\trg{y}\ then\ \\
+                                                             &&\ \ \ \ \trg{x\mapsto\loc_\poison^\diamond,\Delta}\\
+                                                                                                                   &&else\\
+                                                                                                                   &&\ \ \ \ \trg{\Delta})\\
+                                                                                                                   &\trg{\hole{\cdot}}\ \ \ \ \trg{\Omega.\Delta}&\\
+      \trg{\Omega^{\diamond(\finalexprnoerr)}} = \trg{\Omega.H;}\text{fold}&\ (\lambda \trg{\Delta}\ (\trg{x\mapsto\loc_\poison}).&\trg{x\mapsto\loc_\poison^\diamond,\Delta})\ \trg{\hole{\cdot}}\ \trg{\Omega.\Delta}\\
+    \end{array}
     $$
   \end{center}
 }{twstate-irrelevant}{Irrelevant location marker of $\mmlAt$ operational state.}
 \myfig{
-  \begin{center}
-    \judgbox{\wexect{prog\ e_0\ e_p\ e_1}{\configt}{\valueexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ e_0\ e_p\ e_1}$,\\giving dynamic state $\configt$  and emitting trace $\trg{\trace}$.''}
+  \begin{center} 
+    \judgbox{\wexect{prog\ e_0\ e_p\ e_1}{\configt}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ e_0\ e_p\ e_1}$,\\giving dynamic state $\configt$  and emitting trace $\trg{\trace}$.''}
   \typerule{$e-\text{wprog}-\trg{trg}$}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} \\
-    \exect{\qconfigt{_0}}{e_p[\valueexpr_0/x]}{\Omega_p}{\valueexpr_p}{\trace{_p}} &
-    \exect{\Omega_p}{e_1[\valueexpr_p/y]}{\Omega_1}{\valueexpr_1}{\trace{_1}} &
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\finalexprnoerr_0}{\trace{_0}} \\
+    \exect{\Omega^{\diamond(\finalexprnoerr_0)}_0}{e_p[\finalexprnoerr_0/x]}{\Omega_p}{\finalexprnoerr_p}{\trace{_p}} &
+    \exect{\Omega_p}{e_1[\finalexprnoerr_p/y]}{\Omega_1}{\finalexprnoerr_1}{\trace{_1}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{\valueexpr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}\cdot Call\ ?v_1}
+    \wexect{prog\ e_0\ e_p\ e_1}{\Omega_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}\cdot Call\ ?\finalexprnoerr_1}
   }{wt-e-prog}
   \typerule{$e-\text{wprog}-\trg{trg}-$fail0}{
     \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
@@ -1859,17 +1887,17 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot \trace{_0}}
   }{wt-e-prog-fail0}
   \typerule{$e-\text{wprog}-\trg{trg}-$failp}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} &
-    \exect{\Omega_0^\diamond}{e_p[\valueexpr_0/x]}{\lightning}{stuck}{\trace{_p}} &
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\finalexprnoerr_0}{\trace{_0}} &
+    \exect{\Omega_0^\diamond}{e_p[\finalexprnoerr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
   }{wt-e-prog-failp}
-  \typerule{$e-\text{wprog}-\trg{trg}$-fail1}{
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\valueexpr_0}{\trace{_0}} \\
-    \exect{\Omega_0^\diamond}{e_p[\valueexpr_0/x]}{\Omega_p}{\valueexpr_p}{\trace{_p}} &
-    \exect{\Omega_p}{e_1[\valueexpr_p/y]}{\lightning}{stuck}{\trace{_1}} &
+  \typerule{$e-\text{wprog}-\trg{trg}-$fail1}{
+    \exect{\hole{\cdot};\hole{\cdot}}{e_0}{\Omega_0}{\finalexprnoerr_0}{\trace{_0}} \\
+    \exect{\Omega_0^\diamond}{e_p[\finalexprnoerr_0/x]}{\Omega_p}{\finalexprnoerr_p}{\trace{_p}} &
+    \exect{\Omega_p}{e_1[\finalexprnoerr_p/y]}{\lightning}{stuck}{\trace{_1}} &
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot \trace{_0}\cdot Call\ ?\valueexpr_0\cdot \trace{_p}\cdot Ret\ !\valueexpr_p\cdot \trace{_1}}
+    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot \trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}}
   }{wt-e-prog-fail1}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -2127,9 +2155,9 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e_1}\trg{]\leftarrow }\mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=} \mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ }\mmlAmmlAtcomp{x} \\
-    \mmlAmmlAtcomp{if\ e_1<e_2\ then\ e_3\ else\ e_4} &\ = & \trg{if\ }\mmlAmmlAtcomp{e_1}\trg{<}\mmlAmmlAtcomp{e_2}\\
-                                                      &&\trg{then\ }\mmlAmmlAtcomp{e_3} \\
-                                                      &&\trg{else\ }\mmlAmmlAtcomp{e_4} \\[0.5cm]
+    \mmlAmmlAtcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \trg{ifz\ }\mmlAmmlAtcomp{e_1}\\
+                                                        &&\trg{then\ }\mmlAmmlAtcomp{e_2} \\
+                                                        &&\trg{else\ }\mmlAmmlAtcomp{e_3} \\[0.5cm]
     %
     \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \trg{\left[\right.}\mmlAmmlAtcomp{v}\trg{/}\mmlAmmlAtcomp{x}\trg{\left.\right]}\\[0.5cm]
     \end{array}
@@ -2151,14 +2179,22 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \mmlAmmlAtcomp{x[K]\leftarrow e} &\ = & \trg{x[}\mmlAmmlAtcomp{K}\trg{]\leftarrow} \mmlAmmlAtcomp{e} \\
       \mmlAmmlAtcomp{x[\valueexpr]\leftarrow K} &\ = & \trg{x[}\mmlAmmlAtcomp{\valueexpr}\trg{]\leftarrow }\mmlAmmlAtcomp{K} \\
       \mmlAmmlAtcomp{let\ x\ = new\ K\ in\ e} &\ = & \trg{let\ x\ = new\ }\mmlAmmlAtcomp{K}\trg{\ in\ }\mmlAmmlAtcomp{e} \\
-      \mmlAmmlAtcomp{if\ K<e'\ then\ e_{1}\ else\ e_{2}} &\ = & \trg{if\ }\mmlAmmlAtcomp{K}\trg{<}\mmlAmmlAtcomp{e'}\trg{\ then\ }\\
-                                                                &&\mmlAmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAmmlAtcomp{e_{2}} \\
-      \mmlAmmlAtcomp{if\ n<K\ then\ e_{1}\ else\ e_{2}} &\ = & \trg{if\ }\mmlAmmlAtcomp{n}\trg{<}\mmlAmmlAtcomp{K}\trg{\ then\ }\\
-                                                            &&\mmlAmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAmmlAtcomp{e_{2}} \\
+      \mmlAmmlAtcomp{ifz\ K\ then\ e_{1}\ else\ e_{2}} &\ = & \trg{ifz\ }\mmlAmmlAtcomp{K}\trg{\ then\ }\\
+                                                           &&\mmlAmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAmmlAtcomp{e_{2}} \\
     \end{array}
     $$
   \end{center}
 }{tms-pres-compiler-ctx}{Compiling $\mmlAs$ evaluation contexts to $\mmlAt$ evaluation contexts.}
+\myfig{
+  \begin{center}
+      \judgbox{\mmlAmmlAtcomp{component\ e_p}=\trg{component\ e_p}}{,,Compile $\mmlAs$ components to\\$\mmlAt$ components.''}
+    $$
+    \begin{array}{rcl}
+      \mmlAmmlAtcomp{component\ e_p} = \trg{component\ }\mmlAmmlAtcomp{e_p}
+    \end{array}
+    $$
+  \end{center}
+}{tms-pres-compiler-comp}{Compiling $\mmlAs$ components to $\mmlAt$ components.}
 \myfig{
   \begin{center}
     \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ describes the same actions as $\mmlAt$ trace $\trg{\trace}$.''} \\
@@ -2309,19 +2345,6 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{back-cons-locmap-eq-unimportant}
   \end{center}
 }{tms-pres-state-relations}{State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
-
-\begin{lemma}[State equality coincides]\label{lem:stateinsertion}
-  Iff
-  \begin{assumptions}
-  \item $\xlangstateeq{\Omega}{\Omega^\diamond}$
-  \end{assumptions}
-  then
-  \begin{goals}
-  \item $\xlangbackstateeq{\Omega^\diamond}{\Omega}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
 
 \begin{lemma}[Related non-crashing states]\label{lem:relatednoncrash}
   If
@@ -2618,18 +2641,17 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
       This case is completely analogous to the previous case, the only difference is the use of \Cref{tr:tw-e-let-v} instead of \Cref{tr:tw-e-let-x}.
 
-    \item \textbf{Case $\exprevals{\Omega}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\varepsilon}$:}
+    \item \textbf{Case $\exprevals{\Omega}{ifz\ 0\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\varepsilon}$:}
 
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case9:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \item $\typechecks{}{\Omega\triangleright if\ n_1<n_2\ then\ e_1\ else\ e_2}{\nat}$
-      \item\label[ass]{asm:step:forwardsim:case9:less} $n_1<n_2$
+      \item $\typechecks{}{\Omega\triangleright ifz\ 0\ then\ e_1\ else\ e_2}{\nat}$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
         \item $\delta\subseteq\delta'$
-        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{if\ n_1<n_2\ then\ e_1\ else\ e_2}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e_1}}{\trg{\event}}$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{ifz\ 0\ then\ e_1\ else\ e_2}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e_1}}{\trg{\event}}$
         \item $\xlangeventeq{\varepsilon}{\event}$
         \item $\xlangstateeq{\Omega}{\Omega'}$
       \end{goals}
@@ -2638,22 +2660,22 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
       \begin{goals}
         \item\label[goal]{goal:step:forwardsim:case9:deltasubset} $\delta\subseteq\delta$
-        \item\label[goal]{goal:step:forwardsim:case9:eval} $\expreval{\trg{\Omega}}{\trg{if\ n_1<n_2\ then\ }\mmlAmmlAtcomp{e_1}\trg{\ else\ }\mmlAmmlAtcomp{e_2}}{\trg{\Omega}}{\mmlAmmlAtcomp{e_1}}{\trg{\varepsilon}}$
+        \item\label[goal]{goal:step:forwardsim:case9:eval} $\expreval{\trg{\Omega}}{\trg{ifz\ 0\ then\ }\mmlAmmlAtcomp{e_1}\trg{\ else\ }\mmlAmmlAtcomp{e_2}}{\trg{\Omega}}{\mmlAmmlAtcomp{e_1}}{\trg{\varepsilon}}$
         \item\label[goal]{goal:step:forwardsim:case9:eventeq} $\xlangeventeq{\varepsilon}{\varepsilon}$
         \item\label[goal]{goal:step:forwardsim:case9:stateeq} $\xlangstateeq{\Omega}{\Omega}$
       \end{goals}
 
       \Cref{goal:step:forwardsim:case9:deltasubset} follows by reflexivity of the subset relation.
 
-      \Cref{goal:step:forwardsim:case9:eval} follows by definition of \Cref{tr:tw-e-if-less,asm:step:forwardsim:case9:less}.
+      \Cref{goal:step:forwardsim:case9:eval} follows by definition of \Cref{tr:tw-e-if-true,asm:step:forwardsim:case9:less}.
 
       \Cref{goal:step:forwardsim:case9:eventeq} follows by definition of \Cref{tr:internal-event-eq}.
 
       \Cref{goal:step:forwardsim:case9:stateeq} follows by \Cref{asm:step:forwardsim:case9:stateeq}.
 
-    \item \textbf{Case $\exprevals{\Omega}{if\ n_1<n_2\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\varepsilon}$:}
+    \item \textbf{Case $\exprevals{\Omega}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\varepsilon}$:}
 
-      This case is completely analogous to the previous case, the only difference is the use of \Cref{tr:tw-e-if-noless} instead of \Cref{tr:tw-e-if-less}.
+      This case is completely analogous to the previous case, the only difference is the use of \Cref{tr:tw-e-if-false} instead of \Cref{tr:tw-e-if-true}.
   \end{description}
 \end{proof}
 
@@ -2975,7 +2997,8 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \judgbox{\mmlAmmlAtback{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
     %
     \typerule{backtrans-top-level}{
-      \mmlAmmlAtbackdetail{\mstrace} = \Game', \src{e}
+      \trg{\loc}\ \text{fresh} &
+      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ 42}\cdot\mstrace\cdot\specificevt{Dealloc\ \loc}} = \Game', \src{e}
     }{
       \mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}, \Game', \src{e}
     }{backtrans-top-level}
@@ -2988,6 +3011,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{center}
 }{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
+Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 
@@ -3098,20 +3122,20 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
+\begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:correct}
   If
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\mmlAmmlAtback{\mstrace}=\Game',\src{e}$
+  \item $\xlangstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}$
+  \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\src{\trace[_1]}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -3265,6 +3289,25 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
   \end{description}
 
   \end{description}
+\end{incompleteproof}
+
+\begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
+  \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
+  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
 \end{incompleteproof}
 
 \refstepcounter{theoremcounter}

@@ -791,12 +791,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
 	}{w-t-wprog}
   %
-  \judgbox{\typechecks{}{\qconfigs[i]\triangleright e}{\nat}}{,,$\mmlAs$ runtime program $\src{\qconfigs[i]\triangleright e}$ typechecks.''}$\;$\\
+  \judgbox{\typechecks{}{\qconfigs[i]\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\qconfigs[i]\triangleright e}$ typechecks.''}$\;$\\
   \typerule{$t-\text{prog}$}{
     \typechecks{}{\Delta^i}{\Gamma}&
-    \typechecks{\Gamma}{e}{\nat}
+    \typechecks{\Gamma}{e}{\type}
 	}{
-  \typechecks{}{(H;\Delta)^i\triangleright e}{\nat}
+  \typechecks{}{(H;\Delta)^i\triangleright e}{\type}
 	}{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
@@ -833,13 +833,15 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     $$
     \typerule{plugging}{
-      \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
+      \vdash_\copyright\src{context\ e_0\ e_1} &
+      \typechecks{}{component\ e_p}{\tau_1\to\tau_2}
     }{
     \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ e_0\ e_p\ e_1}
     }{src-plugging}
     $$
   \end{center}
 }{w-plugging-s}{$\mmlAs$ plugging of contexts and components.}
+\MK{$\src{prog\ e_0\ e_p\ e_1}$ may not be well-typed...}
 
 \subsubsection{Dynamic Semantics}
 
@@ -960,7 +962,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
-    \typechecks{}{component\ e_p}{\nat\to\nat} &
+    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
     \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
     \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\finalexprnoerr_1}{\trace{_1}} &
@@ -968,20 +970,20 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}\cdot Call\ ?\finalexprnoerr_1}
   }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail0}{
-    \typechecks{}{component\ e_p}{\nat\to\nat} &
+    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
   }{ws-e-prog-fail0}
   \typerule{$e-\text{wprog}-$failp}{
-    \typechecks{}{component\ e_p}{\nat\to\nat} &
+    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
     \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
   }{ws-e-prog-failp}
   \typerule{$e-\text{wprog}-$fail1}{
-    \typechecks{}{component\ e_p}{\nat\to\nat} &
+    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
     \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
     \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\lightning}{stuck}{\trace{_1}} &
@@ -1238,12 +1240,12 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Plugging Well-Typed]\label{lem:plugging:welltyped}
   If
   \begin{assumptions}
-  \item $\typechecks{}{context\ e_0\ e_1}{\nat}$
-  \item $\typechecks{}{component\ e_p}{\nat}$
+  \item $\typecheck{}{\src{context\ e_1\ e_2}}{\src{\nat}[\src{\type_1\to\type_2}]}$
+  \item $\typechecks{}{component\ e_p}{\type_1\to\type_2}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
+  \item $\typechecks{}{prog\ e_1\ e_p\ e_2}{\nat}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -1254,30 +1256,16 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[State Typing Plugged]\label{lem:ctxtyping:plugged}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\Omega\triangleright K[e]}{\nat}$
+    \item $\typechecks{}{\Omega\triangleright K[e]}{\type}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item $\typechecks{}{\Omega\triangleright e}{\type}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Weaken Closedness]
-  For any two sets $X,Y$ and an expression $\src{e}$, when
-  \begin{assumptions}
-    \item $closed\ X\ \src{e}$
-    \item $X\subseteq Y$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $closed\ Y\ \src{e}$
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Structural induction on $\src{e}$.
-\end{proof}
 \begin{lemma}[Authentic Weaken]
   If
   \begin{assumptions}
@@ -1382,13 +1370,13 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Base Preservation]\label{lem:base-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1397,13 +1385,13 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Ctx Preservation]\label{lem:ctx-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
     \item $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1412,13 +1400,13 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
     \item $\execs{\configs}{e}{\configs'}{e'}{\trace}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1427,11 +1415,11 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Progress]\label{lem:progress}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\src{e}=\src{\valueexpr}$ or $\exists \src{\Omega'}\ \src{\valueexpr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\valueexpr}{\trace}$
+  \item $\src{e}=\src{\finalexprnoerr}$ or $\exists \src{\Omega'}\ \src{\finalexprnoerr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\finalexprnoerr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1444,7 +1432,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\exists \configs\ \src{v}\ \src{\trace}, \wexecs{prog\ e_1\ e_p\ e_2}{\Omega}{v}{\trace}$
+  \item $\exists \configs\ \src{\finalexprnoerr}\ \src{\trace}, \wexecs{prog\ e_1\ e_p\ e_2}{\Omega}{\finalexprnoerr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1453,7 +1441,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Mid-Level Progress]\label{lem:midlevel:progress}
   If
   \begin{assumptions}
-    \item $\typechecks{}{component\ e_p}{\nat}$
+    \item $\typecheck{}{\src{component\ e_p}}{\src{\nat}[\src{\type_1\to\type_2}]}$
     \item $\vdash_\copyright\src{context\ e_1\ e_2}$
   \end{assumptions}
   Then
@@ -1467,7 +1455,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Base \gls{tms} via Monitor]
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
@@ -1485,7 +1473,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \item[$\src{e}=\src{free\ x}$:]
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{free\ x}}{\nat}$
+    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{free\ x}}{\type}$
     \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
   \end{assumptions}
   Then $\exists \event\ \delta_{\text{tms}}'\ \tmsmonitor['],$
@@ -1507,7 +1495,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \item[\Cref{tr:store-cons-agree}:] \ \\
   If
   \begin{assumptions}
-  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\type}$
   \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
   \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -1528,7 +1516,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \item[\Cref{tr:store-poison-agree}:] \ \\
   If
   \begin{assumptions}
-  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\nat}$
+  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\type}$
   \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
   \item $\delta_{\text{tms}}(\src{\loc})=\loc$
   \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -1557,7 +1545,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Ctx \gls{tms} via Monitor]
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
     \item $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
@@ -1575,7 +1563,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{lemma}[Steps \gls{tms} via Monitor]\label{lem:generaltms:monitor}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\nat}}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
     \item $\execs{\configs}{e}{\configs'}{e'}{\trace}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
@@ -1610,28 +1598,29 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{goals}.
 \end{theorem}
 \begin{proof}
-  Inverting \Cref{asm:mmlatmsviamonitor:run}, we get 
+  Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get 
   \begin{passumptions}{H}
-    \item $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$
-    \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{v_0}{\trace{_0}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\qconfig{_0}}{e_p[v_0/x]}{\configs_p}{v_p}{\trace{_p}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[v_p/y]}{\configs_1}{v_1}{\trace{_1}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace{_0}}\cdot\src{Call\ ?v_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !v_p}\cdot\src{\trace{_1}\cdot\src{Call\ ?v_1}}$
+    \item $\typechecks{}{component\ e_p}{\tau_1\to\tau_2}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\Omega^\diamond_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\valueexpr_1}{\trace{_1}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace{_0}}\cdot\src{Call\ ?\finalexprnoerr_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !\finalexprnoerr_p}\cdot\src{\trace{_1}\cdot\src{Call\ ?\valueexpr_1}}$
   \end{passumptions}
-  Note that the other cases don't apply, since it is assumed here (\Cref{asm:mmlatmsviamonitor:run}) that the program terminates in a value instead of $\src{stuck}$.
+  Note that the other cases don't apply, since it is assumed here (\Cref{asm:mmlatmsviamonitor:run}) that the program terminates in a value instead of $\src{stuck}$ or $\src{x}$.
   By \Cref{tr:store-empty-agree}:
-  \begin{equation}
-    \storeagreetms[\emptyset]{\emptyset}{\src{\emptyset}}\label{asm:mmlatmsviamonitor:agreeempty}
-  \end{equation}
-
-  Invert $\typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}$ and invert the subsequent result to get:
   \begin{passumptions}{H^t}
-    \item\label[ass]{asm:mmlatmsviamonitor:type0} $\typechecks{\hole{\cdot}}{e_0}{\nat}$
-    \item\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:\nat}{e_p}{\nat}$
-    \item\label[ass]{asm:mmlatmsviamonitor:type1} $\typechecks{y:\nat}{e_1}{\nat}$
+  \item\label[ass]{asm:mmlatmsviamonitor:agreeempty}$\storeagreetms[\emptyset]{\emptyset}{\src{\emptyset}}$
   \end{passumptions}
 
-  By \Cref{tr:t-empty-store} and \Cref{asm:mmlatmsviamonitor:type1}, we have 
+  Invert $\typechecks{}{component\ e_p}{\tau_1\to\tau_2}$ and invert the subsequent result to get:
+  \begin{passumptions}{H^t}
+    \setcounter{enumi}{1}
+    \item\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:\tau_1}{e_p}{\tau_2}$
+    \item\label[ass]{asm:mmlatmsviamonitor:int1} $\src{\tau_1}\operatorname{int}$
+    \item\label[ass]{asm:mmlatmsviamonitor:int2} $\src{\tau_2}\operatorname{int}$
+  \end{passumptions}
+
+  By \Cref{tr:t-empty-store} and \Cref{asm:mmlatmsviamonitor:type1}\MK{we are missing $\typechecks{}{e_0}{\tau_1}$ now}, we have
   \begin{equation}
     \typechecks{}{\hole{\cdot}\triangleright e_0}{\nat}\label{asm:mmlatmsviamonitor:storetypenil}
   \end{equation}

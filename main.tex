@@ -21,6 +21,7 @@
 \usepackage{etoolbox}
 \usepackage{natbib}
 \usepackage{xfrac}
+\usepackage{graphicx}
 
 % workaround to use extpfeil and stmaryrd together.
 % see https://tex.stackexchange.com/questions/297108/
@@ -30,6 +31,8 @@
 
 \usepackage{tikz}
 \usetikzlibrary{positioning}
+\pgfdeclarelayer{background}
+\pgfsetlayers{background,main}
 
 \newtheorem{example}{Example}
 \newtheorem{definition}{Definition}
@@ -56,7 +59,12 @@
 \makeatother
 
 \begin{document}
-
+\def\drawpolygon#1,#2;{
+    \begin{pgfonlayer}{background}
+        \filldraw[line width=20,join=round      ](#1.center)foreach\A in{#2}{--(\A.center)}--cycle;
+        \filldraw[line width=19,join=round,white](#1.center)foreach\A in{#2}{--(\A.center)}--cycle;
+    \end{pgfonlayer}
+}
 \tableofcontents
 \clearpage
 
@@ -726,27 +734,27 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
   \judgbox{closed\ X\ \src{e}}{,,At most all $\mmlAs$ variables in the set $X$ occur in $\src{e}$.''}
-    \typerule{$program$}{
+    \typerule{$\mmlAs-$program}{
       \vdash_\copyright\src{component\ e_p}&
       \vdash_\copyright\src{context\ e_0\ e_1}
     }{
       \vdash_\copyright\src{prog\ e_0\ e_p\ e_1}
-    }{w-program}
+    }{src-program}
     %
-    \typerule{$component$}{
+    \typerule{$\mmlAs-$component}{
       closed\ \{\src{x}\}\ \src{e}
     }{
       \vdash_\copyright\src{component\ e}
-    }{w-component}
+    }{src-component}
     %
-    \typerule{$context$}{
+    \typerule{$\mmlAs-$context}{
       closed\ \emptyset\ \src{e_0} &
       closed\ \{\src{y}\}\ \src{e_1}
     }{
       \vdash_\copyright\src{context\ e_0\ e_1}
-    }{w-context}
+    }{src-context}
   \end{center}
-}{w-programs}{$\mmlAs$ programs, contexts, and components.}
+}{src-programs}{$\mmlAs$ programs, contexts, and components.}
 
 \myfig{
   \begin{center}
@@ -764,29 +772,29 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \judgbox{\typecheck{}{\src{context\ e_1\ e_2}}{\src{\nat}[\src{\tau_1\to\tau_2}]}}{,,$\mmlAs$ context $\src{context\ e_1\ e_2}$ typechecks.''}$\;$\\
-    \judgbox{\typechecks{}{component\ e_p}{\tau_1\to\tau_2}}{,,$\mmlAs$ component $\src{component\ e_p}$ typechecks.''}$\;$\\
+    \judgbox{\typecheck{}{\src{context\ e_1\ e_2}}{\src{(\type_1\to\type_2)\to\nat}}}{,,$\mmlAs$ context $\src{context\ e_1\ e_2}$ typechecks.''}$\;$\\
+    \judgbox{\typechecks{}{component\ e_p}{\type_1\to\type_2}}{,,$\mmlAs$ component $\src{component\ e_p}$ typechecks.''}$\;$\\
     \judgbox{\typechecks{}{program\ e_1\ e_p\ e_2}{\nat}}{,,$\mmlAs$ program $\src{program\ e_1\ e_p\ e_2}$ typechecks.''}$\;$\\
   \typerule{$t-\text{ctx}$}{
-    \typechecks{}{e_1}{\tau_1}&
-    \typechecks{y:\tau_2}{e_2}{\nat}&
-    \src{\tau_1}\operatorname{int}&
-    \src{\tau_2}\operatorname{int}&
+    \typechecks{}{e_1}{\type_1}&
+    \typechecks{y:\type_2}{e_2}{\nat}&
+    \src{\type_1}\operatorname{int}&
+    \src{\type_2}\operatorname{int}&
 	}{
-  \typecheck{}{\src{context\ e_1\ e_2}}{\src{\nat}[\src{\tau_1\to\tau_2}]}
+  \typecheck{}{\src{context\ e_1\ e_2}}{\src{(\type_1\to\type_2)\to\nat}}
 	}{w-t-ctx}
   %
   \typerule{$t-\text{component}$}{
-    \typechecks{x:\tau_1}{e}{\tau_2}&
-    \src{\tau_1}\operatorname{int}&
-    \src{\tau_2}\operatorname{int}&
+    \typechecks{x:\type_1}{e}{\type_2}&
+    \src{\type_1}\operatorname{int}&
+    \src{\type_2}\operatorname{int}&
 	}{
-  \typechecks{}{component\ e}{\tau_1\to\tau_2}
+  \typechecks{}{component\ e}{\type_1\to\type_2}
 	}{w-t-comp}
   %
   \typerule{$t-\text{wprog}$}{
-    \typecheck{}{\src{context\ e_0\ e_1}}{\src{\nat}[\src{\tau_1\to\tau_2}]} &
-    \typechecks{}{component\ e_p}{\tau_1\to\tau_2}
+    \typecheck{}{\src{context\ e_0\ e_1}}{\src{(\type_1\to\type_2)\to\nat}} &
+    \typechecks{}{component\ e_p}{\type_1\to\type_2}
 	}{
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
 	}{w-t-wprog}
@@ -833,8 +841,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     $$
     \typerule{plugging}{
-      \vdash_\copyright\src{context\ e_0\ e_1} &
-      \typechecks{}{component\ e_p}{\tau_1\to\tau_2}
+      \typechecks{}{context\ e_0\ e_1}{(\type_1\to\type_2)\to\nat}&
+      \typechecks{}{component\ e_p}{\type_1\to\type_2}
     }{
     \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ e_0\ e_p\ e_1}
     }{src-plugging}
@@ -911,8 +919,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{w-e-delete}
   %
   \typerule{$e-\src{new}$}{
-    \text{fresh}\ \src{\loc}&
-    \text{fresh}\ \src{z} &
+    \fresh{\src{\Delta}}{\src{\loc}} &
+    \fresh{\src{\Delta}}{\src{z}} &
     \src{H'} = \src{H} \ll \src{n} &
   }{
   \exprevals{\sconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\sconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
@@ -962,7 +970,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{center}
     \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
-    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
+    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
     \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
     \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\finalexprnoerr_1}{\trace{_1}} &
@@ -970,20 +978,20 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}\cdot Call\ ?\finalexprnoerr_1}
   }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail0}{
-    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
+    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
   }{ws-e-prog-fail0}
   \typerule{$e-\text{wprog}-$failp}{
-    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
+    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
     \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
   }{ws-e-prog-failp}
   \typerule{$e-\text{wprog}-$fail1}{
-    \typechecks{}{component\ e_p}{\tau_1\to\tau_2} &
+    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
     \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
     \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
     \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\lightning}{stuck}{\trace{_1}} &
@@ -997,31 +1005,39 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Events}~\src{\mstrace} \bnfdef&\ \specificevs{Alloc\ \loc\ n} \mid \specificevs{Dealloc\ \loc} \mid \specificevs{Use\ \loc\ n} \\
-                                    & \mid \specificevs{\lightning} \mid \specificevs{Call\ ?n} \mid \specificevs{Ret\ !n}\\
+    \mi{Events}~\msevent \bnfdef&\ \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \\
+                                    & \mid \specificev{\lightning} \mid \specificev{Call\ ?n} \mid \specificev{Ret\ !n}\\
   \end{aligned}
   \end{gather*}
-}{w-specific-events}{\gls*{ms}-Specific Events of $\mmlAs$.}
+}{w-specific-events}{\gls*{ms}-Specific Events.}
 \myfig{
   \begin{center}
-    \judgbox{\tospecificevs{\event} = \src{\msevent}}{,,Project an $\mmlAs$ event $\src{\event}$ to $\src{\msevent}$.''}
-    \judgbox{\tospecificevcomps{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring context.''}
-    \judgbox{\tospecificevctxs{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring component.''}
+    \judgbox{\tospecificevs{\event} = \msevent}{,,Project an $\mmlAs$ event $\src{\event}$ to $\msevent$.''}
+%    \judgbox{\tospecificevcomps{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring context.''}
+%    \judgbox{\tospecificevctxs{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring component.''}
     $$
     \begin{array}{rcl}
-      \tospecificevs{Alloc\ \loc\ n} &\ = & \specificevs{Alloc\ \loc\ n} \\
-      \tospecificevs{Dealloc\ \loc} &\ = & \specificevs{Dealloc\ \loc} \\
-      \tospecificevs{Get\ \loc\ n} &\ = & \specificevs{Use\ \loc\ n} \\
-      \tospecificevs{Set\ \loc\ n} &\ = & \specificevs{Use\ \loc\ n} \\
-      \tospecificevs{Call\ ?n} &\ = & \specificevs{Call\ ?n} \\
-      \tospecificevs{Ret\ !n} &\ = & \specificevs{Ret\ !n} \\
-      \tospecificevs{\lightning} &\ = & \specificevs{\lightning} \\[0.3cm]
-      \tospecificevs{\trace} &\ = & \operatorname{map}\ \thetospecificfilter\ (\operatorname{filter}\ \src{\varepsilon}\ \src{\trace})\\[0.5cm]
-      %
-      \tospecificevctxs{Ret\ !n_1\cdot\trace{_1}\cdot Call\ ?n_2\cdot\trace{_p}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Ret\ !n_1\cdot \trace{_1} \cdot Call\ ?n_2}\right)\\
-      \tospecificevcomps{Ret\ !n_0 \cdot \trace{_1}\cdot Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_2}\cdot Call\ n_3} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
+      \tospecificevs{Alloc\ \loc\ n} &\ = & \specificev{Alloc\ \loc\ n} \\
+      \tospecificevs{Dealloc\ \loc} &\ = & \specificev{Dealloc\ \loc} \\
+      \tospecificevs{Get\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} \\
+      \tospecificevs{Set\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} \\
+      \tospecificevs{Call\ ?n} &\ = & \specificev{Call\ ?n} \\
+      \tospecificevs{Ret\ !n} &\ = & \specificev{Ret\ !n} \\
+      \tospecificevs{\lightning} &\ = & \specificev{\lightning} \\
     \end{array}
     $$
+    \typerule{$\src{\mstrace}$-empty-$\theta$}{
+    }{
+    \tospecificevs{\hole{\cdot}}=\hole{\cdot}
+    }{src-mstrace-empty-map}
+    \typerule{$\src{\mstrace}$-cons-$\theta$}{
+      \tospecificevs{\msevent}=\msevent[_0]&
+      \tospecificevs{\mstrace}=\mstrace[_0]&
+    }{
+    \tospecificevs{\msevent\cdot\mstrace}=\msevent[_0]\cdot\mstrace[_0]
+    }{src-cons-empty-map}
+%      \tospecificevctxs{Ret\ !n_1\cdot\trace{_1}\cdot Call\ ?n_2\cdot\trace{_p}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Ret\ !n_1\cdot \trace{_1} \cdot Call\ ?n_2}\right)\\
+%      \tospecificevcomps{Ret\ !n_0 \cdot \trace{_1}\cdot Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_2}\cdot Call\ n_3} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
   \end{center}
 }{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
 
@@ -1031,10 +1047,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq& \nat \hspace{0.5cm}
       \mi{Abstract\ Store}~\tmsmonitor =\{A : L, F : L\} \\
-      \mi{Abstract\ Events}~\event \bnfdef& \text{Alloc}\ \loc \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc \mid \lightning\\
+      \mi{Abstract\ Events}~\absevent \bnfdef& \textbf{Alloc}\ \loc \mid \textbf{Dealloc}\ \loc \mid \textbf{Use}\ \loc \mid \abstermination\\
       \mi{References\ Agreement}~\delta_{\text{tms}} :& \src{L}\to L \\[0.6cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
-      \event\not\in \tmsmonitor['] &\text{ iff } \event \not\in {\tmsmonitor['.A]} \wedge \event \not\in {\tmsmonitor['.F]}\\
+      \absevent\not\in \tmsmonitor['] &\text{ iff } \absevent \not\in {\tmsmonitor['.A]} \wedge \absevent \not\in {\tmsmonitor['.F]}\\
       \{\loc\}\cup \tmsmonitor &= \{A : \{\loc\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
     \end{aligned}
   \end{gather*}
@@ -1042,20 +1058,20 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 
 \myfig{
   \begin{center}
-    \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}}{,,Given abstract state $\tmsmonitor$, step to abstract state $\tmsmonitor'$\\ emitting an abstract event $\event$.''}
-    \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\trace}}{,,Reflexive-Transitive closure of above judgement.\\$\trace$ is a list of abstract events.''}
+    \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}}{,,Given abstract state $\tmsmonitor$, step to abstract state $\tmsmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
     \typerule{TMS-Use}{
       \loc\in \tmsmonitor[.A] &
       \loc\not\in \tmsmonitor[.F] &
     }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\text{Use}\ \loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \loc}
     }{tms-use}
     %
     \typerule{TMS-Alloc}{
       \tmsmonitor[']=\left\{A:\tmsmonitor[.A]\cup\left\{\loc\right\}, F:\tmsmonitor[.F]\right\}&
       \loc\not\in \tmsmonitor&
     }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Alloc}\ \loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \loc}
     }{tms-alloc}
     %
     \typerule{TMS-Dealloc}{
@@ -1063,7 +1079,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
       \loc\not\in \tmsmonitor[.F] &
       \tmsmonitor[']=\left\{A:\tmsmonitor[.A]\setminus\left\{\loc\right\},F: \tmsmonitor[.F]\right\}
     }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}
     }{tms-dealloc}
     %
     \typerule{TMS-Refl}{
@@ -1072,10 +1088,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{tms-refl}
     %
     \typerule{TMS-Trans}{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}&
-    \monitorcheck{\tmsmonitor[']}{\tmsmonitor['']}{\trace}&
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}&
+    \monitorcheck{\tmsmonitor[']}{\tmsmonitor['']}{\abstrace}&
     }{
-    \monitorcheck{\tmsmonitor}{\tmsmonitor['']}{\event\cdot\trace}
+    \monitorcheck{\tmsmonitor}{\tmsmonitor['']}{\absevent\cdot\abstrace}
     }{tms-trans}
   \end{center}
 }{tms-step}{Steps of \gls{tms} Monitor.}
@@ -1084,49 +1100,49 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 \myfig{
   \begin{center}
     \judgbox{\delta_{\text{tms}}(\src{\loc})=\loc}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to abstract memory locations $\loc$.''}
-    \judgbox{\tmstraceagree{\src{\msevent}}{\event}}{,,Memory-Safety specific event $\src{\msevent}$ describes same action as $\event$.''}
-    \judgbox{\tmstraceagree{\src{\mstrace}}{\trace}}{,,Memory-Safety specific trace $\src{\mstrace}$ describes same trace as $\trace$.''}
+    \judgbox{\tmstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
+    \judgbox{\tmstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{TMS-Alloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-      \tmstraceagree{\specificevs{Alloc\ \loc\ n}}{\text{Alloc}\ \loc}
+      \tmstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \loc}
     }{tms-alloc-auth}
     %
     \typerule{TMS-Dealloc-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-    \tmstraceagree{\specificevs{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
+    \tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \loc}
     }{tms-dealloc-auth}
     %
     \typerule{TMS-Use-Authentic}{
       \delta_{\text{tms}}(\src{\loc})=\loc
     }{
-      \tmstraceagree{\specificevs{Use\ \loc\ n}}{\text{Use}\ \loc}
+      \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \loc}
     }{tms-use-auth}
     %
     \typerule{TMS-Refl-Authentic}{
     }{
-      \tmstraceagree{\src{\hole{\cdot}}}{\hole{\cdot}}
+      \tmstraceagree{\hole{\cdot}}{\hole{\cdot}}
     }{tms-refl-auth}
     %
     \typerule{TMS-Trans-Authentic}{
-      \tmstraceagree{\src{\msevent}}{\event} &
-      \tmstraceagree{\src{\mstrace}}{\trace}
+      \tmstraceagree{\msevent}{\absevent} &
+      \tmstraceagree{\mstrace}{\abstrace}
     }{
-      \tmstraceagree{\src{\msevent}\cdot\src{\mstrace}}{\event\cdot\trace}
+      \tmstraceagree{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
     }{tms-trans-auth}
     %
     \typerule{TMS-Call-Authentic}{
-      \tmstraceagree{\src{\mstrace}}{\trace}
+      \tmstraceagree{\mstrace}{\abstrace}
     }{
-      \tmstraceagree{\specificevs{Call\ ?n}\cdot\src{\mstrace}}{\trace}
+      \tmstraceagree{\specificev{Call\ ?n}\cdot\mstrace}{\abstrace}
     }{tms-call-auth}
     %
     \typerule{TMS-Ret-Authentic}{
-      \tmstraceagree{\src{\mstrace}}{\trace}
+      \tmstraceagree{\mstrace}{\abstrace}
     }{
-      \tmstraceagree{\specificevs{Ret\ !n}\cdot\src{\mstrace}}{\trace}
+      \tmstraceagree{\specificev{Ret\ !n}\cdot\mstrace}{\abstrace}
     }{tms-ret-auth}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
@@ -1165,31 +1181,31 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{definition}[Occurence]
   Given an event $\event$ and a trace $\trace$, the event $\event$ occurs in $\trace$, written $\event\in\trace$, iff
 
-  $\exists n, \trace[n]=\event$
+  $\exists n, \trace{[n]}=\event$
 \end{definition}
 
 \begin{definition}[Unicity]
   Given an event $\event$ and a trace $\trace$, the event $\event$ occurs exactly once in $\trace$, written $\event!_{\trace}$, iff
 
-  $\exists n, \trace[n]=\event \wedge \nexists m, n\not= m \wedge \trace[m] = \event$
+  $\exists n, \trace{[n]}=\event \wedge \nexists m, n\not= m \wedge \trace{[m]} = \event$
 \end{definition}
 
 \begin{definition}[Sequentiality]
   Given two events $\event{_0},\event{_1}$ and a trace $\trace$, event $\event{_0}$ occurs before $\event{_1}$ in $\trace$, written
   $\event{_0}\le_{\trace}\event{_1}$, iff
 
-  $\exists n, \trace[n] = \event{_0}\implies \exists m, \trace[m] = \event{_1} \wedge n<m$
+  $\exists n, \trace{[n]} = \event{_0}\implies \exists m, \trace{[m]} = \event{_1} \wedge n<m$
 \end{definition}
 
 
 \begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
-  We define the property $\src{tmsafe}(\src{\mstrace})$ as a conjunction of the following conditions:
+  We define the property $tmsafe(\mstrace)$ as a conjunction of the following conditions:
   \begin{itemize}
-    \item $\specificevs{Alloc\ \loc\ s}\le_{\src{\mstrace}}\specificevs{Dealloc\ \loc}$
-    \item $\neg(\specificevs{Use\ \loc\ n}\le_{\src{\mstrace}}\specificevs{Alloc\ \loc\ s})$
-    \item $\neg(\specificevs{Dealloc\ \loc}\le_{\src{\mstrace}}\specificevs{Use\ \loc\ n})$
-    \item $\specificevs{Dealloc\ \loc}\in!\;\src{\mstrace}$
-    \item $\specificevs{Alloc\ \loc\ s}\in!\;\src{\mstrace}$
+    \item $\specificev{Alloc\ \loc\ s}\le_{{\mstrace}}\specificev{Dealloc\ \loc}$
+    \item $\neg(\specificev{Use\ \loc\ n}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s})$
+    \item $\neg(\specificev{Dealloc\ \loc}\le_{{\mstrace}}\specificev{Use\ \loc\ n})$
+    \item $\specificev{Dealloc\ \loc}\in!\;{\mstrace}$
+    \item $\specificev{Alloc\ \loc\ s}\in!\;{\mstrace}$
     % \makebox(0,0){\put(0,3.0\normalbaselineskip){ %
     % $\left.\rule{0pt}{1.32\normalbaselineskip}\right\}$ no reallocs, references are unique}}
   \end{itemize}
@@ -1202,9 +1218,9 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 % might not need to do an induction at the general step, but for the primitive step we need it
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\src{smsafe}\left(\src{\mstrace}\right)$ as follows:
+  We define the property ${smsafe}\left({\mstrace}\right)$ as follows:
   \begin{itemize}
-    \item If $\specificevs{Alloc\ \loc\ s}\in\src{\mstrace}$ and $\specificevs{Use\ \loc\ n}\in\src{\mstrace}$, then $\src{n}<\src{s}$
+    \item If $\specificev{Alloc\ \loc\ s}\in{\mstrace}$ and $\specificev{Use\ \loc\ n}\in{\mstrace}$, then ${n}<{s}$
   \end{itemize}
 \end{definition}
 
@@ -1223,7 +1239,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 
 \begin{importanttheorem}[$\mmlAs$ is not spatially memory safe]
   There is a well-typed $\mmlAs$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
-  $\rsat{\src{p}}{\src{smsafe}}$
+  $\rsat{\src{p}}{smsafe}$
 \end{importanttheorem}
 \begin{proof}
   Pick the component $\src{comp\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
@@ -1231,8 +1247,9 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   Now pick $\src{context\ }(\src{42})\ (\src{y})$.\\[0.3cm]
   Plugging yields \\$\src{prog}\ (\src{let\ y=let\ x=42\ in\ let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w\ in\ y})$.\\[0.3cm]
   Running the whole program yields trace prefix\\$\src{\trace}=\src{Alloc\ \loc\ 42}\cdot\src{Get\ \loc\ 1337}\cdot\src{Dealloc\ \loc}$.\\[0.3cm]
-  \Cref{def:spatmemsafe} requires $\src{Alloc\ \loc\ 42}\in\src{\trace}$ and $\src{Get\ \loc\ 1337}$, which hold.\\[0.3cm]
-  But, $\src{1337}\not<\src{42}$, hence $\nrsat{\src{p}}{\src{smsafe}}$.
+  Hence, $\tospecificevs{\trace}=\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}$.\\[0.3cm]
+  \Cref{def:spatmemsafe} requires $\specificev{Alloc\ \loc\ 42}\in\tospecificevs{\trace}$ and $\specificev{Use\ \loc\ 1337}\in\tospecificevs{\trace}$, which hold.\\[0.3cm]
+  But, ${1337}\not<{42}$, hence $\nrsat{\src{p}}{{smsafe}}$.
 \end{proof}
 
 \subsubsection{Auxiliary Definitions and Lemmas}\label{sec:mmla:aux}
@@ -1240,7 +1257,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Plugging Well-Typed]\label{lem:plugging:welltyped}
   If
   \begin{assumptions}
-  \item $\typecheck{}{\src{context\ e_1\ e_2}}{\src{\nat}[\src{\type_1\to\type_2}]}$
+  \item $\typecheck{}{\src{context\ e_1\ e_2}}{\src{(\type_1\to\type_2)\to\nat}}$
   \item $\typechecks{}{component\ e_p}{\type_1\to\type_2}$
   \end{assumptions}
   Then
@@ -1269,22 +1286,22 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Authentic Weaken]
   If
   \begin{assumptions}
-    \item $\tmstraceagree[\delta]{\src{\mstrace}}{\trace}$
+    \item $\tmstraceagree[\delta]{\mstrace}{\abstrace}$
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\tmstraceagree[\delta']{\src{\mstrace}}{\trace}$
+    \item $\tmstraceagree[\delta']{\mstrace}{\abstrace}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on $\tmstraceagree[\delta]{\src{\trace}}{\trace}$.
+  Induction on $\tmstraceagree[\delta]{{\mstrace}}{\abstrace}$.
 \end{proof}
 
 \begin{lemma}[Monitor Step Subset]\label{lem:monitor-step-subset}
   If
   \begin{assumptions}
-    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1297,7 +1314,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Monitor Steps Subset]\label{lem:monitor-steps-subset}
   If
   \begin{assumptions}
-    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\event}$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1305,13 +1322,13 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy induction on $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\event}$ using \Thmref{lem:monitor-step-subset}.
+  Easy induction on $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\absevent}$ using \Thmref{lem:monitor-step-subset}.
 \end{proof}
 
 \begin{lemma}[Monitor Step Back No-Elem Propagation]\label{lem:monitor-step-no-elem-prop}
   If
   \begin{assumptions}
-    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
     \item $\loc\not\in \tmsmonitor['].A$
     \item $\loc\not\in \tmsmonitor['].F$
   \end{assumptions}
@@ -1326,7 +1343,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Monitor Steps Back No-Elem Propagation]\label{lem:monitor-steps-no-elem-prop}
   If
   \begin{assumptions}
-    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\event}$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
     \item $\loc\not\in \tmsmonitor['.A]$
     \item $\loc\not\in \tmsmonitor['.F]$
   \end{assumptions}
@@ -1425,6 +1442,19 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\begin{theorem}
+  If
+  \begin{assumptions}
+  \item $\typechecks{}{e}{\type}$
+  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{e'}{\trace}$
+  \end{assumptions}
+  Then $\exists \src{\finalexprnoerr}$,
+  \begin{goals}
+  \item $\src{e'}=\src{\finalexprnoerr}$
+  \item $\typechecks{}{\finalexprnoerr}{\type}$
+  \end{goals}.
+\end{theorem}
+
 \begin{lemma}[Top-Level Progress]\label{lem:toplevel:progress}
   If
   \begin{assumptions}
@@ -1441,7 +1471,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Mid-Level Progress]\label{lem:midlevel:progress}
   If
   \begin{assumptions}
-    \item $\typecheck{}{\src{component\ e_p}}{\src{\nat}[\src{\type_1\to\type_2}]}$
+    \item $\typecheck{}{\src{component\ e_p}}{\src{(\type_1\to\type_2)\to\nat}}$
     \item $\vdash_\copyright\src{context\ e_1\ e_2}$
   \end{assumptions}
   Then
@@ -1459,11 +1489,11 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists \event\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+  Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\event}$
-    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}$
+    \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\absevent}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
@@ -1476,19 +1506,19 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{free\ x}}{\type}$
     \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
   \end{assumptions}
-  Then $\exists \event\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+  Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{\specificevs{Dealloc\ \loc}}{\event}$
-    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}$
+    \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{\specificev{Dealloc\ \loc}}{\absevent}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
-  Choose $\event=\text{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
+  Choose $\absevent=\textbf{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
 
   \Cref{goal:basetmsmonitor:subseteq}, $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}$, follows trivially.
 
-  For $\tmstraceagree{\specificevs{Dealloc\ \loc}}{\text{Dealloc}\ \loc}$ (\Cref{goal:basetmsmonitor:tmstraceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta_{\text{tms}}(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
+  For $\tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \loc}$ (\Cref{goal:basetmsmonitor:tmstraceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta_{\text{tms}}(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
 
   The inversion yields two cases:
   \begin{description}
@@ -1503,13 +1533,13 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{assumptions}
   then $\exists \tmsmonitor[']$,
   \begin{goals}
-  \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
+  \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$
   \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
   Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
 
-  \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
+  \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
 
   \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
 
@@ -1524,7 +1554,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{assumptions}
   then $\exists \tmsmonitor[']$,
   \begin{goals}
-  \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\text{Dealloc}\ \loc}$
+  \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$
   \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
   \end{goals}.
 
@@ -1549,11 +1579,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists \event\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+  Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\event}$
-    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\event}$
+    \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\absevent}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
@@ -1567,11 +1597,11 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \item $\execs{\configs}{e}{\configs'}{e'}{\trace}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists \trace\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+  Then $\exists \abstrace\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{\tospecificevs{\trace}}{\trace}$
-    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\trace}$
+    \item $\tmstraceagree[\delta']{\tospecificevs{\trace}}{\abstrace}$
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
@@ -1579,10 +1609,10 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \end{incompleteproof}
 
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
-  We say $\texttt{TMS}(\src{\trace})$ iff $\exists \delta\ \trace\ \tmsmonitor$ such that:
+  We say $\texttt{TMS}(\src{\trace})$ iff $\exists \delta\ \abstrace\ \tmsmonitor$ such that:
   \begin{itemize}
-    \item $\tmstraceagree{\trace}{\src{\trace}}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\trace}$
+    \item $\tmstraceagree{\tospecificevs{\trace}}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
   \end{itemize}
 \end{definition}
 
@@ -1600,7 +1630,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \begin{proof}
   Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get 
   \begin{passumptions}{H}
-    \item $\typechecks{}{component\ e_p}{\tau_1\to\tau_2}$
+    \item $\typechecks{}{component\ e_p}{\type_1\to\type_2}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}}$
     \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\Omega^\diamond_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\valueexpr_1}{\trace{_1}}$
@@ -1645,25 +1675,25 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{equation}
   What follows is $\typechecks{}{\Omega_0\triangleright e_p}{\nat}$, which is equivalent to $\typechecks{}{\Omega_0^\diamond\triangleright e_p}{\nat}$.
 
-  Now obtain witnesses $\trace{_p}$, $\delta_{\text{TMS}}^{(p)}$, and $\tmsmonitor$ from supplying \Thmref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:typesubstx}, \Cref{asm:mmlatmsviamonitor:execp}, and \Cref{asm:mmlatmsviamonitor:agree}, such that:
+  Now obtain witnesses $\abstrace{_p}$, $\delta_{\text{TMS}}^{(p)}$, and $\tmsmonitor$ from supplying \Thmref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:typesubstx}, \Cref{asm:mmlatmsviamonitor:execp}, and \Cref{asm:mmlatmsviamonitor:agree}, such that:
 
   \begin{passumptions}{F}
     \item $\emptyset\subseteq\delta_{\text{TMS}}^{(p)}$
-    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\tospecificevs{\trace{_p}}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:monitorcheckasm} $\monitorcheck{\emptyset}{\tmsmonitor}{\trace{_p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\abstrace{_p}}{\tospecificevs{\trace{_p}}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:monitorcheckasm} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace{_p}}$
     \item $\storeagreetms[\delta^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
   \end{passumptions}
 
   \noindent
-  Now instantiate the existential in our goal with $\delta_{\text{TMS}}^{(p)}$, $\trace{_p}$, and $\tmsmonitor$.
-  Note that $\tospecificevcomps{\trace}=\specificevs{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificevs{Ret\ !v_p}$ by \Cref{asm:mmlatmsviamonitor:tracedef}, so the remaining goals are:
+  Now instantiate the existential in our goal with $\delta_{\text{TMS}}^{(p)}$, $\abstrace{_p}$, and $\tmsmonitor$.
+  Note that $\tospecificevcomps{\trace}=\specificev{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificev{Ret\ !v_p}$ by \Cref{asm:mmlatmsviamonitor:tracedef}, so the remaining goals are:
 
   \begin{goals}
-    \item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\specificevs{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificevs{Ret\ !v_p}}$
-    \item\label[goal]{asm:mmlatmsviamonitor:monitorcheck} and $\monitorcheck{\emptyset}{\tmsmonitor}{\trace{_p}}$
+    \item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\specificev{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificev{Ret\ !v_p}}{\abstrace{_p}}$
+    \item\label[goal]{asm:mmlatmsviamonitor:monitorcheck} and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace{_p}}$
   \end{goals}
 
-  For \Cref{asm:mmlatmsviamonitor:traceagree}, note that by \Cref{tr:tms-call-auth} and \Cref{tr:tms-ret-auth}, we can reduce it to $\tmstraceagree[\delta^{(p)}]{\trace{_p}}{\tospecificevs{\trace{_p}}}$, which is fulfilled by \Cref{asm:mmlatmsviamonitor:traceagreeasm}.
+  For \Cref{asm:mmlatmsviamonitor:traceagree}, note that by \Cref{tr:tms-call-auth} and \Cref{tr:tms-ret-auth}, we can reduce it to $\tmstraceagree[\delta^{(p)}]{\abstrace{_p}}{\tospecificevs{\trace{_p}}}$, which is fulfilled by \Cref{asm:mmlatmsviamonitor:traceagreeasm}.
   \Cref{asm:mmlatmsviamonitor:monitorcheck} follows immediately by \Cref{asm:mmlatmsviamonitor:monitorcheckasm}.
 \end{proof}
 
@@ -1708,6 +1738,31 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
 
+\myfig{
+  \begin{center}
+  \judgbox{closed\ X\ \trg{e}}{,,At most all $\mmlAt$ variables in the set $X$ occur in $\trg{e}$.''}
+    \typerule{$\mmlAt-$program}{
+      \vdash_\copyright\trg{component\ e_p}&
+      \vdash_\copyright\trg{context\ e_0\ e_1}
+    }{
+      \vdash_\copyright\trg{prog\ e_0\ e_p\ e_1}
+    }{trg-program}
+    %
+    \typerule{$\mmlAt-$component}{
+      closed\ \{\trg{x}\}\ \trg{e}
+    }{
+      \vdash_\copyright\trg{component\ e}
+    }{trg-component}
+    %
+    \typerule{$\mmlAt-$context}{
+      closed\ \emptyset\ \trg{e_0} &
+      closed\ \{\trg{y}\}\ \trg{e_1}
+    }{
+      \vdash_\copyright\trg{context\ e_0\ e_1}
+    }{trg-context}
+  \end{center}
+}{t-programs}{$\mmlAt$ programs, contexts, and components.}
+
 \subsubsection{Dynamic Semantics}
 
 \myfig{
@@ -1725,8 +1780,10 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{center}
     $$
     \typerule{plugging}{
+      \vdash_\copyright\trg{context\ e_0\ e_1} &
+      \vdash_\copyright\trg{component\ e_p}
     }{
-    \trg{context}\ (\trg{e_0})\ (\trg{e_1})\trg{\linker}{\trg{component\ e_p}} = \trg{prog\ (let\ y=let\ x=e_0\ in\ e_p\ in\ e_1)}
+    \trg{context}\ (\trg{e_0})\ (\trg{e_1})\trg{\linker}{\trg{component\ e_p}} = \trg{prog\ e_0\ e_p\ e_1}
     }{trg-plugging}
     $$
   \end{center}
@@ -1848,16 +1905,26 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
-    $$
-    \begin{array}{rll}
-      \trg{\Omega^{\diamond(y)}} = \trg{\Omega.H;}\text{fold}&\ (\lambda \trg{\Delta}\ (\trg{x\mapsto\loc_\poison}).&if\ \trg{x}\not=\trg{y}\ then\ \\
-                                                             &&\ \ \ \ \trg{x\mapsto\loc_\poison^\diamond,\Delta}\\
-                                                                                                                   &&else\\
-                                                                                                                   &&\ \ \ \ \trg{\Delta})\\
-                                                                                                                   &\trg{\hole{\cdot}}\ \ \ \ \trg{\Omega.\Delta}&\\
-      \trg{\Omega^{\diamond(\finalexprnoerr)}} = \trg{\Omega.H;}\text{fold}&\ (\lambda \trg{\Delta}\ (\trg{x\mapsto\loc_\poison}).&\trg{x\mapsto\loc_\poison^\diamond,\Delta})\ \trg{\hole{\cdot}}\ \trg{\Omega.\Delta}\\
-    \end{array}
-    $$
+    \typerule{$\mmlAt$-state-unimportant-empty}{
+    }{
+      \trg{\hole{\cdot}^{\diamond(\valueexpr)}}=\trg{\hole{\cdot}}
+    }{trg-state-unimportant-empty}
+    \typerule{$\mmlAt$-state-unimportant-cons-mark}{
+      \trg{\Delta^{\diamond(\valueexpr)}}=\trg{\Delta'}
+    }{
+      \trg{(x\mapsto\loc_\poison,\Delta)^{\diamond(\finalexprnoerr)}}=\trg{x\mapsto\loc_\poison^\diamond,\Delta'}
+    }{trg-state-unimportant-cons-mark}
+    \typerule{$\mmlAt$-state-unimportant-cons-nomark}{
+      \trg{\Delta^{\diamond(x)}}=\trg{\Delta'}
+    }{
+      \trg{(x\mapsto\loc_\poison,\Delta)^{\diamond(x)}}=\trg{x\mapsto\loc_\poison,\Delta'}
+    }{trg-state-unimportant-cons-nomark}
+    \typerule{$\mmlAt$-state-unimportant-propagate}{
+      \trg{\Omega}=\trg{H;\Delta}&
+      \trg{\Delta^{\diamond(\finalexprnoerr)}}=\trg{\Delta'}
+    }{
+    \trg{\Omega^{\diamond(\finalexprnoerr)}}=\trg{H;\Delta'}
+    }{trg-state-unimportant-propagate}
   \end{center}
 }{twstate-irrelevant}{Irrelevant location marker of $\mmlAt$ operational state.}
 \myfig{
@@ -1968,7 +2035,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq&\ \nat \hspace{0.5cm}
       \mi{Abstract\ Store}~\smsmonitor =\ L\times\nat \\
-      \mi{Abstract\ Events}~\event \bnfdef&\ \text{Alloc}\ \loc\ n \mid \text{Dealloc}\ \loc \mid \text{Use}\ \loc\ n \mid \lightning\\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \textbf{Alloc}\ \loc\ n \mid \textbf{Dealloc}\ \loc \mid \textbf{Use}\ \loc\ n \mid \abstermination\\
     \mi{References\ Agreement}~\delta_{\text{sms}} :&\ \trg{L}\to L \\[0.6cm]
     \end{aligned}
   \end{gather*}
@@ -1976,28 +2043,28 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 
 \myfig{
   \begin{center}
-    \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\event}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\event$.''}
-    \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\trace}}{,,Reflexive-Transitive closure of above judgement.\\$\trace$ is a list of abstract events.''}
+    \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
     %
     \typerule{sms-Use}{
       (\loc,m)\in \smsmonitor[.A]&
       n<m&
     }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\text{Use}\ \loc\ n}
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ n}
     }{sms-use}
     %
     \typerule{sms-Alloc}{
       \forall m,(\loc,m)\not\in \smsmonitor&
       \smsmonitor[']=\smsmonitor\cup\left\{(\loc,n)\right\}&
     }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\text{Alloc}\ \loc\ n}
+    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \loc\ n}
     }{sms-alloc}
     %
     \typerule{sms-Dealloc}{
       (\loc,m)\in \smsmonitor[.A] &
       \smsmonitor[']=\smsmonitor\setminus\left\{(\loc,m)\right\}
     }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\text{Dealloc}\ \loc}
+    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \loc}
     }{sms-dealloc}
     %
     \typerule{sms-Refl}{
@@ -2006,10 +2073,10 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{sms-refl}
     %
     \typerule{sms-Trans}{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\event}&
-      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\trace}&
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}&
+      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\abstrace}&
     }{
-    \monitorcheck{\smsmonitor}{\smsmonitor['']}{\event\cdot\trace}
+    \monitorcheck{\smsmonitor}{\smsmonitor['']}{\absevent\cdot\abstrace}
     }{sms-trans}
   \end{center}
 }{sms-step}{Steps of \gls{sms} Monitor.}
@@ -2017,55 +2084,55 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 \myfig{
   \begin{center}
     \judgbox{\delta_{\text{sms}}(\trg{\loc})=\loc}{,,A map from $\mmlAt$ memory locations $\trg{\loc}$ to abstract memory locations $\loc$.''}
-    \judgbox{\smstraceagree{\trg{\msevent}}{\event}}{,,Memory-Safety specific event $\trg{\msevent}$ describes same action as $\event$.''}
-    \judgbox{\smstraceagree{\trg{\mstrace}}{\trace}}{,,Memory-Safety specific trace $\trg{\mstrace}$ describes same trace as $\trace$.''}
+    \judgbox{\smstraceagree{{\msevent}}{\absevent}}{,,Memory-Safety specific event $\trg{\msevent}$ describes same action as $\absevent$.''}
+    \judgbox{\smstraceagree{{\mstrace}}{\abstrace}}{,,Memory-Safety specific trace $\trg{\mstrace}$ describes same trace as $\abstrace$.''}
     %
     \typerule{SMS-Alloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-      \smstraceagree{\specificevt{Alloc\ \loc\ n}}{\text{Alloc}\ \loc\ n}
+      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \loc\ n}
     }{sms-alloc-auth}
     %
     \typerule{SMS-Dealloc-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-    \smstraceagree{\specificevt{Dealloc\ \loc}}{\text{Dealloc}\ \loc}
+    \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \loc}
     }{sms-dealloc-auth}
     %
     \typerule{SMS-Get-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-    \smstraceagree{\specificevt{Get\ \loc\ n}}{\text{Use}\ \loc\ n}
+    \smstraceagree{\specificev{Get\ \loc\ n}}{\textbf{Use}\ \loc\ n}
     }{sms-get-auth}
     %
     \typerule{SMS-Set-Authentic}{
       \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-      \smstraceagree{\specificevt{Set\ \loc\ n\ v}}{\text{Use}\ \loc\ n}
+      \smstraceagree{\specificev{Set\ \loc\ n\ v}}{\textbf{Use}\ \loc\ n}
     }{sms-set-auth}
     %
     \typerule{SMS-Refl-Authentic}{
     }{
-    \smstraceagree{\trg{\hole{\cdot}}}{\hole{\cdot}}
+    \smstraceagree{{\hole{\cdot}}}{\hole{\cdot}}
     }{sms-refl-auth}
     %
     \typerule{SMS-Trans-Authentic}{
-      \smstraceagree{\specificevt{\event}}{\event} &
-      \smstraceagree{\trg{\mstrace}}{\trace}
+      \smstraceagree{\specificev{\event}}{\absevent} &
+      \smstraceagree{{\mstrace}}{\abstrace}
     }{
-      \smstraceagree{\specificevt{\event}\cdot\trg{\mstrace}}{\event\cdot\trace}
+      \smstraceagree{\specificev{\event}\cdot{\mstrace}}{\absevent\cdot\abstrace}
     }{sms-trans-auth}
     %
     \typerule{SMS-Call-Authentic}{
-      \smstraceagree{\trg{\mstrace}}{\trace}
+      \smstraceagree{{\mstrace}}{\abstrace}
     }{
-      \smstraceagree{\specificevt{Call\ ?n}\cdot\trg{\mstrace}}{\trace}
+      \smstraceagree{\specificev{Call\ ?n}\cdot{\mstrace}}{\abstrace}
     }{sms-call-auth}
     %
     \typerule{SMS-Ret-Authentic}{
-      \smstraceagree{\trg{\mstrace}}{\trace}
+      \smstraceagree{{\mstrace}}{\abstrace}
     }{
-      \smstraceagree{\trg{\mstrace}\cdot\specificevt{Ret\ !n}}{\trace}
+      \smstraceagree{{\mstrace}\cdot\specificev{Ret\ !n}}{\abstrace}
     }{sms-ret-auth}
     %
   \end{center}
@@ -2076,26 +2143,26 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
   \begin{center}
     \typerule{abstract-agree-dealloc}{
     }{
-    \text{Dealloc}\ \loc \prec \text{Dealloc}\ \loc
+    \textbf{Dealloc}\ \loc \prec \textbf{Dealloc}\ \loc
     }{aagree-dealloc}
     %
     \typerule{abstract-agree-alloc}{
     }{
-    \text{Alloc}\ \loc\ n \prec \text{Alloc}\ \loc
+    \textbf{Alloc}\ \loc\ n \prec \textbf{Alloc}\ \loc
     }{aagree-alloc}
     %
     \typerule{abstract-agree-use}{
     }{
-    \text{Use}\ \loc\ n \prec \text{Use}\ \loc
+    \textbf{Use}\ \loc\ n \prec \textbf{Use}\ \loc
     }{use-dealloc}
     %
     \typerule{tms-sms-E}{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\trace} & 
-    \event\prec \event['] &
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\trace[']} &
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\abstrace} & 
+    \absevent\prec \absevent['] &
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\abstrace[']} &
     T = \tmsmonitor\times\smsmonitor
     }{
-    \monitorcheck[]{T}{T}{\event}
+    \monitorcheck[]{T}{T}{\absevent}
     }{tms-sms-empty}
     %
     \typerule{tms-sms-Refl}{
@@ -2104,20 +2171,20 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     }{tms-sms-refl}
     %
     \typerule{tms-sms-Trans}{
-      \monitorcheck[]{T}{T'}{\event}&
-      \monitorcheck{T'}{T''}{\trace}&
+      \monitorcheck[]{T}{T'}{\absevent}&
+      \monitorcheck{T'}{T''}{\abstrace}&
     }{
-    \monitorcheck{T}{T''}{\event\cdot\trace}
+    \monitorcheck{T}{T''}{\absevent\cdot\abstrace}
     }{tms-sms-trans}
   \end{center}
 }{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
 
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:trg:trace:tms}
   \MK{We need to change the agreement definitions from using $\delta_{tms}$ to just $\delta_{ms}$}
-  We say $\texttt{TMS}(\trg{\mstrace})$ iff $\exists \delta\ \trace\ \tmsmonitor$ such that:
+  We say $\texttt{TMS}(\trg{\trace})$ iff $\exists \delta\ \abstrace\ \tmsmonitor$ such that:
   \begin{itemize}
-    \item $\tmstraceagree{\trg{\mstrace}}{\trace}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\trace}$
+    \item $\tmstraceagree{\tospecificevt{\trace}}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
   \end{itemize}
 \end{definition}
 
@@ -2962,14 +3029,14 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \Game'\left(\trg{\loc}\right) = \src{x} &
       \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ x = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
+      \mmlAmmlAtbackdetail{\specificev{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ x = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
     }{backtrans-alloc}
     %
     \typerule{backtrans-dealloc}{
       \Game'=\Game[\trg{\loc}] &
       \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Dealloc\ \loc}\cdot\mstrace} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
+      \mmlAmmlAtbackdetail{\specificev{Dealloc\ \loc}\cdot\mstrace} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
     }{backtrans-dealloc}
     %
     \typerule{backtrans-use}{
@@ -2977,7 +3044,7 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \src{x}=\Game'(\trg{\loc}) &
       \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificevt{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{x[}\mmlAmmlAtbackv{n}\src{];e}
+      \mmlAmmlAtbackdetail{\specificev{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{x[}\mmlAmmlAtbackv{n}\src{];e}
     }{backtrans-use}
   \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
@@ -2987,15 +3054,15 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
     %
     \typerule{backtrans-top-level}{
       \trg{\loc}\ \text{fresh} &
-      \mmlAmmlAtbackdetail{\specificevt{Alloc\ \loc\ 42}\cdot\mstrace\cdot\specificevt{Dealloc\ \loc}} = \Game', \src{e}
+      \mmlAmmlAtbackdetail{\specificev{Alloc\ \loc\ 42}\cdot\mstrace\cdot\specificev{Dealloc\ \loc}} = \Game', \src{e}
     }{
-      \mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}, \Game', \src{e}
+      \mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}, \Game', \src{e}
     }{backtrans-top-level}
     %
     \typerule{backtrans-top-level-crash}{
       \mmlAmmlAtbackdetail{\mstrace} = \Game', \src{e}
     }{
-      \mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{\lightning}} = \Game', \src{e;abort()}
+      \mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{\lightning}} = \Game', \src{e;abort()}
     }{backtrans-top-level-crash}
   \end{center}
 }{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
@@ -3081,11 +3148,11 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   \begin{assumptions}
   \item $\delta$ injective
   \item\label[ass]{asm:trace:agreement:propagation:xagree} $\xlangtraceeq{\trace}{\trace}$, where $\delta:\src{L}\to\trg{L}$
-  \item $\tmstraceagree[\delta^{\src{\bullet}}]{\tospecificevs{\trace}}{\trace}$, where $\delta^{\src{\bullet}}_{tms}:\src{L}\to L$
+  \item $\tmstraceagree[\delta^{\src{\bullet}}]{\tospecificevs{\trace}}{\abstrace}$, where $\delta^{\src{\bullet}}_{tms}:\src{L}\to L$
   \end{assumptions}
   Then $\exists \delta^{\trg{\bullet}}_{\text{tms}}$,
   \begin{goals}
-  \item $\tmstraceagree[\delta^{\trg{\bullet}}]{\tospecificevt{\trace}}{\trace}$, where $\delta^{\trg{\bullet}}_{tms}:\trg{L}\to L$
+  \item $\tmstraceagree[\delta^{\trg{\bullet}}]{\tospecificevt{\trace}}{\abstrace}$, where $\delta^{\trg{\bullet}}_{tms}:\trg{L}\to L$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -3097,8 +3164,8 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   If
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\lightning}{stuck}{\trace\cdot\lightning}$
-\item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)\cdot\specificevt{\lightning}$
-  \item $\mmlAmmlAtbackdetail{\specificevt{Ret\ !n_0}\cdot\mstrace}=\Game',\src{e}$
+\item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)\cdot\specificev{\lightning}$
+  \item $\mmlAmmlAtbackdetail{\specificev{Ret\ !n_0}\cdot\mstrace}=\Game',\src{e}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\trace}$,
@@ -3136,7 +3203,7 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   If
   \begin{assumptions}
   \item\label[ass]{asm:backtranscorr:case0:exect} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\hole{\cdot}}$
-  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Call\ ?n_1}}=\Game,\src{e}$
+  \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\specificev{Call\ ?n_1}}=\Game,\src{e}$
   \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -3169,7 +3236,7 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   \begin{assumptions}
   \item\label{asm:backtranscorr:indu:step} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\event\cdot\trace}$
   \item\label{asm:backtranscorr:indu:spectrace} $\trg{\msevent\cdot\mstrace}=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\msevent\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
+  \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\msevent\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{e}$
   \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -3185,7 +3252,7 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   \begin{assumptions}
   \item $\exect{\Omega_{\IH}}{e_{\IH}}{\Omega'_{\IH}}{\valueexpr_{\IH}}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback[\Game_{\IH}]{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game_{\IH}',\src{e_{\IH}}$
+  \item $\mmlAmmlAtback[\Game_{\IH}]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game_{\IH}',\src{e_{\IH}}$
   \item $\xlangbackstateeq[\delta_{\IH}]{\Omega_{\IH}}{\Omega_{\IH}}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -3198,16 +3265,16 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
 
   We proceed by case-analysis on $\trg{\msevent}$.
   \begin{description}
-    \item \textbf{Case $\trg{\msevent}=\specificevt{Alloc\ \loc\ n}$:}
+    \item \textbf{Case $\trg{\msevent}=\specificev{Alloc\ \loc\ n}$:}
       Note that:
       \begin{passumptions}{H}
-    \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\specificevt{Alloc\ \loc\ n}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e_a}$
+    \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\specificev{Alloc\ \loc\ n}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e_a}$
     \item $\Game_x=\Game[\trg{\loc}]$
     \item $\src{x}=\Game_x(\trg{\loc})$
     \item $\mmlAmmlAtback[\Game_x]{\mstrace}=\Game',\src{e_a}$
       \end{passumptions}
 
-      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificevt{Alloc\ \loc\ n}=\trg{Alloc\ \loc\ n}$, subsequently inverting \Cref{asm:backtranscorr:indu:step} yields:
+      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificev{Alloc\ \loc\ n}=\trg{Alloc\ \loc\ n}$, subsequently inverting \Cref{asm:backtranscorr:indu:step} yields:
       \begin{passumptions}{H}
       \setcounter{enumi}{4}
     \item $\trg{\Omega}=\trg{H;\Delta}$
@@ -3227,7 +3294,7 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
       \begin{passumptions}{H}
         \setcounter{enumi}{9}
       \item\label[ass]{asm:backtranscorr:indu:trace} $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-      \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_x]{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e'}$
+      \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_x]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{e'}$
       \end{passumptions}
 
       We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{H';z,\mapsto\loc_{\poisonless},\Delta}$, $\trg{\Omega_{\IH}'}=\trg{\Omega''}$, $\trg{e_{\IH}}=\trg{e'[z/x]}$, $\trg{\valueexpr_{\IH}}=\trg{\valueexpr}$, $\src{\Omega_{\IH}}=\src{H';z\mapsto\loc_{\poisonless},\Delta}$, $\src{e_{\IH}}=\src{e_a}$, $\delta_{\IH}=\delta_x$, $\Game_{\IH}=\Game_x$, and $\Game_{\IH}'=\Game'$.
@@ -3269,10 +3336,10 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
       Easy using \Cref{tr:empty-trace-eq}, \Cref{tr:cons-trace-eq}, \Cref{tr:alloc-event-eq}, \Cref{tr:call-event-eq}, \Cref{tr:ret-event-eq}, and \thmref{lem:compvals:insertion}.
       \end{goals}
 
-    \item \textbf{Case $\trg{\msevent}=\specificevt{Dealloc\ \loc}$:}
+    \item \textbf{Case $\trg{\msevent}=\specificev{Dealloc\ \loc}$:}
       todo.
 
-    \item \textbf{Case $\trg{\msevent}=\specificevt{Use\ \loc\ n}$:}
+    \item \textbf{Case $\trg{\msevent}=\specificev{Use\ \loc\ n}$:}
       todo.
 
   \end{description}
@@ -3285,7 +3352,7 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback{\specificevt{Ret\ !n_0}\cdot\mstrace\cdot\specificevt{Call\ ?n_1}}=\Game',\src{e}$
+  \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{e}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -3300,7 +3367,7 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
 \end{incompleteproof}
 
 \refstepcounter{theoremcounter}
-\begin{theorem}[Robust \gls{tms} Preservation]
+\begin{theorem}[Robust \gls{tms} Preservation]\label{thm:rtmsp}
   If
   \begin{assumptions}
   \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\trace}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\trace}\rightarrow\texttt{TMS}(\tospecificevcomps{\trace})$
@@ -3392,6 +3459,129 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   Combine \Cref{rtmsp:runt:execs1,rtmsp:runt:execs2,rtmsp:runt:execs3} using \Cref{tr:ws-e-prog} then apply\MK{can't apply, the goal is on $\theta(\trg{\trace})$} \Cref{asm:rtmsp:srctms} and we are done.
 
 \end{incompleteproof}
+
+\myfig{
+  \begin{center}
+    \begin{tikzpicture}
+      % relative horizontal/vertical distance between states
+      \pgfmathsetmacro{\hdist}{0.75}
+      \pgfmathsetmacro{\vdist}{1.25}
+      \pgfmathsetmacro{\halfvdist}{0.625}
+
+      % top row of states
+      \node (srcempty) {$\src{\emptyset}$};
+      \foreach \s [remember=\s as \cur (initially empty)] in {1,w_1,p,w_2,2} {
+        \node[right=\hdist of src\cur] (src\s) {$\src{\Omega_{\s}}$};
+      }
+      \path[color=\stlccol] (srcempty) edge[draw=none] node {\ $\xrightarrow{\trace[_1]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src1)
+        (src1) edge[draw=none] node {\ $\xrightarrow{\event[_c]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_1)
+        (srcw\string_1) edge[draw=none] node {\ $\xrightarrow{\trace[_p]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (srcp)
+        (srcp) edge[draw=none] node {\ $\xrightarrow{\event[_r]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_2)
+        (srcw\string_2) edge[draw=none] node {\ $\xrightarrow{\trace[_2]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src2)
+        ;
+      % bottom row of states
+      \node[below=\vdist of srcempty] (trgempty) {$\trg{\emptyset}$};
+      \foreach \s in {1,w_1,p,w_2,2} {
+        \node[below=\vdist of src\s] (trg\s) {$\trg{\Omega_{\s}}$};
+      }
+      \path[color=\ulccol] (trgempty) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
+        (trg1) edge[draw=none] node {$\bm{=}$} (trgw\string_1)
+        (trgw\string_1) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgp)
+        (trgp) edge[draw=none] node {$\bm{=}$} (trgw\string_2)
+        (trgw\string_2) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_2]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg2)
+        ;
+
+      % state relations
+      \path (srcempty) edge[draw=none] node[rotate=-90] {$\approx_\emptyset$} (trgempty)
+        (src1) edge[draw=none] node[rotate=-90] {$\approx_{\delta_1}$} (trg1)
+        (srcp) edge[draw=none] node[rotate=-90] {$\approx_{\delta_p}$} (trgp)
+        (src2) edge[draw=none] node[rotate=-90] {$\approx_{\delta_2}$} (trg2)
+        % lollies
+        (srcw\string_1) edge[draw=none] node[rotate=90] {$\multimap_{\delta_{w_1}}$} (trgw\string_1)
+        (srcw\string_2) edge[draw=none] node[rotate=90] {$\multimap_{\delta_{w_2}}$} (trgw\string_2)
+        ;
+
+      % wrapper illustrations
+      \drawpolygon src1,srcw\string_1,trgw\string_1;
+      \drawpolygon srcp,srcw\string_2,trgp;
+      \node[above right=0.2 and -0.2 of srcw\string_1] (wrapper) {\tiny Wrapper};
+      \path[->,draw] (wrapper) -- (srcw\string_1);
+      \path[->,draw] (wrapper) -- (srcp);
+      % legend
+      \node[align=left,below=0.3 of trgempty,font=\tiny] (legend) {%
+          $\src{\event[_c]}=\src{Call\ ?\finalexprnoerr_i}$\\%
+          $\src{\event[_r]}=\src{Ret\ !\finalexprnoerr_o}$
+        };
+    \end{tikzpicture}
+  \end{center}
+}{rtmsp-sketch}{Sketch of the proof of \thmref{thm:rtmsp}. %
+  Arrows in the horizontal direction are the usual step relations, but the term is omitted for aesthetic purposes. %
+  Likewise for the emitted target-level traces. %
+  Trace $\src{\trace[_1]}$ starts with $\src{Ret\ !0}$ and $\src{\trace[_2]}$ ends with $\src{Call\ ?\valueexpr}$, where $\src{\valueexpr}$ is the final result of the program. %
+  Target states $\trg{\Omega_1}$ and $\trg{\Omega_{w_1}}$ are exactly equal, so are $\trg{\Omega_p}$ and $\trg{\Omega_{w_2}}$. They are drawn for aesthetic purposes.}
+
+{\huge Alternative:}
+
+\myfig{
+  \begin{center}
+    \begin{tikzpicture}
+      % relative horizontal/vertical distance between states
+      \pgfmathsetmacro{\hdist}{0.75}
+      \pgfmathsetmacro{\vdist}{1.25}
+      \pgfmathsetmacro{\halfvdist}{0.625}
+
+      % top row of states
+      \node (srcempty) {$\src{\emptyset}$};
+      \foreach \s [remember=\s as \cur (initially empty)] in {1,w_1,p,w_2,2} {
+        \node[right=\hdist of src\cur] (src\s) {$\src{\Omega_{\s}}$};
+      }
+      \path[color=\stlccol] (srcempty) edge[draw=none] node {\ $\xrightarrow{\trace[_1]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src1)
+        (src1) edge[draw=none] node {\ $\xrightarrow{\event[_c]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_1)
+        (srcw\string_1) edge[draw=none] node {\ $\xrightarrow{\trace[_p]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (srcp)
+        (srcp) edge[draw=none] node {\ $\xrightarrow{\event[_r]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_2)
+        (srcw\string_2) edge[draw=none] node {\ $\xrightarrow{\trace[_2]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src2)
+        ;
+      % bottom row of states
+      \node[below=\vdist of srcempty] (trgempty) {$\trg{\emptyset}$};
+      \foreach \s in {1,p,2} {
+        \ifthenelse{\equal{\s}{1}}{ 
+          \node[below=\vdist of srcw\string_\s] (trg\s) {$\trg{\Omega_{\s}}$};
+        }{%else
+          \node[below=\vdist of src\s] (trg\s) {$\trg{\Omega_{\s}}$};
+        }
+      }
+      \path[color=\ulccol] (trgempty) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
+        (trg1) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgp)
+        (trgp) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_2]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg2)
+        ;
+
+      % state relations
+      \path (srcempty) edge[draw=none] node[rotate=-90] {$\approx_\emptyset$} (trgempty)
+        (src1) edge[draw=none] node[rotate=-45] {$\approx_{\delta_1}$} (trg1)
+        (srcp) edge[draw=none] node[rotate=-90] {$\approx_{\delta_p}$} (trgp)
+        (src2) edge[draw=none] node[rotate=-90] {$\approx_{\delta_2}$} (trg2)
+        % lollies
+        (srcw\string_1) edge[draw=none] node[rotate=90] {$\multimap_{\delta_{w_1}}$} (trg1)
+        (srcw\string_2) edge[draw=none] node[rotate=45] {$\multimap_{\delta_{w_2}}$} (trgp)
+        ;
+
+      % wrapper illustrations
+      \drawpolygon src1,srcw\string_1,trg1;
+      \drawpolygon srcp,srcw\string_2,trgp;
+      \node[above right=0.2 and -0.2 of srcw\string_1] (wrapper) {\tiny Wrapper};
+      \path[->,draw] (wrapper) -- (srcw\string_1);
+      \path[->,draw] (wrapper) -- (srcp);
+      % legend
+      \node[align=left,below=0.3 of trgempty,font=\tiny] (legend) {%
+          $\src{\event[_c]}=\src{Call\ ?\finalexprnoerr_i}$\\%
+          $\src{\event[_r]}=\src{Ret\ !\finalexprnoerr_o}$
+        };
+    \end{tikzpicture}
+  \end{center}
+}{rtmsp-sketch2}{Sketch of the proof of \thmref{thm:rtmsp}. %
+  Arrows in the horizontal direction are the usual step relations, but the term is omitted for aesthetic purposes. %
+  Likewise for the emitted target-level traces. %
+Note that trace $\src{\trace[_1]}$ starts with $\src{Ret\ !0}$ and $\src{\trace[_2]}$ ends with $\src{Call\ ?\valueexpr}$, where $\src{\valueexpr}$ is the final result of the program, but they are not instrumented by the backtranslation.}
 
 \clearpage
 \cleardoublepage

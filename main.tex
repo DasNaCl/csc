@@ -30,9 +30,7 @@
 \usepackage{extpfeil}
 
 \usepackage{tikz}
-\usetikzlibrary{positioning}
-\pgfdeclarelayer{background}
-\pgfsetlayers{background,main}
+\usetikzlibrary{positioning,calc}
 
 \newtheorem{example}{Example}
 \newtheorem{definition}{Definition}
@@ -59,12 +57,6 @@
 \makeatother
 
 \begin{document}
-\def\drawpolygon#1,#2;{
-    \begin{pgfonlayer}{background}
-        \filldraw[line width=20,join=round      ](#1.center)foreach\A in{#2}{--(\A.center)}--cycle;
-        \filldraw[line width=19,join=round,white](#1.center)foreach\A in{#2}{--(\A.center)}--cycle;
-    \end{pgfonlayer}
-}
 \tableofcontents
 \clearpage
 
@@ -3462,56 +3454,75 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
 
 \myfig{
   \begin{center}
-    \begin{tikzpicture}
+    \begin{tikzpicture}[state/.style={minimum height=0.6cm}]
       % relative horizontal/vertical distance between states
-      \pgfmathsetmacro{\hdist}{0.75}
+      \pgfmathsetmacro{\hdist}{0.85}
       \pgfmathsetmacro{\vdist}{1.25}
       \pgfmathsetmacro{\halfvdist}{0.625}
 
-      % top row of states
-      \node (srcempty) {$\src{\emptyset}$};
+      % row of src states
+      \node[state] (srcempty) {$\src{\emptyset}$};
       \foreach \s [remember=\s as \cur (initially empty)] in {1,w_1,p,w_2,2} {
-        \node[right=\hdist of src\cur] (src\s) {$\src{\Omega_{\s}}$};
+        \node[state,right=\hdist of src\cur] (src\s) {$\src{\Omega_{\s}}$};
       }
+      % row of trg states
+      \node[state,below=\vdist of srcempty] (trgempty) {$\trg{\emptyset}$};
+      \foreach \s in {1,w_1,p,w_2,2} {
+        \node[state,below=\vdist of src\s] (trg\s) {$\trg{\Omega_{\s}}$};
+      }
+      %% illustrations
+        % backtrans wrapper 1
+        \draw[thick,loosely dotted,Peach!50,rounded corners] (src1.north east) -- (srcw\string_1.north east)
+          -- (trgw\string_1.south east) -- (trg1.south west) -- (src1.north west) -- cycle;
+        % backtrans wrapper 2
+        \draw[thick,loosely dotted,Peach!50,rounded corners] (srcp.north east) -- (srcw\string_2.north east)
+          -- (trgw\string_2.south east) -- (trgp.south west) -- (srcp.north west) -- cycle;
+        % compiler correctness
+        \draw[thick,loosely dashed,Emerald!50,rounded corners] ($(srcw\string_1.north east)+(0,0.05)$) -- ($(srcp.north east)+(0,0.05)$)
+          -- ($(trgw\string_2.north east)+(0.05,0)$) -- ($(trgw\string_2.south east)+(0.05,-0.05)$)
+          -- ($(trg1.south west)+(-0.05,-0.05)$) -- ($(trg1.north west)+(-0.05,0)$) -- ($(srcw\string_1.north west)+(0,0.05)$) -- cycle;
+      % state relations
+      \path (srcempty) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_\emptyset$} (trgempty)
+        (src1) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trg1)
+        (srcp) edge[draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgp)
+        (src2) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_2}$} (trg2)
+        (srcw\string_1) edge[draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trgw\string_1)
+        (srcw\string_2) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (trgw\string_2)
+        % diagonals
+        (srcw\string_1) edge[draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trg1)
+        (src1) edge[draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trgw\string_1)
+        (srcp) edge[draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgw\string_2)
+        (trgp) edge[draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (srcw\string_2)
+        ;
+      %\drawpolygon src1,srcw\string_1,trgw\string_1,trg1;
+      %\drawpolygon srcp,srcw\string_2,trgw\string_2,trgp;
+      %\node[font=\tiny,align=center,above=0.2 of srcw1srcp] (wrapper) {Backtranslation\\Wrapper};
+      %\path[->,draw] (wrapper) -- (srcw\string_1);
+      %\path[->,draw] (wrapper) -- (srcp);
+      % steps
       \path[color=\stlccol] (srcempty) edge[draw=none] node {\ $\xrightarrow{\trace[_1]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src1)
-        (src1) edge[draw=none] node {\ $\xrightarrow{\event[_c]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_1)
+        (src1) edge[draw=none] node {\ $\xrightarrow{\trace[_c]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_1)
         (srcw\string_1) edge[draw=none] node {\ $\xrightarrow{\trace[_p]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (srcp)
-        (srcp) edge[draw=none] node {\ $\xrightarrow{\event[_r]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_2)
+        (srcp) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\trace[_r]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_2)
         (srcw\string_2) edge[draw=none] node {\ $\xrightarrow{\trace[_2]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src2)
         ;
-      % bottom row of states
-      \node[below=\vdist of srcempty] (trgempty) {$\trg{\emptyset}$};
-      \foreach \s in {1,w_1,p,w_2,2} {
-        \node[below=\vdist of src\s] (trg\s) {$\trg{\Omega_{\s}}$};
-      }
-      \path[color=\ulccol] (trgempty) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
-        (trg1) edge[draw=none] node {$\bm{=}$} (trgw\string_1)
-        (trgw\string_1) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgp)
-        (trgp) edge[draw=none] node {$\bm{=}$} (trgw\string_2)
+      \path[color=\ulccol] (trgempty) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
+        (trg1) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgw\string_1)
+        (trgw\string_1) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgp)
+        (trgp) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgw\string_2)
         (trgw\string_2) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_2]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg2)
         ;
-
-      % state relations
-      \path (srcempty) edge[draw=none] node[rotate=-90] {$\approx_\emptyset$} (trgempty)
-        (src1) edge[draw=none] node[rotate=-90] {$\approx_{\delta_1}$} (trg1)
-        (srcp) edge[draw=none] node[rotate=-90] {$\approx_{\delta_p}$} (trgp)
-        (src2) edge[draw=none] node[rotate=-90] {$\approx_{\delta_2}$} (trg2)
-        % lollies
-        (srcw\string_1) edge[draw=none] node[rotate=90] {$\multimap_{\delta_{w_1}}$} (trgw\string_1)
-        (srcw\string_2) edge[draw=none] node[rotate=90] {$\multimap_{\delta_{w_2}}$} (trgw\string_2)
-        ;
-
-      % wrapper illustrations
-      \drawpolygon src1,srcw\string_1,trgw\string_1;
-      \drawpolygon srcp,srcw\string_2,trgp;
-      \node[above right=0.2 and -0.2 of srcw\string_1] (wrapper) {\tiny Wrapper};
-      \path[->,draw] (wrapper) -- (srcw\string_1);
-      \path[->,draw] (wrapper) -- (srcp);
       % legend
-      \node[align=left,below=0.3 of trgempty,font=\tiny] (legend) {%
-          $\src{\event[_c]}=\src{Call\ ?\finalexprnoerr_i}$\\%
-          $\src{\event[_r]}=\src{Ret\ !\finalexprnoerr_o}$
+      \node[align=left,below right=0.3 and 0.3 of trgempty,font=\tiny] (legend) {%
+        $\xlangtraceeqn{\src{\trace[_c]}}{\mmlAmmlAtback[]{Call\ ?\finalexprnoerr_i}}$\\%
+        $\xlangtraceeqn{\src{\trace[_r]}}{\mmlAmmlAtback[]{Ret\ !\finalexprnoerr_o}}$
         };
+      \draw[thick,loosely dotted,Peach!50,rounded corners] ($(legend.north east)+(0.5,-0.4)$) -- ($(legend.north east)+(1,-0.4)$);
+      \node at ($(legend.north east)+(1.5,-0.4)$) (legendwrapper) {};
+      \node[right of=legendwrapper] {\tiny Backtranslation Wrapper};
+      \draw[thick,loosely dashed,Emerald!50,rounded corners] ($(legend.south east)+(0.5,0.4)$) -- ($(legend.south east)+(1,0.4)$);
+      \node at ($(legend.south east)+(1.5,0.4)$) (legendcorrectness) {};
+      \node[right of=legendcorrectness] {\tiny Compiler Correctness};
     \end{tikzpicture}
   \end{center}
 }{rtmsp-sketch}{Sketch of the proof of \thmref{thm:rtmsp}. %
@@ -3519,69 +3530,6 @@ Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs
   Likewise for the emitted target-level traces. %
   Trace $\src{\trace[_1]}$ starts with $\src{Ret\ !0}$ and $\src{\trace[_2]}$ ends with $\src{Call\ ?\valueexpr}$, where $\src{\valueexpr}$ is the final result of the program. %
   Target states $\trg{\Omega_1}$ and $\trg{\Omega_{w_1}}$ are exactly equal, so are $\trg{\Omega_p}$ and $\trg{\Omega_{w_2}}$. They are drawn for aesthetic purposes.}
-
-{\huge Alternative:}
-
-\myfig{
-  \begin{center}
-    \begin{tikzpicture}
-      % relative horizontal/vertical distance between states
-      \pgfmathsetmacro{\hdist}{0.75}
-      \pgfmathsetmacro{\vdist}{1.25}
-      \pgfmathsetmacro{\halfvdist}{0.625}
-
-      % top row of states
-      \node (srcempty) {$\src{\emptyset}$};
-      \foreach \s [remember=\s as \cur (initially empty)] in {1,w_1,p,w_2,2} {
-        \node[right=\hdist of src\cur] (src\s) {$\src{\Omega_{\s}}$};
-      }
-      \path[color=\stlccol] (srcempty) edge[draw=none] node {\ $\xrightarrow{\trace[_1]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src1)
-        (src1) edge[draw=none] node {\ $\xrightarrow{\event[_c]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_1)
-        (srcw\string_1) edge[draw=none] node {\ $\xrightarrow{\trace[_p]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (srcp)
-        (srcp) edge[draw=none] node {\ $\xrightarrow{\event[_r]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_2)
-        (srcw\string_2) edge[draw=none] node {\ $\xrightarrow{\trace[_2]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src2)
-        ;
-      % bottom row of states
-      \node[below=\vdist of srcempty] (trgempty) {$\trg{\emptyset}$};
-      \foreach \s in {1,p,2} {
-        \ifthenelse{\equal{\s}{1}}{ 
-          \node[below=\vdist of srcw\string_\s] (trg\s) {$\trg{\Omega_{\s}}$};
-        }{%else
-          \node[below=\vdist of src\s] (trg\s) {$\trg{\Omega_{\s}}$};
-        }
-      }
-      \path[color=\ulccol] (trgempty) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
-        (trg1) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgp)
-        (trgp) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_2]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg2)
-        ;
-
-      % state relations
-      \path (srcempty) edge[draw=none] node[rotate=-90] {$\approx_\emptyset$} (trgempty)
-        (src1) edge[draw=none] node[rotate=-45] {$\approx_{\delta_1}$} (trg1)
-        (srcp) edge[draw=none] node[rotate=-90] {$\approx_{\delta_p}$} (trgp)
-        (src2) edge[draw=none] node[rotate=-90] {$\approx_{\delta_2}$} (trg2)
-        % lollies
-        (srcw\string_1) edge[draw=none] node[rotate=90] {$\multimap_{\delta_{w_1}}$} (trg1)
-        (srcw\string_2) edge[draw=none] node[rotate=45] {$\multimap_{\delta_{w_2}}$} (trgp)
-        ;
-
-      % wrapper illustrations
-      \drawpolygon src1,srcw\string_1,trg1;
-      \drawpolygon srcp,srcw\string_2,trgp;
-      \node[above right=0.2 and -0.2 of srcw\string_1] (wrapper) {\tiny Wrapper};
-      \path[->,draw] (wrapper) -- (srcw\string_1);
-      \path[->,draw] (wrapper) -- (srcp);
-      % legend
-      \node[align=left,below=0.3 of trgempty,font=\tiny] (legend) {%
-          $\src{\event[_c]}=\src{Call\ ?\finalexprnoerr_i}$\\%
-          $\src{\event[_r]}=\src{Ret\ !\finalexprnoerr_o}$
-        };
-    \end{tikzpicture}
-  \end{center}
-}{rtmsp-sketch2}{Sketch of the proof of \thmref{thm:rtmsp}. %
-  Arrows in the horizontal direction are the usual step relations, but the term is omitted for aesthetic purposes. %
-  Likewise for the emitted target-level traces. %
-Note that trace $\src{\trace[_1]}$ starts with $\src{Ret\ !0}$ and $\src{\trace[_2]}$ ends with $\src{Call\ ?\valueexpr}$, where $\src{\valueexpr}$ is the final result of the program, but they are not instrumented by the backtranslation.}
 
 \clearpage
 \cleardoublepage

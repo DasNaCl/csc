@@ -612,6 +612,15 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlAs$}
 
+Most of the syntax is more or less standard.
+Qualifiers $\src{q}$ can be attached to pointers to signal ownership.
+Hereby, the qualifier $\src{\full}$ means "fully owned", meaning we may and also must delete the pointer at some point, while we cannot do the same for $\src{\half}$, which forbids us to delete.
+Poison $\src{\poison}$ marks locations in the execution-context $\src{\Omega}$ as ,,to-be-deleted'' ($\src{\poisonless}$) or ,,deleted'' ($\src{\poisoned}$).
+We chose to distinguish between successful final results ($\src{\finalexprnoerr}$) and potentially crashed results ($\src{\finalexpr}$).
+Note that a final result may also be an identifier, which we keep around as abstract representation for locations of pointers.
+However, we still distinct them from ordinary values ($\src{\valueexpr}$), since they don't behave like normal values.
+For example, we cannot make canonical typing lemmas for them without the additional information contained in a non-empty typing-context.
+
 \subsubsection{Static Semantics}
 \begin{definition}[NoPtr]
   We write $\src{\noptr{\Gamma}}$ if for any $\src{x}, \src{\type}$, if $\src{x} : \src{\type}\in\src{\Gamma}$, then $\types\not=\ptr$.
@@ -652,6 +661,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{t-ptr-r-split}
   \end{center}
 }{w-ctx-split}{Context Splitting of $\mmlAs$ typing contexts.}
+
+The splitting of contexts takes care to propagate owned-pointers towards the end.
+This way, no non-owned pointer occurs in the context after an owned one, where both have the same identifier.
+Note that non-owned pointers and values may be freely duplicated and that we can generate non-owned pointers if we have ownership.
 
 \myfig{
   \judgbox{\typechecks{\Gamma}{e}{\types}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\types$.''}
@@ -722,6 +735,10 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{w-t-if}
   \end{center}
 }{w-expr-ty}{Checking of $\mmlAs$ expressions.}
+The context splitting takes care that for e.g. \Cref{tr:t-binop} it cannot happen that we do something like $\src{(delete\ x) + x[0]}$.
+For \Cref{tr:t-var,tr:t-nat} we require that the contexts do not contain any owned pointer.
+Intuitively, an owned pointer is useless upto getting a non-owned version from context splitting, because we cannot do anything with it besides deleting.
+This is inspired by linear logic.
 
 \myfig{
   \begin{center}
@@ -762,6 +779,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{center}
 }{src-int-types}{Interface types of $\mmlAs$.}
 
+We introduce interface types to explicitly disallow passing owned pointers.
+
 \myfig{
   \begin{center}
     \judgbox{\typecheck{}{\src{context\ e_1\ e_2}}{\src{(\type_1\to\type_2)\to\nat}}}{,,$\mmlAs$ context $\src{context\ e_1\ e_2}$ typechecks.''}$\;$\\
@@ -800,6 +819,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 	}{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
+Perhaps most interesting is \Cref{tr:w-t-prog}, which generates a suitable typing context from the execution context.
+\Cref{fig:store-ty} shows how this works exactly.
 
 \myfig{
   \begin{center}
@@ -828,6 +849,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
     }{t-poison-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
+Here, we want to populate the typing context with all {\em valid} pointers, which are those that are not poisoned.
+For locations marked with unimportance ($\src{\diamond}$), we still generate a non-owned pointer to permit usage but not force deletion of it.
 
 \myfig{
   \begin{center}
@@ -934,6 +957,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{w-e-abort}
 }{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
 
+Evaluation is mostly straightforward, the only interesting cases involve the pointers.
+Specifically, \Cref{tr:w-e-delete} demonstrates why we need the poison-tag on the locations: Regardless of the current tag, emit a $\src{Dealloc\ \loc}$ event and mark $\src{\loc}$ as poisoned ($\src{\poisoned}$).
+The intuitive solution, removing the mapping on deletion, doesn't allow to run programs that delete twice.
+However, we want to model memory effects and show that such situations never happen, even though they {\em could}.
+Given a poisoned location, we can still do everything with it: reading, writing, or deletion.
+When generating the static context from the execution context, \Cref{tr:t-poison-store} allows us to disregard deleted locations which will help us reason that the given execution could not have been happening if the program was well-typed to begin with.
+
 \myfig{
   \begin{center}
     \judgbox{\execs{\configs}{e}{\configs'}{e'}{\trace}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
@@ -992,8 +1022,12 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   }{ws-e-prog-fail1}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
+Note that the rules in \Cref{fig:wprog-run} do not require the context to be well-typed.
+In addition, this is where $\src{Call}$ and $\src{Ret}$ events are emitted.
 
 \subsubsection{\gls*{ms}-Specific Events}
+We introduce another set of actions that allows us to abstract over reading or writing at a certain location.
+
 \myfig{
   \begin{gather*}
   \begin{aligned}
@@ -1002,6 +1036,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{aligned}
   \end{gather*}
 }{w-specific-events}{\gls*{ms}-Specific Events.}
+In addition to the actions, we also need a way to translate from concrete actions, as emitted by a program's execution, to these more abstract actions.
+The translation is, however, standard.
+
 \myfig{
   \begin{center}
     \judgbox{\tospecificevs{\event} = \msevent}{,,Project an $\mmlAs$ event $\src{\event}$ to $\msevent$.''}
@@ -1034,6 +1071,8 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 }{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
 
 \subsubsection{\gls*{tms} Monitor}
+In order to just talk about temporal memory safety, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
+
 \myfig{
   \begin{gather*}
     \begin{aligned}
@@ -1088,6 +1127,11 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \end{center}
 }{tms-step}{Steps of \gls{tms} Monitor.}
 
+The monitor-state contains two sets of locations that represent the ones that are active and the ones that have been deallocated, respectively.
+As seen in \Cref{tr:tms-dealloc}, the monitor only steps if the intuitive condition is true: a location can only be deallocated if it is part of the set of allocated locations.
+\Cref{tr:tms-use} ensures that only allocated locations occur in events representing usage, the monitor cannot step if the location has been deallocated before.
+
+As before, we need a way to translate one set of actions to another: 
 
 \myfig{
   \begin{center}
@@ -3068,7 +3112,7 @@ We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 Note that \Cref{tr:backtrans-top-level-0,tr:backtrans-top-level-1} introduce a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
 It wraps around the program component and the allocated location introduced by it is intuitively tagged by $\trg{\diamond}$.
 However, this is not done in the definition here, since the grammar of traces does not capture importance.
-Instead, we have to ,,manually'' tag the location of the wrapper in the proof of \nameref{thm:rtmsp} as unimportant ($\trg{\diamond}$)..
+Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the rules depicted in \Cref{fig:twprog-run}.
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 

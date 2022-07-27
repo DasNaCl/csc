@@ -3042,24 +3042,33 @@ But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
 }{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtback{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtback[\Game,\loc+()]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
     %
-    \typerule{backtrans-top-level}{
+    \typerule{backtrans-top-level-0}{
       \fresh{\Game}{\trg{\loc}} &
-      \mmlAmmlAtbackdetail{\specificev{Alloc\ \loc\ 42}\cdot\mstrace\cdot\specificev{Dealloc\ \loc}} = \Game', \src{e}
+      \mmlAmmlAtbackdetail{\mstrace\cdot\specificev{Alloc\ \loc\ n_1}} = \Game', \src{e}
     }{
-      \mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}, \Game', \src{e}
-    }{backtrans-top-level}
+      \mmlAmmlAtback[\Game,()]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}} = \Game', \trg{\loc}, \src{e}
+    }{backtrans-top-level-0}
+    %
+    \typerule{backtrans-top-level-1}{
+      \mmlAmmlAtbackdetail{\specificev{Dealloc\ \loc}\cdot\mstrace} = \Game', \src{e}
+    }{
+      \mmlAmmlAtback[\Game,\trg{\loc}]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}} = \Game', (), \src{e}
+    }{backtrans-top-level-1}
     %
     \typerule{backtrans-top-level-crash}{
       \mmlAmmlAtbackdetail{\mstrace} = \Game', \src{e}
     }{
-      \mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{\lightning}} = \Game', \src{e;abort()}
+      \mmlAmmlAtback[\Game,\_]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{\lightning}} = \Game', \src{e;abort()}
     }{backtrans-top-level-crash}
   \end{center}
 }{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
-Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
+Note that \Cref{tr:backtrans-top-level-0,tr:backtrans-top-level-1} introduce a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
+It wraps around the program component and the allocated location introduced by it is intuitively tagged by $\trg{\diamond}$.
+However, this is not done in the definition here, since the grammar of traces does not capture importance.
+Instead, we have to ,,manually'' tag the location of the wrapper in the proof of \nameref{thm:rtmsp} as unimportant ($\trg{\diamond}$)..
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 

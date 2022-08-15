@@ -579,7 +579,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
   \begin{aligned}
   \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
-  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \\ 
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{returning\ \finalexprnoerr} \mid \src{calling\ \finalexprnoerr} \\
   & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} \\
   &\mid \src{hole : (x:\type_1)\to\type_2} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
   %
@@ -722,6 +722,18 @@ Note that non-owned pointers and values may be freely duplicated and that we can
     \typechecks{\Gamma}{hole : \type_1\to\type_2}{\type_2}
   }{t-hole}
   %
+  \typerule{$t-\src{calling}$}{
+    \typechecks{\Gamma}{e}{\type}
+  }{
+    \typechecks{\Gamma}{calling\ e}{\type}
+  }{t-calling}
+  %
+  \typerule{$t-\src{returning}$}{
+    \typechecks{\Gamma}{e}{\type}
+  }{
+    \typechecks{\Gamma}{returning\ e}{\type}
+  }{t-returning}
+  %
   \typerule{$t-\src{new}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
     \typechecks{x:\ptr,\Gamma_2}{e_2}{\nat}
@@ -752,25 +764,105 @@ Note that $\src{hole : \type}$ has no runtime action, which is why we have an ad
 Without the hole, we cannot represent the context as a simple, nested $\src{let}$-expression, which also means that the static contexts of the two expressions that wrap around the component have no interaction, i.e. for $\src{context\ e_1\ e_2}$ we cannot typecheck the case where $\src{e_1}$ wants to allocate some memory and keep it around for deallocation in $\src{e_2}$.
 
 \myfig{
-}{find-judgement}{A helper-judgement that takes in another judgement and do structural recursion on the syntax of $\mmlAs$.}
+  \begin{center}
+    \judgbox{\hasholes{x:\type_1}{e}{\type_2}}{,,$\src{e}$ is contains exacty one $\src{hole:(x:\type_1)\to\type_2}$ that\\may be filled with an expression $\src{e':\type_2}$ that\\uses $\src{x:\type_1}$.''}
+  \typerule{has-hole-$\src{hole}$}{
+  }{
+    \hasholes{x:\type_1}{hole:(x:\type_1)\to\type_2}{\type_2}
+  }{hashole-hole}
+  %
+  \typerule{has-hole-L$\src{\oplus}$}{
+    \hasholes{x:\type_1}{e_1}{\type_2}
+  }{
+    \hasholes{x:\type_1}{e_1\oplus e_2}{\type_2}
+  }{hashole-Lbinop}
+  %
+  \typerule{has-hole-R$\src{\oplus}$}{
+    \hasholes{x:\type_1}{e_2}{\type_2}
+  }{
+    \hasholes{x:\type_1}{e_1\oplus e_2}{\type_2}
+  }{hashole-Rbinop}
+  %
+  \typerule{has-hole-$\src{y[e]}$}{
+    \hasholes{x:\type_1}{e}{\type_2}
+  }{
+    \hasholes{x:\type_1}{y[e]}{\type_2}
+  }{hashole-access}
+  %
+  \typerule{has-hole-L$\src{let}$}{
+    \hasholes{x:\type_1}{e_1}{\type_2}
+  }{
+    \hasholes{x:\type_1}{let\ y=e_1\ in\ e_2}{\type_2}
+  }{hashole-Llet}
+  %
+  \typerule{has-hole-R$\src{let}$}{
+    \hasholes{x:\type_1}{e_2}{\type_2}
+  }{
+    \hasholes{x:\type_1}{let\ y=e_1\ in\ e_2}{\type_2}
+  }{hashole-Rlet}
+  %
+  \typerule{has-hole-Lput}{
+    \hasholes{x:\type_1}{e_1}{\type_2}
+  }{
+    \hasholes{x:\type_1}{y[e_1]\leftarrow e_2}{\type_2}
+  }{hashole-Lput}
+  %
+  \typerule{has-hole-Rput}{
+    \hasholes{x:\type_1}{e_2}{\type_2}
+  }{
+    \hasholes{x:\type_1}{y[e_1]\leftarrow e_2}{\type_2}
+  }{hashole-Lput}
+  %
+  \typerule{has-hole-L$\src{new}$}{
+    \hasholes{x:\type_1}{e_1}{\type_2}
+  }{
+    \hasholes{x:\type_1}{let\ y=new\ e_1\ in\ e_2}{\type_2}
+  }{hashole-Lnew}
+  %
+  \typerule{has-hole-R$\src{new}$}{
+    \hasholes{x:\type_1}{e_2}{\type_2}
+  }{
+    \hasholes{x:\type_1}{let\ y=new\ e_1\ in\ e_2}{\type_2}
+  }{hashole-Rnew}
+  %
+  \typerule{has-hole-C$\src{ifz}$}{
+    \hasholes{x:\type_1}{e_1}{\type_2}
+  }{
+    \hasholes{x:\type_1}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_2}
+  }{hashole-Cif}
+  %
+  \typerule{has-hole-T$\src{ifz}$}{
+    \hasholes{x:\type_1}{e_2}{\type_2}
+  }{
+    \hasholes{x:\type_1}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_2}
+  }{hashole-Tif}
+  %
+  \typerule{has-hole-F$\src{ifz}$}{
+    \hasholes{x:\type_1}{e_3}{\type_2}
+  }{
+    \hasholes{x:\type_1}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_2}
+  }{hashole-Fif}
+  \end{center}
+}{hashole}{A check for $\mmlAs$ expressions to see whether they contain exactly one $\src{hole:(x:\type_1)\to\type_2}$.}
 
 \myfig{
   \begin{center}
     \judgbox{\vdash \src{e}\ \text{runtime}}{,,$\src{e}$ is a valid runtime term.''}
+    \begin{center}
+      \typerule{runtime-term}{
+        \neg\left(\hasholes{x:\type_1}{e}{\type_2}\right) &
+        \typechecks{}{\Omega\triangleright e}{\type}
+      }{
+        \vdash\src{e}\ \text{runtime}
+      }{runtime-term-rule}
+    \end{center}
     % TODO: fold over all possible expressions modulo hole
   \end{center}
-}{no-hole}{A check for $\mmlAs$ expressions to see whether they are a valid runtime term or not.}
+}{runtime-term}{A check for $\mmlAs$ expressions to see whether they are a valid runtime term or not.}
 
 \myfig{
   \begin{center}
-    \judgbox{\hasholes{x:\type_1}{e}{\type_2}}{,,$\src{e}$ is contains exacty one $\src{hole:(x:\type_1)\to\type_2}$ that may\\be filled with an expression $\src{e':\type_2}$ that uses $\src{x:\type_1}$.''}
-    % TODO: fold over all possible expression modulo hole
-  \end{center}
-}{has-hole}{A check for $\mmlAs$ expressions to see whether they contain exactly one $\src{hole:(x:\type_1)\to\type_2}$.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\closed{X}{\src{e}}}{,,At most all $\mmlAs$ variables in the set $X$ occur in $\src{e}$.''}
+    \judgbox{\closed{\src{x_1},\cdots,\src{x_n}}{\src{e}}}{,,At most all $\mmlAs$ variables in the set $\left\{\src{x_1},\cdots,\src{x_n}\right\}$ occur in $\src{e}$.''}
     \typerule{$\mmlAs-$program}{
       \closed{}{\src{component\ e_p}}&
       \closed{}{\src{context\ e_0\ e_1}}
@@ -1013,6 +1105,11 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     }{ws-e-trans-unimportant}
   \end{center}
 }{w-steps}{Trace prefix generation given a $\mmlAs$ program using the reflexive-transitive closure.}
+
+%let y = returning
+%  let _ = returning 0
+%  in let x = calling e₀ in e₁(x)
+%in calling e₂
 
 \myfig{
   \begin{center}

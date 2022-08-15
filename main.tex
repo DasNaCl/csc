@@ -579,9 +579,9 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \begin{gather*}
   \begin{aligned}
   \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
-  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \\
-  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} 
-  \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \\ 
+  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} \\
+  &\mid \src{hole : (x:\type_1)\to\type_2} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
   %
   \mi{Types}~\types \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
   %
@@ -620,6 +620,8 @@ We chose to distinguish between successful final results ($\src{\finalexprnoerr}
 Note that a final result may also be an identifier, which we keep around as abstract representation for locations of pointers.
 However, we still distinct them from ordinary values ($\src{\valueexpr}$), since they don't behave like normal values.
 For example, we cannot make canonical typing lemmas for them without the additional information contained in a non-empty typing-context.
+We also have an additional expression $\src{hole : (x:\type_1)\to\type_2}$ that intuitively can be replaced by an expression $\src{e : \type_2}$ that {\em may} rely on an $\src{x:\type_1}$ to be present in the static context.
+It is used as a placeholder to be filled by a $\src{component\ e}$.
 
 \subsubsection{Static Semantics}
 \begin{definition}[NoPtr]
@@ -691,14 +693,14 @@ Note that non-owned pointers and values may be freely duplicated and that we can
     \typechecks{\Gamma_1\circ\Gamma_2}{e_1\oplus e_2}{\nat}
   }{t-binop}
   %
-  \typerule{$t-get$}{
+  \typerule{$t-$get}{
     \typechecks{\Gamma_2}{x}{\wptr} &
     \typechecks{\Gamma_1}{e}{\nat}
   }{
     \typechecks{\Gamma_1\circ\Gamma_2}{x[e]}{\nat}
   }{t-get}
   %
-  \typerule{$t-set$}{
+  \typerule{$t-$set}{
     \typechecks{\Gamma_3}{x}{\wptr} &
     \typechecks{\Gamma_1}{e_1}{\nat} &
     \typechecks{\Gamma_2}{e_2}{\nat}
@@ -707,11 +709,18 @@ Note that non-owned pointers and values may be freely duplicated and that we can
   }{t-set}
   %
   \typerule{$t-\src{let}$}{
-    \typechecks{\Gamma_1}{e_1}{\nat} &
-    \typechecks{x:\nat,\Gamma_2}{e_2}{\type}
+    \typechecks{\Gamma_1}{e_1}{\type_1} &
+    \typechecks{x:\type_1,\Gamma_2}{e_2}{\type_2}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\type}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\type_2}
   }{t-let}
+  %
+  \typerule{$t-\src{hole}$}{
+    \src{\Gamma}=\src{\Gamma_1,x:\type_1,\Gamma_2} &
+    \src{\noptr{\Gamma}}
+  }{
+    \typechecks{\Gamma}{hole : \type_1\to\type_2}{\type_2}
+  }{t-hole}
   %
   \typerule{$t-\src{new}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
@@ -738,32 +747,52 @@ Note that non-owned pointers and values may be freely duplicated and that we can
 The context splitting takes care that for e.g. \Cref{tr:t-binop} it cannot happen that we do something like $\src{(delete\ x) + x[0]}$.
 For \Cref{tr:t-var,tr:t-nat} we require that the contexts do not contain any owned pointer.
 Intuitively, an owned pointer is useless upto getting a non-owned version from context splitting, because we cannot do anything with it besides deleting.
-This is inspired by linear logic.
+This is inspired by linear logic. To deal with program contexts, we have two additional rules \Cref{tr:t-let-check,tr:t-hole} that carry additional type informationn.
+Note that $\src{hole : \type}$ has no runtime action, which is why we have an additional judgement as presented in \Cref{fig:no-hole} that ensures that a given well-typed program can run.
+Without the hole, we cannot represent the context as a simple, nested $\src{let}$-expression, which also means that the static contexts of the two expressions that wrap around the component have no interaction, i.e. for $\src{context\ e_1\ e_2}$ we cannot typecheck the case where $\src{e_1}$ wants to allocate some memory and keep it around for deallocation in $\src{e_2}$.
+
+\myfig{
+}{find-judgement}{A helper-judgement that takes in another judgement and do structural recursion on the syntax of $\mmlAs$.}
 
 \myfig{
   \begin{center}
-  \judgbox{closed\ X\ \src{e}}{,,At most all $\mmlAs$ variables in the set $X$ occur in $\src{e}$.''}
+    \judgbox{\vdash \src{e}\ \text{runtime}}{,,$\src{e}$ is a valid runtime term.''}
+    % TODO: fold over all possible expressions modulo hole
+  \end{center}
+}{no-hole}{A check for $\mmlAs$ expressions to see whether they are a valid runtime term or not.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\hasholes{x:\type_1}{e}{\type_2}}{,,$\src{e}$ is contains exacty one $\src{hole:(x:\type_1)\to\type_2}$ that may\\be filled with an expression $\src{e':\type_2}$ that uses $\src{x:\type_1}$.''}
+    % TODO: fold over all possible expression modulo hole
+  \end{center}
+}{has-hole}{A check for $\mmlAs$ expressions to see whether they contain exactly one $\src{hole:(x:\type_1)\to\type_2}$.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\closed{X}{\src{e}}}{,,At most all $\mmlAs$ variables in the set $X$ occur in $\src{e}$.''}
     \typerule{$\mmlAs-$program}{
-      \vdash_\copyright\src{component\ e_p}&
-      \vdash_\copyright\src{context\ e_0\ e_1}
+      \closed{}{\src{component\ e_p}}&
+      \closed{}{\src{context\ e_0\ e_1}}
     }{
-      \vdash_\copyright\src{prog\ e_0\ e_p\ e_1}
+      \closed{}{\src{prog\ e_0\ e_p\ e_1}}
     }{src-program}
     %
     \typerule{$\mmlAs-$component}{
-      closed\ \{\src{x}\}\ \src{e}
+      \closed{\src{x}}{\src{e}}
     }{
-      \vdash_\copyright\src{component\ e}
+      \closed{}{\src{component\ e}}
     }{src-component}
     %
     \typerule{$\mmlAs-$context}{
-      closed\ \emptyset\ \src{e_0} &
-      closed\ \{\src{y}\}\ \src{e_1}
+      \closed{}{\src{e_0}}&
+      \closed{\src{y}}{\src{e_1}}
     }{
-      \vdash_\copyright\src{context\ e_0\ e_1}
+      \closed{}{\src{context\ e_0\ e_1}}
     }{src-context}
   \end{center}
 }{src-programs}{$\mmlAs$ programs, contexts, and components.}
+%TODO: add judgement for closedness
 
 \myfig{
   \begin{center}
@@ -787,8 +816,10 @@ We introduce interface types to explicitly disallow passing owned pointers.
     \judgbox{\typechecks{}{component\ e_p}{\type_1\to\type_2}}{,,$\mmlAs$ component $\src{component\ e_p}$ typechecks.''}$\;$\\
     \judgbox{\typechecks{}{program\ e_1\ e_p\ e_2}{\nat}}{,,$\mmlAs$ program $\src{program\ e_1\ e_p\ e_2}$ typechecks.''}$\;$\\
   \typerule{$t-\text{ctx}$}{
-    \typechecks{}{e_1}{\type_1}&
-    \typechecks{y:\type_2}{e_2}{\nat}&
+    \hasholes{x:\type_1}{e_1}{\type_2}&
+    \typechecks{}{let\ y=e_1\ in\ e_2}{\nat}&
+    %\typechecks{}{e_1}{\type_1}&
+    %\typechecks{y:\type_2}{e_2}{\nat}&
     \src{\type_1}\operatorname{int}&
     \src{\type_2}\operatorname{int}&
 	}{
@@ -918,15 +949,10 @@ For locations marked with unimportance ($\src{\diamond}$), we still generate a n
     \exprevals{\sconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]\leftarrow v}{\sconfig{H'}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{w-e-set}
   %
-  \typerule{$e-\src{let}-\src{x}$}{
+  \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
   }{
-    \exprevals{\sconfig{H}{\Delta}}{let\ x=y\ in\ e}{\sconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
+  \exprevals{\sconfig{H}{\Delta}}{let\ x=\finalexprnoerr\ in\ e}{\sconfig{H}{\Delta}}{e[\finalexprnoerr/x]}{\emptyevent}
   }{w-e-let-x}
-  %
-  \typerule{$e-\src{let}-\src{v}$}{
-  }{
-    \exprevals{\sconfig{H}{\Delta}}{let\ x=v\ in\ e}{\sconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
-  }{w-e-let-v}
   %
   \typerule{$e-\src{delete}$}{
   }{

@@ -987,7 +987,75 @@ For locations marked with unimportance ($\src{\diamond}$), we still generate a n
     $$
   \end{center}
 }{w-plugging-s}{$\mmlAs$ plugging of contexts and components.}
-\MK{$\src{prog\ e_0\ e_p\ e_1}$ may not be well-typed...}
+
+\myfig{
+  \begin{center}
+  \judgbox{\plugs{e_0}{e_1}=\src{e_2}}{,,Replace any $\src{hole}$ in $\src{e_1}$ by $\src{e_0}$, resulting in $\src{e_2}$.''}
+    \typerule{plug-hole}{
+      \fresh{{\color{red}\textbf{todo}\text{: need free set of surrounding exprs}}}{\src{z}} &
+      \typechecks{x:\type_1}{e}{\type_2}
+    }{
+      \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{let\ z = calling\ x\ in\ returning\ e[z/x]}
+    }{s-plug-hole}
+    %
+    \typerule{plug-finalexprnoerr}{
+    }{
+      \plugs{e}{\finalexprnoerr}=\src{\finalexprnoerr}
+    }{s-plug-finalexprnoerr}
+    %
+    \typerule{plug-$\src{delete}$}{
+    }{
+      \plugs{e}{delete\ x}=\src{delete\ x}
+    }{s-plug-delete}
+    %
+    \typerule{plug-$\src{abort}$}{
+    }{
+      \plugs{e}{abort}=\src{abort}
+    }{s-plug-abort}
+    %
+    \typerule{plug-$\src{\oplus}$}{
+      \plugs{e}{e_0}=\src{e_0'} &
+      \plugs{e}{e_1}=\src{e_1'}
+    }{
+      \plugs{e}{e_0\oplus e_1}=\src{e_0'\oplus e_1'}
+    }{s-plug-binop}
+    %
+    \typerule{plug-$\src{get}$}{
+      \plugs{e}{e_0}=\src{e_0'}
+    }{
+      \plugs{e}{x[e_0]}=\src{x[e_0']}
+    }{s-plug-get}
+    %
+    \typerule{plug-$\src{put}$}{
+      \plugs{e}{e_0}=\src{e_0'}&
+      \plugs{e}{e_1}=\src{e_1'}
+    }{
+      \plugs{e}{x[e_0]\leftarrow e_1}=\src{x[e_0']\leftarrow e_1'}
+    }{s-plug-put}
+    %
+    \typerule{plug-$\src{let}$}{
+      \plugs{e}{e_0}=\src{e_0'}&
+      \plugs{e}{e_1}=\src{e_1'}
+    }{
+      \plugs{e}{let\ x = e_0\ in\ e_1}=\src{let\ x = e_0'\ in\ e_1'}
+    }{s-plug-let}
+    %
+    \typerule{plug-$\src{new}$}{
+      \plugs{e}{e_0}=\src{e_0'}&
+      \plugs{e}{e_1}=\src{e_1'}
+    }{
+      \plugs{e}{let\ x = new\ e_0\ in\ e_1}=\src{let\ x = new\ e_0'\ in\ e_1'}
+    }{s-plug-new}
+    %
+    \typerule{plug-$\src{ifz}$}{
+      \plugs{e}{e_0}=\src{e_0'}&
+      \plugs{e}{e_1}=\src{e_1'}&
+      \plugs{e}{e_2}=\src{e_2'}
+    }{
+      \plugs{e}{ifz\ e_0\ then\ e_1\ else\ e_2}=\src{ifz\ e_0'\ then\ e_1'\ else\ e_2'}
+    }{s-plug-new}
+  \end{center}
+}{w-plug-s}{Replace any $\src{hole}$ in an expression.}
 
 \subsubsection{Dynamic Semantics}
 
@@ -1006,7 +1074,7 @@ For locations marked with unimportance ($\src{\diamond}$), we still generate a n
       \src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus E}\mid \src{x[K]}\mid
       \src{let\ x=K\ in\ e}\\
                      &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e} \\
-                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2}
+                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2} \mid \src{calling\ K}\mid \src{returning\ K}
     \end{aligned}
   \end{gather*}
 }{w-expr-eval-ectx}{Evaluation Contexts of $\mmlAs$.}
@@ -1021,6 +1089,16 @@ For locations marked with unimportance ($\src{\diamond}$), we still generate a n
   }{
     \execs[]{\qconfigs[i]}{K[e]}{\configs'}{K[e']}{\event}
   }{w-e-ectx}
+  %
+  \typerule{$e-\src{returning}$}{
+  }{
+    \exprevals{\configs}{returning\ \finalexprnoerr}{\configs}{\finalexprnoerr}{Ret\ !\finalexprnoerr}
+  }{w-e-returning}
+  %
+  \typerule{$e-\src{calling}$}{
+  }{
+    \exprevals{\configs}{calling\ \finalexprnoerr}{\configs}{\finalexprnoerr}{Call\ ?\finalexprnoerr}
+  }{w-e-calling}
   %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}\oplus\src{n_2}=\src{n_3}
@@ -1115,33 +1193,56 @@ When generating the static context from the execution context, \Cref{tr:t-poison
   \begin{center}
     \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
-    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
-    \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\finalexprnoerr_1}{\trace{_1}} &
+    \plugs{e_p}{e_0}=\src{e_0'}&
+    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
+    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
+    \execs{\configs_{po}}{e_0''}{\configs_0'}{\finalexprnoerr_p'}{\trace[_0']}&
+    \execs{\configs_0'}{e_1[\finalexprnoerr_p'/y]}{\configs_1}{\finalexprnoerr_1}{\trace[_1]}
+%   \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
+%   \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
+%   \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\finalexprnoerr_1}{\trace{_1}} &
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}\cdot Call\ ?\finalexprnoerr_1}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot\trace[_0']\cdot \trace[_1]\cdot Call\ ?\finalexprnoerr_1}
   }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail0}{
-    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
+    \plugs{e_p}{e_0}=\src{e_0'}&
+    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\lightning}{stuck}{\trace[_0]}&
+%    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
+%    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
   }{ws-e-prog-fail0}
   \typerule{$e-\text{wprog}-$failp}{
-    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\lightning}{stuck}{\trace{_p}} &
+    \plugs{e_p}{e_0}=\src{e_0'}&
+    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
+    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{stuck}{\trace[_p]}\\
+%    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
+%    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
+%    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\lightning}{stuck}{\trace{_p}} &
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
   }{ws-e-prog-failp}
-  \typerule{$e-\text{wprog}-$fail1}{
-    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
-    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
-    \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\lightning}{stuck}{\trace{_1}} &
+  \typerule{$e-\text{wprog}-$fail0'}{
+    \plugs{e_p}{e_0}=\src{e_0'}&
+    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
+    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
+    \execs{\configs_{po}}{e_0''}{\lightning}{stuck}{\trace[_0']}&
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_1}}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_0'}}
+  }{ws-e-prog-fail0p}
+  \typerule{$e-\text{wprog}-$fail1}{
+    \plugs{e_p}{e_0}=\src{e_0'}&
+    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
+    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
+    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
+    \execs{\configs_{po}}{e_0''}{\configs_0'}{\finalexprnoerr_p'}{\trace[_0']}&
+    \execs{\configs_0'}{e_1[\finalexprnoerr_p'/y]}{\lightning}{stuck}{\trace[_1]}
+  }{
+  \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace[_0]\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot \trace[_0']\cdot \trace[_1]}
   }{ws-e-prog-fail1}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}

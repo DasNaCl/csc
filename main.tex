@@ -1317,7 +1317,7 @@ In order to just talk about temporal memory safety, we introduce a monitor that 
     \begin{aligned}
       \mi{Abstract\ References}~L \subseteq& \nat \hspace{0.5cm}
       \mi{Abstract\ Store}~\tmsmonitor =\{A : L, F : L\} \\
-      \mi{Abstract\ Events}~\absevent \bnfdef& \textbf{Alloc}\ \loc \mid \textbf{Dealloc}\ \loc \mid \textbf{Use}\ \loc \mid \abstermination\\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \loc \mid \textbf{Dealloc}\ \loc \mid \textbf{Use}\ \loc \mid \abstermination\\
       \mi{References\ Agreement}~\delta_{\text{tms}} :& \src{L}\to L \\[0.6cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
       \absevent\not\in \tmsmonitor['] &\text{ iff } \absevent \not\in {\tmsmonitor['.A]} \wedge \absevent \not\in {\tmsmonitor['.F]}\\
@@ -1326,10 +1326,17 @@ In order to just talk about temporal memory safety, we introduce a monitor that 
   \end{gather*}
 }{tms-monitor}{\gls{tms} Monitor.}
 
+We have $\bm{\varepsilon}$ in order to accompany unimportant events, such as $\specificev{Call\ ?\finalexprnoerr}$ or $\specificev{Ret\ !\finalexprnoerr}$.
+
 \myfig{
   \begin{center}
     \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}}{,,Given abstract state $\tmsmonitor$, step to abstract state $\tmsmonitor'$\\ emitting an abstract event $\absevent$.''}
     \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    \typerule{TMS-Uninteresting}{
+    }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{\varepsilon}}
+    }{tms-uninteresting}
+    %
     \typerule{TMS-Use}{
       \loc\in \tmsmonitor[.A] &
       \loc\not\in \tmsmonitor[.F] &
@@ -1411,13 +1418,13 @@ As before, we need a way to translate one set of actions to another:
     \typerule{TMS-Call-Authentic}{
       \tmstraceagree{\mstrace}{\abstrace}
     }{
-      \tmstraceagree{\specificev{Call\ ?n}\cdot\mstrace}{\abstrace}
+      \tmstraceagree{\specificev{Call\ ?n}\cdot\mstrace}{\bm{\varepsilon}\cdot\abstrace}
     }{tms-call-auth}
     %
     \typerule{TMS-Ret-Authentic}{
       \tmstraceagree{\mstrace}{\abstrace}
     }{
-      \tmstraceagree{\specificev{Ret\ !n}\cdot\mstrace}{\abstrace}
+      \tmstraceagree{\specificev{Ret\ !n}\cdot\mstrace}{\bm{\varepsilon}\cdot\abstrace}
     }{tms-ret-auth}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
@@ -1863,76 +1870,109 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
   Induction on $\exprevals{\configs}{e}{\configs'}{e'}{\event}$.
   \begin{description}
-\item[$\src{e}=\src{free\ x}$:]
-  If
-  \begin{assumptions}
-    \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{free\ x}}{\type}$
-    \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
-  \end{assumptions}
-  Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
-  \begin{goals}
-    \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{\specificev{Dealloc\ \loc}}{\absevent}$
-    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
-  \end{goals}.
+    \item[$\src{e}=\src{delete\ x}$:]
+      If
+      \begin{assumptions}
+        \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
+      \end{assumptions}
+      Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+        \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{\specificev{Dealloc\ \loc}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
+      \end{goals}.
 
-  Choose $\absevent=\textbf{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
+      Choose $\absevent=\textbf{Dealloc\ }\loc$ and $\delta_{\text{tms}}'=\delta_{\text{tms}}$.
 
-  \Cref{goal:basetmsmonitor:subseteq}, $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}$, follows trivially.
+      \Cref{goal:basetmsmonitor:subseteq}, $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}$, follows trivially.
 
-  For $\tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \loc}$ (\Cref{goal:basetmsmonitor:tmstraceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta_{\text{tms}}(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
+      For $\tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \loc}$ (\Cref{goal:basetmsmonitor:tmstraceagree}), apply \Cref{tr:tms-dealloc-auth}, where $\delta_{\text{tms}}(\src{\loc})=\loc$ follows by inverting \Cref{asm:basetmsmonitor:storeagree}.
 
-  The inversion yields two cases:
-  \begin{description}
-\item[\Cref{tr:store-cons-agree}:] \ \\
-  If
-  \begin{assumptions}
-  \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{free\ x}}{\type}$
-  \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
-  \item $\delta_{\text{tms}}(\src{\loc})=\loc$
-  \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
-  \item $\tmsmonitor=\tmsmonitor[_1]\cup\left\{\loc\right\}\cup \tmsmonitor[_2]$
-  \end{assumptions}
-  then $\exists \tmsmonitor[']$,
-  \begin{goals}
-  \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
-  \end{goals}.
+      The inversion yields two cases:
+      \begin{description}
+      \item[\Cref{tr:store-cons-agree}:] \ \\
+        If
+        \begin{assumptions}
+        \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
+        \item $\delta_{\text{tms}}(\src{\loc})=\loc$
+        \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
+        \item $\tmsmonitor=\tmsmonitor[_1]\cup\left\{\loc\right\}\cup \tmsmonitor[_2]$
+        \end{assumptions}
+        then $\exists \tmsmonitor[']$,
+        \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$
+        \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
+        \end{goals}.
 
-  Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
+        Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
 
-  \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
+        \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$, follows immediately by \Cref{tr:tms-dealloc}.
 
-  \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
+        \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
 
-\item[\Cref{tr:store-poison-agree}:] \ \\
-  If
-  \begin{assumptions}
-  \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{free\ x}}{\type}$
-  \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
-  \item $\delta_{\text{tms}}(\src{\loc})=\loc$
-  \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
-  \item $\tmsmonitor=\tmsmonitor[_1]\cup \tmsmonitor[_2]$
-  \end{assumptions}
-  then $\exists \tmsmonitor[']$,
-  \begin{goals}
-  \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$
-  \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
-  \end{goals}.
+      \item[\Cref{tr:store-poison-agree}:] \ \\
+        If
+        \begin{assumptions}
+        \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
+        \item $\delta_{\text{tms}}(\src{\loc})=\loc$
+        \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
+        \item $\tmsmonitor=\tmsmonitor[_1]\cup \tmsmonitor[_2]$
+        \end{assumptions}
+        then $\exists \tmsmonitor[']$,
+        \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \loc}$
+        \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
+        \end{goals}.
 
-  Invert \Cref{asm:basetmsmonitor:typing} to get
-  \begin{assumptions}
-  \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{\Gammas}$
-  \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{free\ x}{\nat}$
-  \end{assumptions}.
+        Invert \Cref{asm:basetmsmonitor:typing} to get
+        \begin{assumptions}
+        \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{\Gammas}$
+        \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{delete\ x}{\nat}$
+        \end{assumptions}.
 
-Due to \Cref{asm:basetmsmonitor:storechecks}, we know $\src{x:\ptr}\not\in\Gammas$.
+      Due to \Cref{asm:basetmsmonitor:storechecks}, we know $\src{x:\ptr}\not\in\Gammas$.
 
-But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
-\end{description}
+      But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
+      \end{description}
+    \item[$\src{e}=\src{returning\ \finalexprnoerr}$:]
+      If
+      \begin{assumptions}
+        \item $\typechecks{}{\src{\Omega}\triangleright \src{returning\ \finalexprnoerr}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:case1:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{assumptions}
+      Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:case1:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+        \item\label[goal]{goal:basetmsmonitor:case1:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{\specificev{Ret\ !\finalexprnoerr}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega}}$
+      \end{goals}.
+      Choose $\absevent=\bm{\varepsilon}$, $\delta'_{\text{tms}}=\delta_{\text{tms}}$, and $\tmsmonitor[']=\tmsmonitor$.
 
-\end{description}
+      All goals are completely trivial.
+
+    \item[$\src{e}=\src{calling\ \finalexprnoerr}$:]
+      If
+      \begin{assumptions}
+        \item $\typechecks{}{\src{\Omega}\triangleright \src{calling\ \finalexprnoerr}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:case2:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{assumptions}
+      Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:case2:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+        \item\label[goal]{goal:basetmsmonitor:case2:tmstraceagree} $\traceagree[\delta_{\text{tms}}']{\specificev{Ret\ !\finalexprnoerr}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega}}$
+      \end{goals}
+      Choose $\absevent=\bm{\varepsilon}$, $\delta'_{\text{tms}}=\delta_{\text{tms}}$, and $\tmsmonitor[']=\tmsmonitor$.
+
+      All goals are completely trivial.
+
+  \end{description}
 \end{incompleteproof}
 
 \begin{lemma}[Ctx \gls{tms} via Monitor]

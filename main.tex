@@ -1858,7 +1858,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Base \gls{tms} via Monitor]
+\begin{lemma}[Base \gls{tms} via Monitor]\label{lem:basetmsmonitor}
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
@@ -2049,7 +2049,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
       All goals are completely trivial.
 
     \item[$\src{e}=\src{abort()}$:]
-      Impossible, since $\src{stuck}$ is not part of the grammar, hence not a valid expression, but it is assumed that $\execs{\Omega}{abort()}{\Omega'}{e'}{\lightning}$.
+      Impossible, since $\src{stuck}$ is not part of the grammar, hence not a valid expression, but it is assumed that $\exprevals{\Omega}{abort()}{\Omega'}{e'}{\lightning}$.
 
     \item[$\src{e}=\src{let\ x=new\ n\ in\ e'}$:]
       If
@@ -2139,9 +2139,9 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Ctx \gls{tms} via Monitor]
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
-    \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \item\label[ass]{asm:ctxtmsmonitor:typechecks} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item\label[ass]{asm:ctxtmsmonitor:ctxstep} $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
+    \item\label[ass]{asm:ctxtmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
   Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
@@ -2151,8 +2151,24 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:ctxtmsmonitor:ctxstep}.
+  \begin{passumptions}{H}
+    \item $\src{\Omega}\not=\src{\lightning}$
+    \item $\src{e_0}=\src{K}[\src{e}]$
+    \item $\src{e_0'}=\src{K}[\src{e'}]$
+    \item\label[ass]{asm:ctxtmsmonitor:step} $\exprevals{\Omega}{e_0}{\Omega'}{e_0'}{a}$
+  \end{passumptions}
+
+  Use \Cref{asm:ctxtmsmonitor:step} and \Cref{asm:ctxtmsmonitor:typechecks,asm:ctxtmsmonitor:storeagree} for \thmref{lem:basetmsmonitor}:
+  \begin{passumptions}{F}
+    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+    \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\absevent}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+  \end{passumptions}
+  These premises solve our goal immediately.
+\end{proof}
 
 \begin{lemma}[Steps \gls{tms} via Monitor]\label{lem:generaltms:monitor}
   If

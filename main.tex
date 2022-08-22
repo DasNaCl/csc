@@ -1659,7 +1659,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Authentic Weaken]
+\begin{lemma}[Trace Agree Weaken]\label{lem:trace-agree-weaken}
   If
   \begin{assumptions}
     \item $\tmstraceagree[\delta]{\mstrace}{\abstrace}$
@@ -1673,6 +1673,20 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{proof}
   Induction on $\tmstraceagree[\delta]{{\mstrace}}{\abstrace}$.
 \end{proof}
+\begin{lemma}[Store Agree Weaken]\label{lem:store-agree-weaken}
+  If
+  \begin{assumptions}
+    \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\storeagreetms[\delta']{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$.
+\end{proof}
 
 \begin{lemma}[Monitor Step Subset]\label{lem:monitor-step-subset}
   If
@@ -1684,8 +1698,9 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item $\tmsmonitor\subseteq_F \tmsmonitor[']$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Easy induction on $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$.
+\end{proof}
 
 \begin{lemma}[Monitor Steps Subset]\label{lem:monitor-steps-subset}
   If
@@ -2136,7 +2151,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{description}
 \end{proof}
 
-\begin{lemma}[Ctx \gls{tms} via Monitor]
+\begin{lemma}[Ctx \gls{tms} via Monitor]\label{lem:ctxsteptmsmonitor}
   If
   \begin{assumptions}
     \item\label[ass]{asm:ctxtmsmonitor:typechecks} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
@@ -2160,7 +2175,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item\label[ass]{asm:ctxtmsmonitor:step} $\exprevals{\Omega}{e_0}{\Omega'}{e_0'}{a}$
   \end{passumptions}
 
-  Use \Cref{asm:ctxtmsmonitor:step} and \Cref{asm:ctxtmsmonitor:typechecks,asm:ctxtmsmonitor:storeagree} for \thmref{lem:basetmsmonitor}:
+  Use \Cref{asm:ctxtmsmonitor:step} and \Cref{asm:ctxtmsmonitor:typechecks,asm:ctxtmsmonitor:storeagree} for \Thmref{lem:basetmsmonitor}:
   \begin{passumptions}{F}
     \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
     \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\absevent}$
@@ -2173,20 +2188,81 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{lemma}[Steps \gls{tms} via Monitor]\label{lem:generaltms:monitor}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item $\execs{\configs}{e}{\configs'}{e'}{\trace}$
-    \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \item\label[ass]{asm:stepstmsmonitor:typing} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item\label[ass]{asm:stepstmsmonitor:exec} $\execs{\configs}{e}{\configs'}{e'}{\trace}$
+    \item\label[ass]{asm:stepstmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
   Then $\exists \abstrace\ \delta_{\text{tms}}'\ \tmsmonitor['],$
   \begin{goals}
-    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{\tospecificevs{\trace}}{\abstrace}$
-    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
-    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \item\label[goal]{goal:stepstmsmonitor:delta} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+    \item\label[goal]{goal:stepstmsmonitor:traceagree} $\tmstraceagree[\delta']{\tospecificevs{\trace}}{\abstrace}$
+    \item\label[goal]{goal:stepstmsmonitor:monitorstep} $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
+    \item\label[goal]{goal:stepstmsmonitor:storeagree} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:stepstmsmonitor:exec}.
+  \begin{description}
+    \item[$\src{\configs'}=\configs$, $\src{e'}=\src{e}$, and $\src{\trace}=\src{\hole{\cdot}}$:]
+          This case is easy, since nothing did change and we can solve the goals with our assumptions immediately.
+          Instantiate $\abstrace=\hole{\cdot}$, $\delta_{\text{tms}}'=\delta_{\text{tms}}$, and $\tmsmonitor[']=\tmsmonitor$.
+          Then, \Cref{goal:stepstmsmonitor:delta,goal:stepstmsmonitor:traceagree,goal:stepstmsmonitor:monitorstep} follow immediately by reflexivity and \Cref{goal:stepstmsmonitor:storeagree} by \Cref{asm:stepstmsmonitor:storeagree}.
+
+    \item[Induction step:]
+          The inductive hypothesis is as follows.
+          If
+          \begin{passumptions}{A}
+            \item $\typechecks{}{\src{\Omega_{\IH}}\triangleright e_{\IH}}{\src{\type}}$
+            \item $\storeagreetms[\delta^{0}]{\tmsmonitor[^{\IH}]}{\src{\Omega_{\IH}}.\src{\Delta}}$
+          \end{passumptions}
+          then $\exists \abstrace_{\IH}\ \delta_{\text{tms}}^{\IH}\ \tmsmonitor[_{\IH}'],$
+          \begin{passumptions}{\IH}
+            \item $\delta_{\text{tms}}^{0}\subseteq\delta_{\text{tms}}^{\IH}$
+            \item $\tmstraceagree[\delta^{\IH}]{\tospecificevs{\trace}}{\abstrace_{\IH}}$
+            \item $\monitorcheck{\tmsmonitor^{\IH}}{\tmsmonitor[_{\IH}']}{\abstrace_{\IH}}$
+            \item $\storeagreetms[\delta^{\IH}]{\tmsmonitor[_{\IH}']}{\src{\Omega'}.\src{\Delta}}$
+          \end{passumptions}
+          Note that above, anything not bound by $\exists$ is universally quantified, besides $\src{\type}$ and $\src{\Omega'}$.
+          While our remaining context (excluding the inductive hypothesis) is:
+          If
+          \begin{passumptions}{H}
+            \item\label[ass]{asm:stepstmsmonitor:case0:step} $\execs[]{\configs}{e}{\configs_{0}}{e_{0}}{\event[_0]}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:steps} $\execs{\configs_{0}}{e_{0}}{\configs'}{e'}{\trace}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:checks} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+          \end{passumptions}
+          Then $\exists \abstrace\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+          \begin{goals}
+            \item\label[goal]{goal:stepstmsmonitor:final:delta} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
+            \item\label[goal]{goal:stepstmsmonitor:final:traceagree} $\tmstraceagree[\delta']{\tospecificevs{\event[_{0}]\cdot\trace}}{\abstrace}$
+            \item\label[goal]{goal:stepstmsmonitor:final:monitorstep} $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
+            \item\label[goal]{goal:stepstmsmonitor:final:storeagree} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+          \end{goals}.
+          Use \Thmref{lem:ctxsteptmsmonitor} with \Cref{asm:stepstmsmonitor:case0:step,asm:stepstmsmonitor:case0:checks,asm:stepstmsmonitor:case0:storeagree}, obtaining:
+          \begin{passumptions}{F}
+            \item\label[ass]{asm:stepstmsmonitor:deltasubset0} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}^{0}$
+            \item\label[ass]{asm:stepstmsmonitor:traceagree0} $\tmstraceagree[\delta^{0}]{\tospecificevs{\event[_{0}]}}{\absevent_{0}}$
+            \item\label[ass]{asm:stepstmsmonitor:monitorcheck0} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[_{0}]}{\absevent_{0}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree1} $\storeagreetms[\delta^{0}]{\tmsmonitor[_{0}]}{\src{\Omega_{0}}.\src{\Delta}}$
+          \end{passumptions}
+          Discharge the inductive hypothesis with \Cref{asm:stepstmsmonitor:case0:storeagree1} and the result of applying \Thmref{lem:ctx-preservation} using \Cref{asm:stepstmsmonitor:case0:step,asm:stepstmsmonitor:case0:checks}:
+          \begin{passumptions}{G}
+            \item\label[ass]{asm:stepstmsmonitor:deltasubset1} $\delta_{\text{tms}}^{0}\subseteq\delta_{\text{tms}}^{\IH}$
+            \item\label[ass]{asm:stepstmsmonitor:traceagree1} $\tmstraceagree[\delta^{\IH}]{\tospecificevs{\trace}}{\abstrace_{\IH}}$
+            \item\label[ass]{asm:stepstmsmonitor:monitorcheck1} $\monitorcheck{\tmsmonitor_{0}}{\tmsmonitor[^{\IH}]}{\abstrace_{\IH}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree2} $\storeagreetms[\delta^{\IH}]{\tmsmonitor[^{\IH}]}{\src{\Omega'}.\src{\Delta}}$
+          \end{passumptions}
+
+          We solve our goals by instantiating $\abstrace=\absevent\cdot\abstrace_{\IH}$, $\delta_{\text{tms}}'=\delta_{\text{tms}}^{\IH}$, and $\tmsmonitor[']=\tmsmonitor[^{\IH}]$.
+          \Cref{goal:stepstmsmonitor:final:delta} follows by transitivity using \Cref{asm:stepstmsmonitor:deltasubset0,asm:stepstmsmonitor:deltasubset1}.
+
+          Similarily for \Cref{goal:stepstmsmonitor:final:traceagree} using \Cref{asm:stepstmsmonitor:traceagree0,asm:stepstmsmonitor:traceagree1}, making use of \Thmref{lem:trace-agree-weaken}.
+
+          \Cref{goal:stepstmsmonitor:final:monitorstep} also by transitivity using \Cref{asm:stepstmsmonitor:monitorcheck0,asm:stepstmsmonitor:monitorcheck1}.
+
+          \Cref{goal:stepstmsmonitor:final:storeagree}, again, by transitivity using \Cref{asm:stepstmsmonitor:case0:storeagree1,asm:stepstmsmonitor:case0:storeagree2}, making use of \Thmref{lem:store-agree-weaken}.
+  \end{description}
+\end{proof}
 
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
   We say $\texttt{TMS}(\src{\trace})$ iff $\exists \delta\ \abstrace\ \tmsmonitor$ such that:
@@ -3346,12 +3422,12 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 
-  We augment \Cref{asm:ctxstep:forwardsim:typechecks} using \thmref{lem:ctxtyping:plugged}.
+  We augment \Cref{asm:ctxstep:forwardsim:typechecks} using \Thmref{lem:ctxtyping:plugged}.
   \begin{passumptions}{H}
     \setcounter{enumi}{2}
     \item\label[ass]{asm:ctxstep:forwardsim:e0typechecks} $\typechecks{}{\Omega\triangleright e_{0}}{\nat}$
   \end{passumptions}
-  Withg \Cref{asm:ctxstep:forwardsim:simplestep,asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:e0typechecks} use \thmref{lem:step:forwardsim} to get witnesses $\delta', \trg{\Omega'},$ and $\trg{\event}$ such that:
+  Withg \Cref{asm:ctxstep:forwardsim:simplestep,asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:e0typechecks} use \Thmref{lem:step:forwardsim} to get witnesses $\delta', \trg{\Omega'},$ and $\trg{\event}$ such that:
 
   \begin{passumptions}{F}
     \item\label[ass]{asm:ctxstep:forwardsim:f1} $\delta\subseteq\delta'$
@@ -3373,7 +3449,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item\label[goal]{goal:ctxstep:forwardsim:trgstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e_{0}'}}{\trg{\event}}$
   \end{goals}
   \Cref{goal:ctxstep:forwardsim:trgstep} follows immediately by \Cref{asm:ctxstep:forwardsim:trgstep}.
-  For \Cref{goal:ctxstep:forwardsim:nocrash}, we can use \thmref{lem:relatednoncrash} relying on \Cref{asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:nocrash}.
+  For \Cref{goal:ctxstep:forwardsim:nocrash}, we can use \Thmref{lem:relatednoncrash} relying on \Cref{asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:nocrash}.
 \end{proof}
 
 \begin{lemma}[Forward Simulation]\label{lem:forwardsim}
@@ -3411,7 +3487,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
             \item $\xlangstateeq[\delta_{\IH}]{\Omega_{0}}{\Omega_{\IH}}$
           \end{passumptions}
 
-          Now apply \thmref{lem:ctxstep:forwardsim} on \Cref{asm:forwardsim:ctxstep} using \Cref{asm:forwardsim:staterel,asm:forwardsim:typechecks},
+          Now apply \Thmref{lem:ctxstep:forwardsim} on \Cref{asm:forwardsim:ctxstep} using \Cref{asm:forwardsim:staterel,asm:forwardsim:typechecks},
           giving us witnesses $\delta_0\ \trg{\Omega_{0}}\ \trg{\event}$,
           \begin{passumptions}{F}
             \item\label[ass]{asm:forwardsim:deltasubset0} $\delta\subseteq\delta_{0}$
@@ -3495,7 +3571,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
     \item\label[ass]{asm:exprcorr:toplevel} $\forall\delta'\ \src{\Omega'}\ \src{\trace},\delta'\subset\delta\vee\neg\left(\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}\right)\vee\xlangstateneq[\delta']{\Omega'}{\Omega'}\vee\xlangtraceneq[\delta']{\trace}{\trace}$
   \end{passumptions}
   and need to prove $\bot$.
-  Apply \thmref{lem:progress} on \Cref{asm:expr:corr:typechecks}, so:
+  Apply \Thmref{lem:progress} on \Cref{asm:expr:corr:typechecks}, so:
   \begin{passumptions}{I}
     \setcounter{enumi}{1}
     \item\label[ass]{asm:exprcorr:progressor} $\src{e}=\src{\valueexpr}$ or $\exists\src{\Omega'}\ \src{\valueexpr}\ \src{\trace},\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
@@ -3524,7 +3600,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
           \end{passumptions}
 
 
-          Apply \thmref{lem:forwardsim} to \Cref{asm:exprcorr:ereduce} with \Cref{asm:exprcorrect:stateeq,asm:expr:corr:typechecks} to get:
+          Apply \Thmref{lem:forwardsim} to \Cref{asm:exprcorr:ereduce} with \Cref{asm:exprcorrect:stateeq,asm:expr:corr:typechecks} to get:
           \begin{passumptions}{F}
             \item\label[ass]{asm:exprcorrect:deltavsubset} $\delta\subseteq\delta_{v}$
             \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_{v}'}}{\mmlAmmlAtcomp{\valueexpr}}{\trg{\trace[_{v}]}}$
@@ -3533,7 +3609,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
           \end{passumptions}
 
 
-          Use \thmref{lem:determ:steps} on \Cref{asm:exprcorrect:exec1:trg,asm:exprcorrect:exec2:trg}, giving us:
+          Use \Thmref{lem:determ:steps} on \Cref{asm:exprcorrect:exec1:trg,asm:exprcorrect:exec2:trg}, giving us:
           \begin{passumptions}{K}
             \item\label[ass]{asm:exprcorrect:compiledvalueseq} $\mmlAmmlAtcomp{v}=\mmlAmmlAtcomp{f}$
             \item\label[ass]{asm:exprcorrect:stateequal} $\trg{\Omega'}=\trg{\Omega_{v}'}$
@@ -3551,8 +3627,8 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
         \item \textbf{Case $\neg\left(\delta\subseteq\delta_{v}\right)$:} Apply $\neg\left(\delta\subseteq\delta_{v}\right)$ on our goal $\bot$, then $\delta\subseteq\delta_{v}$ immediately follows from \Cref{asm:exprcorrect:deltavsubset}.
 
         \item \textbf{Case }$\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$\textbf{:}
-          Using \Cref{asm:exprcorr:ereduce} and the assumption $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$, we conclude $\src{\valueexpr}\not=\src{f}$ using \thmref{lem:differentreduction}.
-          Apply \thmref{lem:determcomp} on \Cref{asm:exprcorrect:compiledvalueseq}, so $\src{\valueexpr}=\src{f}$, contradicting the above.
+          Using \Cref{asm:exprcorr:ereduce} and the assumption $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$, we conclude $\src{\valueexpr}\not=\src{f}$ using \Thmref{lem:differentreduction}.
+          Apply \Thmref{lem:determcomp} on \Cref{asm:exprcorrect:compiledvalueseq}, so $\src{\valueexpr}=\src{f}$, contradicting the above.
 
         \item \textbf{Case }$\xlangstateneq[\delta_{v}]{\Omega'}{\Omega'}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:stateeq3}.
         \item \textbf{Case }$\xlangtraceneq[\delta_{v}]{\trace}{\trace}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:traceeq3}.
@@ -3818,7 +3894,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
     \setcounter{enumi}{3}
   \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta]\trg{Ret\ !n_0\cdot Call\ ?n_1}$
   \end{goals}
-  Which follows from applying \Cref{tr:cons-trace-eq,tr:ret-event-eq,tr:call-event-eq} and \thmref{lem:compvals:insertion}.
+  Which follows from applying \Cref{tr:cons-trace-eq,tr:ret-event-eq,tr:call-event-eq} and \Thmref{lem:compvals:insertion}.
 
   \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
   If
@@ -3922,7 +3998,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
         By \Cref{asm:backtranscorr:indu:finalstaterel}.
       \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot Alloc\ \loc\ n\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot {Alloc\ \loc\ n}\cdot\trace\cdot Call\ ?n_1}$
         
-      Easy using \Cref{tr:empty-trace-eq}, \Cref{tr:cons-trace-eq}, \Cref{tr:alloc-event-eq}, \Cref{tr:call-event-eq}, \Cref{tr:ret-event-eq}, and \thmref{lem:compvals:insertion}.
+      Easy using \Cref{tr:empty-trace-eq}, \Cref{tr:cons-trace-eq}, \Cref{tr:alloc-event-eq}, \Cref{tr:call-event-eq}, \Cref{tr:ret-event-eq}, and \Thmref{lem:compvals:insertion}.
       \end{goals}
 
     \item \textbf{Case $\trg{\msevent}=\specificev{Dealloc\ \loc}$:}
@@ -3980,7 +4056,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \noindent
   We backtranslate $\mmlAmmlAtbackdetail[\emptyset]{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}=\Game,\src{e_1}$.
   Analogousy, $\xlangbackstateeq[\emptyset]{\emptyset}{\emptyset}$ by \Cref{tr:back-compile-empty-heap-or-map-eq}.
-  Using these facts, we apply \thmref{lem:backtranslation:correct} on \Cref{rtmsp:runt:e1}:
+  Using these facts, we apply \Thmref{lem:backtranslation:correct} on \Cref{rtmsp:runt:e1}:
 
   \begin{passumptions}{H^{\tiny 1}}
   \item $\emptyset\subseteq\delta_1$, where $\delta_1:\src{L}\to\trg{L}$
@@ -3989,7 +4065,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}}$
   \end{passumptions}
 
-  Using \thmref{lem:compvals:insertion}, we rewrite \Cref{rtmsp:runt:ep}:
+  Using \Thmref{lem:compvals:insertion}, we rewrite \Cref{rtmsp:runt:ep}:
   \begin{passumptions}{H'}
     \setcounter{enumi}{1}
 \item\label[ass]{rtmsp:runt:ep:compv0} $\exec{\trg{\Omega_1^\diamond}}{\mmlAmmlAtcomp{e_p}\trg{[}\mmlAmmlAtcomp{\valueexpr_1}\trg{/x]}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
@@ -4006,7 +4082,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \item\label[ass]{rtmsp:runt:typechecks} $\typechecks{x:\nat}{e_p}{\nat}$
   \item\label[ass]{rtmsp:runt:vtypechecks} $\typechecks{}{\valueexpr_1}{\nat}$
   \end{passumptions}
-  Now use \thmref{lem:substitution} and note that $\src{\hole{\cdot}}=\src{\hole{\cdot}}\circ\src{\hole{\cdot}}$ holds by \Cref{tr:t-empty-split}:
+  Now use \Thmref{lem:substitution} and note that $\src{\hole{\cdot}}=\src{\hole{\cdot}}\circ\src{\hole{\cdot}}$ holds by \Cref{tr:t-empty-split}:
   \begin{passumptions}{H'}
     \setcounter{enumi}{3}
   \item\label[ass]{rtmsp:runt:substtypechecks} $\typechecks{}{e_p[\valueexpr_1/x]}{\nat}$
@@ -4016,13 +4092,13 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
     \setcounter{enumi}{4}
   \item\label[ass]{rtmsp:runt:optypechecks} $\typechecks{}{\Omega_1\triangleright e_p[\valueexpr_1/x]}{\nat}$
   \end{passumptions}
-  Finally, use \thmref{lem:stateinsertion} on \Cref{rtmsp:runt:statebackeq}:
+  Finally, use \Thmref{lem:stateinsertion} on \Cref{rtmsp:runt:statebackeq}:
   \begin{passumptions}{H'}
     \setcounter{enumi}{5}
     \item\label[ass]{rtmsp:runt:stateeq} $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1^\diamond}$
   \end{passumptions}
 
-  Apply \thmref{lem:expression:correctness}\MK{expression correctness should be polymorphic over the importance of $\trg{\Omega}$} on \Cref{rtmsp:runt:ep:compv} using \Cref{rtmsp:runt:stateeq,rtmsp:runt:optypechecks}:
+  Apply \Thmref{lem:expression:correctness}\MK{expression correctness should be polymorphic over the importance of $\trg{\Omega}$} on \Cref{rtmsp:runt:ep:compv} using \Cref{rtmsp:runt:stateeq,rtmsp:runt:optypechecks}:
   \begin{passumptions}{F}
   \item $\delta_1\subseteq\delta_p$
   \item\label[ass]{rtmsp:runt:execs2} $\exec{\src{\Omega_1}}{\src{e_p}}{\src{\Omega_p}}{\src{\valueexpr_p}}{\src{\trace[_p]}}$
@@ -4031,13 +4107,13 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \end{passumptions}
 
   We backtranslate $\mmlAmmlAtbackdetail[\Game]{Ret\ !v_p \cdot \trace[_2] \cdot Call\ ?v_2}=\Game',\src{e_2}$
-  Using \thmref{lem:stateinsertion} on \Cref{rtmsp:runt:stateeq2}, we get:
+  Using \Thmref{lem:stateinsertion} on \Cref{rtmsp:runt:stateeq2}, we get:
   \begin{passumptions}{F}
     \setcounter{enumi}{4}
   \item\label[ass]{rtmsp:runt:statebackeq2} $\xlangbackstateeq[\delta_p]{\Omega_p}{\Omega_p}$
   \end{passumptions}
 
-  Using these facts, we apply \thmref{lem:backtranslation:correct}\MK{backtranslation needs to be generalized over substitutions} on \Cref{rtmsp:runt:e2}:
+  Using these facts, we apply \Thmref{lem:backtranslation:correct}\MK{backtranslation needs to be generalized over substitutions} on \Cref{rtmsp:runt:e2}:
   \begin{passumptions}{H^{\tiny 2}}
   \item $\delta_p\subseteq\delta_2$, where $\delta_2:\src{L}\to\trg{L}$
   \item\label[ass]{rtmsp:runt:execs3} $\exec{\src{\Omega_p}}{\src{e_2[v_p/y]}}{\src{\Omega_2}}{\mmlAmmlAtbackv{v_2}}{\src{\trace[_2]}}$
@@ -4122,7 +4198,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
       \node[right of=legendcorrectness] {\tiny Compiler Correctness};
     \end{tikzpicture}
   \end{center}
-}{rtmsp-sketch}{Sketch of the proof of \thmref{thm:rtmsp}. %
+}{rtmsp-sketch}{Sketch of the proof of \Thmref{thm:rtmsp}. %
   Arrows in the horizontal direction are the usual step relations, but the term is omitted for aesthetic purposes. %
   Likewise for the emitted target-level traces. %
   Trace $\src{\trace[_1]}$ starts with $\src{Ret\ !0}$ and $\src{\trace[_2]}$ ends with $\src{Call\ ?\valueexpr}$, where $\src{\valueexpr}$ is the final result of the program. %

@@ -2275,7 +2275,6 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{theorem}[$\mmlAs$ is \gls{tms} via Monitor]\label{thm:mmlAs:tmssafe}
   If
   \begin{assumptions}
-  \item $\src{prog\ e_0\ e_p\ e_1}=\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}}$
   \item\label{asm:mmlatmsviamonitor:run} $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\valueexpr}{\trace}$
   \end{assumptions}
   Then
@@ -2286,11 +2285,13 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{proof}
   Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get 
   \begin{passumptions}{H}
-    \item $\typechecks{}{component\ e_p}{\type_1\to\type_2}$
-    \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\Omega^\diamond_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\valueexpr_1}{\trace{_1}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace{_0}}\cdot\src{Call\ ?\finalexprnoerr_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !\finalexprnoerr_p}\cdot\src{\trace{_1}\cdot\src{Call\ ?\valueexpr_1}}$
+    \item $\typechecks{}{prog\ e_{0}\ e_{p}\ e_{1}}{\nat}$
+    \item $\plugs{e_{p}}{e_{0}}=\src{e_{0}'}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_{0}'}{\configs_{0}}{e_{po}}{\trace{_{0}}\cdot Call\ ?\finalexprnoerr_{0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_{0}^{\diamond}}{e_{po}}{\configs_{po}}{e_{0}''}{\trace{_{p}}\cdot Ret\ !\finalexprnoerr_{p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec0p} $\execs{\configs_{po}}{e_0''}{\configs_{0}'}{\finalexprnoerr_{p}'}{\trace[_{0}']}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_{0}'}{e_{1}[\finalexprnoerr_{p}'/y]}{\configs_{1}}{\finalexprnoerr_{1}}{\trace[_{1}]}$
+    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace{_0}}\cdot\src{Call\ ?\finalexprnoerr_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !\finalexprnoerr_p}\cdot\src{\trace{_{0}'}}\cdot\src{\trace{_1}\cdot\src{Call\ ?\finalexprnoerr_1}}$
   \end{passumptions}
   Note that the other cases don't apply, since it is assumed here (\Cref{asm:mmlatmsviamonitor:run}) that the program terminates in a value instead of $\src{stuck}$ or $\src{x}$.
   By \Cref{tr:store-empty-agree}:

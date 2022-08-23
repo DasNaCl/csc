@@ -639,6 +639,16 @@ It is used as a placeholder to be filled by a $\src{component\ e}$.
     \src{\hole{\cdot}} = \src{\hole{\cdot}}\circ\src{\hole{\cdot}}
   }{t-empty-split}
   %
+  \typerule{splitEmptyL}{
+  }{
+    \src{\Gamma} = \src{\hole{\cdot}}\circ\src{\Gamma}
+  }{t-empty-splitL}
+  %
+  \typerule{splitEmptyR}{
+  }{
+    \src{\Gamma} = \src{\Gamma}\circ\src{\hole{\cdot}}
+  }{t-empty-splitR}
+  %
   \typerule{$\nat$split}{
     \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
   }{
@@ -924,7 +934,7 @@ We introduce interface types to explicitly disallow passing owned pointers.
     \judgbox{\typechecks{}{program\ e_1\ e_p\ e_2}{\nat}}{,,$\mmlAs$ program $\src{program\ e_1\ e_p\ e_2}$ typechecks.''}$\;$\\
   \typerule{$t-\text{ctx}$}{
     \hasholes{x:\type_1}{e_1}{\type_2}&
-    \typechecks{}{let\ y=e_1\ in\ e_2}{\nat}&
+    \typechecks{x:\type_1}{let\ y=e_1\ in\ e_2}{\nat}&
     %\typechecks{}{e_1}{\type_1}&
     %\typechecks{y:\type_2}{e_2}{\nat}&
     \src{\type_1}\operatorname{int}&
@@ -1512,6 +1522,14 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{itemize}
 \end{definition}
 
+\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
+  We say $\texttt{TMS}(\src{\trace})$ iff $\exists \delta\ \abstrace\ \tmsmonitor$ such that:
+  \begin{itemize}
+    \item $\tmstraceagree{\tospecificevs{\trace}}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
+  \end{itemize}
+\end{definition}
+
 \begin{importanttheorem}[$\mmlAs$ is \gls{tms} via Monitor]
   If
   \begin{assumptions}
@@ -1659,6 +1677,22 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\begin{lemma}[Fill Typing]\label{lem:fillTyping}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{component\ e_{p}}{\type_{1}\to\type_{2}}$
+    \item $\typechecks{}{context\ e_{1}\ e_{2}}{\left(\type_{1}\to\type_{2}\right)\to\nat}$
+    \item $\plugs{e_{p}}{e_{1}}=\src{e_{1}'}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{e_{1}'}{\type_{2}}$
+    \item $\typechecks{y:\type_{2}}{e_{2}}{\nat}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 \begin{lemma}[Trace Agree Weaken]\label{lem:trace-agree-weaken}
   If
   \begin{assumptions}
@@ -1687,6 +1721,18 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{proof}
   Induction on $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$.
 \end{proof}
+
+\begin{lemma}[Trace-based Transitivity Authentic]\label{lem:trace-agree-trans}
+  If
+  \begin{assumptions}
+    \item $\tmstraceagree{\mstrace[_{1}]}{\abstrace_{1}}$
+    \item $\tmstraceagree{\mstrace[_{2}]}{\abstrace_{2}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\tmstraceagree{\mstrace[_{1}]\cdot\mstrace[_{2}]}{\abstrace_{1}\cdot\abstrace_{2}}$
+  \end{goals}
+\end{lemma}
 
 \begin{lemma}[Monitor Step Subset]\label{lem:monitor-step-subset}
   If
@@ -2264,14 +2310,6 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{description}
 \end{proof}
 
-\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
-  We say $\texttt{TMS}(\src{\trace})$ iff $\exists \delta\ \abstrace\ \tmsmonitor$ such that:
-  \begin{itemize}
-    \item $\tmstraceagree{\tospecificevs{\trace}}{\abstrace}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
-  \end{itemize}
-\end{definition}
-
 \begin{theorem}[$\mmlAs$ is \gls{tms} via Monitor]\label{thm:mmlAs:tmssafe}
   If
   \begin{assumptions}
@@ -2285,76 +2323,109 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{proof}
   Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get 
   \begin{passumptions}{H}
-    \item $\typechecks{}{prog\ e_{0}\ e_{p}\ e_{1}}{\nat}$
-    \item $\plugs{e_{p}}{e_{0}}=\src{e_{0}'}$
-    \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_{0}'}{\configs_{0}}{e_{po}}{\trace{_{0}}\cdot Call\ ?\finalexprnoerr_{0}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_{0}^{\diamond}}{e_{po}}{\configs_{po}}{e_{0}''}{\trace{_{p}}\cdot Ret\ !\finalexprnoerr_{p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:progtyps} $\typechecks{}{prog\ e_{0}\ e_{p}\ e_{1}}{\nat}$
+    \item\label[ass]{asm:mmlatmsviamonitor:fill} $\plugs{e_{p}}{e_{0}}=\src{e_{0}'}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_{0}'}{\configs_{0}}{e_{po}}{\trace[_{0}]\cdot Call\ ?\finalexprnoerr_{0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_{0}^{\diamond}}{e_{po}}{\configs_{po}}{e_{0}''}{\trace[_{p}]\cdot Ret\ !\finalexprnoerr_{p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec0p} $\execs{\configs_{po}}{e_0''}{\configs_{0}'}{\finalexprnoerr_{p}'}{\trace[_{0}']}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_{0}'}{e_{1}[\finalexprnoerr_{p}'/y]}{\configs_{1}}{\finalexprnoerr_{1}}{\trace[_{1}]}$
-    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace{_0}}\cdot\src{Call\ ?\finalexprnoerr_0}\cdot\src{\trace{_p}}\cdot\src{Ret\ !\finalexprnoerr_p}\cdot\src{\trace{_{0}'}}\cdot\src{\trace{_1}\cdot\src{Call\ ?\finalexprnoerr_1}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace[_0]}\cdot\src{Call\ ?\finalexprnoerr_0}\cdot\src{\trace[_p]}\cdot\src{Ret\ !\finalexprnoerr_p}\cdot\src{\trace[_{0}']}\cdot\src{\trace[_1]\cdot\src{Call\ ?\finalexprnoerr_1}}$
   \end{passumptions}
-  Note that the other cases don't apply, since it is assumed here (\Cref{asm:mmlatmsviamonitor:run}) that the program terminates in a value instead of $\src{stuck}$ or $\src{x}$.
-  By \Cref{tr:store-empty-agree}:
-  \begin{passumptions}{H^t}
-  \item\label[ass]{asm:mmlatmsviamonitor:agreeempty}$\storeagreetms[\emptyset]{\emptyset}{\src{\emptyset}}$
+  Inverting \Cref{asm:mmlatmsviamonitor:progtyps} yields:
+  \begin{passumptions}{H'}
+    \item\label[ass]{asm:mmlatmsviamonitor:ctxtyps} $\typechecks{}{context\ e_{0}\ e_{1}}{\left(\type_{1}\to\type_{2}\right)\to\nat}$
+    \item\label[ass]{asm:mmlatmsviamonitor:comptyps} $\typechecks{}{component\ e_{p}}{\type_{1}\to\type_{2}}$
   \end{passumptions}
-
-  Invert $\typechecks{}{component\ e_p}{\type_1\to\type_2}$ and invert the subsequent result to get:
-  \begin{passumptions}{H^t}
-    \setcounter{enumi}{1}
-    \item\label[ass]{asm:mmlatmsviamonitor:typep} $\typechecks{x:\type_1}{e_p}{\type_2}$
-    \item\label[ass]{asm:mmlatmsviamonitor:int1} $\src{\type_1}\operatorname{int}$
-    \item\label[ass]{asm:mmlatmsviamonitor:int2} $\src{\type}\operatorname{int}$
-  \end{passumptions}
-
-  By \Cref{tr:t-empty-store} and \Cref{asm:mmlatmsviamonitor:type1}\MK{we are missing $\typechecks{}{e_0}{\type}$ now}, we have
-  \begin{equation}
-    \typechecks{}{\hole{\cdot}\triangleright e_0}{\type}\label{asm:mmlatmsviamonitor:storetypenil}
-  \end{equation}
-
-  Plugging \Cref{asm:mmlatmsviamonitor:type0} and \Cref{asm:mmlatmsviamonitor:exec0} into \Thmref{lem:steps-preservation} and inverting the result, we obtain
-  \begin{passumptions}{G}
-    \item $\typechecks{}{\Omega_0.\Delta}{\Gamma_0}$
-    \item\label[ass]{asm:mmlatmsviamonitor:vtype} $\typechecks{\Gamma_0}{v_0}{\nat}$
-  \end{passumptions}
-
-  Note that $\src{\Gamma_0} = \src{\hole{\cdot}} \circ \src{\Gamma_0}$ which we'll use promptly.\MK{technical lemma needed}
-
-  Using \Cref{asm:mmlatmsviamonitor:type1}, \Cref{asm:mmlatmsviamonitor:vtype}, and the above fact, we apply \Thmref{lem:substitution} to obtain:
-  \begin{equation}
-    \typechecks{\Gamma_0}{e_p[v_0/x]}{\nat}\label{asm:mmlatmsviamonitor:typesubstx}
-  \end{equation}
-
-  \noindent
-  By \Cref{tr:store-unimportant-agree}:
-  \begin{equation}
-    \storeagreetms[\emptyset]{\emptyset}{\src{\Omega_0.\Delta}}\label{asm:mmlatmsviamonitor:agree}
-  \end{equation}
-  What follows is $\typechecks{}{\Omega_0\triangleright e_p}{\nat}$, which is equivalent to $\typechecks{}{\Omega_0^\diamond\triangleright e_p}{\nat}$.
-
-  Now obtain witnesses $\abstrace{_p}$, $\delta_{\text{TMS}}^{(p)}$, and $\tmsmonitor$ from supplying \Thmref{lem:generaltms:monitor} with \Cref{asm:mmlatmsviamonitor:typesubstx}, \Cref{asm:mmlatmsviamonitor:execp}, and \Cref{asm:mmlatmsviamonitor:agree}, such that:
-
+  Use \Thmref{lem:fillTyping} with \Cref{asm:mmlatmsviamonitor:ctxtyps,asm:mmlatmsviamonitor:comptyps} and \Cref{asm:mmlatmsviamonitor:fill}:
   \begin{passumptions}{F}
-    \item $\emptyset\subseteq\delta_{\text{TMS}}^{(p)}$
-    \item\label[ass]{asm:mmlatmsviamonitor:traceagreeasm} $\tmstraceagree[\delta^{(p)}]{\abstrace{_p}}{\tospecificevs{\trace{_p}}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:monitorcheckasm} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace{_p}}$
-    \item $\storeagreetms[\delta^{(p)}]{\tmsmonitor}{\src{\Omega_p}.\src{\Delta}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:e0typs} $\typechecks{}{e_{0}'}{\type_{2}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:e1typs} $\typechecks{y:\type_{2}}{e_{1}}{\nat}$
   \end{passumptions}
-
-  \noindent
-  Now instantiate the existential in our goal with $\delta_{\text{TMS}}^{(p)}$, $\abstrace{_p}$, and $\tmsmonitor$.
-  Note that $\tospecificevcomps{\trace}=\specificev{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificev{Ret\ !v_p}$ by \Cref{asm:mmlatmsviamonitor:tracedef}, so the remaining goals are:
-
+  Note that by \Cref{tr:t-empty-store} and \Cref{tr:w-t-prog} using \Cref{asm:mmlatmsviamonitor:e0typs} we have:
+  \begin{passumptions}{F}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:mmlatmsviamonitor:e0progtyps} $\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e_{0}'}{\type_{2}}$
+  \end{passumptions}
+  With \Cref{asm:mmlatmsviamonitor:e0progtyps,asm:mmlatmsviamonitor:exec0} and \Cref{tr:store-empty-agree} we discharge \Thmref{lem:generaltms:monitor}:
+  \begin{passumptions}{M^{(0')}}
+    \item\label[ass]{asm:mmlatmsviamonitor:m0:deltasubset} $\emptyset\subseteq\delta_{\text{tms}}^{(0)}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m0:traceagree} $\traceagree[\delta_{\text{tms}}^{(0)}]{\tospecificevs{\trace[_{0}]\cdot Call\ ?\finalexprnoerr_{0}}}{\abstrace_{0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m0:monitorstep} $\monitorcheck{\emptyset}{\tmsmonitor[^{(0)}]}{\abstrace_{0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m0:storeagree} $\storeagree[\delta_{\text{tms}}^{(0)}]{\tmsmonitor^{(0)}}{\src{\Omega_{0}.\Delta}}$
+  \end{passumptions}
+  To use \Thmref{lem:steps-preservation}, we take \Cref{asm:mmlatmsviamonitor:e0progtyps,asm:mmlatmsviamonitor:exec0} and get:
+  \begin{passumptions}{F}
+    \setcounter{enumi}{3}
+    \item\label[ass]{asm:mmlatmsviamonitor:epoprogtyps} $\typechecks{}{\Omega_{0}\triangleright e_{po}}{\type_{2}}$
+  \end{passumptions}
+  Now we are ready to apply \Thmref{lem:generaltms:monitor} again, making use of \Cref{asm:mmlatmsviamonitor:epoprogtyps,asm:mmlatmsviamonitor:execp} and \Cref{asm:mmlatmsviamonitor:m0:storeagree}:
+  \begin{passumptions}{M^{(p)}}
+    \item\label[ass]{asm:mmlatmsviamonitor:mp:deltasubset} $\delta_{\text{tms}}^{(0)}\subseteq\delta_{\text{tms}}^{(p)}$
+    \item\label[ass]{asm:mmlatmsviamonitor:mp:traceagree} $\traceagree[\delta_{\text{tms}}^{(p)}]{\tospecificevs{\trace[_{p}]\cdot Ret\ !\finalexprnoerr_{p}}}{\abstrace_{p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:mp:monitorstep} $\monitorcheck{\tmsmonitor[^{(0)}]}{\tmsmonitor[^{(p)}]}{\abstrace_{p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:mp:storeagree} $\storeagree[\delta_{\text{tms}}^{(p)}]{\tmsmonitor^{(p)}}{\src{\Omega_{po}.\Delta}}$
+  \end{passumptions}
+  We would like to use \Thmref{lem:steps-preservation} again. So, take \Cref{asm:mmlatmsviamonitor:epoprogtyps,asm:mmlatmsviamonitor:execp} and get:
+  \begin{passumptions}{F}
+    \setcounter{enumi}{4}
+    \item\label[ass]{asm:mmlatmsviamonitor:e0pprogtyps} $\typechecks{}{\Omega_{po}\triangleright e_{0}''}{\type_{2}}$\todo{really? make an example}
+  \end{passumptions}
+  We are ready to apply \Thmref{lem:generaltms:monitor} again, making use of \Cref{asm:mmlatmsviamonitor:e0pprogtyps,asm:mmlatmsviamonitor:exec0p} and \Cref{asm:mmlatmsviamonitor:mp:storeagree}:
+  \begin{passumptions}{M^{(0'')}}
+    \item\label[ass]{asm:mmlatmsviamonitor:m0p:deltasubset} $\delta_{\text{tms}}^{(p)}\subseteq\delta_{\text{tms}}^{(0'')}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m0p:traceagree} $\traceagree[\delta_{\text{tms}}^{(0'')}]{\tospecificevs{\trace[_{0}']}}{\abstrace_{0}'}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m0p:monitorstep} $\monitorcheck{\tmsmonitor[^{(p)}]}{\tmsmonitor[^{(0'')}]}{\abstrace_{0}'}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m0p:storeagree} $\storeagree[\delta_{\text{tms}}^{(0'')}]{\tmsmonitor^{(0'')}}{\src{\Omega_{0}'.\Delta}}$
+  \end{passumptions}
+  Yet again, use \Thmref{lem:steps-preservation} with \Cref{asm:mmlatmsviamonitor:e0pprogtyps,asm:mmlatmsviamonitor:exec0p}, but invert the result:
+  \begin{passumptions}{G}
+    \item\label[ass]{asm:mmlatmsviamonitor:omega0pgamma0p} $\typechecks{}{\Omega_{0}'}{\Gamma_{0}'}$
+    \item\label[ass]{asm:mmlatmsviamonitor:fpprogtyps} $\typechecks{\Gamma_{0}'}{\finalexprnoerr_{p}'}{\type_{2}}$
+  \end{passumptions}
+  Note that $\src{\Gamma_{0}'}=\src{\hole{\cdot}}\circ\src{\Gamma_{0}'}$ by \Cref{tr:t-empty-splitL}, which we use together with \Cref{asm:mmlatmsviamonitor:fpprogtyps,asm:mmlatmsviamonitor:e1typs} to discharge \Thmref{lem:substitution}:
+  \begin{passumptions}{G}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:mmlatmsviamonitor:e1substtyps} $\typechecks{\Gamma_{0}'}{e_{1}[\finalexprnoerr_{p}'/y]}{\nat}$
+  \end{passumptions}
+  With \Cref{asm:mmlatmsviamonitor:e1substtyps,asm:mmlatmsviamonitor:omega0pgamma0p} it follows from \Cref{tr:w-t-prog} that
+  \begin{passumptions}{F}
+    \setcounter{enumi}{5}
+    \item\label[ass]{asm:mmlatmsviamonitor:e1substprogchecks} $\typechecks{}{\Omega_{0}'\triangleright e_{1}[\finalexprnoerr_{p}'/y]}{\nat}$
+  \end{passumptions}
+  Use \Cref{asm:mmlatmsviamonitor:e1substprogchecks,asm:mmlatmsviamonitor:exec1} and \Cref{asm:mmlatmsviamonitor:m0p:storeagree} to apply \Thmref{lem:generaltms:monitor}:
+  \begin{passumptions}{M^{(1)}}
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:deltasubset} $\delta_{\text{tms}}^{(0'')}\subseteq\delta_{\text{tms}}^{(1)}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:traceagree} $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{\trace[_{1}]}}{\abstrace_{1}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:monitorstep} $\monitorcheck{\tmsmonitor[^{(p)}]}{\tmsmonitor[^{(1)}]}{\abstrace_{1}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:storeagree} $\storeagree[\delta_{\text{tms}}^{(1)}]{\tmsmonitor^{(1)}}{\src{\Omega_{1}.\Delta}}$
+  \end{passumptions}
+  We instantiate our goal according to \Cref{def:src:trace:tms} with $\delta=\delta_{\text{tms}}^{{(1)}}$, $\abstrace=\bm{\varepsilon}\cdot\abstrace_{0}\cdot\abstrace_{p}\cdot\abstrace_{0}'\cdot\abstrace_{1}\cdot\bm{\varepsilon}$, and $\tmsmonitor=\tmsmonitor^{(1)}$, what we have left to show is:
   \begin{goals}
-    \item\label[goal]{asm:mmlatmsviamonitor:traceagree} $\tmstraceagree[\delta^{(p)}]{\specificev{Call\ ?v_0}\cdot\tospecificevs{\trace{_p}}\cdot\specificev{Ret\ !v_p}}{\abstrace{_p}}$
-    \item\label[goal]{asm:mmlatmsviamonitor:monitorcheck} and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace{_p}}$
+    \setcounter{enumi}{1}
+    \item\label[goal]{goal:mmlatmsviamonitor:traceagree} $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{\trace}}{\bm{\varepsilon}\cdot\abstrace_{0}\cdot\abstrace_{p}\cdot\abstrace_{0}'\cdot\abstrace_{1}\cdot\bm{\varepsilon}}$
+    \item\label[goal]{goal:mmlatmsviamonitor:monitorcheck} $\monitorcheck{\emptyset}{\tmsmonitor^{(1)}}{\bm{\varepsilon}\cdot\abstrace_{0}\cdot\abstrace_{p}\cdot\abstrace_{0}'\cdot\abstrace_{1}\cdot\bm{\varepsilon}}$
   \end{goals}
+  Note we can rewrite \Cref{goal:mmlatmsviamonitor:traceagree} using \Cref{asm:mmlatmsviamonitor:tracedef} to:
+  \begin{goals}
+    \setcounter{enumi}{1}
+    \item $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{Ret\ !0\cdot\trace[_{0}]\cdot Call\ ?\finalexprnoerr_{0}\cdot\trace[_{p}]\cdot Ret\ !\finalexprnoerr_{p}\cdot\trace[_{0}']\cdot\trace[_{1}]\cdot Call\ ?\finalexprnoerr_{1}}}{\bm{\varepsilon}\cdot\abstrace_{0}\cdot\abstrace_{p}\cdot\abstrace_{0}'\cdot\abstrace_{1}\cdot\bm{\varepsilon}}$
+  \end{goals}
+  which equals
+  \begin{goals}
+    \setcounter{enumi}{1}
+    \item $\traceagree[\delta_{\text{tms}}^{(1)}]{\specificev{Ret\ !0}\cdot\tospecificevs{\trace[_{0}]\cdot Call\ ?\finalexprnoerr_{0}\cdot\trace[_{p}]\cdot Ret\ !\finalexprnoerr_{p}\cdot\trace[_{0}']\cdot\trace[_{1}]\cdot Call\ ?\finalexprnoerr_{1}}}{\bm{\varepsilon}\cdot\abstrace_{0}\cdot\abstrace_{p}\cdot\abstrace_{0}'\cdot\abstrace_{1}\cdot\bm{\varepsilon}}$
+  \end{goals}
+  By \Cref{tr:tms-ret-auth} we can trim the head. We immediately apply \Thmref{lem:trace-agree-trans} several times to get:
+  \begin{itemize}
+    \item $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{\trace[_{0}]\cdot Call\ ?\finalexprnoerr_{0}}}{\abstrace_{0}}$, by \Cref{asm:mmlatmsviamonitor:m0:traceagree}
+    \item $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{\trace[_{p}]\cdot Ret\ !\finalexprnoerr_{p}}}{\abstrace_{p}}$, by \Cref{asm:mmlatmsviamonitor:mp:traceagree}
+    \item $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{\trace[_{0}']}}{\abstrace_{0}'}$, by \Cref{asm:mmlatmsviamonitor:m0p:traceagree}
+    \item $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{\trace[_{1}]}}{\abstrace_{1}}$, by \Cref{asm:mmlatmsviamonitor:m1:traceagree}
+    \item $\traceagree[\delta_{\text{tms}}^{(1)}]{\tospecificevs{Call\ ?\finalexprnoerr_{1}\cdot\hole{\cdot}}}{\bm{\varepsilon}\cdot\hole{\cdot}}$, by \Cref{tr:tms-call-auth,tr:tms-refl-auth}
+  \end{itemize}
 
-  For \Cref{asm:mmlatmsviamonitor:traceagree}, note that by \Cref{tr:tms-call-auth} and \Cref{tr:tms-ret-auth}, we can reduce it to $\tmstraceagree[\delta^{(p)}]{\abstrace{_p}}{\tospecificevs{\trace{_p}}}$, which is fulfilled by \Cref{asm:mmlatmsviamonitor:traceagreeasm}.
-  \Cref{asm:mmlatmsviamonitor:monitorcheck} follows immediately by \Cref{asm:mmlatmsviamonitor:monitorcheckasm}.
+  \Cref{goal:mmlatmsviamonitor:monitorcheck} goes by transitivity using \Cref{tr:tms-trans,tr:tms-uninteresting} and \Cref{asm:mmlatmsviamonitor:m0:monitorstep,asm:mmlatmsviamonitor:mp:monitorstep} and \Cref{asm:mmlatmsviamonitor:m0p:monitorstep,asm:mmlatmsviamonitor:m1:monitorstep}.
 \end{proof}
-
-\clearpage
 
 \subsection{Target Language}
 \subsubsection{Syntax}

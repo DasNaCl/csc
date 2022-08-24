@@ -23,6 +23,7 @@
 \usepackage{xfrac}
 \usepackage{graphicx}
 \usepackage{adjustbox}
+\usepackage{scontents}
 
 % workaround to use extpfeil and stmaryrd together.
 % see https://tex.stackexchange.com/questions/297108/
@@ -37,9 +38,7 @@
 \newtheorem{definition}{Definition}
 \newtheorem{lemma}{Lemma}
 \newcounter{theoremcounter}
-\newcounter{importanttheoremcounter}
 \newtheorem{theorem}[theoremcounter]{Theorem}
-\newtheorem{importanttheorem}[importanttheoremcounter]{Theorem}
 
 \usepackage{mmmacros}
 % \usepackage{./../mmmacros}
@@ -1531,23 +1530,23 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{itemize}
 \end{definition}
 
-\begin{importanttheorem}[$\mmlAs$ is \gls{tms} via Monitor]
+\begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item $\src{prog\ e_0\ e_p\ e_1}=\src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}}$
-  \item $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\trace}$
+  \item\label[ass]{asm:mmlatmsviamonitor:run} $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\texttt{TMS}(\tospecificevcomps{\trace})$
   \end{goals}.
-\end{importanttheorem}
-For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
+\end{scontents}
+\mockthm{thm:mmlAs:tmssafe}{1}
 
-\begin{importanttheorem}[$\mmlAs$ is not spatially memory safe]
+\begin{scontents}[store-env=buffer]
   There is a well-typed $\mmlAs$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
   $\rsat{\src{p}}{smsafe}$
-\end{importanttheorem}
+\end{scontents}
+\realthm{thm:mmlAs:not:smssafe}{2}{$\mmlAs$ is not spatially memory safe}
 \begin{proof}
   Pick $\src{e_p}=\src{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
 
@@ -1880,18 +1879,18 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{theorem}
+\begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
   \item $\typechecks{}{e}{\type}$
-  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{e'}{\trace}$
   \end{assumptions}
   Then $\exists \src{\finalexprnoerr}$,
   \begin{goals}
-  \item $\src{e'}=\src{\finalexprnoerr}$
+  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{\finalexprnoerr}{\trace}$
   \item $\typechecks{}{\finalexprnoerr}{\type}$
   \end{goals}.
-\end{theorem}
+\end{scontents}
+\realthm{thm:mmlAs:typesafe}{3}{Type Safety}
 
 \begin{lemma}[Top-Level Progress]\label{lem:toplevel:progress}
   If
@@ -2311,16 +2310,7 @@ For the proof of above see \Cref{thm:mmlAs:tmssafe} in \Cref{sec:mmla:aux}.
   \end{description}
 \end{proof}
 
-\begin{theorem}[$\mmlAs$ is \gls{tms} via Monitor]\label{thm:mmlAs:tmssafe}
-  If
-  \begin{assumptions}
-  \item\label{asm:mmlatmsviamonitor:run} $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\valueexpr}{\trace}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-  \item $\texttt{TMS}(\tospecificevcomps{\trace})$
-  \end{goals}.
-\end{theorem}
+\realthm{thm:mmlAs:tmssafe}{1}{$\mmlAs$ is \gls{tms} via Monitor}
 \begin{proof}
   Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get 
   \begin{passumptions}{H}
@@ -4104,8 +4094,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\refstepcounter{theoremcounter}
-\begin{theorem}[Robust \gls{tms} Preservation]\label{thm:rtmsp}
+\begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
   \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\trace}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\trace}\rightarrow\texttt{TMS}(\tospecificevcomps{\trace})$
@@ -4116,7 +4105,9 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \begin{goals}
   \item $\texttt{TMS}(\tospecificevcompt{\trace})$
   \end{goals}
-\end{theorem}
+\end{scontents}
+
+\realthm{thm:rtmsp}{4}{Robust \gls{tms} Preservation}
 \begin{incompleteproof}
   \MK{rework}Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so we immediately disregard the failure cases:
   \begin{passumptions}{H}

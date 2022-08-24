@@ -599,8 +599,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
-  \mi{State}\ \configs \bnfdef\ \sconfig{H}{\Delta} \hspace{0.5cm}
-  \mi{Marked\ State}\ \qconfigs[i] \bnfdef\ \configs\mid \qconfigs\\
+  \mi{State}\ \configs \bnfdef\ \sconfig{H}{\Delta} \\
   %
   \mi{Contexts}\ &\src{context\ e_0\ e_1} \hspace{0.5cm}
   \mi{Components}\ \src{component\ e_p} \\
@@ -769,8 +768,8 @@ Note that non-owned pointers and values may be freely duplicated and that we can
 The context splitting takes care that for e.g. \Cref{tr:t-binop} it cannot happen that we do something like $\src{(delete\ x) + x[0]}$.
 For \Cref{tr:t-var,tr:t-nat} we require that the contexts do not contain any owned pointer.
 Intuitively, an owned pointer is useless upto getting a non-owned version from context splitting, because we cannot do anything with it besides deleting.
-This is inspired by linear logic. To deal with program contexts, we have two additional rules \Cref{tr:t-let-check,tr:t-hole} that carry additional type informationn.
-Note that $\src{hole : \type}$ has no runtime action, which is why we have an additional judgement as presented in \Cref{fig:no-hole} that ensures that a given well-typed program can run.
+This is inspired by linear logic. To deal with program contexts, we have two additional rules \Cref{tr:t-let,tr:t-hole} that carry additional type informationn.
+Note that $\src{hole : \type}$ has no runtime action, which is why we have an additional judgement as presented in \Cref{fig:runtime-term} that ensures that a given well-typed program can run.
 Without the hole, we cannot represent the context as a simple, nested $\src{let}$-expression, which also means that the static contexts of the two expressions that wrap around the component have no interaction, i.e. for $\src{context\ e_1\ e_2}$ we cannot typecheck the case where $\src{e_1}$ wants to allocate some memory and keep it around for deallocation in $\src{e_2}$.
 
 \myfig{
@@ -871,21 +870,6 @@ Without the hole, we cannot represent the context as a simple, nested $\src{let}
 
 \myfig{
   \begin{center}
-    \judgbox{\vdash \src{e}\ \text{runtime}}{,,$\src{e}$ is a valid runtime term.''}
-    \begin{center}
-      \typerule{runtime-term}{
-        \neg\left(\hasholes{x:\type_1}{e}{\type_2}\right) &
-        \typechecks{}{\Omega\triangleright e}{\type}
-      }{
-        \vdash\src{e}\ \text{runtime}
-      }{runtime-term-rule}
-    \end{center}
-    % TODO: fold over all possible expressions modulo hole
-  \end{center}
-}{runtime-term}{A check for $\mmlAs$ expressions to see whether they are a valid runtime term or not.}
-
-\myfig{
-  \begin{center}
     \judgbox{\closed{\src{x_1},\cdots,\src{x_n}}{\src{e}}}{,,At most all $\mmlAs$ variables in the set $\left\{\src{x_1},\cdots,\src{x_n}\right\}$ occur in $\src{e}$.''}
     \typerule{$\mmlAs-$program}{
       \closed{}{\src{component\ e_p}}&
@@ -957,18 +941,31 @@ We introduce interface types to explicitly disallow passing owned pointers.
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
 	}{w-t-wprog}
   %
-  \judgbox{\typechecks{}{\qconfigs[i]\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\qconfigs[i]\triangleright e}$ typechecks.''}$\;$\\
+  \judgbox{\typechecks{}{\configs\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\configs\triangleright e}$ typechecks.''}$\;$\\
   \typerule{$t-\text{prog}$}{
-    \typechecks{}{\Delta^i}{\Gamma}&
+    \typechecks{}{\Delta}{\Gamma}&
     \typechecks{\Gamma}{e}{\type}
 	}{
-  \typechecks{}{(H;\Delta)^i\triangleright e}{\type}
+  \typechecks{}{H;\Delta\triangleright e}{\type}
 	}{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
-Perhaps most interesting is \Cref{tr:w-t-prog}, which generates a suitable typing context from the execution context.
+Perhaps most interesting is \Cref{tr:w-t-prog} which generates a suitable typing context from the execution context.
 \Cref{fig:store-ty} shows how this works exactly.
 For \Cref{tr:w-t-ctx}, note that $\src{e_{1}}$ encodes the input to the component bound to variable $\src{x}$.
+\myfig{
+  \begin{center}
+    \judgbox{\left[\typechecks{}{\Omega\triangleright\src{e}}{\type}\right]}{,,$\src{e}$ is a valid runtime term.''}
+    \begin{center}
+      \typerule{runtime-term}{
+        \neg\left(\hasholes{x:\type_1}{e}{\type_2}\right) &
+        \typechecks{}{\Omega\triangleright e}{\type}
+      }{
+        \left[\typechecks{}{\Omega\triangleright\src{e}}{\type}\right]
+      }{runtime-term-rule}
+    \end{center}
+  \end{center}
+}{runtime-term}{A check for $\mmlAs$ expressions to see whether they are a valid runtime term or not.}
 
 \myfig{
   \begin{center}
@@ -989,16 +986,10 @@ For \Cref{tr:w-t-ctx}, note that $\src{e_{1}}$ encodes the input to the componen
     }{
     \typechecks{}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
     }{t-poison-store}
-    %
-    \typerule{$T\wptr$}{
-    \typechecks{}{\Delta}{\Gamma}
-    }{
-    \typechecks{}{x\mapsto\loc_\poison^\diamond,\Delta}{x:\wptr,\Gamma}
-    }{t-poison-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
 Here, we want to populate the typing context with all {\em valid} pointers, which are those that are not poisoned.
-For locations marked with unimportance ($\src{\diamond}$), we still generate a non-owned pointer to permit usage but not force deletion of it.
+Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see \Cref{fig:w-ctx-split}.
 
 \myfig{
   \begin{center}
@@ -1221,12 +1212,9 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \plugs{e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
+    \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
     \execs{\configs_{po}}{e_0''}{\configs_0'}{\finalexprnoerr_p'}{\trace[_0']}&
     \execs{\configs_0'}{e_1[\finalexprnoerr_p'/y]}{\configs_1}{\finalexprnoerr_1}{\trace[_1]}
-%   \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
-%   \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\configs_p}{\finalexprnoerr_p}{\trace{_p}} &
-%   \execs{\configs_p}{e_1[\finalexprnoerr_p/y]}{\configs_1}{\finalexprnoerr_1}{\trace{_1}} &
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot\trace[_0']\cdot \trace[_1]\cdot Call\ ?\finalexprnoerr_1}
   }{ws-e-prog}
@@ -1234,8 +1222,6 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \plugs{e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\lightning}{stuck}{\trace[_0]}&
-%    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
-%    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\lightning}{stuck}{\trace{_0}} \\
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
   }{ws-e-prog-fail0}
@@ -1243,10 +1229,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \plugs{e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{stuck}{\trace[_p]}\\
-%    \typechecks{}{component\ e_p}{\type_1\to\type_2} &
-%    \execs{\hole{\cdot};\hole{\cdot}}{e_0}{\configs_0}{\finalexprnoerr_0}{\trace{_0}} \\
-%    \execs{\qconfig_0}{e_p[\finalexprnoerr_0/x]}{\lightning}{stuck}{\trace{_p}} &
+    \execs{\configs_0}{e_{po}}{\configs_{po}}{stuck}{\trace[_p]}\\
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
   }{ws-e-prog-failp}
@@ -1254,7 +1237,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \plugs{e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
+    \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
     \execs{\configs_{po}}{e_0''}{\lightning}{stuck}{\trace[_0']}&
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_0'}}
@@ -1263,7 +1246,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \plugs{e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0^\diamond}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
+    \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
     \execs{\configs_{po}}{e_0''}{\configs_0'}{\finalexprnoerr_p'}{\trace[_0']}&
     \execs{\configs_0'}{e_1[\finalexprnoerr_p'/y]}{\lightning}{stuck}{\trace[_1]}
   }{
@@ -1272,7 +1255,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 Note that the rules in \Cref{fig:wprog-run} do not require the context to be well-typed.
-In addition, this is where $\src{Call}$ and $\src{Ret}$ events are emitted.
+In addition, this is where the top-level $\src{Ret}$ and $\src{Call}$ events are emitted.
 
 \subsubsection{\gls*{ms}-Specific Events}
 We introduce another set of actions that allows us to abstract over reading or writing at a certain location.
@@ -1444,7 +1427,7 @@ As before, we need a way to translate one set of actions to another:
 
 \myfig{
   \begin{center}
-    \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta^i}}}{,,The abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
+    \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta}}}{,,The abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
     \typerule{Empty-Agree}{
     }{
       \storeagreetms{\emptyset}{\src{\hole{\cdot}}}
@@ -1466,11 +1449,6 @@ As before, we need a way to translate one set of actions to another:
     }{
       \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\poisoned,\Delta}}
     }{store-poison-agree}
-    %
-    \typerule{Unimportant-Agree}{
-    }{
-      \storeagreetms{\emptyset}{\src{\Delta^\diamond}}
-    }{store-unimportant-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
 
@@ -1636,9 +1614,9 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \bigskip
 
   We omit subsequent derivations, but note that they can be found using \Cref{tr:hashole-Llet,tr:hashole-hole} and \Cref{tr:t-let,tr:t-nat,tr:t-var,tr:t-hole}.
-  So both context and component typecheck.
+  So, both context and component typecheck.
 
-  Therefore, we can plug using \Cref{tr:src-plugging} which yields \\$\src{prog}\ (\src{let\ h=hole:(x:\nat)\to\nat\ in\ h})\ (\src{e_p})\ (\src{y})$.\\[0.3cm]
+  Therefore, we can plug using \Cref{tr:src-plugging} which yields \\$\src{prog}\ (\src{let\ x=42\ in\ hole:(x:\nat)\to\nat})\ (\src{e_p})\ (\src{y})$.\\[0.3cm]
   Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Ret\ !0}\cdot\src{Call\ ?42}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Get\ \loc\ 1337}\cdot\src{Dealloc\ \loc}\cdot\src{Ret\ !1729}\cdot\src{Call\ ?1729}$.
   We omit the precise derivation for brevity.\\[0.3cm]
   By \Cref{fig:w-events-project-to-specific}, $\tospecificevs{\trace}=\specificev{Ret\ !0}\cdot\specificev{Call\ ?42}\cdot\cdot\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}\cdot\specificev{Ret\ !1729}\cdot\specificev{Call\ ?1729}$.\\[0.3cm]
@@ -1667,11 +1645,11 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[State Typing Plugged]\label{lem:ctxtyping:plugged}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\Omega\triangleright K[e]}{\type}$
+    \item $\left[\typechecks{}{\Omega\triangleright K[e]}{\type}\right]$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\Omega\triangleright e}{\type}$
+    \item $\left[\typechecks{}{\Omega\triangleright e}{\type}\right]$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -1792,6 +1770,19 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\begin{lemma}[Filling leaves no Holes]\label{lem:fill:nohole}
+  If
+  \begin{assumptions}
+    \item $\plugs{e_{p}}{e_{0}}=\src{e_{0}'}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\neg\left(\hasholes{x:\type_{1}}{e_{0}'}{\type_{2}}\right)$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  By induction on \Cref{asm:plugsnohole}.
+\end{proof}
 
 \begin{lemma}[$\alpha$-conv. Typing]\label{lem:alpha-conv-typing}
   If
@@ -1824,13 +1815,13 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Base Preservation]\label{lem:base-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}\right]$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1839,13 +1830,13 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Ctx Preservation]\label{lem:ctx-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
     \item $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}\right]$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1854,13 +1845,13 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
     \item $\execs{\configs}{e}{\configs'}{e'}{\trace}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}\right]$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -1869,7 +1860,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Progress]\label{lem:progress}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1884,7 +1875,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \begin{assumptions}
   \item $\typechecks{}{e}{\type}$
   \end{assumptions}
-  Then $\exists \src{\finalexprnoerr}$,
+  Then $\exists \src{\Omega}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{\finalexprnoerr}{\trace}$
   \item $\typechecks{}{\finalexprnoerr}{\type}$
@@ -1905,24 +1896,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Mid-Level Progress]\label{lem:midlevel:progress}
-  If
-  \begin{assumptions}
-    \item $\typecheck{}{\src{component\ e_p}}{\src{(\type_1\to\type_2)\to\nat}}$
-    \item $\vdash_\copyright\src{context\ e_1\ e_2}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-  \item $\exists \configs\ \src{\finalexpr}\ \src{\trace}, \wexecs{prog\ e_1\ e_p\ e_2}{\Omega}{\finalexpr}{\trace}$
-  \end{goals}.
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
-
 \begin{lemma}[Base \gls{tms} via Monitor]\label{lem:basetmsmonitor}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
     \item $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
@@ -1939,10 +1916,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \begin{description}
     \item[$\src{e}=\src{delete\ x}$:]
       If
-      \begin{assumptions}
+      \begin{passumptions}{H}
         \item $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{delete\ x}}{\type}$
         \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -1961,14 +1938,14 @@ We now define temporal and spatial memory safety in terms of traces on events $\
       \begin{description}
       \item[\Cref{tr:store-cons-agree}:] \ \\
         If
-        \begin{assumptions}
-        \item $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \begin{passumptions}{F}
+        \item $\left[\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}\right]$
         \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
         \item $\tospecificevs{\loc}=\specificev{\loc}$
         \item $\delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}$
         \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
         \item $\tmsmonitor=\tmsmonitor[_1]\cup\left\{\bm{\loc}\right\}\cup \tmsmonitor[_2]$
-        \end{assumptions}
+        \end{passumptions}
         then $\exists \tmsmonitor[']$,
         \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \bm{\loc}}$
@@ -1983,14 +1960,14 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
       \item[\Cref{tr:store-poison-agree}:] \ \\
         If
-        \begin{assumptions}
+        \begin{passumptions}{F}
         \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
         \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
         \item $\tospecificevs{\loc}=\specificev{\loc}$
         \item $\delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}$
         \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
         \item $\tmsmonitor=\tmsmonitor[_1]\cup \tmsmonitor[_2]$
-        \end{assumptions}
+        \end{passumptions}
         then $\exists \tmsmonitor[']$,
         \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \bm{\loc}}$
@@ -1998,10 +1975,11 @@ We now define temporal and spatial memory safety in terms of traces on events $\
         \end{goals}.
 
         Invert \Cref{asm:basetmsmonitor:typing} to get
-        \begin{assumptions}
+        \begin{passumptions}{F}
+          \setcounter{enumi}{6}
         \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{}{\src{H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{\Gammas}$
         \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{delete\ x}{\nat}$
-        \end{assumptions}.
+        \end{passumptions}.
 
       Due to \Cref{asm:basetmsmonitor:storechecks}, we know $\src{x:\ptr}\not\in\Gammas$.
 
@@ -2009,10 +1987,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
       \end{description}
     \item[$\src{e}=\src{returning\ \finalexprnoerr}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{\Omega}\triangleright \src{returning\ \finalexprnoerr}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{\Omega}\triangleright \src{returning\ \finalexprnoerr}}{\type}\right]$
         \item\label[ass]{asm:basetmsmonitor:case1:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:case1:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2026,10 +2004,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{calling\ \finalexprnoerr}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{\Omega}\triangleright \src{calling\ \finalexprnoerr}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{\Omega}\triangleright \src{calling\ \finalexprnoerr}}{\type}\right]$
         \item\label[ass]{asm:basetmsmonitor:case2:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:case2:subseteq} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2043,10 +2021,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{n_1+n_2}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{\Omega}\triangleright\src{n_1+n_2}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{\Omega}\triangleright\src{n_1+n_2}}{\type}\right]$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2060,10 +2038,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{let\ x=\finalexprnoerr\ in\ e'}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{\Omega}\triangleright\src{let\ x=\finalexprnoerr\ in\ e'}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{\Omega}\triangleright\src{let\ x=\finalexprnoerr\ in\ e'}}{\type}\right]$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2077,10 +2055,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{ifz\ 0\ then\ e_1\ else\ e_2}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{\Omega}\triangleright\src{ifz\ 0\ then\ e_1\ else\ e_2}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{\Omega}\triangleright\src{ifz\ 0\ then\ e_1\ else\ e_2}}{\type}\right]$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2094,10 +2072,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{ifz\ S(n)\ then\ e_1\ else\ e_2}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{\Omega}\triangleright\src{ifz\ S(n)\ then\ e_1\ else\ e_2}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{\Omega}\triangleright\src{ifz\ S(n)\ then\ e_1\ else\ e_2}}{\type}\right]$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2114,13 +2092,13 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{let\ x=new\ n\ in\ e'}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{H};\src{\Delta}\triangleright\src{let\ x=new\ n\ in\ e'}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{H};\src{\Delta}\triangleright\src{let\ x=new\ n\ in\ e'}}{\type}\right]$
         \item\label[ass]{asm:basetmsmonitor:case4:storeagree} $\storeagreetms{\tmsmonitor}{\src{H};\src{\Delta}}$
         \item $\fresh{\src{\Delta}}{\src{\loc}}$
         \item $\fresh{\src{\Delta}}{\src{z}}$
         \item $\src{H'}=\src{H}\ll\src{n}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2148,12 +2126,12 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{x[n]}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{H};\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright\src{x[n]}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{H};\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright\src{x[n]}}{\type}\right]$
         \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
         \item $\src{\loc}\in\operatorname{dom}\src{H}\implies \src{v}=\src{H}\left(\src{\loc+n}\right)$
         \item $\src{\loc}\not\in\operatorname{dom}\src{H}\implies \src{v}=\src{1729}$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2173,11 +2151,11 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 
     \item[$\src{e}=\src{x[n]\leftarrow\valueexpr}$:]
       If
-      \begin{assumptions}
-        \item $\typechecks{}{\src{H};\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright\src{x[n]}}{\type}$
+      \begin{passumptions}{H}
+        \item $\left[\typechecks{}{\src{H};\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright\src{x[n]}}{\type}\right]$
         \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
         \item $\src{H'}=\src{H}\left(\src{l+n}\mapsto\src{\valueexpr}\right)$
-      \end{assumptions}
+      \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
       \begin{goals}
         \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
@@ -2200,7 +2178,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Ctx \gls{tms} via Monitor]\label{lem:ctxsteptmsmonitor}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:ctxtmsmonitor:typechecks} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item\label[ass]{asm:ctxtmsmonitor:typechecks} $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
     \item\label[ass]{asm:ctxtmsmonitor:ctxstep} $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
     \item\label[ass]{asm:ctxtmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
@@ -2234,7 +2212,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \begin{lemma}[Steps \gls{tms} via Monitor]\label{lem:generaltms:monitor}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:stepstmsmonitor:typing} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item\label[ass]{asm:stepstmsmonitor:typing} $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
     \item\label[ass]{asm:stepstmsmonitor:exec} $\execs{\configs}{e}{\configs'}{e'}{\trace}$
     \item\label[ass]{asm:stepstmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
@@ -2258,7 +2236,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
           The inductive hypothesis is as follows.
           If
           \begin{passumptions}{A}
-            \item $\typechecks{}{\src{\Omega_{\IH}}\triangleright e_{\IH}}{\src{\type}}$
+            \item $\left[\typechecks{}{\src{\Omega_{\IH}}\triangleright e_{\IH}}{\src{\type}}\right]$
             \item $\storeagreetms[\delta^{0}]{\tmsmonitor[^{\IH}]}{\src{\Omega_{\IH}}.\src{\Delta}}$
           \end{passumptions}
           then $\exists \abstrace_{\IH}\ \delta_{\text{tms}}^{\IH}\ \tmsmonitor[_{\IH}'],$
@@ -2274,7 +2252,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
           \begin{passumptions}{H}
             \item\label[ass]{asm:stepstmsmonitor:case0:step} $\execs[]{\configs}{e}{\configs_{0}}{e_{0}}{\event[_0]}$
             \item\label[ass]{asm:stepstmsmonitor:case0:steps} $\execs{\configs_{0}}{e_{0}}{\configs'}{e'}{\trace}$
-            \item\label[ass]{asm:stepstmsmonitor:case0:checks} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:checks} $\left[\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}\right]$
             \item\label[ass]{asm:stepstmsmonitor:case0:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
           \end{passumptions}
           Then $\exists \abstrace\ \delta_{\text{tms}}'\ \tmsmonitor['],$
@@ -2335,7 +2313,12 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   Note that by \Cref{tr:t-empty-store} and \Cref{tr:w-t-prog} using \Cref{asm:mmlatmsviamonitor:e0typs} we have:
   \begin{passumptions}{F}
     \setcounter{enumi}{2}
-    \item\label[ass]{asm:mmlatmsviamonitor:e0progtyps} $\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e_{0}'}{\type}$
+    \item\label[ass]{asm:mmlatmsviamonitor:e0progtypsi} $\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e_{0}'}{\type}$
+  \end{passumptions}
+  Also note that by \Thmref{lem:fill:nohole} using \Cref{asm:mmlatmsviamonitor:fill}, we can apply \Cref{tr:runtime-term-rule} on \Cref{asm:mmlatmsviamonitor:e0progtypsi}:
+  \begin{passumptions}{F}
+    \setcounter{enumi}{3}
+    \item\label[ass]{asm:mmlatmsviamonitor:e0progtyps} $\left[\typechecks{}{\hole{\cdot};\hole{\cdot}\triangleright e_{0}'}{\type}\right]$
   \end{passumptions}
   With \Cref{asm:mmlatmsviamonitor:e0progtyps,asm:mmlatmsviamonitor:exec0} and \Cref{tr:store-empty-agree} we discharge \Thmref{lem:generaltms:monitor}:
   \begin{passumptions}{M^{(0')}}
@@ -2346,8 +2329,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{passumptions}
   To use \Thmref{lem:steps-preservation}, we take \Cref{asm:mmlatmsviamonitor:e0progtyps,asm:mmlatmsviamonitor:exec0} and get:
   \begin{passumptions}{F}
-    \setcounter{enumi}{3}
-    \item\label[ass]{asm:mmlatmsviamonitor:epoprogtyps} $\typechecks{}{\Omega_{0}\triangleright e_{po}}{\type}$
+    \setcounter{enumi}{4}
+    \item\label[ass]{asm:mmlatmsviamonitor:epoprogtyps} $\left[\typechecks{}{\Omega_{0}\triangleright e_{po}}{\type}\right]$
   \end{passumptions}
   Now we are ready to apply \Thmref{lem:generaltms:monitor} again, making use of \Cref{asm:mmlatmsviamonitor:epoprogtyps,asm:mmlatmsviamonitor:execp} and \Cref{asm:mmlatmsviamonitor:m0:storeagree}:
   \begin{passumptions}{M^{(p)}}
@@ -2358,8 +2341,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{passumptions}
   We would like to use \Thmref{lem:steps-preservation} again. So, take \Cref{asm:mmlatmsviamonitor:epoprogtyps,asm:mmlatmsviamonitor:execp} and get:
   \begin{passumptions}{F}
-    \setcounter{enumi}{4}
-    \item\label[ass]{asm:mmlatmsviamonitor:e0pprogtyps} $\typechecks{}{\Omega_{po}\triangleright e_{0}''}{\type_{2}}$\todo{really? make an example}
+    \setcounter{enumi}{5}
+    \item\label[ass]{asm:mmlatmsviamonitor:e0pprogtyps} $\left[\typechecks{}{\Omega_{po}\triangleright e_{0}''}{\type_{2}}\right]$
   \end{passumptions}
   We are ready to apply \Thmref{lem:generaltms:monitor} again, making use of \Cref{asm:mmlatmsviamonitor:e0pprogtyps,asm:mmlatmsviamonitor:exec0p} and \Cref{asm:mmlatmsviamonitor:mp:storeagree}:
   \begin{passumptions}{M^{(0'')}}
@@ -2380,8 +2363,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{passumptions}
   With \Cref{asm:mmlatmsviamonitor:e1substtyps,asm:mmlatmsviamonitor:omega0pgamma0p} it follows from \Cref{tr:w-t-prog} that
   \begin{passumptions}{F}
-    \setcounter{enumi}{5}
-    \item\label[ass]{asm:mmlatmsviamonitor:e1substprogchecks} $\typechecks{}{\Omega_{0}'\triangleright e_{1}[\finalexprnoerr_{p}'/y]}{\nat}$
+    \setcounter{enumi}{6}
+    \item\label[ass]{asm:mmlatmsviamonitor:e1substprogchecks} $\left[\typechecks{}{\Omega_{0}'\triangleright e_{1}[\finalexprnoerr_{p}'/y]}{\nat}\right]$
   \end{passumptions}
   Use \Cref{asm:mmlatmsviamonitor:e1substprogchecks,asm:mmlatmsviamonitor:exec1} and \Cref{asm:mmlatmsviamonitor:m0p:storeagree} to apply \Thmref{lem:generaltms:monitor}:
   \begin{passumptions}{M^{(1)}}

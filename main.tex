@@ -2414,10 +2414,11 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
     & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \\
     & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \\
-    & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}
+    & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}\mid \trg{e\ has\ \type}
   \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times},\trg{<}\}\\
+  \mi{Types}~\trg{\type} \bnfdef&\ \trg{\nat}\mid\trg{\nat\times\nat}\hspace{0.5cm}
   %
-  \mi{Values}~\trg{v} \bnfdef&\ \trg{n}\in\trg{\nat} \hspace{0.5cm}
+  \mi{Values}~\trg{v} \bnfdef\ \trg{n}\in\trg{\nat} \hspace{0.5cm}
   \mi{References}~\trg{\loc}\in\trg{\nat} \\
   %
   \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \dots \hspace{0.5cm}
@@ -2425,10 +2426,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
   %
   \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\hspace{0.5cm}
-  \mi{Final\ Result}\ \trg{\finalexprnoerr} \bnfdef\ \trg{\valueexpr} \mid \trg{x} \hspace{0.5cm}
-  \trg{\finalexpr} \bnfdef\ \trg{\finalexprnoerr} \mid \trg{stuck} \\
+  \mi{Final\ Result}\ \trg{\finalexprnoerr} \bnfdef\ \trg{\valueexpr} \mid \trg{x} \mid \trg{\langle\finalexprnoerr,\finalexprnoerr\rangle}\\
+  \trg{\finalexpr} \bnfdef&\ \trg{\finalexprnoerr} \mid \trg{stuck} \hspace{0.5cm}
   %
-  \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
+  \mi{Heaps}~\trg{H} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
   %
   \mi{State}\ \configt \bnfdef\ \tconfig{H}{\Delta} \mid \trg{\lightning}\\
   %
@@ -2439,6 +2440,9 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{aligned}
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
+
+The target language is very similar to the source language presented in the previous section.
+However, it does contain simple, non-nested pairs and dynamic type checks.\todo{describe diamond}
 
 \myfig{
   \begin{center}
@@ -2473,7 +2477,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
       \trg{let\ x=K\ in\ e}\\
                      &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}\\
-                     &\mid \trg{ifz\ K\ then\ e_1\ else\ e_2}
+                     &\mid \trg{ifz\ K\ then\ e_1\ else\ e_2}\mid\trg{K\ has\ \type}
     \end{aligned}
   \end{gather*}
 }{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
@@ -2512,16 +2516,6 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}
   }{tw-e-ectx}
   %
-  \typerule{$e-\trg{\pi_1}$}{
-  }{
-    \exprevalt{\configt}{\pi_1\langle n_1;n_2\rangle}{\configt}{n_1}{\emptyevent}
-  }{tw-e-proj1}
-  %
-  \typerule{$e-\trg{\pi_2}$}{
-  }{
-    \exprevalt{\configt}{\pi_2\langle n_1;n_2\rangle}{\configt}{n_2}{\emptyevent}
-  }{tw-e-proj2}
-  %
   \typerule{$e-\trg{ifz}-$true}{
   }{
     \exprevalt{\configt}{ifz\ 0\ then\ e_1\ else\ e_2}{\configt}{e_1}{\emptyevent}
@@ -2556,15 +2550,10 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]\leftarrow v}{\tconfig{H'}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
   }{tw-e-set}
   %
-  \typerule{$e-\trg{let}-\trg{x}$}{
+  \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
   }{
-    \exprevalt{\tconfig{H}{\Delta}}{let\ x=y\ in\ e}{\tconfig{H}{\Delta}}{e[y/x]}{\emptyevent}
+    \exprevalt{\tconfig{H}{\Delta}}{let\ x=\finalexprnoerr\ in\ e}{\tconfig{H}{\Delta}}{e[\finalexprnoerr/x]}{\emptyevent}
   }{tw-e-let-x}
-  %
-  \typerule{$e-\trg{let}-\trg{v}$}{
-  }{
-    \exprevalt{\tconfig{H}{\Delta}}{let\ x=v\ in\ e}{\tconfig{H}{\Delta}}{e[v/x]}{\emptyevent}
-  }{tw-e-let-v}
   %
   \typerule{$e-\trg{delete}$}{
   }{
@@ -2579,6 +2568,45 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \exprevalt{\tconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\tconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
   }{tw-e-let-new}
   %
+  \typerule{$e-\trg{\pi_1}$}{
+  }{
+    \exprevalt{\configt}{\pi_1\langle n_1;n_2\rangle}{\configt}{n_1}{\emptyevent}
+  }{tw-e-proj1}
+  %
+  \typerule{$e-\trg{\pi_2}$}{
+  }{
+    \exprevalt{\configt}{\pi_2\langle n_1;n_2\rangle}{\configt}{n_2}{\emptyevent}
+  }{tw-e-proj2}
+  %
+  \typerule{$e-\trg{n\ has\ \nat}$}{
+  }{
+    \exprevalt{\configt}{n\ has\ \nat}{\configt}{0}{\emptyevent}
+  }{tw-e-n-hasnat}
+  %
+  \typerule{$e-pair-\trg{has\ \nat}$}{
+  }{
+    \exprevalt{\configt}{\langle n_1,n_2\rangle\ has\ \nat}{\configt}{1}{\emptyevent}
+  }{tw-e-pair-hasnat}
+  %
+  \typerule{$e-\trg{x\ has\ \nat}$}{
+  }{
+    \exprevalt{\configt}{x\ has\ \nat}{\configt}{1}{\emptyevent}
+  }{tw-e-x-hasnat}
+  %
+  \typerule{$e-\trg{n\ has\ \nat\times\nat}$}{
+  }{
+    \exprevalt{\configt}{n\ has\ \nat}{\configt}{1}{\emptyevent}
+  }{tw-e-n-haspair}
+  %
+  \typerule{$e-pair-\trg{has\ \nat\times\nat}$}{
+  }{
+    \exprevalt{\configt}{\langle n_1,n_2\rangle\ has\ \nat}{\configt}{0}{\emptyevent}
+  }{tw-e-pair-haspair}
+  %
+  \typerule{$e-\trg{x\ has\ \nat\times\nat}$}{
+  }{
+    \exprevalt{\configt}{x\ has\ \nat}{\configt}{1}{\emptyevent}
+  }{tw-e-x-haspair}
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
 
 \myfig{
@@ -2948,11 +2976,13 @@ We now define temporal and spatial memory safety in terms of traces on events $\
       \judgbox{\mmlAmmlAtcomp{component\ e_p}=\trg{component\ e_p}}{,,Compile $\mmlAs$ components to\\$\mmlAt$ components.''}
     $$
     \begin{array}{rcl}
-      \mmlAmmlAtcomp{component\ e_p} = \trg{component\ }\mmlAmmlAtcomp{e_p}
+      \mmlAmmlAtcomp{component\ e_p} = \trg{component\ ifz\ x\ has\ \nat\ then\ }\mmlAmmlAtcomp{e_p}\trg{\ else\ abort()}
     \end{array}
     $$
   \end{center}
 }{tms-pres-compiler-comp}{Compiling $\mmlAs$ components to $\mmlAt$ components.}
+Compiling components requires a wrapper to ensure that target contexts invoke the compiled component with the right runtime terms.
+For example, by adding the dynamic type check we prevent contexts from binding $\trg{\langle 42,1729\rangle}$ to $\trg{x}$.
 \myfig{
   \begin{center}
     \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ describes the same actions as $\mmlAt$ trace $\trg{\trace}$.''} \\

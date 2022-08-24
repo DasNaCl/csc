@@ -2295,7 +2295,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \item\label[ass]{asm:mmlatmsviamonitor:progtyps} $\typechecks{}{prog\ e_{0}\ e_{p}\ e_{1}}{\nat}$
     \item\label[ass]{asm:mmlatmsviamonitor:fill} $\plugs{e_{p}}{e_{0}}=\src{e_{0}'}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec0} $\execs{\hole{\cdot};\hole{\cdot}}{e_{0}'}{\configs_{0}}{e_{po}}{\trace[_{0}]\cdot Call\ ?\finalexprnoerr_{0}}$
-    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_{0}^{\diamond}}{e_{po}}{\configs_{po}}{e_{0}''}{\trace[_{p}]\cdot Ret\ !\finalexprnoerr_{p}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:execp} $\execs{\configs_{0}}{e_{po}}{\configs_{po}}{e_{0}''}{\trace[_{p}]\cdot Ret\ !\finalexprnoerr_{p}}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec0p} $\execs{\configs_{po}}{e_0''}{\configs_{0}'}{\finalexprnoerr_{p}'}{\trace[_{0}']}$
     \item\label[ass]{asm:mmlatmsviamonitor:exec1} $\execs{\configs_{0}'}{e_{1}[\finalexprnoerr_{p}'/y]}{\configs_{1}}{\finalexprnoerr_{1}}{\trace[_{1}]}$
     \item\label[ass]{asm:mmlatmsviamonitor:tracedef} $\src{\trace}=\src{Ret\ !0}\cdot\src{\trace[_0]}\cdot\src{Call\ ?\finalexprnoerr_0}\cdot\src{\trace[_p]}\cdot\src{Ret\ !\finalexprnoerr_p}\cdot\src{\trace[_{0}']}\cdot\src{\trace[_1]\cdot\src{Call\ ?\finalexprnoerr_1}}$
@@ -2442,7 +2442,9 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 }{mmlat-syntax}{Syntax of $\mmlAt$}
 
 The target language is very similar to the source language presented in the previous section.
-However, it does contain simple, non-nested pairs and dynamic type checks.\todo{describe diamond}
+However, it does contain simple, non-nested pairs and dynamic type checks.
+The language's operational state $\trg{\Omega}$ and locations $\trg{\ell}$ may be annotated by $\trg{\diamond}$, which indicates unimportance.
+We need such a marker to distinguish memory locations owned by the context from memory locations owned by the component, since we only care about safety in, as in {\em inside}, the component.
 
 \myfig{
   \begin{center}
@@ -2927,14 +2929,13 @@ However, it does contain simple, non-nested pairs and dynamic type checks.\todo{
   \begin{center}
     \begin{gather*}
     \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
-    \judgbox{\mmlAmmlAtcomp{e}=\trg{e}}{,,Compile $\mmlAs$ expression $\src{e}$ to $\mmlAt$ expression $\trg{e}$.''}\\
+    \judgbox{\mmlAmmlAtcomp{e}=\trg{e}}{,,Compile $\mmlAs$ expression $\src{e}$ to $\mmlAt$ expression $\trg{e}$.}\\
     \judgbox{\mmlAmmlAtcomp{\left[\valueexpr / x\right]}=\trg{\left[\valueexpr / x\right]}}{,,Compile $\mmlAs$ substitution to $\mmlAt$ substitution.''}
     \end{gather*}
     $$
     \begin{array}{rll}
-    \mmlAmmlAtcomp{x} &\ = & \trg{x} \\
-    \mmlAmmlAtcomp{v} &\ = & \trg{v} \\
-    \mmlAmmlAtcomp{stuck} &\ = & \trg{stuck}\\
+    \mmlAmmlAtcomp{\finalexpr} &\ = & \trg{\finalexpr} \\
+    \mmlAmmlAtcomp{abort()} &\ = & \trg{abort()}\\
     \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \mmlAmmlAtcomp{e_1} \trg{\oplus} \mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{x[e]} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e}\trg{]} \\
     \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=new\ }\mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
@@ -3168,7 +3169,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{assumptions}
     \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{e'}{\event}$
     \item $\xlangstateeq{\Omega}{\Omega}$
-    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item $\left[\typechecks{}{\Omega\triangleright e}{\nat}\right]$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
@@ -3186,7 +3187,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case1:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \item $\typechecks{}{\Omega\triangleright n_1+n_2}{\nat}$
+      \item $\left[\typechecks{}{\Omega\triangleright n_1+n_2}{\nat}\right]$
       \item\label[ass]{asm:step:forwardsim:case1:additioneq} $n_3=n_1+n_2$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
@@ -3218,7 +3219,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case2:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\trg{\Omega}}$
-      \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright delete\ x}{\nat}$
+      \item $\left[\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright delete\ x}{\nat}\right]$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
@@ -3254,7 +3255,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case3:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega}$
-      \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright x[n]}{\nat}$
+      \item $\left[\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright x[n]}{\nat}\right]$
       \item\label[ass]{asm:step:forwardsim:case3:dom1} $\src{\loc}\in\operatorname{dom} \src{H}\implies\src{v}=\src{H}(\src{\loc+n})$
       \item\label[ass]{asm:step:forwardsim:case3:dom2} $\src{\loc}\not\in\operatorname{dom} \src{H}\implies\src{v}=\src{1729}$
       \end{passumptions}
@@ -3310,7 +3311,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case4:stateeq} $\xlangstateeq{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega}$
-      \item $\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright x[n]}{\nat}$
+      \item $\left[\typechecks{}{H;\Delta_1,x\mapsto\loc_\poison,\Delta_2\triangleright x[n]}{\nat}\right]$
       \item\label[ass]{asm:step:forwardsim:case4:update} $\src{H'}=\src{H}(\src{\loc+n}\mapsto\src{v})$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
@@ -3346,7 +3347,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case5:stateeq} $\xlangstateeq{H;\Delta}{\Omega}$
-      \item $\typechecks{}{H;\Delta\triangleright let\ x\ =\ new\ n\ in\ e}{\nat}$
+      \item $\left[\typechecks{}{H;\Delta\triangleright let\ x\ =\ new\ n\ in\ e}{\nat}\right]$
       \item\label[ass]{asm:step:forwardsim:case5:update} $\src{H'}=\src{H}\ll\src{n}$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
@@ -3362,7 +3363,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \begin{goals}
       \item\label[goal]{goal:step:forwardsim:case5:deltasubset} $\delta\subseteq\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$
-    \item\label[goal]{goal:step:forwardsim:case5:eval} $\expreval{\trg{H;\Delta}}{\trg{let\ x\ =\ new\ n\ in\ }\mmlAmmlAtcomp{e}}{\trg{H;z\mapsto\loc_\poisonless,\Delta}}{\mmlAmmlAtcomp{e}[z/x]}{\trg{Alloc\ \loc\ n}}$
+    \item\label[goal]{goal:step:forwardsim:case5:eval} $\expreval{\trg{H;\Delta}}{\trg{let\ x\ =\ new\ n\ in\ }\mmlAmmlAtcomp{e}}{\trg{H;z\mapsto\loc_\poisonless,\Delta}}{\mmlAmmlAtcomp{e}\trg{[z/x]}}{\trg{Alloc\ \loc\ n}}$
       \item\label[goal]{goal:step:forwardsim:case5:eventeq} $\xlangeventeq[\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}]{Alloc\ \loc\ n}{Alloc\ \loc\ n}$
       \item\label[goal]{goal:step:forwardsim:case5:stateeq} $\xlangstateeq[\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}]{H;z\mapsto\loc_\poisonless,\Delta}{H;z\mapsto\loc_\poisonless,\Delta}$
       \end{goals}
@@ -3381,7 +3382,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case6:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \item\label[ass]{asm:step:forwardsim:case6:typechecks} $\typechecks{}{\Omega\triangleright abort()}{\nat}$
+      \item\label[ass]{asm:step:forwardsim:case6:typechecks} $\left[\typechecks{}{\Omega\triangleright abort()}{\nat}\right]$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
@@ -3398,7 +3399,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case7:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \item $\typechecks{}{\Omega\triangleright let\ x\ = y\ in\ e}{\nat}$
+      \item $\left[\typechecks{}{\Omega\triangleright let\ x\ = y\ in\ e}{\nat}\right]$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
@@ -3427,14 +3428,14 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
     \item \textbf{Case $\exprevals{\Omega}{let\ x=v\ in\ e}{\Omega}{e[v/x]}{\varepsilon}$:}
 
-      This case is completely analogous to the previous case, the only difference is the use of \Cref{tr:tw-e-let-v} instead of \Cref{tr:tw-e-let-x}.
+      This case is completely analogous to the previous case.
 
     \item \textbf{Case $\exprevals{\Omega}{ifz\ 0\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\varepsilon}$:}
 
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case9:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \item $\typechecks{}{\Omega\triangleright ifz\ 0\ then\ e_1\ else\ e_2}{\nat}$
+      \item $\left[\typechecks{}{\Omega\triangleright ifz\ 0\ then\ e_1\ else\ e_2}{\nat}\right]$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
@@ -3455,7 +3456,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \Cref{goal:step:forwardsim:case9:deltasubset} follows by reflexivity of the subset relation.
 
-      \Cref{goal:step:forwardsim:case9:eval} follows by definition of \Cref{tr:tw-e-if-true,asm:step:forwardsim:case9:less}.
+      \Cref{goal:step:forwardsim:case9:eval} follows by definition of \Cref{tr:tw-e-if-true}.
 
       \Cref{goal:step:forwardsim:case9:eventeq} follows by definition of \Cref{tr:internal-event-eq}.
 
@@ -3472,7 +3473,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{assumptions}
     \item\label[ass]{asm:ctxstep:forwardsim:srcstep} $\execs[]{\Omega}{e}{\Omega'}{e'}{\event}$
     \item\label[ass]{asm:ctxstep:forwardsim:staterel} $\xlangstateeq{\Omega}{\Omega}$
-    \item\label[ass]{asm:ctxstep:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item\label[ass]{asm:ctxstep:forwardsim:typechecks} $\left[\typechecks{}{\Omega\triangleright e}{\nat}\right]$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
@@ -3501,7 +3502,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   We augment \Cref{asm:ctxstep:forwardsim:typechecks} using \Thmref{lem:ctxtyping:plugged}.
   \begin{passumptions}{H}
     \setcounter{enumi}{2}
-    \item\label[ass]{asm:ctxstep:forwardsim:e0typechecks} $\typechecks{}{\Omega\triangleright e_{0}}{\nat}$
+    \item\label[ass]{asm:ctxstep:forwardsim:e0typechecks} $\left[\typechecks{}{\Omega\triangleright e_{0}}{\nat}\right]$
   \end{passumptions}
   Withg \Cref{asm:ctxstep:forwardsim:simplestep,asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:e0typechecks} use \Thmref{lem:step:forwardsim} to get witnesses $\delta', \trg{\Omega'},$ and $\trg{\event}$ such that:
 
@@ -3533,7 +3534,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{assumptions}
     \item\label[ass]{asm:forwardsim:starstep} $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
     \item\label[ass]{asm:forwardsim:staterel} $\xlangstateeq{\Omega}{\Omega}$
-    \item\label[ass]{asm:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item\label[ass]{asm:forwardsim:typechecks} $\left[\typechecks{}{\Omega\triangleright e}{\nat}\right]$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\trace}$,
   \begin{goals}
@@ -3615,23 +3616,24 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Different Reduction]\label{lem:differentreduction}
   If
   \begin{assumptions}
-    \item $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$
-    \item $\execs{\Omega}{e}{\Omega'}{\valueexpr'}{\trace}$
+    \item\label[ass]{asm:differentreduction:nored} $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$
+    \item\label[ass]{asm:differentreduction:red} $\execs{\Omega}{e}{\Omega'}{\valueexpr'}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
     \item $\src{\valueexpr}\not=\src{\valueexpr'}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Assume $\src{v}=\src{v'}$, apply \Cref{asm:differentreduction:nored} to the goal $\bot$, rewrite in the goal using $\src{v}=\src{v'}$ and solve the goal by \Cref{asm:differentreduction:red}.
+\end{proof}
 
 \begin{lemma}[Expression Correctness]\label{lem:expression:correctness}
   If
   \begin{assumptions}
   \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
   \item\label[ass]{asm:exprcorrect:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-  \item\label[ass]{asm:expr:corr:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
+  \item\label[ass]{asm:expr:corr:typechecks} $\left[\typechecks{}{\Omega\triangleright e}{\nat}\right]$
   \end{assumptions}
   Then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
@@ -4112,7 +4114,6 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \begin{assumptions}
   \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\trace}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\trace}\rightarrow\texttt{TMS}(\tospecificevcomps{\trace})$
   \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{e_2}}{\trg{\configt}}{\trg{v}}{\trg{\trace}}$
-  \item\label[ass]{asm:rtmsp:component} $\typechecks{}{component\ e_p}{\nat\to\nat}$
   \end{assumptions}
   then
   \begin{goals}

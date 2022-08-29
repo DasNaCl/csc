@@ -1006,13 +1006,19 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 
 \myfig{
   \begin{center}
-  \judgbox{\plugs{e_0}{e_1}=\src{e_2}}{,,Replace any $\src{hole}$ in $\src{e_1}$ by $\src{e_0}$, resulting in $\src{e_2}$.''}
+  \judgbox{\plugs{e_0}{e_1}=\src{e_2}}{,,Replace any $\src{hole}$ in $\src{e_1}$ by $\src{e_0}$, resulting in $\src{e_2}$.\\$Q$ is a placeholder for either $Q$ or $N$ and may be used to switch\\hole filling modes.''}
     \typerule{plug-hole}{
       \fresh{{\color{red}\textbf{todo}\text{: need free set of surrounding exprs}}}{\src{z}} &
       \typechecks{x:\type_1}{e}{\type_2}
     }{
       \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{let\ z = calling\ x\ in\ returning\ e[z/x]}
     }{s-plug-hole}
+    %
+    \typerule{plug-hole'}{
+      \fresh{}{\src{z}} &
+    }{
+      \plugs[N]{e}{hole:(x:\type_1)\to\type_2}=\src{let\ z = hole:(x:\type_1)\to\type_2\ in\ e;z}
+    }{s-plug-holep}
     %
     \typerule{plug-finalexprnoerr}{
     }{
@@ -1072,6 +1078,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     }{s-plug-ifz}
   \end{center}
 }{w-plug-s}{Replace any $\src{hole}$ in an expression.}
+\Cref{tr:s-plug-holep} is needed for backtranslation. We insert wrapper code that allocates memory, which, as enforced by the typesystem, wants to be freed.
 
 \subsubsection{Dynamic Semantics}
 
@@ -2801,12 +2808,18 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
 }{twstate-irrelevant}{Irrelevant location marker of $\mmlAt$ operational state.}
 \myfig{
   \begin{center}
-  \judgbox{\plugt{e_0}{e_1}=\trg{e_2}}{,,Replace any $\trg{hole:x}$ in $\trg{e_1}$ by $\trg{e_0}$, resulting in $\trg{e_2}$.''}
+  \judgbox{\plugt{e_0}{e_1}=\trg{e_2}}{,,Replace any $\trg{hole:x}$ in $\trg{e_1}$ by $\trg{e_0}$, resulting in $\trg{e_2}$.\\$Q$ is a placeholder for either $Q$ or $N$ and may be used to switch\\hole filling modes.''}
     \typerule{t-plug-hole}{
       \fresh{{\color{red}\textbf{todo}\text{: need free set of surrounding exprs}}}{\trg{z}} &
     }{
       \plugt{e}{hole:x}=\trg{let\ z = calling\ x\ in\ returning\ e[z/x]}
     }{t-plug-hole}
+    %
+    \typerule{t-plug-hole'}{
+      \fresh{}{\trg{z}} &
+    }{
+      \plugt[N]{e}{hole:x}=\trg{let\ z = hole:x\ in\ e;z}
+    }{t-plug-holep}
     %
     \typerule{t-plug-finalexprnoerr}{
     }{
@@ -2902,20 +2915,20 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
     \exect{\configt_0'}{e_1[\finalexprnoerr_p'/y]}{\configt_1}{\finalexprnoerr_1}{\trace[_1]}
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\configt_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot\trace[_0']\cdot \trace[_1]\cdot Call\ ?\finalexprnoerr_1}
-  }{ws-e-prog}
+  }{wt-e-prog}
   \typerule{$te-\text{wprog}-$fail0}{
     \plugt{e_p}{e_0}=\trg{e_0'}\\
     \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\lightning}{stuck}{\trace[_0]}&
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
-  }{ws-e-prog-fail0}
+  }{wt-e-prog-fail0}
   \typerule{$te-\text{wprog}-$failp}{
     \plugt{e_p}{e_0}=\trg{e_0'}\\
     \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\configt_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
     \exect{\configt_0}{e_{po}}{\configt_{po}}{stuck}{\trace[_p]}\\
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
-  }{ws-e-prog-failp}
+  }{wt-e-prog-failp}
   \typerule{$te-\text{wprog}-$fail0'}{
     \plugt{e_p}{e_0}=\trg{e_0'}\\
     \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\configt_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
@@ -2923,7 +2936,7 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
     \exect{\configt_{po}}{e_0''}{\lightning}{stuck}{\trace[_0']}&
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_0'}}
-  }{ws-e-prog-fail0p}
+  }{wt-e-prog-fail0p}
   \typerule{$te-\text{wprog}-$fail1}{
     \plugt{e_p}{e_0}=\trg{e_0'}\\
     \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\configt_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
@@ -2932,7 +2945,7 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
     \exect{\configt_0'}{e_1[\finalexprnoerr_p'/y]}{\lightning}{stuck}{\trace[_1]}
   }{
     \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace[_0]\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot \trace[_0']\cdot \trace[_1]}
-  }{ws-e-prog-fail1}
+  }{wt-e-prog-fail1}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
 
@@ -4104,27 +4117,18 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \myfig{
   \begin{center}
     \judgbox{\mmlAmmlAtback[\Game]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
-    %
-%   \typerule{backtrans-top-level-0}{
-%     \fresh{\Game}{\trg{\loc}} &
-%     \mmlAmmlAtbackdetail{\mstrace\cdot\specificev{Alloc\ \loc\ n_1}} = \Game', \src{e}
-%   }{
-%     \mmlAmmlAtback[\Game]{\specificev{Ret\ !\finalexprnoerr_0}\cdot\mstrace\cdot\specificev{Call\ ?\finalexprnoerr_1}} = \Game', \trg{\loc}, \src{let\ x=\finalexprnoerr_1\ in\ e}
-%   }{backtrans-top-level-0}
-%   %
-%   \typerule{backtrans-top-level-1}{
-%     \mmlAmmlAtbackdetail{\specificev{Dealloc\ \loc}\cdot\mstrace} = \Game', \src{e}
-%   }{
-%     \mmlAmmlAtback[\Game]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}} = \Game', (), \src{e}
-%   }{backtrans-top-level-1}
     \typerule{backtrans-top-level}{
+      \trg{\mstrace}=\trg{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\
       \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_0}}{\src{\type_0}}&
       \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}&
       \fresh{\Game}{\trg{\loc}}\\
-      \mmlAmmlAtbackdetail[\Game,\src{\type_0\to\type_p}]{\mstrace[_0]\cdot\specificev{Alloc\ \loc\ 42}} = \Game', \src{let\ x=}\mmlAmmlAtbackv{\finalexprnoerr_0}\src{\ in\ e_0} \\
+      \mmlAmmlAtbackdetail[\Game,\src{\type_0\to\type_p}]{\mstrace[_0]\cdot\specificev{Alloc\ \loc\ 42}} = \Game', \src{e_0} \\
+      \src{e_0'}=\src{let\ x=}\mmlAmmlAtbackv{\finalexprnoerr_0}\src{\ in\ e_0} &
+      \src{z}=\Game'[\trg{\loc}] &
+      \src{e_0''}=\plugs[N]{delete\ z}{e_0'}\\
       \mmlAmmlAtbackdetail[\Game',()]{\mstrace[_1]}=\Game'',\src{e_1}
     }{
-      \mmlAmmlAtback[\Game]{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}} = \Game'', \src{context\ e_0\ e_1}
+      \mmlAmmlAtback[\Game]{\trace} = \Game'', \src{context\ e_0''\ e_1}
     }{backtrans-top-level}
     %
     \typerule{backtrans-top-level-crash}{
@@ -4134,9 +4138,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{backtrans-top-level-crash}
   \end{center}
 }{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
-Crash\MK{the crash rule is not precise. we need to backtranslate call/ret events}
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
-Note that \Cref{tr:backtrans-top-level} introduce a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
+Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
 It wraps around the program component and the allocated location introduced by it is intuitively tagged by $\trg{\diamond}$.
 However, this is not done in the definition here, since the grammar of traces does not capture importance.
 Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the rules depicted in \Cref{fig:twprog-run}.

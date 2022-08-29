@@ -3425,7 +3425,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{assumptions}
     \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{e'}{\event}$
     \item $\xlangstateeq{\Omega}{\Omega}$
-    \item $\left[\typechecks{}{\Omega\triangleright e}{\nat}\right]$
+    \item\label[ass]{asm:step:forwardsim:srccheck} $\left[\typechecks{}{\Omega\triangleright e}{\nat}\right]$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
@@ -3436,7 +3436,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{proof}
-  We proceed by induction on \Cref{asm:step:forwardsim:srcstep}.
+  We proceed by induction on \Cref{asm:step:forwardsim:srcstep}. Note that by \Cref{asm:step:forwardsim:srccheck} we know that the $\src{e}$ does not contain a $\src{hole:(x:\type_{1})\to\type_{2}}$.
   \begin{description}
     \item \textbf{Case $\exprevals{\Omega}{n_1+n_2}{\Omega}{n_3}{\varepsilon}$:}
 
@@ -3721,6 +3721,69 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item \textbf{Case $\exprevals{\Omega}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\varepsilon}$:}
 
       This case is completely analogous to the previous case, the only difference is the use of \Cref{tr:tw-e-if-false} instead of \Cref{tr:tw-e-if-true}.
+
+    \item \textbf{Case $\exprevals{\Omega}{calling\ \finalexprnoerr}{\Omega}{\finalexprnoerr}{Call\ ?\finalexprnoerr}$:}
+
+      If
+      \begin{passumptions}{H}
+      \item\label[ass]{asm:step:forwardsim:caseA:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \item $\left[\typechecks{}{calling\ \finalexprnoerr}{\nat}\right]$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{calling\ \finalexprnoerr}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexprnoerr}}{\trg{\event}}$
+        \item $\xlangeventeq{Call\ ?\finalexprnoerr}{\event}$
+        \item $\xlangstateeq{\Omega}{\Omega'}$
+      \end{goals}
+
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\Omega}$, and $\trg{\event}=\trg{Call\ ?\finalexprnoerr}$, so that what is left to prove is:
+
+      \begin{goals}
+        \item\label[goal]{goal:step:forwardsim:caseA:deltasubset} $\delta\subseteq\delta$
+        \item\label[goal]{goal:step:forwardsim:caseA:eval} $\expreval{\trg{\Omega}}{\trg{calling\ }\mmlAmmlAtcomp{\finalexprnoerr}}{\trg{\Omega}}{\mmlAmmlAtcomp{\finalexprnoerr}}{\trg{Call\ ?\finalexprnoerr}}$
+        \item\label[goal]{goal:step:forwardsim:caseA:eventeq} $\xlangeventeq{\varepsilon}{\varepsilon}$
+        \item\label[goal]{goal:step:forwardsim:caseA:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:caseA:deltasubset} follows by reflexivity of the subset relation.
+
+      \Cref{goal:step:forwardsim:caseA:eval} follows by definition of \Cref{tr:tw-e-calling}.
+
+      \Cref{goal:step:forwardsim:caseA:eventeq} follows by definition of \Cref{tr:call-event-eq}.
+
+      \Cref{goal:step:forwardsim:caseA:stateeq} follows by \Cref{asm:step:forwardsim:caseA:stateeq}.
+    \item \textbf{Case $\exprevals{\Omega}{returning\ \finalexprnoerr}{\Omega}{\finalexprnoerr}{Ret\ ?\finalexprnoerr}$:}
+
+      If
+      \begin{passumptions}{H}
+      \item\label[ass]{asm:step:forwardsim:caseB:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \item $\left[\typechecks{}{returning\ \finalexprnoerr}{\nat}\right]$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{returning\ \finalexprnoerr}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexprnoerr}}{\trg{\event}}$
+        \item $\xlangeventeq{Ret\ ?\finalexprnoerr}{\event}$
+        \item $\xlangstateeq{\Omega}{\Omega'}$
+      \end{goals}
+
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\Omega}$, and $\trg{\event}=\trg{Ret\ ?\finalexprnoerr}$, so that what is left to prove is:
+
+      \begin{goals}
+        \item\label[goal]{goal:step:forwardsim:caseB:deltasubset} $\delta\subseteq\delta$
+        \item\label[goal]{goal:step:forwardsim:caseB:eval} $\expreval{\trg{\Omega}}{\trg{returning\ }\mmlAmmlAtcomp{\finalexprnoerr}}{\trg{\Omega}}{\mmlAmmlAtcomp{\finalexprnoerr}}{\trg{Ret\ ?\finalexprnoerr}}$
+        \item\label[goal]{goal:step:forwardsim:caseB:eventeq} $\xlangeventeq{\varepsilon}{\varepsilon}$
+        \item\label[goal]{goal:step:forwardsim:caseB:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:caseB:deltasubset} follows by reflexivity of the subset relation.
+
+      \Cref{goal:step:forwardsim:caseB:eval} follows by definition of \Cref{tr:tw-e-returning}.
+
+      \Cref{goal:step:forwardsim:caseB:eventeq} follows by definition of \Cref{tr:ret-event-eq}.
+
+      \Cref{goal:step:forwardsim:caseB:stateeq} follows by \Cref{asm:step:forwardsim:caseB:stateeq}.
   \end{description}
 \end{proof}
 

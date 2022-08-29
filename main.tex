@@ -2412,7 +2412,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \begin{gather*}
   \begin{aligned}
   \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
-    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \\
+    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \mid \trg{calling\ e} \mid \trg{returning\ e} \\
     & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \mid \trg{hole:x} \\
     & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}\mid \trg{e\ has\ \type}
   \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times},\trg{<}\}\\
@@ -2480,7 +2480,7 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
       \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
       \trg{let\ x=K\ in\ e}\\
                      &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}\\
-                     &\mid \trg{ifz\ K\ then\ e_1\ else\ e_2}\mid\trg{K\ has\ \type}
+                     &\mid \trg{ifz\ K\ then\ e_1\ else\ e_2}\mid\trg{K\ has\ \type}\mid\trg{calling\ K}\mid\trg{returning\ K}
     \end{aligned}
   \end{gather*}
 }{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
@@ -2647,6 +2647,16 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
   }{
     \exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}
   }{tw-e-ectx}
+  %
+  \typerule{$e-\trg{returning}$}{
+  }{
+    \exprevalt{\configt}{returning\ \finalexprnoerr}{\configt}{\finalexprnoerr}{Ret\ !\finalexprnoerr}
+  }{tw-e-returning}
+  %
+  \typerule{$e-\trg{calling}$}{
+  }{
+    \exprevalt{\configt}{calling\ \finalexprnoerr}{\configt}{\finalexprnoerr}{Call\ ?\finalexprnoerr}
+  }{tw-e-calling}
   %
   \typerule{$e-\trg{ifz}-$true}{
   }{

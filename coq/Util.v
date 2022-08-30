@@ -91,3 +91,9 @@ Lemma not_eq_None_Some {A : Type} (mx : option A) : mx <> None <-> is_Some mx.
 Proof. rewrite is_Some_alt; destruct mx; try easy; congruence. Qed.
 
 End Bool.
+
+(** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
+Inductive tracepref (Ev : Type) : Type :=
+| Tnil : tracepref Ev
+| Tcons (e : Ev) (a : tracepref Ev) : tracepref Ev
+.

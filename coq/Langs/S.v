@@ -7,6 +7,7 @@ Require Import CSC.Sets CSC.Util.
 (** The type used for variable names. *)
 Definition vart := string.
 Definition vareq := fun x y => (x =? y)%string.
+Definition dontcare := "_"%string.
 
 (** The only values we have in S are natural numbers. *)
 Inductive value : Type :=
@@ -239,7 +240,7 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
                       | None => Xhole x
                       | Some y => Xhole y
                       end τ1 τ2
-    | _ => e
+    | _ => R e
     end)
   in
   isubst inn
@@ -324,4 +325,26 @@ Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
     r2 ==[ As ]==>* r3 ->
     r1 ==[ As ]==>* r3
 where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)
+.
+
+(** Fill hole expression. *)
+Variant fill_placeholder : Type :=
+| FP_Q : fill_placeholder
+| FP_N (freshid : vart) : fill_placeholder
+.
+Definition fill (Q : fill_placeholder) (e0 e1 : expr) : expr :=
+  let ifill := (fix ifill e :=
+    let R := exprmap ifill in
+    match e with
+    | Xhole x τ1 τ2 =>
+        match Q with
+        | FP_Q => (* plug-hole *)
+            Xlet x (Xcalling (Fvar x)) (Xreturning e0)
+        | FP_N freshid => (* plug-hole' *)
+            Xlet freshid (Xhole x τ1 τ2) (Xlet dontcare e0 (Fvar freshid))
+        end
+    | _ => R e
+    end)
+  in
+  ifill e1
 .

@@ -17,6 +17,12 @@ Coercion Vnat : nat >-> value.
 Inductive loc : Type :=
 | addr : nat -> loc
 .
+Definition loc_eqb :=
+  fun ℓ1 ℓ2 =>
+    match ℓ1, ℓ2 with
+    | addr n1, addr n2 => Nat.eqb n1 n2
+    end
+.
 (** Final Result (without error) *)
 Inductive fnoerr : Type :=
 | Fval : value -> fnoerr
@@ -79,6 +85,15 @@ Definition exprmap (h : expr -> expr) (e : expr) :=
   end
 .
 
+(** * Freshness *)
+
+(** In here, we define a helper judgement that gives us fresh variables. *)
+Inductive fresh (A : Type) (eq : A -> A -> bool) (xs : list A) (x : A) : Prop :=
+| Cfresh : List.find (eq x) xs = (None : option A) -> @fresh A eq xs x
+.
+Definition fresh_loc := @fresh loc loc_eqb.
+Definition fresh_tvar := @fresh string String.eqb.
+
 (** * Dynamics *)
 
 (** Evaluation of binary expressions. Note that 0 means `true` in S, so `5 < 42` evals to `0`. *)
@@ -107,6 +122,18 @@ Notation "ℓ '⋅' ρ" := (((ℓ : loc), (ρ : poison)) : dynloc) (at level 81)
 Inductive store : Type :=
 | Snil : store
 | Scons (x : vart) (ℓ : dynloc) (Δ : store) : store
+.
+Fixpoint Δdom (Δ : store) : list vart :=
+  match Δ with
+  | Snil => nil
+  | Scons x ℓ Δ' => cons x (Δdom Δ')
+  end
+.
+Fixpoint Δimg (Δ : store) : list loc :=
+  match Δ with
+  | Snil => nil
+  | Scons x (ℓ,_) Δ' => cons ℓ (Δimg Δ')
+  end
 .
 Notation "x '↦' dl '◘' Δ" := (Scons x (dl : dynloc) Δ) (at level 81, dl at next level).
 Fixpoint append (Δ1 Δ2 : store) : store :=
@@ -244,7 +271,8 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
 | e_delete : forall (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
     (H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ Sdealloc (addr ℓ) ]--> (H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
 | e_alloc : forall (H H' : heap) (Δ : store) (x z : vart) (ℓ n : nat) (e : expr),
-    (*TODO: fresh var*)
+    fresh_loc (Δimg Δ) (addr ℓ) ->
+    fresh_tvar (Δdom Δ) z ->
     H' = Hgrow H n ->
     (H ; Δ) ▷ Xnew x n e --[ Salloc (addr ℓ) n ]--> (H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x (Fvar z) e)
 where "r0 '--[' a ']-->' r1" := (pstep r0 a r1)

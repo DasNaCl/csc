@@ -4,7 +4,7 @@ $pdf_mode = 1;
 $pdflatex = "pdflatex -interaction=nonstopmode %O %S";
 $out_dir = 'build';
 $bibtex_use = 2;
-$pdf_previewer = 'start zathura %O %S';
+$pdf_previewer = 'start evince %O %S';
 @default_files = ('main.tex', 'prisc.tex');
 
 add_cus_dep( 'acn', 'acr', 0, 'makeglossaries' );

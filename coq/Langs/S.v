@@ -117,6 +117,7 @@ Notation "'◻'" := (poisonless).
 Notation "'☣'" := (poisoned).
 
 Definition dynloc : Type := loc * poison.
+(* '⋅' is `\cdot` *)
 Notation "ℓ '⋅' ρ" := (((ℓ : loc), (ρ : poison)) : dynloc) (at level 81).
 
 (** Stores map variables to potentially poisoned locations. *)
@@ -136,6 +137,7 @@ Fixpoint Δimg (Δ : store) : list loc :=
   | Scons x (ℓ,_) Δ' => cons ℓ (Δimg Δ')
   end
 .
+(* '↦' is `\mapsto` and '◘' is `\inversebullet`*)
 Notation "x '↦' dl '◘' Δ" := (Scons x (dl : dynloc) Δ) (at level 81, dl at next level).
 Fixpoint append (Δ1 Δ2 : store) : store :=
   match Δ1 with
@@ -143,6 +145,7 @@ Fixpoint append (Δ1 Δ2 : store) : store :=
   | Scons x ℓ Δ1' => x ↦ ℓ ◘ (append Δ1' Δ2)
   end
 .
+(* '◘' is `\inversebullet` *)
 Notation "Δ1 '◘' Δ2" := (append Δ1 Δ2) (at level 82, Δ2 at next level).
 (** In this model, heaps are just a snoc-style list of natural numbers. *)
 Inductive heap : Type :=
@@ -205,9 +208,17 @@ Variant event : Type :=
 Definition tracepref := CSC.Util.tracepref event.
 Definition Tnil := CSC.Util.Tnil event.
 Definition Tcons (a : event) (t : tracepref) := @CSC.Util.Tcons event a t.
+(** The typecheck performed in the notations may seem redundant,
+    but it seems to be necessary to discharge the coercsions. *)
+(* '·' is `\cdotp` *)
+Notation "As '·' Bs" := (@CSC.Util.Tappend event (As : tracepref) (Bs : tracepref)) (at level 81).
+
+Definition event_to_tracepref (e : event) : tracepref := @CSC.Util.ev_to_tracepref event e.
+Coercion event_to_tracepref : event >-> tracepref.
 
 (** A runtime program is a state plus an expression. *)
 Definition rtexpr : Type := (option state) * expr.
+(* '▷' is `\triangleright and '↯' is `\lightning`` *)
 Notation "Ω '▷' e" := ((((Some (Ω)) : option state), (e : expr)) : rtexpr) (at level 81).
 Notation "↯ '▷' 'stuck'" := (((None : option state), (Fabrt : expr)) : rtexpr).
 
@@ -278,6 +289,8 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
     (H ; Δ) ▷ Xnew x n e --[ Salloc (addr ℓ) n ]--> (H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x (Fvar z) e)
 where "r0 '--[' a ']-->' r1" := (pstep r0 a r1)
 .
+#[global]
+Hint Constructors pstep : core.
 
 (** We proceed to define the dynamic semantics via evaluation contexts/environments. *)
 Inductive evalctx : Type :=
@@ -285,8 +298,8 @@ Inductive evalctx : Type :=
 | KbinopL (b : binopsymb) (K : evalctx) (e : expr) : evalctx
 | KbinopR (b : binopsymb) (v : value) (K : evalctx) : evalctx
 | Kget (x : vart) (K : evalctx) : evalctx
-| KputL (x : vart) (K : evalctx) (e : expr) : evalctx
-| KputR (x : vart) (e : expr) (K : evalctx) : evalctx
+| KsetL (x : vart) (K : evalctx) (e : expr) : evalctx
+| KsetR (x : vart) (v : value) (K : evalctx) : evalctx
 | Klet (x : vart) (K : evalctx) (e : expr) : evalctx
 | Knew (x : vart) (K : evalctx) (e : expr) : evalctx
 | Kifz (K : evalctx) (e0 e1 : expr) : evalctx
@@ -294,7 +307,20 @@ Inductive evalctx : Type :=
 | Kreturning (K : evalctx) : evalctx
 .
 Fixpoint insert (K : evalctx) (withh : expr) : expr :=
-  withh
+  let R := fun k => insert k withh in
+  match K with
+  | Khole => withh
+  | KbinopL b K' e => Xbinop b (R K') e
+  | KbinopR b v K' => Xbinop b v (R K')
+  | Kget x K' => Xget x (R K')
+  | KsetL x K' e => Xset x (R K') e
+  | KsetR x v K' => Xset x v (R K')
+  | Klet x K' e => Xlet x (R K') e
+  | Knew x K' e => Xnew x (R K') e
+  | Kifz K' e0 e1 => Xifz (R K') e0 e1
+  | Kcalling K' => Xcalling (R K')
+  | Kreturning K' => Xreturning (R K')
+  end
 .
 
 Reserved Notation "r0 '==[' a ']==>' r1" (at level 82, r1 at next level).
@@ -310,6 +336,8 @@ Inductive estep : rtexpr -> event -> rtexpr -> Prop :=
     Ω ▷ e0 ==[ Scrash ]==> ↯ ▷ stuck
 where "r0 '==[' a ']==>' r1" := (estep r0 a r1)
 .
+#[global]
+Hint Constructors estep : core.
 
 Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).
 Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
@@ -326,6 +354,8 @@ Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
     r1 ==[ As ]==>* r3
 where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)
 .
+#[global]
+Hint Constructors star_step : core.
 
 (** Fill hole expression. *)
 Variant fill_placeholder : Type :=
@@ -347,4 +377,26 @@ Definition fill (Q : fill_placeholder) (e0 e1 : expr) : expr :=
     end)
   in
   ifill e1
+.
+(*TODO: add typing*)
+Inductive fill_j : list string -> fill_placeholder -> expr -> expr -> expr -> Prop :=
+| fillQ : forall e0 e1 e2, fill FP_Q e0 e1 = e2 -> fill_j nil FP_Q e0 e1 e2
+| fillN : forall q e0 e1 e2 z X, fresh_tvar X z -> q = FP_N z -> fill q e0 e1 = e2 -> fill_j X q e0 e1 e2
+.
+
+(** Evaluation of programs *)
+(*TODO: add typing*)
+Inductive wstep (e0 ep e1 : expr) : prog e0 ep e1 -> tracepref -> rtexpr -> Prop :=
+| e_wprog : forall (y : vart)
+              (e0' ep0 e0'' : expr)
+              (f0 fp fp' f1 : fnoerr)
+              (Ω0 Ωp0 Ω0' Ω1 : state)
+              (As0 Asp As0' As1 : tracepref),
+    fill_j nil FP_Q ep e0 e0' ->
+    (* typing -> *)
+    (Hnil ; Snil ▷ e0' ==[ As0 · Scall f0 ]==>* Ω0 ▷ ep0) ->
+    (Ω0 ▷ ep0 ==[ Asp · Sret fp ]==>* Ωp0 ▷ e0'') ->
+    (Ωp0 ▷ e0'' ==[ As0' ]==>* Ω0' ▷ fp') ->
+    (Ω0' ▷ (subst y e1 fp') ==[ As1 ]==>* Ω1 ▷ f1) ->
+    wstep (Cprog e0 ep e1) (Sret 0 · As0 · Scall f0 · Asp · Sret fp · As0' · As1 · Scall f1) (Ω1 ▷ f1)
 .

@@ -95,5 +95,12 @@ End Bool.
 (** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
 Inductive tracepref (Ev : Type) : Type :=
 | Tnil : tracepref Ev
-| Tcons (e : Ev) (a : tracepref Ev) : tracepref Ev
+| Tcons (e : Ev) (As : tracepref Ev) : tracepref Ev
 .
+Fixpoint Tappend (Ev : Type) (As Bs : tracepref Ev) : tracepref Ev :=
+  match As with
+  | @Tnil _ => Bs
+  | @Tcons _ e Cs => @Tcons Ev e (@Tappend Ev Cs Bs)
+  end
+.
+Definition ev_to_tracepref {Ev : Type} (e : Ev) : tracepref Ev := @Tcons Ev e (@Tnil Ev).

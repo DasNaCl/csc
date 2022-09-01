@@ -4112,6 +4112,22 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \mmlAmmlAtbackdetail{\specificev{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{z[}\mmlAmmlAtbackv{n}\src{];e}
     }{backtrans-use}
+    %
+    %
+    \typerule{backtrans-call}{
+      \fresh{\Game}{\trg{\loc}} &
+      \Game'=\Game[\trg{\loc}] &
+      \mmlAmmlAtbackdetail[\Game',\src{\type_0\to\type_p}]{\specificev{Alloc\ \loc\ 42}} = \Game'', \src{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\src{\type_0\to\type_p}]{\specificev{Call\ ?\finalexprnoerr}} = \Game'', \trg{\loc}, \src{e}
+    }{backtrans-call}
+    %
+    \typerule{backtrans-ret}{
+      \src{z} = \Game(\trg{\loc}) &
+      \src{e'} = \plugs[N]{delete\ z}{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc},\src{e}]{\specificev{Ret\ !\finalexprnoerr}} = \Game', \src{e'}
+    }{backtrans-ret}
   \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{
@@ -4121,14 +4137,13 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \trg{\mstrace}=\trg{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\
       \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_0}}{\src{\type_0}}&
       \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}&
-      \fresh{\Game}{\trg{\loc}}\\
-      \mmlAmmlAtbackdetail[\Game,\src{\type_0\to\type_p}]{\mstrace[_0]\cdot\specificev{Alloc\ \loc\ 42}} = \Game', \src{e_0} \\
-      \src{e_0'}=\src{let\ x=}\mmlAmmlAtbackv{\finalexprnoerr_0}\src{\ in\ e_0} &
-      \src{z}=\Game'[\trg{\loc}] &
-      \src{e_0''}=\plugs[N]{delete\ z}{e_0'}\\
+      \mmlAmmlAtbackdetail[\Game,\src{\type_0\to\type_p}]{\mstrace[_0]} = \Game', \src{e_0} \\
+      \mmlAmmlAtbackdetail[\Game',\src{\type_0\to\type_p}]{\specificev{Call\ ?\finalexprnoerr_0}} = \Game'',\trg{\loc},\src{e_0'} &
+      \mmlAmmlAtbackdetail[\Game'',\trg{\loc},\src{e_0'}]{\specificev{Ret\ !\finalexprnoerr_p}} = \Game''',\src{e_0''} \\
+      \src{e_0'''}=\src{let\ x=}\mmlAmmlAtbackv{\finalexprnoerr_0}\src{\ in\ e_0;e_0''} &
       \mmlAmmlAtbackdetail[\Game',()]{\mstrace[_1]}=\Game'',\src{e_1}
     }{
-      \mmlAmmlAtback[\Game]{\trace} = \Game'', \src{context\ e_0''\ e_1}
+      \mmlAmmlAtback[\Game]{\mstrace} = \Game'', \src{context\ e_0'''\ e_1}
     }{backtrans-top-level}
     %
     \typerule{backtrans-top-level-crash}{

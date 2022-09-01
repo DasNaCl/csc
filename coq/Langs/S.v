@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String Lists.List Program.Equality.
+Require Import Strings.String Lists.List Program.Equality Recdef.
 Require Import CSC.Sets CSC.Util CSC.Fresh.
 
 (** * Syntax *)
@@ -297,7 +297,7 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
     H' = Hgrow H n ->
     (F ; H ; Δ) ▷ Xnew x n e --[ Salloc (addr ℓ) n ]--> (F'' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x (Fvar z) e)
 where "r0 '--[' a ']-->' r1" := (pstep r0 a r1)
-. (*TODO: incorporate freshness*)
+.
 #[global]
 Hint Constructors pstep : core.
 
@@ -498,9 +498,6 @@ Proof.
       apply e_abort.
 Qed.
 
-(* TODO: do the above for estep and starstep, too *)
-
-
 (** We proceed to define the dynamic semantics via evaluation contexts/environments. *)
 Inductive evalctx : Type :=
 | Khole : evalctx
@@ -514,6 +511,100 @@ Inductive evalctx : Type :=
 | Kifz (K : evalctx) (e0 e1 : expr) : evalctx
 | Kcalling (K : evalctx) : evalctx
 | Kreturning (K : evalctx) : evalctx
+.
+(** convert an expression to evalctx in order to execute it functionally + "contextually" *)
+(** this function returns an eval context K and an expr e' such that K[e'] = e given some e *)
+Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
+  match e with
+  | Xres _ => None
+  | Xhole _ _ _ => None
+  | Xdel x => Some(Khole, Xdel x)
+  | Xabort => Some(Khole, Xabort)
+  | Xbinop b e1 e2 =>
+    match e1, e2 with
+    | Xres(Fres(Fval(Vnat n1))), Xres(Fres(Fval(Vnat n2))) =>
+      Some(Khole, Xbinop b n1 n2)
+    | Xres(Fres(Fval(Vnat n1))), en2 =>
+      match evalctx_of_expr en2 with
+      | Some(K, e2') => Some(KbinopR b n1 K, e2')
+      | None => None
+      end
+    | _, _ =>
+      match evalctx_of_expr e1 with
+      | Some(K, e1') => Some(KbinopL b K e2, e1')
+      | None => None
+      end
+    end
+  | Xget x en =>
+    match en with
+    | Xres(Fres(Fval(Vnat n))) =>
+      Some(Khole, Xget x n)
+    | _ => match evalctx_of_expr en with
+          | Some(K, en') => Some(Kget x K, en')
+          | None => None
+          end
+    end
+  | Xset x en ev =>
+    match en, ev with
+    | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
+      Some (Khole, Xset x n v)
+    | Xres(Fres(Fval(Vnat n))), ev =>
+      match evalctx_of_expr ev with
+      | Some(K, ev') => Some(KsetR x n K, ev')
+      | None => None
+      end
+    | en, ev =>
+      match evalctx_of_expr en with
+      | Some(K, en') => Some(KsetL x K ev, en')
+      | None => None
+      end
+    end
+  | Xlet x e1 e2 =>
+    match e1 with
+    | Xres(Fres(Fval(Vnat n))) =>
+      Some(Khole, Xlet x n e2)
+    | _ => match evalctx_of_expr e1 with
+          | Some(K, e1') => Some(Klet x K e2, e1')
+          | None => None
+          end
+    end
+  | Xnew x e1 e2 =>
+    match e1 with
+    | Xres(Fres(Fval(Vnat n))) =>
+      Some(Khole, Xnew x n e2)
+    | _ => match evalctx_of_expr e1 with
+          | Some(K, e1') => Some(Knew x K e2, e1')
+          | None => None
+          end
+    end
+  | Xreturning e =>
+    match e with
+    | Xres(Fres(Fval(Vnat n))) =>
+      Some(Khole, Xreturning n)
+    | _ => match evalctx_of_expr e with
+          | Some(K, e') => Some(Kreturning K, e')
+          | None => None
+          end
+    end
+  | Xcalling e =>
+    match e with
+    | Xres(Fres(Fval(Vnat n))) =>
+      Some(Khole, Xcalling n)
+    | _ => match evalctx_of_expr e with
+          | Some(K, e') => Some(Kcalling K, e')
+          | None => None
+          end
+    end
+  | Xifz c e0 e1 =>
+    match c with
+    | Xres(Fres(Fval(Vnat v))) =>
+      Some(Khole, Xifz v e0 e1)
+    | _ => match evalctx_of_expr c with
+          | Some(K, c') => Some(Kifz K e0 e1, c')
+          | None => None
+          end
+    end
+  end
 .
 Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   let R := fun k => insert k withh in
@@ -548,6 +639,19 @@ where "r0 '==[' a ']==>' r1" := (estep r0 a r1)
 #[global]
 Hint Constructors estep : core.
 
+Definition estepf (r : rtexpr) : option (event * rtexpr) :=
+  let '(oΩ, e) := r in
+  match oΩ, evalctx_of_expr e with
+  | Some Ω, Some(K, e0) =>
+    match pstepf (Ω ▷ e0) with
+    | Some(a, (Ω', e0')) => Some(a, (Ω', insert K e0'))
+    | None => None
+    end
+  | _, _ => None
+  end
+.
+(* TODO: equiv of estepf and estep *)
+
 Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).
 Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
 | ES_refl : forall (r1 : rtexpr),
@@ -565,6 +669,38 @@ where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)
 .
 #[global]
 Hint Constructors star_step : core.
+
+(** Equivalence with star_step doesn't hold. *)
+Program Fixpoint star_stepf (r : rtexpr) : option (tracepref * rtexpr) :=
+  match r with
+  | (Some Ω, e) =>
+    match e with
+    | Xres _ => (* refl *)
+      Some(Tnil, r)
+    | _ => (* trans *)
+      let '(oΩ, e) := r in
+      match oΩ, evalctx_of_expr e with
+      | Some Ω, Some(K, e0) =>
+        match pstepf (Ω ▷ e0) with
+        | Some(a, (Some Ω', e0')) =>
+          let r' := Ω' ▷ insert K e0' in
+          match star_stepf r' with
+          | Some(As', r'') =>
+            match a with
+            | Sε => Some(As', r'')
+            | _ => Some(Tcons a As', r'')
+            end
+          | _ => None
+          end
+        | _ => None
+        end
+      | _,_ => None
+      end
+    end
+  | _ => None
+  end
+.
+(*TODO: prove correctness*)
 
 (** Fill hole expression. *)
 Variant fill_placeholder : Type :=

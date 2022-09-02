@@ -1008,14 +1008,13 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \begin{center}
   \judgbox{\plugs{e_0}{e_1}=\src{e_2}}{,,Replace any $\src{hole}$ in $\src{e_1}$ by $\src{e_0}$, resulting in $\src{e_2}$.\\$Q$ is a placeholder for either $Q$ or $N$ and may be used to switch\\hole filling modes.''}
     \typerule{plug-hole}{
-      \fresh{{\color{red}\textbf{todo}\text{: need free set of surrounding exprs}}}{\src{z}} &
       \typechecks{x:\type_1}{e}{\type_2}
     }{
-      \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{let\ z = calling\ x\ in\ returning\ e[z/x]}
+      \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{calling\ x; returning\ e}
     }{s-plug-hole}
     %
     \typerule{plug-hole'}{
-      \fresh{}{\src{z}} &
+      \fresh{{\color{red}TODO}}{\src{z}} &
     }{
       \plugs[N]{e}{hole:(x:\type_1)\to\type_2}=\src{let\ z = hole:(x:\type_1)\to\type_2\ in\ e;z}
     }{s-plug-holep}
@@ -2810,13 +2809,12 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
   \begin{center}
   \judgbox{\plugt{e_0}{e_1}=\trg{e_2}}{,,Replace any $\trg{hole:x}$ in $\trg{e_1}$ by $\trg{e_0}$, resulting in $\trg{e_2}$.\\$Q$ is a placeholder for either $Q$ or $N$ and may be used to switch\\hole filling modes.''}
     \typerule{t-plug-hole}{
-      \fresh{{\color{red}\textbf{todo}\text{: need free set of surrounding exprs}}}{\trg{z}} &
     }{
-      \plugt{e}{hole:x}=\trg{let\ z = calling\ x\ in\ returning\ e[z/x]}
+      \plugt{e}{hole:x}=\trg{calling\ x; returning\ e}
     }{t-plug-hole}
     %
     \typerule{t-plug-hole'}{
-      \fresh{}{\trg{z}} &
+      \fresh{{\color{red}TODO}}{\trg{z}} &
     }{
       \plugt[N]{e}{hole:x}=\trg{let\ z = hole:x\ in\ e;z}
     }{t-plug-holep}
@@ -4083,35 +4081,78 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 }{backtrans-values}{Backtranslation of $\mmlAt$ values to $\mmlAs$ values.}
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtbackdetail{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.''}$\;$\\
-    %
-    \typerule{backtrans-empty}{
-    }{
-      \mmlAmmlAtbackdetail{\hole{\cdot}} = \Game, \src{hole : (x:\type_1)\to\type_2}
-    }{backtrans-empty}
+    \judgbox{\mmlAmmlAtbackdetail[\Game,B]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.\\$B$ may be $()$ or $\src{x:\type_1\to\type_2}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackdetail[\Game,B]{\specificev{Call\ ?\finalexprnoerr}} = \Game',\partial\ell,\src{e}}{,,Given a \varmapbacktransds $\Game$ and $B$ either $()$ or $\src{x:\type_1\to\type_2}$,\\construct a \varmapbacktransds $\Game'$, $\partial\ell$ as either $()$ or a location\\$\trg{\ell}$, and an $\mmlAs$ expression from memory-specific $\mmlAt$\\event $\trg{\specificev{Call\ !\finalexprnoerr}}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackdetail[\Game,\partial\ell,\src{C}]{\specificev{Ret\ !\finalexprnoerr}} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, $\partial\ell$ as either $()$ or $\trg{\ell}$, and $\src{C}$ as either\\$()$ or $\src{e}$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$ expression from\\memory-specific $\mmlAt$ event $\trg{\specificev{Ret\ !\finalexprnoerr}}$.''}$\;$\\
     %
     \typerule{backtrans-alloc}{
       \Game'=\Game[\trg{\loc}] &
       \Game'\left(\trg{\loc}\right) = \src{z} &
-      \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificev{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ z = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
+      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ z = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
     }{backtrans-alloc}
     %
     \typerule{backtrans-dealloc}{
       \Game'=\Game[\trg{\loc}] &
-      \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificev{Dealloc\ \loc}\cdot\mstrace} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
+      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Dealloc\ \loc}\cdot\mstrace} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
     }{backtrans-dealloc}
     %
     \typerule{backtrans-use}{
       \Game'=\Game[\trg{\loc}] &
       \src{z}=\Game'(\trg{\loc}) &
-      \mmlAmmlAtbackdetail[\Game']{\mstrace} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
     }{
-      \mmlAmmlAtbackdetail{\specificev{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{z[}\mmlAmmlAtbackv{n}\src{];e}
+      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{z[}\mmlAmmlAtbackv{n}\src{];e}
     }{backtrans-use}
+    \begin{flushleft}
+    \noindent{\tiny without wrapper}\hfill%
+    \vspace{-0.2cm}
+    \end{flushleft}
+    \hrule
+    %
+    \typerule{backtrans-empty-unit}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,()]{\hole{\cdot}} = \Game, \src{42}
+    }{backtrans-empty-unit}
+    %
+    %
+    \typerule{backtrans-call-nohole}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,()]{\specificev{Call\ ?\finalexprnoerr}} = \Game, (), \mmlAmmlAtbackv{\finalexprnoerr}
+    }{backtrans-call-nohole}
+    %
+    \typerule{backtrans-ret-nowrap}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,(),()]{\specificev{Ret\ !\finalexprnoerr}} = \Game, \mmlAmmlAtbackv{\finalexprnoerr}
+    }{backtrans-ret-nowrap}
+    %
+    \begin{flushleft}
+    \noindent{\tiny wrapper}\hfill%
+    \vspace{-0.2cm}
+    \end{flushleft}
+    \hrule
+    \typerule{backtrans-empty-hole}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,\src{x:\type_1\to\type_2}]{\hole{\cdot}} = \Game, \src{hole : (x:\type_1)\to\type_2}
+    }{backtrans-empty-hole}
+    %
+    \typerule{backtrans-call-hole}{
+      \fresh{\Game}{\trg{\loc}} &
+      \Game'=\Game[\trg{\loc}] &
+      \mmlAmmlAtbackdetail[\Game',\src{x:\type_0\to\type_p}]{\specificev{Alloc\ \loc\ 42}} = \Game'', \src{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\src{x:\type_0\to\type_p}]{\specificev{Call\ ?\finalexprnoerr}} = \Game'', \trg{\loc}, \src{let\ x = }\mmlAmmlAtbackv{\finalexprnoerr}\src{\ in\ e}
+    }{backtrans-call-hole}
+    %
+    \typerule{backtrans-ret-wrap}{
+      \src{z} = \Game(\trg{\loc}) &
+      \src{e'} = \plugs[N]{delete\ z}{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc},\src{e}]{\specificev{Ret\ !\finalexprnoerr}} = \Game', \src{e';}\mmlAmmlAtbackv{\finalexprnoerr}
+    }{backtrans-ret-wrap}
   \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{
@@ -4120,15 +4161,17 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \typerule{backtrans-top-level}{
       \trg{\mstrace}=\trg{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\
       \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_0}}{\src{\type_0}}&
-      \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}&
-      \fresh{\Game}{\trg{\loc}}\\
-      \mmlAmmlAtbackdetail[\Game,\src{\type_0\to\type_p}]{\mstrace[_0]\cdot\specificev{Alloc\ \loc\ 42}} = \Game', \src{e_0} \\
-      \src{e_0'}=\src{let\ x=}\mmlAmmlAtbackv{\finalexprnoerr_0}\src{\ in\ e_0} &
-      \src{z}=\Game'[\trg{\loc}] &
-      \src{e_0''}=\plugs[N]{delete\ z}{e_0'}\\
-      \mmlAmmlAtbackdetail[\Game',()]{\mstrace[_1]}=\Game'',\src{e_1}
+      \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}\\
+      \mmlAmmlAtbackdetail[\Game,(),()]{\specificev{Ret\ !0}} = \Game,\src{e_0^{(0)}} &
+      \mmlAmmlAtbackdetail[\Game,()]{\mstrace[_0]} = \Game', \src{e_0^{(1)}} \\
+      \mmlAmmlAtbackdetail[\Game',\src{x:\type_0\to\type_p}]{\specificev{Call\ ?\finalexprnoerr_0}} = \Game'',\trg{\loc},\src{e_0^{(2)}} &
+      \mmlAmmlAtbackdetail[\Game'',\trg{\loc},\src{e_0^{(2)}}]{\specificev{Ret\ !\finalexprnoerr_p}} = \Game''',\src{e_0^{(3)}} \\
+      \src{e_0}=\src{e_0^{(0)};e_0^{(1)};e_0^{(3)}}&
+      \mmlAmmlAtbackdetail[\Game''',()]{\mstrace[_1]}=\Game'''',\src{e_1^{(0)}} \\
+      \mmlAmmlAtbackdetail[\Game'''',()]{\specificev{Call\ ?\finalexprnoerr_1}} = \Game'''',(),\src{e_1^{(1)}} &
+      \src{e_1} = \src{e_1^{(0)};e_1^{(1)}}
     }{
-      \mmlAmmlAtback[\Game]{\trace} = \Game'', \src{context\ e_0''\ e_1}
+      \mmlAmmlAtback[\Game]{\mstrace} = \Game'''', \src{context\ e_0\ e_1}
     }{backtrans-top-level}
     %
     \typerule{backtrans-top-level-crash}{

@@ -626,11 +626,13 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
 Reserved Notation "r0 '==[' a ']==>' r1" (at level 82, r1 at next level).
 Inductive estep : rtexpr -> event -> rtexpr -> Prop :=
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : event) (K : evalctx),
+    (*Some(K,e) = evalctx_of_expr e0 ->*)
     e0 = insert K e ->
     e0' = insert K e' ->
     Ω ▷ e --[ a ]--> Ω' ▷ e' ->
     Ω ▷ e0 ==[ a ]==> Ω' ▷ e0'
 | E_abrt_ctx : forall (Ω : state) (e e0 : expr) (K : evalctx),
+    (*Some(K,e) = evalctx_of_expr e0 ->*)
     e0 = insert K e ->
     Ω ▷ e --[ Scrash ]--> ↯ ▷ stuck ->
     Ω ▷ e0 ==[ Scrash ]==> ↯ ▷ stuck
@@ -644,13 +646,55 @@ Definition estepf (r : rtexpr) : option (event * rtexpr) :=
   match oΩ, evalctx_of_expr e with
   | Some Ω, Some(K, e0) =>
     match pstepf (Ω ▷ e0) with
-    | Some(a, (Ω', e0')) => Some(a, (Ω', insert K e0'))
+    | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
+    | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
     | None => None
     end
   | _, _ => None
   end
 .
 (* TODO: equiv of estepf and estep *)
+
+Lemma grab_ectx e K e0 :
+  e = insert K e0 ->
+  evalctx_of_expr e = Some(K, e0)
+.
+Proof. Admitted.
+
+Lemma equiv_estep r0 a r1 :
+  r0 ==[ a ]==> r1 <-> estepf r0 = Some(a, r1).
+Proof.
+  split.
+  - induction 1.
+    + apply grab_ectx in H as H'; apply grab_ectx in H0 as H0'.
+      cbn; rewrite H'; rewrite equiv_pstep in H1.
+      change (match pstepf (Ω ▷ e) with
+              | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
+              | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
+              | None => None
+              end = Some (a, (Some Ω', e0'))).
+      now rewrite H1, H0.
+    + apply grab_ectx in H as H'.
+      cbn; rewrite H'; rewrite equiv_pstep in H0.
+      change (match pstepf (Ω ▷ e) with
+              | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
+              | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
+              | None => None
+              end = Some(Scrash, ↯ ▷ stuck)).
+      now rewrite H0.
+  -
+Qed.
+
+Lemma ungrab_ectx e K e0 :
+  evalctx_of_expr e = Some(K, e0) ->
+  e = insert K e0.
+.
+
+Lemma ctx_eval e K e0 Ω Ω' :
+  e = insert K e0 ->
+  Ω ▷ e --[ a ]--> Ω' ▷ e' ->
+
+
 
 Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).
 Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
@@ -670,21 +714,21 @@ where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)
 #[global]
 Hint Constructors star_step : core.
 
-(** Equivalence with star_step doesn't hold. *)
-Program Fixpoint star_stepf (r : rtexpr) : option (tracepref * rtexpr) :=
+(** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
+Fixpoint star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
   match r with
   | (Some Ω, e) =>
-    match e with
-    | Xres _ => (* refl *)
+    match fuel, e with
+    | 0, Xres _ => (* refl *)
       Some(Tnil, r)
-    | _ => (* trans *)
+    | S n, _ => (* trans *)
       let '(oΩ, e) := r in
       match oΩ, evalctx_of_expr e with
       | Some Ω, Some(K, e0) =>
         match pstepf (Ω ▷ e0) with
         | Some(a, (Some Ω', e0')) =>
           let r' := Ω' ▷ insert K e0' in
-          match star_stepf r' with
+          match star_stepf n r' with
           | Some(As', r'') =>
             match a with
             | Sε => Some(As', r'')
@@ -696,6 +740,7 @@ Program Fixpoint star_stepf (r : rtexpr) : option (tracepref * rtexpr) :=
         end
       | _,_ => None
       end
+    | _, _ => None
     end
   | _ => None
   end

@@ -148,8 +148,16 @@ Fixpoint append (Δ1 Δ2 : store) : store :=
 (* '◘' is `\inversebullet` *)
 Notation "Δ1 '◘' Δ2" := (append Δ1 Δ2) (at level 82, Δ2 at next level).
 (** Splitting a store in three parts. *)
-Fixpoint splitat (Δ : store) (x : vart) :=
-  None : option (store * vart * dynloc * store)
+Definition splitat (Δ : store) (x : vart) : option (store * vart * dynloc * store) :=
+  let fix doo (accΔ : store) (Δ : store) :=
+    match Δ with
+    | Snil => None
+    | Scons y dℓ Δ' => if vareq x y then
+                        Some(accΔ, y, dℓ, Δ')
+                      else
+                        doo (y ↦ dℓ ◘ accΔ) Δ'
+    end
+  in doo Snil Δ
 .
 (** In this model, heaps are just a snoc-style list of natural numbers. *)
 Inductive heap : Type :=
@@ -233,11 +241,11 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
                  | _ => None
                  end
   in
-  let isubst := (fix isubst e :=
-    let R := exprmap isubst in
+  let fix isubst e :=
+    let R := isubst in
     match e with
     | Xlet x e0 e1 => if vareq what x then Xlet x (R e0) e1 else Xlet x (R e0) (R e1)
-    | Xnew x e0 e1 => if vareq what x then Xlet x (R e0) e1 else Xlet x (R e0) (R e1)
+    | Xnew x e0 e1 => if vareq what x then Xnew x (R e0) e1 else Xnew x (R e0) (R e1)
     | Xget x e' => match substid with
                   | None => Xget x
                   | Some y => Xget y
@@ -255,8 +263,12 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
                       | None => Xhole x
                       | Some y => Xhole y
                       end τ1 τ2
-    | _ => R e
-    end)
+    | Xbinop b e1 e2 => Xbinop b (R e1) (R e2)
+    | Xifz c e1 e2 => Xifz (R c) (R e1) (R e2)
+    | Xreturning e => Xreturning (R e)
+    | Xcalling e => Xcalling (R e)
+    | _ => e
+    end
   in
   isubst inn
 .
@@ -287,7 +299,7 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
 | e_delete : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
     (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ Sdealloc (addr ℓ) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
 | e_let : forall (Ω : state) (x : vart) (f : fnoerr) (e e' : expr),
-    e' = subst x f e ->
+    e' = subst x e f ->
     Ω ▷ Xlet x f e --[ Sε ]--> Ω ▷ e'
 | e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (H H' : heap) (Δ : store) (x z : vart) (ℓ n : nat) (e : expr),
     ℓ = Fresh.fresh F ->  F' = Fresh.advance F ->
@@ -295,7 +307,7 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
     (*TODO: fresh_loc (Δimg Δ) (addr ℓ) ->*)
     (*fresh_tvar (Δdom Δ) z ->*)
     H' = Hgrow H n ->
-    (F ; H ; Δ) ▷ Xnew x n e --[ Salloc (addr ℓ) n ]--> (F'' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x (Fvar z) e)
+    (F ; H ; Δ) ▷ Xnew x n e --[ Salloc (addr ℓ) n ]--> (F'' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x e (Fvar z))
 where "r0 '--[' a ']-->' r1" := (pstep r0 a r1)
 .
 #[global]
@@ -378,7 +390,7 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
     | Xlet x ef e' => (* e-let *)
       match ef with
       | Xres(Fres f) =>
-        let e'' := subst x f e' in
+        let e'' := subst x e' f in
         Some(Sε, Ω ▷ e'')
       | _ => None
       end
@@ -390,7 +402,7 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
         let ℓ := CSC.Fresh.fresh F in
         let F' := Fresh.advance F in
         let z := CSC.Fresh.freshv F' in
-        let e'' := subst x (Fvar z) e' in
+        let e'' := subst x e' (Fvar z) in
         Some(Salloc (addr ℓ) n, Fresh.advance F' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
       | _ => None
       end
@@ -516,7 +528,7 @@ Inductive evalctx : Type :=
 (** this function returns an eval context K and an expr e' such that K[e'] = e given some e *)
 Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
   match e with
-  | Xres _ => None
+  | Xres _ => Some(Khole, e)
   | Xhole _ _ _ => None
   | Xdel x => Some(Khole, Xdel x)
   | Xabort => Some(Khole, Xabort)
@@ -622,17 +634,36 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   | Kreturning K' => Xreturning (R K')
   end
 .
+(* Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
+Fixpoint pstep_compatible (e : expr) : option expr :=
+  match e with
+  | Xreturning f => Some (Xreturning f)
+  | Xcalling f => Some (Xcalling f)
+  | Xifz 0 e0 e1 => Some (Xifz 0 e0 e1)
+  | Xifz (S n) e0 e1 => Some (Xifz (S n) e0 e1)
+  | Xabort => Some (Xabort)
+  | Xdel x => Some (Xdel x)
+  | Xbinop b (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some (Xbinop b n1 n2)
+  | Xget x (Xres(Fres(Fval(Vnat n)))) => Some(Xget x n)
+  | Xset x (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some(Xset x n1 n2)
+  | Xnew x (Xres(Fres(Fval(Vnat n)))) e => Some(Xnew x n e)
+  | Xlet x (Xres(Fres f)) e => Some(Xlet x f e)
+  | _ => None
+  end
+.
 
 Reserved Notation "r0 '==[' a ']==>' r1" (at level 82, r1 at next level).
 Inductive estep : rtexpr -> event -> rtexpr -> Prop :=
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
+    Some e = pstep_compatible e ->
     e0 = insert K e ->
     e0' = insert K e' ->
     Ω ▷ e --[ a ]--> Ω' ▷ e' ->
     Ω ▷ e0 ==[ a ]==> Ω' ▷ e0'
 | E_abrt_ctx : forall (Ω : state) (e e0 : expr) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
+    Some e = pstep_compatible e ->
     e0 = insert K e ->
     Ω ▷ e --[ Scrash ]--> ↯ ▷ stuck ->
     Ω ▷ e0 ==[ Scrash ]==> ↯ ▷ stuck
@@ -645,56 +676,56 @@ Definition estepf (r : rtexpr) : option (event * rtexpr) :=
   let '(oΩ, e) := r in
   match oΩ, evalctx_of_expr e with
   | Some Ω, Some(K, e0) =>
-    match pstepf (Ω ▷ e0) with
-    | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
-    | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
+    match pstep_compatible e0 with
+    | Some _ =>
+      match pstepf (Ω ▷ e0) with
+      | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
+      | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
+      | None => None
+      end
     | None => None
     end
   | _, _ => None
   end
 .
-(* TODO: equiv of estepf and estep *)
 
 Lemma grab_ectx e K e0 :
+  Some e0 = pstep_compatible e0 ->
   e = insert K e0 ->
   evalctx_of_expr e = Some(K, e0)
 .
-Proof. Admitted.
+Proof.
+  destruct e; intros H.
+  - induction K; cbn in *; try congruence; try (destruct (insert K e0); congruence).
+  - induction K; cbn in *; try congruence; try (destruct (insert K e0); congruence).
+Admitted.
 
 Lemma equiv_estep r0 a r1 :
   r0 ==[ a ]==> r1 <-> estepf r0 = Some(a, r1).
 Proof.
   split.
   - induction 1.
-    + apply grab_ectx in H as H'; apply grab_ectx in H0 as H0'.
-      cbn; rewrite H'; rewrite equiv_pstep in H1.
+    + apply (@grab_ectx e0 K e H) in H0 as H0'.
+      cbn; rewrite H0'; rewrite equiv_pstep in H2; inv H.
       change (match pstepf (Ω ▷ e) with
               | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
               | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
               | None => None
-              end = Some (a, (Some Ω', e0'))).
-      now rewrite H1, H0.
-    + apply grab_ectx in H as H'.
-      cbn; rewrite H'; rewrite equiv_pstep in H0.
+              end = Some (a, (Some Ω', insert K e'))).
+      now rewrite H2.
+    + apply (@grab_ectx e0 K e H) in H0 as H0'.
+      cbn; rewrite H0'; rewrite equiv_pstep in H1; inv H.
       change (match pstepf (Ω ▷ e) with
               | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
               | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
               | None => None
               end = Some(Scrash, ↯ ▷ stuck)).
-      now rewrite H0.
-  -
-Qed.
-
-Lemma ungrab_ectx e K e0 :
-  evalctx_of_expr e = Some(K, e0) ->
-  e = insert K e0.
-.
-
-Lemma ctx_eval e K e0 Ω Ω' :
-  e = insert K e0 ->
-  Ω ▷ e --[ a ]--> Ω' ▷ e' ->
-
-
+      now rewrite H1.
+  - destruct r0 as [Ω e], r1 as [Ω' e'].
+    destruct e; intros H.
+    + cbn in H. destruct Ω in H; congruence.
+    (* rather annoying *)
+Admitted.
 
 Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).
 Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
@@ -716,34 +747,26 @@ Hint Constructors star_step : core.
 
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
 Fixpoint star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
-  match r with
-  | (Some Ω, e) =>
-    match fuel, e with
-    | 0, Xres _ => (* refl *)
-      Some(Tnil, r)
-    | S n, _ => (* trans *)
-      let '(oΩ, e) := r in
-      match oΩ, evalctx_of_expr e with
-      | Some Ω, Some(K, e0) =>
-        match pstepf (Ω ▷ e0) with
-        | Some(a, (Some Ω', e0')) =>
-          let r' := Ω' ▷ insert K e0' in
-          match star_stepf n r' with
-          | Some(As', r'') =>
-            match a with
-            | Sε => Some(As', r'')
-            | _ => Some(Tcons a As', r'')
-            end
-          | _ => None
+  let fix doo (fuel : nat) (r : rtexpr) :=
+    match r with
+    | (Some Ω, e) =>
+      match fuel, e with
+      | 0, Xres _ => (* refl *)
+        Some(Tnil, r)
+      | S fuel', _ => (* trans *)
+        match estepf r with
+        | Some(a, r') =>
+          match doo fuel' r' with
+          | Some(As, r'') => Some(Tcons a As, r'')
+          | None => None
           end
-        | _ => None
+        | None => None
         end
-      | _,_ => None
+      | _, _ => None
       end
-    | _, _ => None
+    | _ => None
     end
-  | _ => None
-  end
+  in doo fuel r
 .
 (*TODO: prove correctness*)
 
@@ -812,7 +835,7 @@ Definition smsunsafe_ep : expr :=
 (* let x = 42 in hole : (x : nat) -> nat *)
 Definition smsunsafe_e0 : expr :=
   Xlet "x"%string
-       42
+       3
        (Xhole "x"%string Tnat Tnat)
 .
 (* y *)
@@ -821,6 +844,17 @@ Definition smsunsafe_e1 : expr :=
 .
 
 Definition smsunsafe_prog := Cprog smsunsafe_e0 smsunsafe_ep smsunsafe_e1.
+
+Definition smsunsafe_e0' := fill FP_Q smsunsafe_ep smsunsafe_e0.
+
+Definition rest :=
+          Xreturning
+            (Xlet "z"%string (Fvar "x"%string)
+               (Xlet "w"%string (Xget "x"%string 1337) (Xlet "_"%string (Xdel "z"%string) (Fvar "w"%string))))
+.
+
+
+Compute (star_stepf 9 (Fresh.empty_fresh ; Hnil ; Snil ▷ fill FP_Q smsunsafe_ep smsunsafe_e0)).
 
 (*TODO: use functional-style interpreters to get concrete trace via simple `cbn` *)
 Goal cmptrpref smsunsafe_prog.

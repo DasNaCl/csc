@@ -1,5 +1,33 @@
 Set Implicit Arguments.
-Require Import Strings.String List Coq.Logic.Decidable.
+Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano List Coq.Logic.Decidable.
+
+Definition ascii_of_nat (n : nat) : ascii :=
+  match n with
+  | 0 => "0"
+  | 1 => "1"
+  | 2 => "2"
+  | 3 => "3"
+  | 4 => "4"
+  | 5 => "5"
+  | 6 => "6"
+  | 7 => "7"
+  | 8 => "8"
+  | _ => "9"
+  end
+.
+Definition string_of_nat (n : nat) : string :=
+  let fix string_of_nat_aux (time n : nat) (acc : string) : string :=
+    let acc' := String (ascii_of_nat (n mod 10)) acc in
+    match time with
+    | 0 => acc'
+    | S time' =>
+      match n / 10 with
+      | 0 => acc'
+      | n' => string_of_nat_aux time' n' acc'
+      end
+    end
+  in string_of_nat_aux n n ""%string
+.
 
 Ltac inv H := (inversion H; subst; clear H).
 

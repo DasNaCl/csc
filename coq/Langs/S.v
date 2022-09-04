@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String Lists.List Program.Equality Recdef.
+Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef.
 Require Import CSC.Sets CSC.Util CSC.Fresh.
 
 (** * Syntax *)
@@ -212,7 +212,7 @@ Variant event : Type :=
 | Salloc (ℓ : loc) (n : nat) : event
 | Sdealloc (ℓ : loc) : event
 | Sget (ℓ : loc) (n : nat) : event
-| Sset (ℓ : loc) (n : nat) : event
+| Sset (ℓ : loc) (n : nat) (v : value) : event
 | Scrash : event
 | Scall (f : fnoerr) : event
 | Sret (f : fnoerr) : event
@@ -220,6 +220,7 @@ Variant event : Type :=
 Definition tracepref := CSC.Util.tracepref event.
 Definition Tnil := CSC.Util.Tnil event.
 Definition Tcons (a : event) (t : tracepref) := @CSC.Util.Tcons event a t.
+
 (** The typecheck performed in the notations may seem redundant,
     but it seems to be necessary to discharge the coercsions. *)
 (* '·' is `\cdotp` *)
@@ -227,6 +228,40 @@ Notation "As '·' Bs" := (@CSC.Util.Tappend event (As : tracepref) (Bs : tracepr
 
 Definition event_to_tracepref (e : event) : tracepref := @CSC.Util.ev_to_tracepref event e.
 Coercion event_to_tracepref : event >-> tracepref.
+
+(** Pretty-printing function for better debuggability *)
+Definition string_of_event (e : event) :=
+  match e with
+  | Sε => "ε"%string
+  | Salloc (addr ℓ) n => String.append
+                          (String.append ("Alloc ℓ"%string) (string_of_nat ℓ))
+                          (String.append (" "%string) (string_of_nat n))
+  | Sdealloc (addr ℓ) => String.append ("Dealloc ℓ"%string) (string_of_nat ℓ)
+  | Sget (addr ℓ) n => String.append
+                        (String.append ("Get ℓ"%string) (string_of_nat ℓ))
+                        (String.append (" "%string) (string_of_nat n))
+  | Sset (addr ℓ) n (Vnat m) => String.append
+                                 (String.append
+                                   (String.append ("Set ℓ"%string) (string_of_nat ℓ))
+                                   (String.append (" "%string) (string_of_nat n)))
+                                 (String.append (" "%string) (string_of_nat m))
+  | Scrash => "↯"%string
+  | Scall(Fval(Vnat n)) => String.append ("Call ?"%string) (string_of_nat n)
+  | Scall(Fvar x) => String.append ("Call ?"%string) x
+  | Sret(Fval(Vnat n)) => String.append ("Ret !"%string) (string_of_nat n)
+  | Sret(Fvar x) => String.append ("Ret !"%string) x
+  end
+.
+Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
+  match t with
+  | @CSC.Util.Tnil _ => acc
+  | @CSC.Util.Tcons _ a (@CSC.Util.Tnil _) => String.append acc (string_of_event a)
+  | @CSC.Util.Tcons _ a As =>
+      let acc' := String.append acc (String.append (string_of_event a) (" · "%string))
+      in string_of_tracepref_aux As acc'
+  end
+.
+Definition string_of_tracepref (t : tracepref) : string := string_of_tracepref_aux t (""%string).
 
 (** A runtime program is a state plus an expression. *)
 Definition rtexpr : Type := (option state) * expr.
@@ -295,7 +330,7 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
 | e_set : forall (F : CSC.Fresh.fresh_state) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < Hsize H -> Some H' = Hset H (ℓ + n) v)
       (H0b : ℓ + n >= Hsize H -> H' = H),
-    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ Sset (addr ℓ) n ]--> (F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
+    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ Sset (addr ℓ) n v ]--> (F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
 | e_delete : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
     (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ Sdealloc (addr ℓ) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
 | e_let : forall (Ω : state) (x : vart) (f : fnoerr) (e e' : expr),
@@ -372,9 +407,9 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
           let '(addr ℓ) := L in
           match Hset H (ℓ + n) v with
           | Some H' =>
-            Some(Sset (addr ℓ) n, F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+            Some(Sset (addr ℓ) n v, F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
           | None =>
-            Some(Sset (addr ℓ) n, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+            Some(Sset (addr ℓ) n v, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
           end
         end
       | _, _ => None
@@ -635,7 +670,7 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   end
 .
 (* Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
-Fixpoint pstep_compatible (e : expr) : option expr :=
+Definition pstep_compatible (e : expr) : option expr :=
   match e with
   | Xreturning f => Some (Xreturning f)
   | Xcalling f => Some (Xcalling f)
@@ -746,7 +781,7 @@ where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)
 Hint Constructors star_step : core.
 
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
-Fixpoint star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
+Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
   let fix doo (fuel : nat) (r : rtexpr) :=
     match r with
     | (Some Ω, e) =>
@@ -757,7 +792,10 @@ Fixpoint star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
         match estepf r with
         | Some(a, r') =>
           match doo fuel' r' with
-          | Some(As, r'') => Some(Tcons a As, r'')
+          | Some(As, r'') => match a with
+                            | Sε => Some(As, r'')
+                            | _ => Some(Tcons a As, r'')
+                            end
           | None => None
           end
         | None => None
@@ -769,6 +807,35 @@ Fixpoint star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
   in doo fuel r
 .
 (*TODO: prove correctness*)
+
+(** Finds the amount of fuel necessary to run an expression. *)
+Fixpoint get_fuel (e : expr) : option nat :=
+  match e with
+  | Xres _ => Some(0)
+  | Xbinop symb lhs rhs => match get_fuel lhs, get_fuel rhs with Some(glhs), Some(grhs) => Some(1 + glhs + grhs) | _, _ => None end
+  | Xget x e => match get_fuel e with Some(ge) => Some(1 + ge) | None => None end
+  | Xset x e0 e1 => match get_fuel e0, get_fuel e1 with Some(ge0), Some(ge1) => Some(1 + ge0 + ge1) | _, _ => None end
+  | Xlet x e0 e1 => match get_fuel e0, get_fuel e1 with Some(ge0), Some(ge1) => Some(1 + ge0 + ge1) | _, _ => None end
+  | Xnew x e0 e1 => match get_fuel e0, get_fuel e1 with Some(ge0), Some(ge1) => Some(1 + ge0 + ge1) | _, _ => None end
+  | Xdel x => Some(1)
+  | Xreturning e => match get_fuel e with Some(ge) => Some(1 + ge) | None => None end
+  | Xcalling e => match get_fuel e with Some(ge) => Some(1 + ge) | None => None end
+  | Xifz c e0 e1 => match get_fuel c, get_fuel e0, get_fuel e1 with Some(gc), Some(ge0), Some(ge1) => Some(1 + gc + ge0 + ge1) | _, _, _ => None end
+  | Xabort => Some(1)
+  | Xhole _ _ _ => None
+  end
+.
+
+Lemma get_fuel_works e n Ω :
+  get_fuel e = Some n -> exists As Ω' e', star_stepf n (Ω ▷ e) = Some(As, Ω' ▷ e').
+Proof.
+  revert n; induction e; intros n H; cbn in H.
+  - inv H; exists Tnil; exists Ω; exists f; cbn; easy.
+  - destruct (get_fuel e1) as [ge1|]; destruct (get_fuel e2) as [ge2|]; try congruence.
+    inv H. specialize (IHe1 ge1 eq_refl). specialize (IHe2 ge2 eq_refl).
+    destruct IHe1 as [As1 [Ω1' [e1' IHe1]]]. destruct IHe2 as [As2 [Ω2' [e2' IHe2]]].
+    exists (As1 · As2 · Sε). exists Ω2'.
+Admitted.
 
 (** Fill hole expression. *)
 Variant fill_placeholder : Type :=
@@ -817,6 +884,29 @@ Inductive wstep (e0 ep e1 : expr) : prog e0 ep e1 -> tracepref -> rtexpr -> Prop
 .
 Notation "'PROG[' e0 '][' ep '][' e1 ']====[' As ']===>' r" := (wstep (Cprog e0 ep e1) As r) (at level 81, r at next level).
 
+Definition wstepf {e0 ep e1 : expr} (p : prog e0 ep e1) : option (tracepref * rtexpr) :=
+  let e0' := fill FP_Q ep e0 in
+  match get_fuel e0' with
+  | Some ge0' =>
+    match star_stepf ge0' ((Fresh.empty_fresh; Hnil; Snil) ▷ e0') with
+    | Some(As0, (Some Ω0', fp')) =>
+      let e1' := subst ("y"%string) e1 fp' in
+      match get_fuel e1' with
+      | Some ge1' =>
+        match star_stepf ge1' (Ω0' ▷ e1') with
+        | Some(As1, (Some Ω1, Xres(Fres(f1)))) => Some(Sret 0 · As0 · As1 · Scall f1, Ω1 ▷ f1)
+        | Some(As1, (None, Xres(Fabrt))) => Some(Sret 0 · As0 · As1, ↯ ▷ stuck)
+        | _ => None
+        end
+      | None => None
+      end
+    | Some(As0, (None, Xres(Fabrt))) => Some(Sret 0 · As0, ↯ ▷ stuck)
+    | _ => None
+    end
+  | None => None
+  end
+.
+
 Definition cmptrpref {e0 ep e1 : expr} (p : prog e0 ep e1) :=
   exists As Ω f, PROG[e0][ep][e1]====[ As ]===> (Ω ▷ f)
 .
@@ -853,8 +943,14 @@ Definition rest :=
                (Xlet "w"%string (Xget "x"%string 1337) (Xlet "_"%string (Xdel "z"%string) (Fvar "w"%string))))
 .
 
-
-Compute (star_stepf 9 (Fresh.empty_fresh ; Hnil ; Snil ▷ fill FP_Q smsunsafe_ep smsunsafe_e0)).
+Compute (wstepf smsunsafe_prog).
+Definition debug_eval {e0 ep e1 : expr} (p : prog e0 ep e1) :=
+  match wstepf p with
+  | Some(As, _) => Some(string_of_tracepref As)
+  | _ => None
+  end
+.
+Compute (debug_eval smsunsafe_prog).
 
 (*TODO: use functional-style interpreters to get concrete trace via simple `cbn` *)
 Goal cmptrpref smsunsafe_prog.

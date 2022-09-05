@@ -759,13 +759,14 @@ Proof.
   - destruct r0 as [Ω e], r1 as [Ω' e'].
     destruct e; intros H.
     + cbn in H. destruct Ω in H; congruence.
+    + destruct Ω' as [Ω'|]; destruct Ω as [Ω|]; try (cbn in H; congruence).
     (* rather annoying *)
 Admitted.
 
 Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).
 Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
-| ES_refl : forall (r1 : rtexpr),
-    r1 ==[ Tnil ]==>* r1
+| ES_refl : forall (Ω : state) (f : ferr),
+    Ω ▷ f ==[ Tnil ]==>* Ω ▷ f
 | ES_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref),
     a <> Sε ->
     r1 ==[ a ]==> r2 ->
@@ -806,7 +807,6 @@ Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
     end
   in doo fuel r
 .
-(*TODO: prove correctness*)
 
 (** Finds the amount of fuel necessary to run an expression. *)
 Fixpoint get_fuel (e : expr) : option nat :=
@@ -825,17 +825,63 @@ Fixpoint get_fuel (e : expr) : option nat :=
   | Xhole _ _ _ => None
   end
 .
-
-Lemma get_fuel_works e n Ω :
-  get_fuel e = Some n -> exists As Ω' e', star_stepf n (Ω ▷ e) = Some(As, Ω' ▷ e').
+Lemma atleast_once Ω e r a fuel :
+  Some fuel = get_fuel e ->
+  Ω ▷ e ==[ a ]==> r ->
+  exists fuel', fuel = S fuel'.
+Proof. Admitted.
+Lemma star_stepf_one_step Ω e r r' a As fuel :
+  Some (S fuel) = get_fuel e ->
+  Ω ▷ e ==[ a ]==> r ->
+  star_stepf fuel r = Some(As, r') ->
+  star_stepf (S fuel) (Ω ▷ e) = Some(a · As, r')
+.
+Proof. Admitted.
+Lemma star_stepf_one_unimportant_step Ω e r r' As fuel :
+  Some (S fuel) = get_fuel e ->
+  Ω ▷ e ==[ Sε ]==> r ->
+  star_stepf fuel r = Some(As, r') ->
+  star_stepf (S fuel) (Ω ▷ e) = Some(As, r')
+.
+Proof. Admitted.
+Lemma estep_good_fuel Ω e r a fuel :
+  Some(S fuel) = get_fuel e ->
+  Ω ▷ e ==[ a ]==> r ->
+  Some fuel = get_fuel (let '(_, e') := r in e').
+Proof. Admitted.
+Lemma equiv_starstep Ω e r1 As fuel :
+  Some fuel = get_fuel e ->
+  Ω ▷ e ==[ As ]==>* r1 <-> star_stepf fuel (Ω ▷ e) = Some(As, r1).
 Proof.
-  revert n; induction e; intros n H; cbn in H.
-  - inv H; exists Tnil; exists Ω; exists f; cbn; easy.
-  - destruct (get_fuel e1) as [ge1|]; destruct (get_fuel e2) as [ge2|]; try congruence.
-    inv H. specialize (IHe1 ge1 eq_refl). specialize (IHe2 ge2 eq_refl).
-    destruct IHe1 as [As1 [Ω1' [e1' IHe1]]]. destruct IHe2 as [As2 [Ω2' [e2' IHe2]]].
-    exists (As1 · As2 · Sε). exists Ω2'.
+  intros Hf; split; intros H.
+  - destruct r1 as [oΩ' e'].
+    change (Some fuel = get_fuel match (Ω ▷ e) with
+                          | (_, e') => e'
+                          end) in Hf.
+    revert fuel Hf; induction H; intros fuel Hf; cbn in Hf.
+    + inv Hf; now cbn.
+    + clear Ω e oΩ' e'; destruct r1 as [[oΩ1|] e1].
+      * assert (H0':=H0); apply (@atleast_once oΩ1 e1 r2 a fuel Hf) in H0 as [fuel' ->];
+        eapply star_stepf_one_step; eauto;
+        eapply IHstar_step; eapply estep_good_fuel; eauto.
+      * inv H0.
+    + clear Ω e oΩ' e'; destruct r1 as [[oΩ1|] e1].
+      * assert (H':=H); apply (@atleast_once oΩ1 e1 r2 Sε fuel Hf) in H as [fuel' ->].
+        eapply star_stepf_one_unimportant_step; eauto;
+        eapply IHstar_step; eapply estep_good_fuel; eauto.
+      * inv H.
+  - revert Ω e r1 As Hf H; induction fuel; intros Ω e r1 As Hf H.
+    + destruct e; cbn in Hf; repeat destruct (get_fuel _); try congruence;
+      cbn in H; inv H; apply ES_refl.
+    + cbn in H. destruct (evalctx_of_expr _); try congruence; destruct p as [K e0].
+      destruct (pstep_compatible _); try congruence.
+      destruct e0; try congruence.
+      * grab_value2 e0_1 e0_2; try congruence.
+        eapply ES_trans_unimportant.
+        (* annoying... *)
 Admitted.
+
+
 
 (** Fill hole expression. *)
 Variant fill_placeholder : Type :=

@@ -71,6 +71,50 @@ Inductive expr : Type :=
 .
 Coercion Xres : ferr >-> expr.
 
+Fixpoint string_of_expr (e : expr) :=
+  match e with
+  | Xres(Fabrt) => "abort"%string
+  | Xres(Fres(Fval(Vnat n))) => string_of_nat n
+  | Xres(Fres(Fvar x)) => x
+  | Xbinop _symb e0 e1 =>
+    let s0 := string_of_expr e0 in
+    let s1 := string_of_expr e1 in
+    String.append (String.append (String.append ("("%string) s0) (String.append (") ⊕ ("%string) s1)) (")"%string)
+  | Xget x e =>
+    let s := string_of_expr e in
+    String.append x (String.append (String.append ("["%string) s) "]"%string)
+  | Xset x e0 e1 =>
+    let s0 := string_of_expr e0 in
+    let s1 := string_of_expr e1 in
+    String.append x (String.append ("["%string) (String.append s0 (String.append "] <- " s1)))
+  | Xlet x e0 e1 =>
+    let s0 := string_of_expr e0 in
+    let s1 := string_of_expr e1 in
+    if vareq dontcare x then
+      String.append s0 (String.append ";" s1)
+    else
+      String.append ("let "%string) (String.append x (String.append " = " (String.append s0 (String.append (";"%string) s1))))
+  | Xnew x e0 e1 =>
+    let s0 := string_of_expr e0 in
+    let s1 := string_of_expr e1 in
+    String.append ("let "%string) (String.append x (String.append " = new " (String.append s0 (String.append (";"%string) s1))))
+  | Xdel x => String.append ("delete "%string) x
+  | Xreturning e =>
+    let s := string_of_expr e in
+    String.append ("returning "%string) s
+  | Xcalling e =>
+    let s := string_of_expr e in
+    String.append ("calling "%string) s
+  | Xifz c e0 e1 =>
+    let cs := string_of_expr c in
+    let s0 := string_of_expr e0 in
+    let s1 := string_of_expr e1 in
+    String.append (String.append (String.append ("ifz "%string) cs) (String.append (" then "%string) s0)) (String.append (" else "%string) s1)
+  | Xabort => "abort"%string
+  | Xhole x τ1 τ2 => String.append "hole : " x
+  end
+.
+
 (** The following is a helper function to easily define functions over the syntax of S, e.g. substitution. *)
 Definition exprmap (h : expr -> expr) (e : expr) :=
   match e with
@@ -205,6 +249,11 @@ Notation "F ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (H : heap), (Δ : sto
 Inductive context : Type := Ccontext : expr -> expr -> context.
 Inductive component : Type := Ccomponent : expr -> component.
 Inductive prog : Type := Cprog : expr -> expr -> expr -> prog.
+
+Definition string_of_prog (p : prog) :=
+  let '(Cprog e0 ep e1) := p in
+  String.append (String.append (String.append ("prog ["%string) (string_of_expr e0)) (String.append ("]["%string) (string_of_expr ep))) (String.append ("]["%string) (String.append (string_of_expr e1) ("]"%string)))
+.
 
 (** Types of events that may occur in a trace. *)
 Variant event : Type :=
@@ -1275,7 +1324,7 @@ Definition tl_backtranslation (As : mstracepref) :=
   end
 .
 
-Definition debug_eval_bt_prog (p : prog) :=
+Definition eval_bt_prog (p : prog) :=
   match wstepf p with
   | Some(As, _) =>
     match tl_backtranslation (θ As) with
@@ -1286,10 +1335,16 @@ Definition debug_eval_bt_prog (p : prog) :=
   | _ => None
   end
 .
+Definition debug_eval_bt_prog (p : prog) :=
+  match eval_bt_prog p with
+  | Some p => Some(string_of_prog p)
+  | None => None
+  end
+.
 Compute (debug_eval_bt_prog smsunsafe_prog).
 
 Definition debug_eval_bt (p : prog) :=
-  match debug_eval p, debug_eval_bt_prog p with
+  match debug_eval p, eval_bt_prog p with
   | Some s0, Some(p_bt) =>
     match debug_eval p_bt with
     | Some s1 => Some(s0, s1)

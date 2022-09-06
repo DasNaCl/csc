@@ -38,8 +38,8 @@ Inductive ferr : Type :=
 Coercion Fres : fnoerr >-> ferr.
 (** Possible binary operations. *)
 Variant binopsymb : Type :=
-| BAdd : binopsymb
-| BSub : binopsymb
+| Badd : binopsymb
+| Bsub : binopsymb
 | Bmul : binopsymb
 | Bless : binopsymb
 .
@@ -103,9 +103,9 @@ Definition eval_binop (b : binopsymb) (v0 v1 : value) :=
   let '(Vnat n1) := v1 in
   Vnat(match b with
        | Bless => (if Nat.ltb n0 n1 then 0 else 1)
-       | BAdd => (n0 + n1)
-       | BSub => (n0 - n1)
-       | BMul => (n0 * n1)
+       | Badd => (n0 + n1)
+       | Bsub => (n0 - n1)
+       | Bmul => (n0 * n1)
        end)
 .
 (** Poison used to mark locations in our operational state. *)
@@ -202,9 +202,9 @@ Fixpoint Hgrow (H : heap) (s : nat) : heap :=
 Definition state : Type := CSC.Fresh.fresh_state * heap * store.
 Notation "F ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (H : heap), (Δ : store)) (at level 81, H at next level, Δ at next level).
 
-Inductive context (e0 e1 : expr) : Type := Ccontext.
-Inductive component (ep : expr) : Type := Ccomponent.
-Inductive prog (e0 ep e1 : expr) : Type := Cprog.
+Inductive context : Type := Ccontext : expr -> expr -> context.
+Inductive component : Type := Ccomponent : expr -> component.
+Inductive prog : Type := Cprog : expr -> expr -> expr -> prog.
 
 (** Types of events that may occur in a trace. *)
 Variant event : Type :=
@@ -914,8 +914,9 @@ Hint Constructors fill_j : core.
 
 (** Evaluation of programs *)
 (*TODO: add typing*)
-Inductive wstep (e0 ep e1 : expr) : prog e0 ep e1 -> tracepref -> rtexpr -> Prop :=
+Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
 | e_wprog : forall (y : vart)
+              (e0 ep e1 : expr)
               (e0' ep0 e0'' : expr)
               (f0 fp fp' f1 : fnoerr)
               (Ω0 Ωp0 Ω0' Ω1 : state)
@@ -930,7 +931,8 @@ Inductive wstep (e0 ep e1 : expr) : prog e0 ep e1 -> tracepref -> rtexpr -> Prop
 .
 Notation "'PROG[' e0 '][' ep '][' e1 ']====[' As ']===>' r" := (wstep (Cprog e0 ep e1) As r) (at level 81, r at next level).
 
-Definition wstepf {e0 ep e1 : expr} (p : prog e0 ep e1) : option (tracepref * rtexpr) :=
+Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
+  let '(Cprog e0 ep e1) := p in
   let e0' := fill FP_Q ep e0 in
   match get_fuel e0' with
   | Some ge0' =>
@@ -953,7 +955,8 @@ Definition wstepf {e0 ep e1 : expr} (p : prog e0 ep e1) : option (tracepref * rt
   end
 .
 
-Definition cmptrpref {e0 ep e1 : expr} (p : prog e0 ep e1) :=
+Definition cmptrpref (p : prog) :=
+  let '(Cprog e0 ep e1) := p in
   exists As Ω f, PROG[e0][ep][e1]====[ As ]===> (Ω ▷ f)
 .
 
@@ -990,7 +993,7 @@ Definition rest :=
 .
 
 Compute (wstepf smsunsafe_prog).
-Definition debug_eval {e0 ep e1 : expr} (p : prog e0 ep e1) :=
+Definition debug_eval (p : prog) :=
   match wstepf p with
   | Some(As, _) => Some(string_of_tracepref As)
   | _ => None
@@ -1005,3 +1008,295 @@ Proof.
   eapply e_wprog; eauto; cbn.
 
 Admitted.
+
+
+Inductive msevent :=
+| MSε : msevent
+| MSalloc (ℓ : loc) (n : nat) : msevent
+| MSdealloc (ℓ : loc) : msevent
+| MSuse (ℓ : loc) (n : nat) : msevent
+| MScrash : msevent
+| MScall (f : fnoerr) : msevent
+| MSret (f : fnoerr) : msevent
+.
+Definition mseveq (ev0 ev1 : msevent) : bool :=
+  match ev0, ev1 with
+  | MSε, MSε => true
+  | MSalloc (addr ℓ0) n0, MSalloc (addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | MSdealloc (addr ℓ0), MSdealloc (addr ℓ1) => Nat.eqb ℓ0 ℓ1
+  | MSuse (addr ℓ0) n0, MSuse (addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | MScrash, MScrash => true
+  | MScall(Fval(Vnat n0)), MScall(Fval(Vnat n1)) => Nat.eqb n0 n1
+  | MScall(Fvar x), MScall (Fvar y) => vareq x y
+  | MSret(Fval(Vnat n0)), MSret(Fval(Vnat n1)) => Nat.eqb n0 n1
+  | MSret(Fvar x), MSret (Fvar y) => vareq x y
+  | _, _ => false
+  end
+.
+Definition mstracepref := CSC.Util.tracepref msevent.
+Definition msTnil := CSC.Util.Tnil msevent.
+Definition msTcons (a : msevent) (t : mstracepref) := @CSC.Util.Tcons msevent a t.
+
+(** Project concrete program traces to property-specific ones *)
+Fixpoint θ (As : tracepref) :=
+  let θev a :=
+    match a with
+    | Sε => MSε
+    | Salloc ℓ n => MSalloc ℓ n
+    | Sdealloc ℓ => MSdealloc ℓ
+    | Sset ℓ n _ => MSuse ℓ n
+    | Sget ℓ n => MSuse ℓ n
+    | Scrash => MScrash
+    | Scall f => MScall f
+    | Sret f => MSret f
+    end
+  in
+  match As with
+  | @CSC.Util.Tnil _ => msTnil
+  | @CSC.Util.Tcons _ a As' => msTcons (θev a) (θ As')
+  end
+.
+
+(** Map from locations to source variable names. *)
+Inductive locvarmap : Type :=
+| LVnil : locvarmap
+| LVcons : loc -> vart -> locvarmap -> locvarmap
+.
+Fixpoint add_or_nothing_lv (f : @CSC.Fresh.fresh_state) (ℓ : loc) (G : locvarmap) :=
+  match G with
+  | LVnil =>
+    let x := CSC.Fresh.freshv f in
+    LVcons ℓ x LVnil
+  | LVcons ℓ0 y G' => LVcons ℓ0 y (add_or_nothing_lv f ℓ G')
+  end
+.
+Fixpoint lookup_lv (ℓ : loc) (G : locvarmap) : option vart :=
+  match G with
+  | LVnil => None
+  | LVcons ℓ0 x G' =>
+    let '(addr n0) := ℓ0 in
+    let '(addr n) := ℓ in
+    if Nat.eqb n0 n then
+      Some x
+    else
+      lookup_lv ℓ G'
+  end
+.
+
+(** Backtranslation of values *)
+Definition backtransv (e : fnoerr) := e.
+
+(** Backtranslation of MS traces *)
+Fixpoint backtrans (f : @CSC.Fresh.fresh_state) (G : locvarmap)
+                   (As : mstracepref) (B : option (vart * ty * ty))
+  : option(@CSC.Fresh.fresh_state * locvarmap * expr) :=
+  let R As' f' G' f := match backtrans f' G' As' B with
+                       | Some(f'', G'', e) => Some(f'', G'', f e)
+                       | None => None
+                       end
+  in
+  match As with
+  | @CSC.Util.Tnil _ =>
+    match B with
+    | None => (*backtrans-empty-unit*)
+      Some(f, G, 42 : expr)
+    | Some(x,τ1,τ2) => (* backtrans-empty-hole *)
+      Some(f, G, Xhole x τ1 τ2)
+    end
+  | @CSC.Util.Tcons _ a As' =>
+    match a with
+    | MSε =>
+      (* backtrans-empty *)
+      R As' f G (fun e => Xlet ("_"%string) (Xbinop Badd 40 2) e)
+    | MSalloc ℓ n =>
+      (* backtrans-alloc *)
+      let G' := add_or_nothing_lv f ℓ G in
+      match lookup_lv ℓ G' with
+      | Some z => R As' (advance f) G' (fun e => Xnew z (backtransv n) e)
+      | None => None
+      end
+    | MSdealloc ℓ =>
+      (* backtrans-dealloc *)
+      match lookup_lv ℓ G with
+      | Some x => R As' f G (fun e => Xlet ("_"%string) (Xdel x) e)
+      | None => None
+      end
+    | MSuse ℓ n =>
+      (* backtrans-use *)
+      match lookup_lv ℓ G with
+      | Some z => R As' f G (fun e => Xlet ("_"%string) (Xget z (backtransv n)) e)
+      | None => None
+      end
+    | MScrash => Some(f, G, Xabort)
+    | MScall _ => None
+    | MSret _ => None
+    end
+  end
+.
+(** Backtranslation of single call event *)
+Definition backtranslate_call (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
+                              (a : msevent) (B : option (vart * ty * ty))
+  : option (CSC.Fresh.fresh_state * locvarmap * (option loc) * expr) :=
+  match a with
+  | MScall f =>
+    match B with
+    | None => (* backtrans-call-nohole *)
+      Some(fresh, G, None, (backtransv f) : expr)
+    | Some(x,_,_) => (* backtrans-call-hole *)
+      let ℓ := CSC.Fresh.fresh fresh in
+      match backtrans (advance fresh) G (msTcons (MSalloc (addr 0) 42) msTnil) B with
+      | Some(fresh', G', e) => Some(fresh', G', Some(addr 0), Xlet x (backtransv f) e)
+      | None => None
+      end
+    end
+  | _ => None
+  end
+.
+(** Backtranslation of single ret event *)
+Definition backtranslate_ret (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
+                             (a : msevent) (C : option (loc * expr))
+  : option (@CSC.Fresh.fresh_state * locvarmap * expr) :=
+  match a with
+  | MSret f =>
+    match C with
+    | None => (* backtrans-ret-nowrap *)
+      Some(fresh, G, (backtransv f) : expr)
+    | Some(ℓ, e) => (* backtrans-ret-wrap *)
+      match lookup_lv ℓ G with
+      | Some z =>
+        let y := CSC.Fresh.freshv fresh in
+        let e' := fill (FP_N y) (Xdel z) e in
+        Some((advance fresh), G, Xlet ("_"%string) e' (backtransv f))
+      | None => None
+      end
+    end
+  | _ => None
+  end
+.
+
+(** splits trace *)
+Definition ms_splitat_call (As : mstracepref) : option (mstracepref * msevent * mstracepref) :=
+  let fix doo (accAs : mstracepref) (As : mstracepref) :=
+    match As with
+    | @CSC.Util.Tnil _ => None
+    | @CSC.Util.Tcons _ (MScall f) As' => Some(accAs, MScall f, As')
+    | @CSC.Util.Tcons _ a As' => doo (msTcons a accAs) As'
+    end
+  in doo msTnil As
+.
+Definition ms_splitat_ret (As : mstracepref) : option (mstracepref * msevent * mstracepref) :=
+  let fix doo (accAs : mstracepref) (As : mstracepref) :=
+    match As with
+    | @CSC.Util.Tnil _ => None
+    | @CSC.Util.Tcons _ (MSret f) As' => Some(accAs, MSret f, As')
+    | @CSC.Util.Tcons _ a As' => doo (msTcons a accAs) As'
+    end
+  in doo msTnil As
+.
+
+Definition tl_tracesplit (As : mstracepref) :=
+  match ms_splitat_ret As with
+  | Some(@CSC.Util.Tnil _, MSret (Fval(Vnat 0)), As0') =>
+    match ms_splitat_call As0' with
+    | Some(As0, MScall f0, Ap') =>
+      match ms_splitat_ret Ap' with
+      | Some(Ap, MSret fp, As1') =>
+        match ms_splitat_call As1' with
+        | Some(As1, MScall f1, @CSC.Util.Tnil _) =>
+          Some(Fval(Vnat 0), As0, f0, Ap, fp, As1, f1)
+        | _ => None
+        end
+      | _ => None
+      end
+    | _ => None
+    end
+  | _ => None
+  end
+.
+
+(** technicality for generating fresh names/locations *)
+Fixpoint collect_max_loc (As : mstracepref) : nat :=
+  match As with
+  | @CSC.Util.Tnil _ => 0
+  | @CSC.Util.Tcons _ a As' =>
+    match a with
+    | MSalloc ℓ n => let '(addr m) := ℓ in m
+    | MSuse ℓ n => let '(addr m) := ℓ in m
+    | MSdealloc ℓ => let '(addr m) := ℓ in m
+    | _ => 0
+    end + collect_max_loc As'
+  end
+.
+Fixpoint advance_fresh_n (f : @CSC.Fresh.fresh_state) (n : nat) : @CSC.Fresh.fresh_state :=
+  match n with
+  | 0 => f
+  | S n' => advance_fresh_n (advance f) n'
+  end
+.
+
+(** Top-Level Backtranslation *)
+Definition tl_backtranslation (As : mstracepref) :=
+  let fresh0 := advance_fresh_n (@CSC.Fresh.empty_fresh) (collect_max_loc As) in
+  let G0 := LVnil in
+  match tl_tracesplit As with
+  | Some(Fval(Vnat 0), As0, f0, _Ap, fp, As1, f1) =>
+    match backtranslate_ret fresh0 G0 (MSret (Fval(Vnat 0))) None with
+    | Some(fresh00, G00, e00) =>
+      match backtrans fresh00 G00 As0 None with
+      | Some(fresh01, G01, e01) =>
+        match backtranslate_call fresh01 G01 (MScall f0) (Some("x"%string, Tnat, Tnat)) with
+        | Some(fresh02, G02, Some ℓ, e02) =>
+          match backtranslate_ret fresh02 G02 (MSret fp) (Some(ℓ, e02)) with
+          | Some(fresh03, G03, e03) =>
+            let e0 := Xlet ("_"%string) e00
+                           (Xlet ("_"%string)
+                                 e01
+                                 e03
+                           ) in
+            match backtrans fresh03 G03 As1 None with
+            | Some(fresh10, G10, e10) =>
+              match backtranslate_call fresh10 G10 (MScall f1) None with
+              | Some(fresh11, G11, None, e11) =>
+                let e1 := Xlet ("_"%string) e10 e11 in
+                Some(fresh11, G11, Ccontext e0 e1)
+              | _ => None
+              end
+            | None => None
+            end
+          | None => None
+          end
+        | _ => None
+        end
+      | None => None
+      end
+    | None => None
+    end
+  | _ => None
+  end
+.
+
+Definition debug_eval_bt_prog (p : prog) :=
+  match wstepf p with
+  | Some(As, _) =>
+    match tl_backtranslation (θ As) with
+    | Some(_, _, Ccontext e0 e1) =>
+      Some(Cprog e0 smsunsafe_ep e1)
+    | None => None
+    end
+  | _ => None
+  end
+.
+Compute (debug_eval_bt_prog smsunsafe_prog).
+
+Definition debug_eval_bt (p : prog) :=
+  match debug_eval p, debug_eval_bt_prog p with
+  | Some s0, Some(p_bt) =>
+    match debug_eval p_bt with
+    | Some s1 => Some(s0, s1)
+    | None => None
+    end
+  | _, _ => None
+  end
+.
+
+Compute (debug_eval_bt smsunsafe_prog).

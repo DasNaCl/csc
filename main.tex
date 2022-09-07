@@ -4160,8 +4160,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \judgbox{\mmlAmmlAtback[\Game]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
     \typerule{backtrans-top-level}{
       \trg{\mstrace}=\trg{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\
-      \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_0}}{\src{\type_0}}&
-      \typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}\\
+      \typecheck{\src{x:\wptr}}{\mmlAmmlAtbackv{\finalexprnoerr_0}}{\src{\type_0}}\\
+      \mmlAmmlAtbackv{\finalexprnoerr_p}=\src{y}\implies\typecheck{\src{y:\wptr}}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}\\
+      \mmlAmmlAtbackv{\finalexprnoerr_p}\not=\src{y}\implies\typecheck{}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}\\
       \mmlAmmlAtbackdetail[\Game,(),()]{\specificev{Ret\ !0}} = \Game,\src{e_0^{(0)}} &
       \mmlAmmlAtbackdetail[\Game,()]{\mstrace[_0]} = \Game', \src{e_0^{(1)}} \\
       \mmlAmmlAtbackdetail[\Game',\src{x:\type_0\to\type_p}]{\specificev{Call\ ?\finalexprnoerr_0}} = \Game'',\trg{\loc},\src{e_0^{(2)}} &
@@ -4296,19 +4297,19 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:correct}
+\begin{lemma}[Expression-based Backtranslation Correctness without Wrapper]\label{lem:exprbacktranslation:wowrapper:correct}
   If
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback{\mstrace}=\Game',\src{e}$
-  \item $\xlangstateeq{\Omega}{\Omega}$
+  \item $\mmlAmmlAtback[\Game,()]{\mstrace}=\Game',\src{e}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
-  \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
+  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\src{\trace[_1]}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
 \end{lemma}
@@ -4316,12 +4317,12 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   Induction on $\trg{\trace}$.
 
   \begin{description}
-  \item \textbf{Case $\trg{\trace}=\trg{\hole{\cdot}}$:}
+  \item \textbf{Case $\trg{\trace}=\trg{\hole{\cdot}}$}
 
   If
   \begin{assumptions}
   \item\label[ass]{asm:backtranscorr:case0:exect} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\hole{\cdot}}$
-  \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\specificev{Call\ ?n_1}}=\Game,\src{e}$
+  \item $\mmlAmmlAtback[\Game,()]{\hole{\cdot}}=\Game,\src{e}$
   \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -4329,7 +4330,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \item $\delta\subseteq\delta'$
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
   \end{goals}
 
   By inversion on (b), what is left to show is:
@@ -4338,23 +4339,17 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \item $\delta\subseteq\delta'$
   \item $\exec{\configs}{\src{42}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot Call\ ?n_1}$
+  \item $\src{\hole{\cdot}}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
   \end{goals}
 
-  Instantiate our goal with $\delta' = \delta, \src{\Omega'}=\src{\Omega}, \src{\trace}=\src{\hole{\cdot}}, \src{\valueexpr}=\src{42}$, the first two goals follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.
-  What is left to show is:
-  \begin{goals}
-    \setcounter{enumi}{3}
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta]\trg{Ret\ !n_0\cdot Call\ ?n_1}$
-  \end{goals}
-  Which follows from applying \Cref{tr:cons-trace-eq,tr:ret-event-eq,tr:call-event-eq} and \Thmref{lem:compvals:insertion}.
+  Instantiate our goal with $\delta' = \delta, \src{\Omega'}=\src{\Omega}, \src{\trace}=\src{\hole{\cdot}}, \src{\valueexpr}=\src{42}$, the first two goals and the fourth follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.
 
   \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
   If
   \begin{assumptions}
   \item\label{asm:backtranscorr:indu:step} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\event\cdot\trace}$
   \item\label{asm:backtranscorr:indu:spectrace} $\trg{\msevent\cdot\mstrace}=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\msevent\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{e}$
+  \item $\mmlAmmlAtback{\msevent\cdot\mstrace}=\Game',\src{e}$
   \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -4362,7 +4357,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \item $\delta\subseteq\delta'$
   \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \event\cdot\trace\cdot Call\ ?n_1}$
+  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\event}$
   \end{goals}
 
   The induction hypothesis is:
@@ -4370,7 +4365,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \begin{assumptions}
   \item $\exect{\Omega_{\IH}}{e_{\IH}}{\Omega'_{\IH}}{\valueexpr_{\IH}}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback[\Game_{\IH}]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game_{\IH}',\src{e_{\IH}}$
+  \item $\mmlAmmlAtback[\Game_{\IH}]{\mstrace}=\Game_{\IH}',\src{e_{\IH}}$
   \item $\xlangbackstateeq[\delta_{\IH}]{\Omega_{\IH}}{\Omega_{\IH}}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
@@ -4378,21 +4373,21 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
   \item $\delta_{\IH}\subseteq\delta'$
   \item $\exec{\src{\Omega_{\IH}}}{\src{e_{\IH}}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'_{\IH}}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \trace\cdot Call\ ?n_1}$
+  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
 
   We proceed by case-analysis on $\trg{\msevent}$.
   \begin{description}
-    \item \textbf{Case $\trg{\msevent}=\specificev{Alloc\ \loc\ n}$:}
+    \item \textbf{Case $\trg{\msevent}=\specificevt{Alloc\ \loc\ n}$:}
       Note that:
       \begin{passumptions}{H}
-    \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\specificev{Alloc\ \loc\ n}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e_a}$
+    \item $\mmlAmmlAtback[\Game,()]{\specificev{Alloc\ \loc\ n}\cdot\mstrace}=\Game',\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e_a}$
     \item $\Game_x=\Game[\trg{\loc}]$
-    \item $\src{x}=\Game_x(\trg{\loc})$
-    \item $\mmlAmmlAtback[\Game_x]{\mstrace}=\Game',\src{e_a}$
+    \item $\Game_x(\trg{\loc})=\src{x}$
+    \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_{x},()]{\mstrace}=\Game',\src{e_a}$
       \end{passumptions}
 
-      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificev{Alloc\ \loc\ n}=\trg{Alloc\ \loc\ n}$, subsequently inverting \Cref{asm:backtranscorr:indu:step} yields:
+      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificevt{Alloc\ \loc\ n}=\trg{Alloc\ \loc\ n}$, subsequently inverting \Cref{asm:backtranscorr:indu:step}\todo{not inversion,technical lemma} yields:
       \begin{passumptions}{H}
       \setcounter{enumi}{4}
     \item $\trg{\Omega}=\trg{H;\Delta}$
@@ -4408,11 +4403,10 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
       \item\label[ass]{asm:backtranscorr:indu:staterel} $\xlangbackstateeq[\delta_x]{H';z\mapsto\loc_{\poisonless},\Delta}{H';z\mapsto\loc_{\poisonless},\Delta}$
       \end{passumptions}
       thereby introducing some fresh $\src{z}$ and $\src{\loc}$.
-      Furthermore, the following assumptions are easily derivable from the existing ones:
+      Furthermore, the following assumption is easily derivable from the existing ones:
       \begin{passumptions}{H}
         \setcounter{enumi}{9}
       \item\label[ass]{asm:backtranscorr:indu:trace} $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-      \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_x]{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{e'}$
       \end{passumptions}
 
       We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{H';z,\mapsto\loc_{\poisonless},\Delta}$, $\trg{\Omega_{\IH}'}=\trg{\Omega''}$, $\trg{e_{\IH}}=\trg{e'[z/x]}$, $\trg{\valueexpr_{\IH}}=\trg{\valueexpr}$, $\src{\Omega_{\IH}}=\src{H';z\mapsto\loc_{\poisonless},\Delta}$, $\src{e_{\IH}}=\src{e_a}$, $\delta_{\IH}=\delta_x$, $\Game_{\IH}=\Game_x$, and $\Game_{\IH}'=\Game'$.
@@ -4421,11 +4415,6 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
       \item\label[ass]{asm:backtranscorr:indu:deltasubset} $\delta_x\subseteq\delta'$
       \item\label[ass]{asm:backtranscorr:indu:afterallocstep} $\exec{\src{H';z\mapsto\loc_{\poisonless},\Delta}}{\src{e'[z/x]}}{\src{\configs''}}{\src{\valueexpr}}{\src{\trace}}$
       \item\label[ass]{asm:backtranscorr:indu:finalstaterel} $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$
-      \item\label[ass]{asm:backtranscorr:indu:tracerel0} $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot \trace\cdot Call\ ?n_1}$
-      \end{passumptions}
-      Note that we can weaken \Cref{asm:backtranscorr:indu:tracerel0} to:\MK{technical lemma}
-      \begin{passumptions}{F}
-        \setcounter{enumi}{3}
       \item\label[ass]{asm:backtranscorr:indu:tracerel1} $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
       \end{passumptions}
 
@@ -4433,9 +4422,9 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
       $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
       \begin{goals}
       \item $\delta\subseteq\delta'$
-      \item $\exec{\configs}{\src{let\ x=new\ n\ in\ e'}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
       \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega'}$
-      \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot {Alloc\ \loc\ n}\cdot\trace\cdot Call\ ?n_1}$
+      \item $\src{\trace}\thexlangtraceeq[\delta']\trg{Alloc\ \loc\ n\cdot\trace}$
       \end{goals}
 
       Instantiate it with $\delta'=\delta'$, $\src{\Omega'} = \src{\Omega''}$, $\src{\trace}=\src{Alloc\ \loc\ n\cdot\trace}$, and $\src{v}=\src{v}$.
@@ -4443,15 +4432,15 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
       \item $\delta\subseteq\delta'$
         
         Follows by definition of $\delta_x$ and \Cref{asm:backtranscorr:indu:deltasubset}.
-      \item $\exec{\configs}{\src{let\ x=new\ n\ in\ e'}}{\src{\configs''}}{\src{\valueexpr}}{\src{Alloc\ \loc\ n\cdot\trace}}$
+      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs''}}{\src{\valueexpr}}{\src{Alloc\ \loc\ n\cdot\trace}}$
 
         Apply \Cref{tr:ws-e-trans-important}, use \Cref{tr:w-e-let-new} and then we are done using \Cref{asm:backtranscorr:indu:afterallocstep} .
       \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$
 
         By \Cref{asm:backtranscorr:indu:finalstaterel}.
-      \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot Alloc\ \loc\ n\cdot\trace\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot {Alloc\ \loc\ n}\cdot\trace\cdot Call\ ?n_1}$
+      \item $\src{Alloc\ \loc\ }\mmlAmmlAtbackv{n}\thexlangtraceeq[\delta']\trg{Alloc\ \loc\ n\cdot\trace}$
         
-      Easy using \Cref{tr:empty-trace-eq}, \Cref{tr:cons-trace-eq}, \Cref{tr:alloc-event-eq}, \Cref{tr:call-event-eq}, \Cref{tr:ret-event-eq}, and \Thmref{lem:compvals:insertion}.
+      Easy using \Cref{tr:empty-trace-eq}, \Cref{tr:cons-trace-eq}, \Cref{tr:alloc-event-eq}, and \Thmref{lem:compvals:insertion}.
       \end{goals}
 
     \item \textbf{Case $\trg{\msevent}=\specificev{Dealloc\ \loc}$:}

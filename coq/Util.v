@@ -1,6 +1,14 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano List Coq.Logic.Decidable.
 
+#[global]
+Ltac deex :=
+  repeat match goal with
+         | [ H: exists (name:_), _ |- _ ] =>
+           let name' := fresh name in
+           destruct H as [name' H]
+         end.
+
 Definition ascii_of_nat (n : nat) : ascii :=
   match n with
   | 0 => "0"

@@ -1223,36 +1223,22 @@ Definition tl_backtranslation (As : tracepref) :=
   let G0 := LVnil in
   match tl_tracesplit As with
   | Some(Fval(Vnat 0), As0, f0, _Ap, fp, As1, f1) =>
-    match backtranslate_ret fresh0 G0 (MSret (Fval(Vnat 0))) None with
-    | Some(fresh00, G00, e00) =>
-      match backtrans fresh00 G00 As0 None with
-      | Some(fresh01, G01, e01) =>
-        match backtranslate_call fresh01 G01 (MScall f0) (Some("x"%string, Tnat, Tnat)) with
-        | Some(fresh02, G02, Some ℓ, e02) =>
-          match backtranslate_ret fresh02 G02 (MSret fp) (Some(ℓ, e02)) with
-          | Some(fresh03, G03, e03) =>
-            let e0 := Xlet ("_"%string) e00
-                           (Xlet ("_"%string)
-                                 e01
-                                 e03
-                           ) in
-            match backtrans fresh03 G03 As1 None with
-            | Some(fresh10, G10, e10) =>
-              match backtranslate_call fresh10 G10 (MScall f1) None with
-              | Some(fresh11, G11, None, e11) =>
-                let e1 := Xlet ("_"%string) e10 e11 in
-                Some(fresh11, G11, Ccontext e0 e1)
-              | _ => None
-              end
-            | None => None
-            end
-          | None => None
-          end
-        | _ => None
-        end
-      | None => None
-      end
-    | None => None
+    let* (fresh00, G00, e00) := backtranslate_ret fresh0 G0 (MSret (Fval(Vnat 0))) None in
+    let* (fresh01, G01, e01) := backtrans fresh00 G00 As0 None in
+    let* (fresh02, G02, oℓ, e02) := backtranslate_call fresh01 G01 (MScall f0) (Some("x"%string, Tnat, Tnat)) in
+    let* ℓ := oℓ in
+    let* (fresh03, G03, e03) := backtranslate_ret fresh02 G02 (MSret fp) (Some(ℓ, e02)) in
+    let e0 := Xlet ("_"%string) e00
+                    (Xlet ("_"%string)
+                          e01
+                          e03
+                    ) in
+    let* (fresh10, G10, e10) := backtrans fresh03 G03 As1 None in
+    match backtranslate_call fresh10 G10 (MScall f1) None with
+    | Some(fresh11, G11, None, e11) =>
+      let e1 := Xlet ("_"%string) e10 e11 in
+      Some(fresh11, G11, Ccontext e0 e1)
+    | _ => None
     end
   | _ => None
   end

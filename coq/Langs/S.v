@@ -337,98 +337,86 @@ Hint Constructors pstep : core.
 (** functional version of the above *)
 Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
   let '(oΩ, e) := r in
-  match oΩ with
-  | None => None
-  | Some Ω =>
-    match e with
-    | Xreturning F => (* e-returning *)
-      match F with
-      | Xres(Fres f) =>
-        Some(Sret f, Ω ▷ F)
-      | _ => None
-      end
-    | Xcalling F => (* e-calling *)
-      match F with
-      | Xres(Fres f) =>
-        Some(Scall f, Ω ▷ F)
-      | _ => None
-      end
-    | Xbinop b n1 n2 => (* e-binop *)
-      match n1, n2 with
-      | Xres(Fres(Fval(Vnat m1))), Xres(Fres(Fval(Vnat m2))) =>
-        let n3 := eval_binop b m1 m2 in
-        Some(Sε, Ω ▷ n3)
-      | _, _ => None
-      end
-    | Xifz 0 e1 e2 => (* e-ifz-true *)
-      Some(Sε, Ω ▷ e1)
-    | Xifz (S _) e1 e2 => (* e-ifz-false *)
-      Some(Sε, Ω ▷ e2)
-    | Xabort => (* e-abort *)
-      Some(Scrash, ↯ ▷ stuck)
-    | Xget x en => (* e-get *)
-      match en with
-      | Xres(Fres(Fval(Vnat n))) =>
-        let '(F, H, Δ) := Ω in
-        match splitat Δ x with
-        | None => None
-        | Some(Δ1, x, (L, ρ), Δ2) =>
-          let '(addr ℓ) := L in
-          let v := match mget H (ℓ + n) with
-                  | None => 1729
-                  | Some w => w
-                  end
-          in
-            Some(Sget (addr ℓ) n, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
-        end
-      | _ => None
-      end
-    | Xset x en ev => (* e-set *)
-      match en, ev with
-      | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
-        let '(F, H, Δ) := Ω in
-        match splitat Δ x with
-        | None => None
-        | Some(Δ1, x, (L, ρ), Δ2) =>
-          let '(addr ℓ) := L in
-          match mset H (ℓ + n) v with
-          | Some H' =>
-            Some(Sset (addr ℓ) n v, F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
-          | None =>
-            Some(Sset (addr ℓ) n v, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
-          end
-        end
-      | _, _ => None
-      end
-    | Xdel x => (* e-delete *)
-      let '(F, H, Δ) := Ω in
-      match splitat Δ x with
-      | None => None
-      | Some(Δ1, x, (L, ρ), Δ2) =>
-        let '(addr ℓ) := L in
-        Some(Sdealloc (addr ℓ), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
-      end
-    | Xlet x ef e' => (* e-let *)
-      match ef with
-      | Xres(Fres f) =>
-        let e'' := subst x e' f in
-        Some(Sε, Ω ▷ e'')
-      | _ => None
-      end
-    | Xnew x ef e' => (* e-new *)
-      match ef with
-      | Xres(Fres(Fval(Vnat n))) =>
-        let '(F, H, Δ) := Ω in
-        let H' := Hgrow H n in
-        let ℓ := CSC.Fresh.fresh F in
-        let F' := Fresh.advance F in
-        let z := CSC.Fresh.freshv F' in
-        let e'' := subst x e' (Fvar z) in
-        Some(Salloc (addr ℓ) n, Fresh.advance F' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
-      | _ => None
-      end
-    | _ => None (* no matching rule *)
+  let* Ω := oΩ in
+  match e with
+  | Xreturning F => (* e-returning *)
+    match F with
+    | Xres(Fres f) =>
+      Some(Sret f, Ω ▷ F)
+    | _ => None
     end
+  | Xcalling F => (* e-calling *)
+    match F with
+    | Xres(Fres f) =>
+      Some(Scall f, Ω ▷ F)
+    | _ => None
+    end
+  | Xbinop b n1 n2 => (* e-binop *)
+    match n1, n2 with
+    | Xres(Fres(Fval(Vnat m1))), Xres(Fres(Fval(Vnat m2))) =>
+      let n3 := eval_binop b m1 m2 in
+      Some(Sε, Ω ▷ n3)
+    | _, _ => None
+    end
+  | Xifz 0 e1 e2 => (* e-ifz-true *)
+    Some(Sε, Ω ▷ e1)
+  | Xifz (S _) e1 e2 => (* e-ifz-false *)
+    Some(Sε, Ω ▷ e2)
+  | Xabort => (* e-abort *)
+    Some(Scrash, ↯ ▷ stuck)
+  | Xget x en => (* e-get *)
+    match en with
+    | Xres(Fres(Fval(Vnat n))) =>
+      let '(F, H, Δ) := Ω in
+      let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
+      let '(addr ℓ) := L in
+      let v := match mget H (ℓ + n) with
+              | None => 1729
+              | Some w => w
+              end
+      in
+        Some(Sget (addr ℓ) n, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+    | _ => None
+    end
+  | Xset x en ev => (* e-set *)
+    match en, ev with
+    | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
+      let '(F, H, Δ) := Ω in
+      let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
+      let '(addr ℓ) := L in
+      match mset H (ℓ + n) v with
+      | Some H' =>
+        Some(Sset (addr ℓ) n v, F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+      | None =>
+        Some(Sset (addr ℓ) n v, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+      end
+    | _, _ => None
+    end
+  | Xdel x => (* e-delete *)
+    let '(F, H, Δ) := Ω in
+    let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
+    let '(addr ℓ) := L in
+    Some(Sdealloc (addr ℓ), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
+  | Xlet x ef e' => (* e-let *)
+    match ef with
+    | Xres(Fres f) =>
+      let e'' := subst x e' f in
+      Some(Sε, Ω ▷ e'')
+    | _ => None
+    end
+  | Xnew x ef e' => (* e-new *)
+    match ef with
+    | Xres(Fres(Fval(Vnat n))) =>
+      let '(F, H, Δ) := Ω in
+      let H' := Hgrow H n in
+      let ℓ := CSC.Fresh.fresh F in
+      let F' := Fresh.advance F in
+      let z := CSC.Fresh.freshv F' in
+      let e'' := subst x e' (Fvar z) in
+      Some(Salloc (addr ℓ) n, Fresh.advance F' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
+    | _ => None
+    end
+  | _ => None (* no matching rule *)
   end
 .
 (** We show that the functional style semantics an dthe relational style are equivalent. *)
@@ -558,84 +546,64 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     | Xres(Fres(Fval(Vnat n1))), Xres(Fres(Fval(Vnat n2))) =>
       Some(Khole, Xbinop b n1 n2)
     | Xres(Fres(Fval(Vnat n1))), en2 =>
-      match evalctx_of_expr en2 with
-      | Some(K, e2') => Some(KbinopR b n1 K, e2')
-      | None => None
-      end
+      let* (K, e2') := evalctx_of_expr en2 in
+      Some(KbinopR b n1 K, e2')
     | _, _ =>
-      match evalctx_of_expr e1 with
-      | Some(K, e1') => Some(KbinopL b K e2, e1')
-      | None => None
-      end
+      let* (K, e1') := evalctx_of_expr e1 in
+      Some(KbinopL b K e2, e1')
     end
   | Xget x en =>
     match en with
     | Xres(Fres(Fval(Vnat n))) =>
       Some(Khole, Xget x n)
-    | _ => match evalctx_of_expr en with
-          | Some(K, en') => Some(Kget x K, en')
-          | None => None
-          end
+    | _ => let* (K, en') := evalctx_of_expr en in
+          Some(Kget x K, en')
     end
   | Xset x en ev =>
     match en, ev with
     | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
       Some (Khole, Xset x n v)
     | Xres(Fres(Fval(Vnat n))), ev =>
-      match evalctx_of_expr ev with
-      | Some(K, ev') => Some(KsetR x n K, ev')
-      | None => None
-      end
+      let* (K, ev') := evalctx_of_expr ev in
+      Some(KsetR x n K, ev')
     | en, ev =>
-      match evalctx_of_expr en with
-      | Some(K, en') => Some(KsetL x K ev, en')
-      | None => None
-      end
+      let* (K, en') := evalctx_of_expr en in
+      Some(KsetL x K ev, en')
     end
   | Xlet x e1 e2 =>
     match e1 with
     | Xres(Fres(Fval(Vnat n))) =>
       Some(Khole, Xlet x n e2)
-    | _ => match evalctx_of_expr e1 with
-          | Some(K, e1') => Some(Klet x K e2, e1')
-          | None => None
-          end
+    | _ => let* (K, e1') := evalctx_of_expr e1 in
+          Some(Klet x K e2, e1')
     end
   | Xnew x e1 e2 =>
     match e1 with
     | Xres(Fres(Fval(Vnat n))) =>
       Some(Khole, Xnew x n e2)
-    | _ => match evalctx_of_expr e1 with
-          | Some(K, e1') => Some(Knew x K e2, e1')
-          | None => None
-          end
+    | _ => let* (K, e1') := evalctx_of_expr e1 in
+          Some(Knew x K e2, e1')
     end
   | Xreturning e =>
     match e with
     | Xres(Fres(Fval(Vnat n))) =>
       Some(Khole, Xreturning n)
-    | _ => match evalctx_of_expr e with
-          | Some(K, e') => Some(Kreturning K, e')
-          | None => None
-          end
+    | _ => let* (K, e') := evalctx_of_expr e in
+          Some(Kreturning K, e')
     end
   | Xcalling e =>
     match e with
     | Xres(Fres(Fval(Vnat n))) =>
       Some(Khole, Xcalling n)
-    | _ => match evalctx_of_expr e with
-          | Some(K, e') => Some(Kcalling K, e')
-          | None => None
-          end
+    | _ => let* (K, e') := evalctx_of_expr e in
+          Some(Kcalling K, e')
     end
   | Xifz c e0 e1 =>
     match c with
     | Xres(Fres(Fval(Vnat v))) =>
       Some(Khole, Xifz v e0 e1)
-    | _ => match evalctx_of_expr c with
-          | Some(K, c') => Some(Kifz K e0 e1, c')
-          | None => None
-          end
+    | _ => let* (K, c') := evalctx_of_expr c in
+          Some(Kifz K e0 e1, c')
     end
   end
 .
@@ -693,20 +661,35 @@ Existing Instance estep.
 #[local]
 Hint Constructors estep : core.
 
+Local Set Warnings "-cast-in-pattern".
+Ltac crush_estep := (match goal with
+                     | [H: _ ▷ (Xres ?f) ==[ ?a ]==> ?r |- _] =>
+                       inv H
+                     end);
+  (do 2 match goal with
+        | [H: Xres ?f = insert ?K ?e |- _] =>
+          induction K; cbn in H; try congruence; inv H
+        | [H: _ ▷ (Xres ?f) --[ ?a ]--> ?r |- _] =>
+          inv H
+        end)
+.
+Ltac unfold_estep := (match goal with
+                      | [H: _ ▷ _ ==[ _ ]==> _ ▷ _ |- _ ] => inv H
+                      end);
+  (match goal with
+   | [H: _ = insert ?K _ |- _] =>
+     induction K; cbn in H; try congruence; inv H
+   end).
+
 Definition estepf (r : rtexpr) : option (event * rtexpr) :=
   let '(oΩ, e) := r in
-  match oΩ, evalctx_of_expr e with
-  | Some Ω, Some(K, e0) =>
-    match pstep_compatible e0 with
-    | Some _ =>
-      match pstepf (Ω ▷ e0) with
-      | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
-      | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
-      | None => None
-      end
-    | None => None
-    end
-  | _, _ => None
+  let* Ω := oΩ in
+  let* (K, e0) := evalctx_of_expr e in
+  let* _ := pstep_compatible e0 in
+  let* (a, (oΩ, e0')) := pstepf (Ω ▷ e0) in
+  match oΩ with
+  | None => Some(Scrash, ↯ ▷ stuck)
+  | Some Ω' => Some(a, Ω' ▷ insert K e0')
   end
 .
 
@@ -773,26 +756,19 @@ Hint Constructors star_step : core.
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
 Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
   let fix doo (fuel : nat) (r : rtexpr) :=
-    match r with
-    | (Some Ω, e) =>
-      match fuel, e with
-      | 0, Xres _ => (* refl *)
-        Some(Tnil, r)
-      | S fuel', _ => (* trans *)
-        match estepf r with
-        | Some(a, r') =>
-          match doo fuel' r' with
-          | Some(As, r'') => match a with
-                            | Sε => Some(As, r'')
-                            | _ => Some(Tcons a As, r'')
-                            end
-          | None => None
-          end
-        | None => None
-        end
-      | _, _ => None
+    let (oΩ, e) := r in
+    let* Ω := oΩ in
+    match fuel, e with
+    | 0, Xres _ => (* refl *)
+      Some(Tnil, r)
+    | S fuel', _ => (* trans *)
+      let* (a, r') := estepf r in
+      let* (As, r'') := doo fuel' r' in
+      match a with
+      | Sε => Some(As, r'')
+      | _ => Some(Tcons a As, r'')
       end
-    | _ => None
+    | _, _ => None
     end
   in doo fuel r
 .
@@ -801,24 +777,78 @@ Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
 Fixpoint get_fuel (e : expr) : option nat :=
   match e with
   | Xres _ => Some(0)
-  | Xbinop symb lhs rhs => match get_fuel lhs, get_fuel rhs with Some(glhs), Some(grhs) => Some(1 + glhs + grhs) | _, _ => None end
-  | Xget x e => match get_fuel e with Some(ge) => Some(1 + ge) | None => None end
-  | Xset x e0 e1 => match get_fuel e0, get_fuel e1 with Some(ge0), Some(ge1) => Some(1 + ge0 + ge1) | _, _ => None end
-  | Xlet x e0 e1 => match get_fuel e0, get_fuel e1 with Some(ge0), Some(ge1) => Some(1 + ge0 + ge1) | _, _ => None end
-  | Xnew x e0 e1 => match get_fuel e0, get_fuel e1 with Some(ge0), Some(ge1) => Some(1 + ge0 + ge1) | _, _ => None end
+  | Xbinop symb lhs rhs =>
+    let* glhs := get_fuel lhs in
+    let* grhs := get_fuel rhs in
+    Some(1 + glhs + grhs)
+  | Xget x e =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
+  | Xset x e0 e1 =>
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + ge0 + ge1)
+  | Xlet x e0 e1 =>
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + ge0 + ge1)
+  | Xnew x e0 e1 =>
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + ge0 + ge1)
   | Xdel x => Some(1)
-  | Xreturning e => match get_fuel e with Some(ge) => Some(1 + ge) | None => None end
-  | Xcalling e => match get_fuel e with Some(ge) => Some(1 + ge) | None => None end
-  | Xifz c e0 e1 => match get_fuel c, get_fuel e0, get_fuel e1 with Some(gc), Some(ge0), Some(ge1) => Some(1 + gc + ge0 + ge1) | _, _, _ => None end
+  | Xreturning e =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
+  | Xcalling e =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
+  | Xifz c e0 e1 =>
+    let* gc := get_fuel c in
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + gc + ge0 + ge1)
   | Xabort => Some(1)
   | Xhole _ _ _ => None
   end
 .
+Ltac crush_option :=
+    match goal with
+    | [H: Some _ = None |- _] => inv H
+    | [H: _ <> None |- _] =>
+      let n := fresh "n" in
+      apply (not_eq_None_Some) in H as [n H]
+    | [H: _ = None |- _] => trivial
+    end.
+Ltac crush_fuel := (match goal with
+| [H: Some _ = Some _ |- _] => inv H
+| [H: Some ?fuel = match (get_fuel ?e1) with Some _ => _ | None => None end |- _] =>
+  let Hx := fresh "Hx" in
+  let Hy := fresh "Hy" in
+  let n := fresh "n" in
+  destruct (option_dec (get_fuel e1)) as [Hx|Hy];
+  crush_option; try rewrite Hx in *; try rewrite Hy in *
+end).
+
 Lemma atleast_once Ω e r a fuel :
   Some fuel = get_fuel e ->
   Ω ▷ e ==[ a ]==> r ->
   exists fuel', fuel = S fuel'.
-Proof. Admitted.
+Proof.
+  revert fuel; induction e; cbn; intros fuel H; intros Ha.
+  - crush_fuel; crush_estep.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - crush_fuel; try crush_option; exists n0; now inv H.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - crush_fuel; now exists 0.
+  - crush_fuel; try crush_option; exists n0; now inv H.
+  - crush_fuel; try crush_option; exists n0; now inv H.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
+  - exists 0; now inv H.
+  - crush_option.
+Qed.
 Lemma star_stepf_one_step Ω e r r' a As fuel :
   Some (S fuel) = get_fuel e ->
   estep (Ω ▷ e) a r ->
@@ -924,24 +954,18 @@ Existing Instance wstep.
 Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
   let '(Cprog e0 ep e1) := p in
   let e0' := fill FP_Q ep e0 in
-  match get_fuel e0' with
-  | Some ge0' =>
-    match star_stepf ge0' ((Fresh.empty_fresh; hNil; sNil) ▷ e0') with
-    | Some(As0, (Some Ω0', fp')) =>
-      let e1' := subst ("y"%string) e1 fp' in
-      match get_fuel e1' with
-      | Some ge1' =>
-        match star_stepf ge1' (Ω0' ▷ e1') with
-        | Some(As1, (Some Ω1, Xres(Fres(f1)))) => Some(Sret 0 · As0 · As1 · Scall f1, Ω1 ▷ f1)
-        | Some(As1, (None, Xres(Fabrt))) => Some(Sret 0 · As0 · As1, ↯ ▷ stuck)
-        | _ => None
-        end
-      | None => None
-      end
-    | Some(As0, (None, Xres(Fabrt))) => Some(Sret 0 · As0, ↯ ▷ stuck)
+  let* ge0' := get_fuel e0' in
+  match star_stepf ge0' ((Fresh.empty_fresh; hNil; sNil) ▷ e0') with
+  | Some(As0, (None, Xres(Fabrt))) => Some(Sret 0 · As0, ↯ ▷ stuck)
+  | Some(As0, (Some Ω0', fp')) =>
+    let e1' := subst ("y"%string) e1 fp' in
+    let* ge1' := get_fuel e1' in
+    match star_stepf ge1' (Ω0' ▷ e1') with
+    | Some(As1, (Some Ω1, Xres(Fres(f1)))) => Some(Sret 0 · As0 · As1 · Scall f1, Ω1 ▷ f1)
+    | Some(As1, (None, Xres(Fabrt))) => Some(Sret 0 · As0 · As1, ↯ ▷ stuck)
     | _ => None
     end
-  | None => None
+  | _ => None
   end
 .
 
@@ -984,10 +1008,8 @@ Definition rest :=
 
 Compute (wstepf smsunsafe_prog).
 Definition debug_eval (p : prog) :=
-  match wstepf p with
-  | Some(As, _) => Some(string_of_tracepref As)
-  | _ => None
-  end
+  let* (As, _) := wstepf p in
+  Some(string_of_tracepref As)
 .
 Compute (debug_eval smsunsafe_prog).
 
@@ -1079,10 +1101,9 @@ Definition backtransv (e : fnoerr) := e.
 Fixpoint backtrans (f : @CSC.Fresh.fresh_state) (G : locvarmap)
                    (As : tracepref) (B : option (vart * ty * ty))
   : option(@CSC.Fresh.fresh_state * locvarmap * expr) :=
-  let R As' f' G' f := match backtrans f' G' As' B with
-                       | Some(f'', G'', e) => Some(f'', G'', f e)
-                       | None => None
-                       end
+  let R As' f' G' f :=
+    let* (f'', G'', e) := backtrans f' G' As' B in
+    Some(f'', G'', f e)
   in
   match As with
   | Tnil =>
@@ -1127,10 +1148,8 @@ Definition backtranslate_call (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
       Some(fresh, G, None, (backtransv f) : expr)
     | Some(x,_,_) => (* backtrans-call-hole *)
       let ℓ := CSC.Fresh.fresh fresh in
-      match backtrans (advance fresh) G (Tcons (MSalloc (addr 0) 42) Tnil) B with
-      | Some(fresh', G', e) => Some(fresh', G', Some(addr 0), Xlet x (backtransv f) e)
-      | None => None
-      end
+      let* (fresh', G', e) := backtrans (advance fresh) G (Tcons (MSalloc (addr 0) 42) Tnil) B in
+      Some(fresh', G', Some(addr 0), Xlet x (backtransv f) e)
     end
   | _ => None
   end
@@ -1145,13 +1164,10 @@ Definition backtranslate_ret (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
     | None => (* backtrans-ret-nowrap *)
       Some(fresh, G, (backtransv f) : expr)
     | Some(ℓ, e) => (* backtrans-ret-wrap *)
-      match lookup_lv ℓ G with
-      | Some z =>
-        let y := CSC.Fresh.freshv fresh in
-        let e' := fill (FP_N y) (Xdel z) e in
-        Some((advance fresh), G, Xlet ("_"%string) e' (backtransv f))
-      | None => None
-      end
+      let* z := lookup_lv ℓ G in
+      let y := CSC.Fresh.freshv fresh in
+      let e' := fill (FP_N y) (Xdel z) e in
+      Some((advance fresh), G, Xlet ("_"%string) e' (backtransv f))
     end
   | _ => None
   end

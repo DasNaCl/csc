@@ -118,6 +118,9 @@ Qed.
 Lemma not_eq_None_Some {A : Type} (mx : option A) : mx <> None <-> is_Some mx.
 Proof. rewrite is_Some_alt; destruct mx; try easy; congruence. Qed.
 
+Lemma option_dec {A : Type} (mx : option A) : { mx <> None } + { mx = None }.
+Proof. destruct mx; now (left + right). Qed.
+
 End Bool.
 
 Class Monad (m : Type -> Type) : Type := {

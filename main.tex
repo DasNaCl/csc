@@ -4154,11 +4154,112 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \mmlAmmlAtbackdetail[\Game,\trg{\loc},\src{e}]{\specificev{Ret\ !\finalexprnoerr}} = \Game', \src{e';}\mmlAmmlAtbackv{\finalexprnoerr}
     }{backtrans-ret-wrap}
   \end{center}
+}{old-tms-pres-backtrans}{{\bfseries OLD} Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAmmlAtbackdetail[\Game,B]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.\\$B$ may be $()$ or $\src{x:\type_1\to\type_2}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackdetail[\Game,B]{\specificev{Call\ ?\finalexprnoerr}} = \Game',\partial\ell,\src{e}}{,,Given a \varmapbacktransds $\Game$ and $B$ either $()$ or $\src{x:\type_1\to\type_2}$,\\construct a \varmapbacktransds $\Game'$, $\partial\ell$ as either $()$ or a location\\$\trg{\ell}$, and an $\mmlAs$ expression from memory-specific $\mmlAt$\\event $\trg{\specificev{Call\ !\finalexprnoerr}}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackdetail[\Game,\partial\ell,\src{C}]{\specificev{Ret\ !\finalexprnoerr}} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, $\partial\ell$ as either $()$ or $\trg{\ell}$, and $\src{C}$ as either\\$()$ or $\src{e}$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$ expression from\\memory-specific $\mmlAt$ event $\trg{\specificev{Ret\ !\finalexprnoerr}}$.''}$\;$\\
+    %
+    \typerule{backtrans-alloc}{
+      \Game'=\Game[\trg{\loc}] &
+      \Game'\left(\trg{\loc}\right) = \src{z} &
+      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
+    }{
+      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ z = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
+    }{backtrans-alloc}
+    %
+    \typerule{backtrans-dealloc}{
+      \Game'=\Game[\trg{\loc}] &
+      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
+    }{
+      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Dealloc\ \loc}\cdot\mstrace} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
+    }{backtrans-dealloc}
+    %
+    \typerule{backtrans-use}{
+      \Game'=\Game[\trg{\loc}] &
+      \src{z}=\Game'(\trg{\loc}) &
+      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
+    }{
+      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{z[}\mmlAmmlAtbackv{n}\src{];e}
+    }{backtrans-use}
+    \begin{flushleft}
+    \noindent{\tiny without wrapper}\hfill%
+    \vspace{-0.2cm}
+    \end{flushleft}
+    \hrule
+    %
+%   \typerule{backtrans-empty-unit}{
+%   }{
+%     \mmlAmmlAtbackdetail[\Game,()]{\hole{\cdot}} = \Game, \src{42}
+%   }{backtrans-empty-unit}
+    %
+    %
+    \typerule{backtrans-call-nohole}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,()]{\specificev{Call\ ?\finalexprnoerr}} = \Game, (), \mmlAmmlAtbackv{\finalexprnoerr}
+    }{backtrans-call-nohole}
+    %
+    \typerule{backtrans-ret-nowrap}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,(),()]{\specificev{Ret\ !\finalexprnoerr}} = \Game, \mmlAmmlAtbackv{\finalexprnoerr}
+    }{backtrans-ret-nowrap}
+    %
+    \begin{flushleft}
+    \noindent{\tiny wrapper}\hfill%
+    \vspace{-0.2cm}
+    \end{flushleft}
+    \hrule
+    \typerule{backtrans-empty-hole}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,\src{x:\type_1\to\type_2}]{\hole{\cdot}} = \Game, \src{hole : (x:\type_1)\to\type_2}
+    }{backtrans-empty-hole}
+    %
+    \typerule{backtrans-call-hole}{
+      \fresh{\Game}{\trg{\loc}} &
+      \Game'=\Game[\trg{\loc}] &
+      \mmlAmmlAtbackdetail[\Game',\src{x:\type_0\to\type_p}]{\specificev{Alloc\ \loc\ 42}} = \Game'', \src{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\src{x:\type_0\to\type_p}]{\specificev{Call\ ?\finalexprnoerr}} = \Game'', \trg{\loc}, \src{let\ x = }\mmlAmmlAtbackv{\finalexprnoerr}\src{\ in\ e}
+    }{backtrans-call-hole}
+    %
+    \typerule{backtrans-ret-wrap}{
+      \src{z} = \Game(\trg{\loc}) &
+      \src{e'} = \plugs[N]{delete\ z}{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc},\src{e}]{\specificev{Ret\ !\finalexprnoerr}} = \Game', \src{e';}\mmlAmmlAtbackv{\finalexprnoerr}
+    }{backtrans-ret-wrap}
+  \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtback[\Game]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtback[\Game,B,\partial\ell,C]{\mstrace} = \Game',\src{e_{wrap}},\src{e},\partial\ell'}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\two $\mmlAs$ expressions from memory-specific $\mmlAt$\\,,interfacing''-trace $\trg{\mstrace}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtback[\Game,\src{x:\type_{1}\to\type_{2}}]{\mstrace} = \Game',\src{context\ e_{0}\ e_{1}}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$\\and an $\mmlAs$ expression from memory-specific\\$\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
+    \typerule{backtrans-subtop-level}{\vspace{0.33cm}
+      \trg{\mstrace}=\trg{\specificev{Ret\ !\finalexprnoerr_0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\\vspace{0.33cm}
+      \mmlAmmlAtbackdetail[\Game,\partial\ell,C]{\specificev{Ret\ !\finalexprnoerr_{0}}} = \Game',\src{e_{wrapend}} &
+      \mmlAmmlAtbackdetail[\Game',()]{\mstrace[_0]} = \Game'', \src{e_0^{(1)}} \\
+      \mmlAmmlAtbackdetail[\Game'',B]{\specificev{Call\ ?\finalexprnoerr_1}} = \Game''',\partial\loc,\src{e_0^{(2)}} &
+      \src{e} = \src{e_0^{(1)};e_0^{(2)}}
+    }{
+      \mmlAmmlAtback[\Game,B,\partial\ell,C]{\mstrace} = \Game''', \partial\ell, \src{e_{wrapend}}, \src{e}
+    }{backtrans-subtop-level}
+    $\;$\vspace{1cm}$\;$
+    %
+    \typerule{backtrans-top-level}{\vspace{0.33cm}
+      \trg{\mstrace}=\trg{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\\vspace{0.33cm}
+      \mmlAmmlAtbackdetail[\Game,\src{x:\type_{1}\to\type_{2}},(),()]{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}} = \Game',\src{e_{wrapend}^{(0)}},\src{e_{0}'},\trg{\ell}\\\vspace{0.33cm}
+      \mmlAmmlAtbackdetail[\Game',(),\src{e_{0}'},\trg{\ell}]{\specificev{Ret\ !\finalexprnoerr_{p}}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}} = \Game'',\src{e_{wrapend}^{(1)}},\src{e_{1}},()\\
+      \src{e_{0}} = \src{e_{wrapend}^{(0)};e_{wrapend}^{(1)}} &
+    }{
+      \mmlAmmlAtback[\Game,\src{x:\type_{1}\to\type_{2}}]{\mstrace} = \Game'', \src{context\ e_{0}\ e_{1}}
+    }{backtrans-top-level}
+  \end{center}
+}{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
+\myfig{
+  \begin{center}
     \typerule{backtrans-top-level}{
+      \judgbox{\mmlAmmlAtback[\Game]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and an $\mmlAs$\\ expression from memory-specific $\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
       \trg{\mstrace}=\trg{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\
       \typecheck{\src{x:\wptr}}{\mmlAmmlAtbackv{\finalexprnoerr_0}}{\src{\type_0}}\\
       \mmlAmmlAtbackv{\finalexprnoerr_p}=\src{y}\implies\typecheck{\src{y:\wptr}}{\mmlAmmlAtbackv{\finalexprnoerr_p}}{\src{\type_p}}\\
@@ -4181,7 +4282,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \mmlAmmlAtback[\Game]{\mstrace\cdot\specificev{\lightning}} = \Game', \src{e;abort()}
     }{backtrans-top-level-crash}
   \end{center}
-}{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
+}{old-tms-pres-top-level-backtrans}{{\bfseries OLD} ,,Top-Level'' trace-based Backtranslation from $\mmlAt$ events to $\mmlAs$ terms.}
 We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
 Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
 It wraps around the program component and the allocated location introduced by it is intuitively tagged by $\trg{\diamond}$.

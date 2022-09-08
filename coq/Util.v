@@ -120,15 +120,14 @@ Proof. rewrite is_Some_alt; destruct mx; try easy; congruence. Qed.
 
 End Bool.
 
-(** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
-Inductive tracepref (Ev : Type) : Type :=
-| Tnil : tracepref Ev
-| Tcons (e : Ev) (As : tracepref Ev) : tracepref Ev
-.
-Fixpoint Tappend (Ev : Type) (As Bs : tracepref Ev) : tracepref Ev :=
-  match As with
-  | @Tnil _ => Bs
-  | @Tcons _ e Cs => @Tcons Ev e (@Tappend Ev Cs Bs)
-  end
-.
-Definition ev_to_tracepref {Ev : Type} (e : Ev) : tracepref Ev := @Tcons Ev e (@Tnil Ev).
+Class Monad (m : Type -> Type) : Type := {
+  ret : forall {t : Type}, t -> m t ;
+  bind : forall {t u : Type}, m t -> (t -> m u) -> m u
+}.
+
+#[global]
+Notation "x <- c1 ;; c2" := (@bind _ _ _ _ c1 (fun x => c2)) (at level 61, c1 at next level, right associativity).
+#[global]
+Notation "'$' pat '<-' c1 ';;' c2" := (@bind _ _ _ _ c1 (fun x => match x with pat => c2 end)) (at level 61, pat pattern, c1 at next level, right associativity).
+#[global]
+Notation "'let*' p ':=' c1 'in' c2" := (@bind _ _ _ _ c1 (fun p => c2)) (at level 61, p as pattern, c1 at next level, right associativity).

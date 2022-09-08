@@ -2,6 +2,43 @@ Set Implicit Arguments.
 Require Import Strings.String Lists.List Program.Equality.
 Require Import CSC.Sets CSC.Util.
 
+
+Class Expr (Expr : Type) := {}.
+Class TraceEvent (Ev : Type) := {}.
+Class PrimStep (A : Type) (Ev : Type) `{Expr A} `{TraceEvent Ev} := pstep__class : A -> Ev -> A -> Prop.
+#[global]
+Notation "e0 '--[' a ']-->' e1" := (pstep__class e0 a e1) (at level 82, e1 at next level).
+
+Variant event : Type := empty : event.
+#[local]
+Instance event__Instance : TraceEvent event := {}.
+
+Inductive expr :=
+| lit : nat -> expr
+| add : expr -> expr -> expr
+.
+#[local]
+Instance expr__Instance : Expr expr := {}.
+
+Inductive pstep : PrimStep :=
+| pstep_add : forall (n1 n2 : nat), (add (lit n1) (lit n2)) --[ empty ]--> (lit(n1 + n2))
+.
+Global Existing Instance pstep.
+
+Definition pstepf (e : expr) : option (event * expr) :=
+  match e with
+  | add (lit n1) (lit n2) => Some(empty, lit(n1 + n2))
+  | _ => None
+  end
+.
+
+Lemma equiv_pstep_pstepf (e0 : expr) (a : event) (e1 : expr) :
+  e0 --[ a ]--> e1 <-> pstepf e0 = Some(a, e1).
+Proof.
+  split.
+  - induction 1. (* Not an inductive product. *)
+
+
 Ltac inv H := (inversion H; subst; clear H).
 
 Unset Elimination Schemes.

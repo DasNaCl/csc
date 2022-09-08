@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef.
-Require Import CSC.Sets CSC.Util CSC.Fresh.
+Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Langs.Util.
 
 (** * Syntax *)
 
@@ -8,6 +8,9 @@ Require Import CSC.Sets CSC.Util CSC.Fresh.
 Definition vart := string.
 Definition vareq := fun x y => (x =? y)%string.
 Definition dontcare := "_"%string.
+
+#[local]
+Instance varteq__Instance : HasEquality vart := vareq.
 
 (** The only values we have in S are natural numbers. *)
 Inductive value : Type :=
@@ -70,6 +73,8 @@ Inductive expr : Type :=
 | Xhole (x : vart) (τ1 τ2 : ty) : expr
 .
 Coercion Xres : ferr >-> expr.
+#[local]
+Instance expr__Instance : ExprClass expr := {}.
 
 Fixpoint string_of_expr (e : expr) :=
   match e with
@@ -165,82 +170,17 @@ Definition dynloc : Type := loc * poison.
 Notation "ℓ '⋅' ρ" := (((ℓ : loc), (ρ : poison)) : dynloc) (at level 81).
 
 (** Stores map variables to potentially poisoned locations. *)
-Inductive store : Type :=
-| Snil : store
-| Scons (x : vart) (ℓ : dynloc) (Δ : store) : store
-.
-Fixpoint Δdom (Δ : store) : list vart :=
-  match Δ with
-  | Snil => nil
-  | Scons x ℓ Δ' => cons x (Δdom Δ')
-  end
-.
-Fixpoint Δimg (Δ : store) : list loc :=
-  match Δ with
-  | Snil => nil
-  | Scons x (ℓ,_) Δ' => cons ℓ (Δimg Δ')
-  end
-.
-(* '↦' is `\mapsto` and '◘' is `\inversebullet`*)
-Notation "x '↦' dl '◘' Δ" := (Scons x (dl : dynloc) Δ) (at level 81, dl at next level).
-Fixpoint append (Δ1 Δ2 : store) : store :=
-  match Δ1 with
-  | Snil => Δ2
-  | Scons x ℓ Δ1' => x ↦ ℓ ◘ (append Δ1' Δ2)
-  end
-.
-(* '◘' is `\inversebullet` *)
-Notation "Δ1 '◘' Δ2" := (append Δ1 Δ2) (at level 82, Δ2 at next level).
-(** Splitting a store in three parts. *)
-Definition splitat (Δ : store) (x : vart) : option (store * vart * dynloc * store) :=
-  let fix doo (accΔ : store) (Δ : store) :=
-    match Δ with
-    | Snil => None
-    | Scons y dℓ Δ' => if vareq x y then
-                        Some(accΔ, y, dℓ, Δ')
-                      else
-                        doo (y ↦ dℓ ◘ accΔ) Δ'
-    end
-  in doo Snil Δ
-.
-(** In this model, heaps are just a snoc-style list of natural numbers. *)
-Inductive heap : Type :=
-| Hnil : heap
-| Hcons (H : heap) (n : nat) : heap
-.
-Fixpoint Hsize (H : heap) : nat :=
-  match H with
-  | Hnil => 0
-  | Hcons H' _ => 1 + Hsize H'
-  end
-.
-Fixpoint Hget (H : heap) (i : nat) : option nat :=
-  match H with
-  | Hnil => None
-  | Hcons H' m =>
-      match i with
-      | 0 => Some m
-      | S j => Hget H' j
-      end
-  end
-.
-Fixpoint Hset (H : heap) (i v : nat) : option heap :=
-  match H with
-  | Hnil => None
-  | Hcons H' m =>
-      match i with
-      | 0 => Some(Hcons H' v)
-      | S j => match Hset H' j v with
-              | None => None
-              | Some H'' => Some(Hcons H'' m)
-              end
-      end
-  end
-.
+Definition store := mapind varteq__Instance dynloc.
+Definition sNil : store := mapNil varteq__Instance dynloc.
+
+#[local]
+Instance nateq__Instance : HasEquality nat := Nat.eqb.
+Definition heap := mapind nateq__Instance nat.
+Definition hNil : heap := mapNil nateq__Instance nat.
 Fixpoint Hgrow (H : heap) (s : nat) : heap :=
   match s with
   | 0 => H
-  | S s' => Hcons (Hgrow H s') 0
+  | S s' => mapCons s' 0 (Hgrow H s')
   end
 .
 Definition state : Type := CSC.Fresh.fresh_state * heap * store.
@@ -249,6 +189,8 @@ Notation "F ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (H : heap), (Δ : sto
 Inductive context : Type := Ccontext : expr -> expr -> context.
 Inductive component : Type := Ccomponent : expr -> component.
 Inductive prog : Type := Cprog : expr -> expr -> expr -> prog.
+#[global]
+Instance prog__Instance : ProgClass prog := Cprog.
 
 Definition string_of_prog (p : prog) :=
   let '(Cprog e0 ep e1) := p in
@@ -266,17 +208,10 @@ Variant event : Type :=
 | Scall (f : fnoerr) : event
 | Sret (f : fnoerr) : event
 .
-Definition tracepref := CSC.Util.tracepref event.
-Definition Tnil := CSC.Util.Tnil event.
-Definition Tcons (a : event) (t : tracepref) := @CSC.Util.Tcons event a t.
-
-(** The typecheck performed in the notations may seem redundant,
-    but it seems to be necessary to discharge the coercsions. *)
-(* '·' is `\cdotp` *)
-Notation "As '·' Bs" := (@CSC.Util.Tappend event (As : tracepref) (Bs : tracepref)) (at level 81).
-
-Definition event_to_tracepref (e : event) : tracepref := @CSC.Util.ev_to_tracepref event e.
-Coercion event_to_tracepref : event >-> tracepref.
+#[local]
+Instance event__Instance : TraceEvent event := {}.
+Definition ev_to_tracepref := @Langs.Util.ev_to_tracepref event event__Instance.
+Coercion ev_to_tracepref : event >-> tracepref.
 
 (** Pretty-printing function for better debuggability *)
 Definition string_of_event (e : event) :=
@@ -303,9 +238,9 @@ Definition string_of_event (e : event) :=
 .
 Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
   match t with
-  | @CSC.Util.Tnil _ => acc
-  | @CSC.Util.Tcons _ a (@CSC.Util.Tnil _) => String.append acc (string_of_event a)
-  | @CSC.Util.Tcons _ a As =>
+  | Tnil => acc
+  | Tcons a Tnil => String.append acc (string_of_event a)
+  | Tcons a As =>
       let acc' := String.append acc (String.append (string_of_event a) (" · "%string))
       in string_of_tracepref_aux As acc'
   end
@@ -314,6 +249,8 @@ Definition string_of_tracepref (t : tracepref) : string := string_of_tracepref_a
 
 (** A runtime program is a state plus an expression. *)
 Definition rtexpr : Type := (option state) * expr.
+#[local]
+Instance rtexpr__Instance : RuntimeExprClass rtexpr := {}.
 (* '▷' is `\triangleright and '↯' is `\lightning`` *)
 Notation "Ω '▷' e" := ((((Some (Ω)) : option state), (e : expr)) : rtexpr) (at level 81).
 Notation "↯ '▷' 'stuck'" := (((None : option state), (Fabrt : expr)) : rtexpr).
@@ -357,8 +294,7 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
   isubst inn
 .
 
-Reserved Notation "r0 '--[' a ']-->' r1" (at level 82, r1 at next level).
-Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
+Inductive pstep : PrimStep :=
 | e_returning : forall (Ω : state) (f : fnoerr),
     Ω ▷ Xreturning f --[ Sret f ]--> Ω ▷ f
 | e_calling : forall (Ω : state) (f : fnoerr),
@@ -373,12 +309,12 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
 | e_abort : forall (Ω : state),
     Ω ▷ Xabort --[ Scrash ]--> ↯ ▷ stuck
 | e_get : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
-    forall (H0a : ℓ + n < Hsize H -> Some v = Hget H (ℓ + n))
-      (H0b : ℓ + n >= Hsize H -> v = 1729),
+    forall (H0a : ℓ + n < length H -> Some v = mget H (ℓ + n))
+      (H0b : ℓ + n >= length H -> v = 1729),
     (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ Sget (addr ℓ) n ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
 | e_set : forall (F : CSC.Fresh.fresh_state) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
-    forall (H0a : ℓ + n < Hsize H -> Some H' = Hset H (ℓ + n) v)
-      (H0b : ℓ + n >= Hsize H -> H' = H),
+    forall (H0a : ℓ + n < length H -> Some H' = mset H (ℓ + n) v)
+      (H0b : ℓ + n >= length H -> H' = H),
     (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ Sset (addr ℓ) n v ]--> (F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
 | e_delete : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
     (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ Sdealloc (addr ℓ) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
@@ -392,9 +328,10 @@ Inductive pstep : rtexpr -> event -> rtexpr -> Prop :=
     (*fresh_tvar (Δdom Δ) z ->*)
     H' = Hgrow H n ->
     (F ; H ; Δ) ▷ Xnew x n e --[ Salloc (addr ℓ) n ]--> (F'' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x e (Fvar z))
-where "r0 '--[' a ']-->' r1" := (pstep r0 a r1)
 .
-#[global]
+#[local]
+Existing Instance pstep.
+#[local]
 Hint Constructors pstep : core.
 
 (** functional version of the above *)
@@ -437,7 +374,7 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
         | None => None
         | Some(Δ1, x, (L, ρ), Δ2) =>
           let '(addr ℓ) := L in
-          let v := match Hget H (ℓ + n) with
+          let v := match mget H (ℓ + n) with
                   | None => 1729
                   | Some w => w
                   end
@@ -454,7 +391,7 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
         | None => None
         | Some(Δ1, x, (L, ρ), Δ2) =>
           let '(addr ℓ) := L in
-          match Hset H (ℓ + n) v with
+          match mset H (ℓ + n) v with
           | Some H' =>
             Some(Sset (addr ℓ) n v, F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
           | None =>
@@ -508,29 +445,29 @@ Ltac grab_final e :=
   (destruct e as [[e|]| | | | | | | | | | | ]; try congruence)
 .
 
-Lemma splitat_elim Δ1 Δ2 x ℓ ρ :
-  splitat (Δ1 ◘ Scons x (addr ℓ, ρ) Δ2) x = Some (Δ1, x, (addr ℓ, ρ), Δ2).
+Lemma splitat_elim (Δ1 Δ2 : store) (x : vart) (ℓ : loc) (ρ : poison) :
+  splitat (Δ1 ◘ x ↦ (ℓ ⋅ ρ) ◘ Δ2) x = Some (Δ1, x, (ℓ ⋅ ρ), Δ2).
 Proof. Admitted.
-Lemma splitat_base Δ x :
+Lemma splitat_base (Δ : store) (x : vart) :
   splitat Δ x <> None -> exists Δ1 ℓ ρ Δ2, Δ = (Δ1 ◘ x ↦ (ℓ ⋅ ρ) ◘ Δ2).
 Proof. Admitted.
-Lemma splitat_none_or_not_none Δ x :
+Lemma splitat_none_or_not_none (Δ : store) (x : vart) :
   splitat Δ x = None \/ splitat Δ x <> None.
 Proof. Admitted.
-Lemma Hget_none H n :
-  n >= Hsize H -> Hget H n = None.
+Lemma Hget_none (H : heap) (n : nat) :
+  n >= length H -> mget H n = None.
 Proof. Admitted.
-Lemma Hget_some H n :
-  n < Hsize H -> exists v, Hget H n = Some v.
+Lemma Hget_some (H : heap) (n : nat) :
+  n < length H -> exists v, mget H n = Some v.
 Proof. Admitted.
-Lemma Hset_none H n v :
-  n >= Hsize H -> Hset H n v = None.
+Lemma Hset_none (H : heap) (n : nat) v :
+  n >= length H -> mset H n v = None.
 Proof. Admitted.
-Lemma Hset_some H n v :
-  n < Hsize H -> exists H', Hset H n v = Some H'.
+Lemma Hset_some (H : heap) (n : nat) v :
+  n < length H -> exists H', mset H n v = Some H'.
 Proof. Admitted.
 
-Lemma equiv_pstep r0 a r1 :
+Lemma equiv_pstep (r0 : rtexpr) (a : event) (r1 : rtexpr) :
   r0 --[ a ]--> r1 <-> pstepf r0 = Some(a, r1).
 Proof.
   split.
@@ -542,12 +479,12 @@ Proof.
     + (* e-ifz-false *) now cbn.
     + (* e-abort *) now cbn.
     + (* e-get *) cbn.
-      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (Hsize H)) as [H1a | H1b]; rewrite splitat_elim.
+      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (length H)) as [H1a | H1b]; rewrite splitat_elim.
       * now specialize (H0a H1a) as H0a'; inv H0a'.
       * apply Arith.Compare_dec.not_lt in H1b; specialize (H0b H1b) as H1b'.
         now rewrite (@Hget_none H (ℓ + n) H1b); subst.
     + (* e-set *) cbn.
-      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (Hsize H)) as [H1a | H1b]; rewrite splitat_elim.
+      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (length H)) as [H1a | H1b]; rewrite splitat_elim.
       * now rewrite <- (H0a H1a).
       * apply Arith.Compare_dec.not_lt in H1b; specialize (H0b H1b) as H1b'; subst.
         now rewrite (@Hset_none H (ℓ + n) v H1b).
@@ -569,7 +506,7 @@ Proof.
       destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H1; congruence).
       apply splitat_base in H0 as [Δ1 [[ℓ] [ρ [Δ2 H0]]]]. rewrite H0 in H1.
       rewrite splitat_elim in H1.
-      destruct (Arith.Compare_dec.lt_dec (ℓ + e1) (Hsize H)) as [H2|H2].
+      destruct (Arith.Compare_dec.lt_dec (ℓ + e1) (length H)) as [H2|H2].
       * apply (@Hset_some H (ℓ + e1) e2) in H2 as [H' H2]. rewrite H2 in H1.
         inv H1. eapply e_set; intros H0; subst; try easy.
         eapply (@Hset_none H (ℓ + e1) e2) in H0; congruence.
@@ -736,8 +673,7 @@ Definition pstep_compatible (e : expr) : option expr :=
   end
 .
 
-Reserved Notation "r0 '==[' a ']==>' r1" (at level 82, r1 at next level).
-Inductive estep : rtexpr -> event -> rtexpr -> Prop :=
+Inductive estep : CtxStep :=
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
@@ -751,9 +687,10 @@ Inductive estep : rtexpr -> event -> rtexpr -> Prop :=
     e0 = insert K e ->
     Ω ▷ e --[ Scrash ]--> ↯ ▷ stuck ->
     Ω ▷ e0 ==[ Scrash ]==> ↯ ▷ stuck
-where "r0 '==[' a ']==>' r1" := (estep r0 a r1)
 .
-#[global]
+#[local]
+Existing Instance estep.
+#[local]
 Hint Constructors estep : core.
 
 Definition estepf (r : rtexpr) : option (event * rtexpr) :=
@@ -812,8 +749,9 @@ Proof.
     (* rather annoying *)
 Admitted.
 
-Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).
-Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
+(*Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).*)
+(*Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=*)
+Inductive star_step : MultStep :=
 | ES_refl : forall (Ω : state) (f : ferr),
     Ω ▷ f ==[ Tnil ]==>* Ω ▷ f
 | ES_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref),
@@ -825,9 +763,11 @@ Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
     r1 ==[ Sε ]==> r2 ->
     r2 ==[ As ]==>* r3 ->
     r1 ==[ As ]==>* r3
-where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)
+(*where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)*)
 .
-#[global]
+#[local]
+Existing Instance star_step.
+#[local]
 Hint Constructors star_step : core.
 
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
@@ -881,7 +821,7 @@ Lemma atleast_once Ω e r a fuel :
 Proof. Admitted.
 Lemma star_stepf_one_step Ω e r r' a As fuel :
   Some (S fuel) = get_fuel e ->
-  Ω ▷ e ==[ a ]==> r ->
+  estep (Ω ▷ e) a r ->
   star_stepf fuel r = Some(As, r') ->
   star_stepf (S fuel) (Ω ▷ e) = Some(a · As, r')
 .
@@ -963,7 +903,7 @@ Hint Constructors fill_j : core.
 
 (** Evaluation of programs *)
 (*TODO: add typing*)
-Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
+Inductive wstep : ProgStep :=
 | e_wprog : forall (y : vart)
               (e0 ep e1 : expr)
               (e0' ep0 e0'' : expr)
@@ -972,20 +912,21 @@ Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
               (As0 Asp As0' As1 : tracepref),
     fill_j nil FP_Q ep e0 e0' ->
     (* typing -> *)
-    (Fresh.empty_fresh ; Hnil ; Snil ▷ e0' ==[ As0 · Scall f0 ]==>* Ω0 ▷ ep0) ->
+    (Fresh.empty_fresh ; hNil ; sNil ▷ e0' ==[ As0 · Scall f0 ]==>* Ω0 ▷ ep0) ->
     (Ω0 ▷ ep0 ==[ Asp · Sret fp ]==>* Ωp0 ▷ e0'') ->
     (Ωp0 ▷ e0'' ==[ As0' ]==>* Ω0' ▷ fp') ->
     (Ω0' ▷ (subst y e1 fp') ==[ As1 ]==>* Ω1 ▷ f1) ->
-    wstep (Cprog e0 ep e1) (Sret 0 · As0 · Scall f0 · Asp · Sret fp · As0' · As1 · Scall f1) (Ω1 ▷ f1)
+    PROG[e0][ep][e1]====[ Sret 0 · As0 · Scall f0 · Asp · Sret fp · As0' · As1 · Scall f1]===> (Ω1 ▷ f1)
 .
-Notation "'PROG[' e0 '][' ep '][' e1 ']====[' As ']===>' r" := (wstep (Cprog e0 ep e1) As r) (at level 81, r at next level).
+#[local]
+Existing Instance wstep.
 
 Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
   let '(Cprog e0 ep e1) := p in
   let e0' := fill FP_Q ep e0 in
   match get_fuel e0' with
   | Some ge0' =>
-    match star_stepf ge0' ((Fresh.empty_fresh; Hnil; Snil) ▷ e0') with
+    match star_stepf ge0' ((Fresh.empty_fresh; hNil; sNil) ▷ e0') with
     | Some(As0, (Some Ω0', fp')) =>
       let e1' := subst ("y"%string) e1 fp' in
       match get_fuel e1' with
@@ -1082,12 +1023,11 @@ Definition mseveq (ev0 ev1 : msevent) : bool :=
   | _, _ => false
   end
 .
-Definition mstracepref := CSC.Util.tracepref msevent.
-Definition msTnil := CSC.Util.Tnil msevent.
-Definition msTcons (a : msevent) (t : mstracepref) := @CSC.Util.Tcons msevent a t.
+#[local]
+Instance msevent__Instance : TraceEvent msevent := {}.
 
 (** Project concrete program traces to property-specific ones *)
-Fixpoint θ (As : tracepref) :=
+Fixpoint θ (As : @tracepref event event__Instance) :=
   let θev a :=
     match a with
     | Sε => MSε
@@ -1101,8 +1041,8 @@ Fixpoint θ (As : tracepref) :=
     end
   in
   match As with
-  | @CSC.Util.Tnil _ => msTnil
-  | @CSC.Util.Tcons _ a As' => msTcons (θev a) (θ As')
+  | Tnil => Tnil
+  | Tcons a As' => Tcons (θev a) (θ As')
   end
 .
 
@@ -1137,7 +1077,7 @@ Definition backtransv (e : fnoerr) := e.
 
 (** Backtranslation of MS traces *)
 Fixpoint backtrans (f : @CSC.Fresh.fresh_state) (G : locvarmap)
-                   (As : mstracepref) (B : option (vart * ty * ty))
+                   (As : tracepref) (B : option (vart * ty * ty))
   : option(@CSC.Fresh.fresh_state * locvarmap * expr) :=
   let R As' f' G' f := match backtrans f' G' As' B with
                        | Some(f'', G'', e) => Some(f'', G'', f e)
@@ -1145,14 +1085,14 @@ Fixpoint backtrans (f : @CSC.Fresh.fresh_state) (G : locvarmap)
                        end
   in
   match As with
-  | @CSC.Util.Tnil _ =>
+  | Tnil =>
     match B with
     | None => (*backtrans-empty-unit*)
       Some(f, G, 42 : expr)
     | Some(x,τ1,τ2) => (* backtrans-empty-hole *)
       Some(f, G, Xhole x τ1 τ2)
     end
-  | @CSC.Util.Tcons _ a As' =>
+  | Tcons a As' =>
     match a with
     | MSε =>
       (* backtrans-empty *)
@@ -1193,7 +1133,7 @@ Definition backtranslate_call (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
       Some(fresh, G, None, (backtransv f) : expr)
     | Some(x,_,_) => (* backtrans-call-hole *)
       let ℓ := CSC.Fresh.fresh fresh in
-      match backtrans (advance fresh) G (msTcons (MSalloc (addr 0) 42) msTnil) B with
+      match backtrans (advance fresh) G (Tcons (MSalloc (addr 0) 42) Tnil) B with
       | Some(fresh', G', e) => Some(fresh', G', Some(addr 0), Xlet x (backtransv f) e)
       | None => None
       end
@@ -1224,34 +1164,34 @@ Definition backtranslate_ret (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
 .
 
 (** splits trace *)
-Definition ms_splitat_call (As : mstracepref) : option (mstracepref * msevent * mstracepref) :=
-  let fix doo (accAs : mstracepref) (As : mstracepref) :=
+Definition ms_splitat_call (As : tracepref) : option (tracepref * msevent * tracepref) :=
+  let fix doo (accAs : tracepref) (As : tracepref) :=
     match As with
-    | @CSC.Util.Tnil _ => None
-    | @CSC.Util.Tcons _ (MScall f) As' => Some(accAs, MScall f, As')
-    | @CSC.Util.Tcons _ a As' => doo (msTcons a accAs) As'
+    | Tnil => None
+    | Tcons (MScall f) As' => Some(accAs, MScall f, As')
+    | Tcons a As' => doo (Tcons a accAs) As'
     end
-  in doo msTnil As
+  in doo Tnil As
 .
-Definition ms_splitat_ret (As : mstracepref) : option (mstracepref * msevent * mstracepref) :=
-  let fix doo (accAs : mstracepref) (As : mstracepref) :=
+Definition ms_splitat_ret (As : tracepref) : option (tracepref * msevent * tracepref) :=
+  let fix doo (accAs : tracepref) (As : tracepref) :=
     match As with
-    | @CSC.Util.Tnil _ => None
-    | @CSC.Util.Tcons _ (MSret f) As' => Some(accAs, MSret f, As')
-    | @CSC.Util.Tcons _ a As' => doo (msTcons a accAs) As'
+    | Tnil => None
+    | Tcons (MSret f) As' => Some(accAs, MSret f, As')
+    | Tcons a As' => doo (Tcons a accAs) As'
     end
-  in doo msTnil As
+  in doo Tnil As
 .
 
-Definition tl_tracesplit (As : mstracepref) :=
+Definition tl_tracesplit (As : tracepref) :=
   match ms_splitat_ret As with
-  | Some(@CSC.Util.Tnil _, MSret (Fval(Vnat 0)), As0') =>
+  | Some(Tnil, MSret (Fval(Vnat 0)), As0') =>
     match ms_splitat_call As0' with
     | Some(As0, MScall f0, Ap') =>
       match ms_splitat_ret Ap' with
       | Some(Ap, MSret fp, As1') =>
         match ms_splitat_call As1' with
-        | Some(As1, MScall f1, @CSC.Util.Tnil _) =>
+        | Some(As1, MScall f1, Tnil) =>
           Some(Fval(Vnat 0), As0, f0, Ap, fp, As1, f1)
         | _ => None
         end
@@ -1264,10 +1204,10 @@ Definition tl_tracesplit (As : mstracepref) :=
 .
 
 (** technicality for generating fresh names/locations *)
-Fixpoint collect_max_loc (As : mstracepref) : nat :=
+Fixpoint collect_max_loc (As : tracepref) : nat :=
   match As with
-  | @CSC.Util.Tnil _ => 0
-  | @CSC.Util.Tcons _ a As' =>
+  | Tnil => 0
+  | Tcons a As' =>
     match a with
     | MSalloc ℓ n => let '(addr m) := ℓ in m
     | MSuse ℓ n => let '(addr m) := ℓ in m
@@ -1284,7 +1224,7 @@ Fixpoint advance_fresh_n (f : @CSC.Fresh.fresh_state) (n : nat) : @CSC.Fresh.fre
 .
 
 (** Top-Level Backtranslation *)
-Definition tl_backtranslation (As : mstracepref) :=
+Definition tl_backtranslation (As : tracepref) :=
   let fresh0 := advance_fresh_n (@CSC.Fresh.empty_fresh) (collect_max_loc As) in
   let G0 := LVnil in
   match tl_tracesplit As with

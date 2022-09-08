@@ -1100,22 +1100,16 @@ Fixpoint backtrans (f : @CSC.Fresh.fresh_state) (G : locvarmap)
     | MSalloc ℓ n =>
       (* backtrans-alloc *)
       let G' := add_or_nothing_lv f ℓ G in
-      match lookup_lv ℓ G' with
-      | Some z => R As' (advance f) G' (fun e => Xnew z (backtransv n) e)
-      | None => None
-      end
+      let* z := lookup_lv ℓ G' in
+      R As' (advance f) G' (fun e => Xnew z (backtransv n) e)
     | MSdealloc ℓ =>
       (* backtrans-dealloc *)
-      match lookup_lv ℓ G with
-      | Some x => R As' f G (fun e => Xlet ("_"%string) (Xdel x) e)
-      | None => None
-      end
+      let* x := lookup_lv ℓ G in
+      R As' f G (fun e => Xlet ("_"%string) (Xdel x) e)
     | MSuse ℓ n =>
       (* backtrans-use *)
-      match lookup_lv ℓ G with
-      | Some z => R As' f G (fun e => Xlet ("_"%string) (Xget z (backtransv n)) e)
-      | None => None
-      end
+      let* z := lookup_lv ℓ G in
+      R As' f G (fun e => Xlet ("_"%string) (Xget z (backtransv n)) e)
     | MScrash => Some(f, G, Xabort)
     | MScall _ => None
     | MSret _ => None
@@ -1265,33 +1259,20 @@ Definition tl_backtranslation (As : tracepref) :=
 .
 
 Definition eval_bt_prog (p : prog) :=
-  match wstepf p with
-  | Some(As, _) =>
-    match tl_backtranslation (θ As) with
-    | Some(_, _, Ccontext e0 e1) =>
-      Some(Cprog e0 smsunsafe_ep e1)
-    | None => None
-    end
-  | _ => None
-  end
+  let* (As,_) := wstepf p in
+  let* (_, _, Ccontext e0 e1) := tl_backtranslation (θ As) in
+  Some(Cprog e0 smsunsafe_ep e1)
 .
 Definition debug_eval_bt_prog (p : prog) :=
-  match eval_bt_prog p with
-  | Some p => Some(string_of_prog p)
-  | None => None
-  end
+  let* p := eval_bt_prog p in Some(string_of_prog p)
 .
 Compute (debug_eval_bt_prog smsunsafe_prog).
 
 Definition debug_eval_bt (p : prog) :=
-  match debug_eval p, eval_bt_prog p with
-  | Some s0, Some(p_bt) =>
-    match debug_eval p_bt with
-    | Some s1 => Some(s0, s1)
-    | None => None
-    end
-  | _, _ => None
-  end
+  let* s0 := debug_eval p in
+  let* p_bt := eval_bt_prog p in
+  let* s1 := debug_eval p_bt in
+  Some(s0, s1)
 .
 
 Compute (debug_eval_bt smsunsafe_prog).

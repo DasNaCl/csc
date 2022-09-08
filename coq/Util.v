@@ -131,3 +131,12 @@ Notation "x <- c1 ;; c2" := (@bind _ _ _ _ c1 (fun x => c2)) (at level 61, c1 at
 Notation "'$' pat '<-' c1 ';;' c2" := (@bind _ _ _ _ c1 (fun x => match x with pat => c2 end)) (at level 61, pat pattern, c1 at next level, right associativity).
 #[global]
 Notation "'let*' p ':=' c1 'in' c2" := (@bind _ _ _ _ c1 (fun p => c2)) (at level 61, p as pattern, c1 at next level, right associativity).
+
+#[global]
+Instance OptionMonad__Instance : Monad option := {
+  ret T x := Some x ;
+  bind T U m f := match m with
+                  | None => None
+                  | Some x => f x
+                  end
+}.

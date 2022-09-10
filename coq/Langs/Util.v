@@ -106,8 +106,8 @@ Fixpoint Tappend {Ev : Type} `{TraceEvent Ev} (As Bs : tracepref) : tracepref :=
 Definition ev_to_tracepref {Ev : Type} `{TraceEvent Ev} (e : Ev) : tracepref := Tcons e Tnil.
 
 (* Step-Relation typeclasses. Used as a hack for "overloading" notations *)
-Class PrimStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := pstep__Class : A -> Ev -> A -> Prop.
-Class CtxStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := estep__Class : A -> Ev -> A -> Prop.
+Class PrimStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := pstep__Class : A -> (option Ev) -> A -> Prop.
+Class CtxStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := estep__Class : A -> (option Ev) -> A -> Prop.
 Class MultStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := sstep__Class : A -> tracepref -> A -> Prop.
 Class ProgStep (A B : Type) (Ev : Type) (Prog : Type)
                `{ExprClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass A Prog}
@@ -123,9 +123,19 @@ Notation "M1 '◘' M2" := (append M1 M2) (at level 82, M2 at next level).
 #[global]
 Notation "As '·' Bs" := (Tappend As Bs) (at level 81).
 #[global]
-Notation "e0 '--[' a ']-->' e1" := (pstep__Class e0 a e1) (at level 82, e1 at next level).
+Notation "e0 '--[]-->' e1" := (pstep__Class e0 (None) e1) (at level 82, e1 at next level).
 #[global]
-Notation "e0 '==[' a ']==>' e1" := (estep__Class e0 a e1) (at level 82, e1 at next level).
+Notation "e0 '==[]==>' e1" := (estep__Class e0 (None) e1) (at level 82, e1 at next level).
+#[global]
+Notation "e0 '==[]==>*' e1" := (sstep__Class e0 (Tnil) e1) (at level 82, e1 at next level).
+#[global]
+Notation "e0 '--[,' a ']-->' e1" := (pstep__Class e0 a e1) (at level 82, e1 at next level).
+#[global]
+Notation "e0 '==[,' a ']==>' e1" := (estep__Class e0 a e1) (at level 82, e1 at next level).
+#[global]
+Notation "e0 '--[' a ']-->' e1" := (pstep__Class e0 (Some a) e1) (at level 82, e1 at next level).
+#[global]
+Notation "e0 '==[' a ']==>' e1" := (estep__Class e0 (Some a) e1) (at level 82, e1 at next level).
 #[global]
 Notation "e0 '==[' a ']==>*' e1" := (sstep__Class e0 a e1) (at level 82, e1 at next level).
 #[global]

@@ -199,7 +199,6 @@ Definition string_of_prog (p : prog) :=
 
 (** Types of events that may occur in a trace. *)
 Variant event : Type :=
-| Sε : event
 | Salloc (ℓ : loc) (n : nat) : event
 | Sdealloc (ℓ : loc) : event
 | Sget (ℓ : loc) (n : nat) : event
@@ -216,24 +215,23 @@ Coercion ev_to_tracepref : event >-> tracepref.
 (** Pretty-printing function for better debuggability *)
 Definition string_of_event (e : event) :=
   match e with
-  | Sε => "ε"%string
-  | Salloc (addr ℓ) n => String.append
-                          (String.append ("Alloc ℓ"%string) (string_of_nat ℓ))
-                          (String.append (" "%string) (string_of_nat n))
-  | Sdealloc (addr ℓ) => String.append ("Dealloc ℓ"%string) (string_of_nat ℓ)
-  | Sget (addr ℓ) n => String.append
-                        (String.append ("Get ℓ"%string) (string_of_nat ℓ))
-                        (String.append (" "%string) (string_of_nat n))
-  | Sset (addr ℓ) n (Vnat m) => String.append
-                                 (String.append
-                                   (String.append ("Set ℓ"%string) (string_of_nat ℓ))
-                                   (String.append (" "%string) (string_of_nat n)))
-                                 (String.append (" "%string) (string_of_nat m))
-  | Scrash => "↯"%string
-  | Scall(Fval(Vnat n)) => String.append ("Call ?"%string) (string_of_nat n)
-  | Scall(Fvar x) => String.append ("Call ?"%string) x
-  | Sret(Fval(Vnat n)) => String.append ("Ret !"%string) (string_of_nat n)
-  | Sret(Fvar x) => String.append ("Ret !"%string) x
+  | (Salloc (addr ℓ) n) => String.append
+                      (String.append ("Alloc ℓ"%string) (string_of_nat ℓ))
+                      (String.append (" "%string) (string_of_nat n))
+  | (Sdealloc (addr ℓ)) => String.append ("Dealloc ℓ"%string) (string_of_nat ℓ)
+  | (Sget (addr ℓ) n) => String.append
+                    (String.append ("Get ℓ"%string) (string_of_nat ℓ))
+                    (String.append (" "%string) (string_of_nat n))
+  | (Sset (addr ℓ) n (Vnat m)) => String.append
+                             (String.append
+                               (String.append ("Set ℓ"%string) (string_of_nat ℓ))
+                               (String.append (" "%string) (string_of_nat n)))
+                             (String.append (" "%string) (string_of_nat m))
+  | (Scrash) => "↯"%string
+  | (Scall(Fval(Vnat n))) => String.append ("Call ?"%string) (string_of_nat n)
+  | (Scall(Fvar x)) => String.append ("Call ?"%string) x
+  | (Sret(Fval(Vnat n))) => String.append ("Ret !"%string) (string_of_nat n)
+  | (Sret(Fvar x)) => String.append ("Ret !"%string) x
   end
 .
 Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
@@ -296,38 +294,38 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
 
 Inductive pstep : PrimStep :=
 | e_returning : forall (Ω : state) (f : fnoerr),
-    Ω ▷ Xreturning f --[ Sret f ]--> Ω ▷ f
+    Ω ▷ Xreturning f --[ (Sret f) ]--> Ω ▷ f
 | e_calling : forall (Ω : state) (f : fnoerr),
-    Ω ▷ Xcalling f  --[ Scall f ]--> Ω ▷ f
+    Ω ▷ Xcalling f  --[ (Scall f) ]--> Ω ▷ f
 | e_binop : forall (Ω : state) (n1 n2 n3 : nat) (b : binopsymb),
     Vnat n3 = eval_binop b n1 n2 ->
-    Ω ▷ Xbinop b n1 n2 --[ Sε ]--> Ω ▷ n3
+    Ω ▷ Xbinop b n1 n2 --[]--> Ω ▷ n3
 | e_ifz_true : forall (Ω : state) (e1 e2 : expr),
-    Ω ▷ Xifz 0 e1 e2 --[ Sε ]--> Ω ▷ e1
+    Ω ▷ Xifz 0 e1 e2 --[]--> Ω ▷ e1
 | e_ifz_false : forall (Ω : state) (e1 e2 : expr) (n : nat),
-    Ω ▷ Xifz (S n) e1 e2 --[ Sε ]--> Ω ▷ e2
+    Ω ▷ Xifz (S n) e1 e2 --[]--> Ω ▷ e2
 | e_abort : forall (Ω : state),
-    Ω ▷ Xabort --[ Scrash ]--> ↯ ▷ stuck
+    Ω ▷ Xabort --[ (Scrash) ]--> ↯ ▷ stuck
 | e_get : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some v = mget H (ℓ + n))
       (H0b : ℓ + n >= length H -> v = 1729),
-    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ Sget (addr ℓ) n ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
+    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ (Sget (addr ℓ) n) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
 | e_set : forall (F : CSC.Fresh.fresh_state) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some H' = mset H (ℓ + n) v)
       (H0b : ℓ + n >= length H -> H' = H),
-    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ Sset (addr ℓ) n v ]--> (F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
+    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ (Sset (addr ℓ) n v) ]--> (F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
 | e_delete : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
-    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ Sdealloc (addr ℓ) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
+    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ (Sdealloc (addr ℓ)) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
 | e_let : forall (Ω : state) (x : vart) (f : fnoerr) (e e' : expr),
     e' = subst x e f ->
-    Ω ▷ Xlet x f e --[ Sε ]--> Ω ▷ e'
+    Ω ▷ Xlet x f e --[]--> Ω ▷ e'
 | e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (H H' : heap) (Δ : store) (x z : vart) (ℓ n : nat) (e : expr),
     ℓ = Fresh.fresh F ->  F' = Fresh.advance F ->
     z = Fresh.freshv F' -> F'' = Fresh.advance F' ->
     (*TODO: fresh_loc (Δimg Δ) (addr ℓ) ->*)
     (*fresh_tvar (Δdom Δ) z ->*)
     H' = Hgrow H n ->
-    (F ; H ; Δ) ▷ Xnew x n e --[ Salloc (addr ℓ) n ]--> (F'' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x e (Fvar z))
+    (F ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x e (Fvar z))
 .
 #[local]
 Existing Instance pstep.
@@ -335,35 +333,35 @@ Existing Instance pstep.
 Hint Constructors pstep : core.
 
 (** functional version of the above *)
-Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
+Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   let '(oΩ, e) := r in
   let* Ω := oΩ in
   match e with
   | Xreturning F => (* e-returning *)
     match F with
     | Xres(Fres f) =>
-      Some(Sret f, Ω ▷ F)
+      Some(Some(Sret f), Ω ▷ F)
     | _ => None
     end
   | Xcalling F => (* e-calling *)
     match F with
     | Xres(Fres f) =>
-      Some(Scall f, Ω ▷ F)
+      Some(Some(Scall f), Ω ▷ F)
     | _ => None
     end
   | Xbinop b n1 n2 => (* e-binop *)
     match n1, n2 with
     | Xres(Fres(Fval(Vnat m1))), Xres(Fres(Fval(Vnat m2))) =>
       let n3 := eval_binop b m1 m2 in
-      Some(Sε, Ω ▷ n3)
+      Some(None, Ω ▷ n3)
     | _, _ => None
     end
   | Xifz 0 e1 e2 => (* e-ifz-true *)
-    Some(Sε, Ω ▷ e1)
+    Some(None, Ω ▷ e1)
   | Xifz (S _) e1 e2 => (* e-ifz-false *)
-    Some(Sε, Ω ▷ e2)
+    Some(None, Ω ▷ e2)
   | Xabort => (* e-abort *)
-    Some(Scrash, ↯ ▷ stuck)
+    Some(Some(Scrash), ↯ ▷ stuck)
   | Xget x en => (* e-get *)
     match en with
     | Xres(Fres(Fval(Vnat n))) =>
@@ -375,7 +373,7 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
               | Some w => w
               end
       in
-        Some(Sget (addr ℓ) n, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sget (addr ℓ) n), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
     | _ => None
     end
   | Xset x en ev => (* e-set *)
@@ -386,9 +384,9 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
       let '(addr ℓ) := L in
       match mset H (ℓ + n) v with
       | Some H' =>
-        Some(Sset (addr ℓ) n v, F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sset (addr ℓ) n v), F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
       | None =>
-        Some(Sset (addr ℓ) n v, F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sset (addr ℓ) n v), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
       end
     | _, _ => None
     end
@@ -396,12 +394,12 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
     let '(F, H, Δ) := Ω in
     let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
     let '(addr ℓ) := L in
-    Some(Sdealloc (addr ℓ), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
+    Some(Some(Sdealloc (addr ℓ)), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
   | Xlet x ef e' => (* e-let *)
     match ef with
     | Xres(Fres f) =>
       let e'' := subst x e' f in
-      Some(Sε, Ω ▷ e'')
+      Some(None, Ω ▷ e'')
     | _ => None
     end
   | Xnew x ef e' => (* e-new *)
@@ -413,7 +411,7 @@ Definition pstepf (r : rtexpr) : option (event * rtexpr) :=
       let F' := Fresh.advance F in
       let z := CSC.Fresh.freshv F' in
       let e'' := subst x e' (Fvar z) in
-      Some(Salloc (addr ℓ) n, Fresh.advance F' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
+      Some(Some(Salloc (addr ℓ) n), Fresh.advance F' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
     | _ => None
     end
   | _ => None (* no matching rule *)
@@ -455,8 +453,9 @@ Lemma Hset_some (H : heap) (n : nat) v :
   n < length H -> exists H', mset H n v = Some H'.
 Proof. Admitted.
 
-Lemma equiv_pstep (r0 : rtexpr) (a : event) (r1 : rtexpr) :
-  r0 --[ a ]--> r1 <-> pstepf r0 = Some(a, r1).
+(** We use an alternative notation of pstep here that does not constrain a to be *either* Some/None *)
+Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
+  r0 --[, a ]--> r1 <-> pstepf r0 = Some(a, r1).
 Proof.
   split.
   - induction 1.
@@ -642,13 +641,13 @@ Definition pstep_compatible (e : expr) : option expr :=
 .
 
 Inductive estep : CtxStep :=
-| E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : event) (K : evalctx),
+| E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
     e0 = insert K e ->
     e0' = insert K e' ->
-    Ω ▷ e --[ a ]--> Ω' ▷ e' ->
-    Ω ▷ e0 ==[ a ]==> Ω' ▷ e0'
+    Ω ▷ e --[, a ]--> Ω' ▷ e' ->
+    Ω ▷ e0 ==[, a ]==> Ω' ▷ e0'
 | E_abrt_ctx : forall (Ω : state) (e e0 : expr) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
@@ -665,10 +664,18 @@ Local Set Warnings "-cast-in-pattern".
 Ltac crush_estep := (match goal with
                      | [H: _ ▷ (Xres ?f) ==[ ?a ]==> ?r |- _] =>
                        inv H
+                     | [H: _ ▷ (Xres ?f) ==[]==> ?r |- _] =>
+                       inv H
+                     | [H: _ ▷ (Xres ?f) ==[, ?a ]==> ?r |- _] =>
+                       inv H
                      end);
   (do 2 match goal with
         | [H: Xres ?f = insert ?K ?e |- _] =>
           induction K; cbn in H; try congruence; inv H
+        | [H: _ ▷ (Xres ?f) --[]--> ?r |- _] =>
+          inv H
+        | [H: _ ▷ (Xres ?f) --[, ?a ]--> ?r |- _] =>
+          inv H
         | [H: _ ▷ (Xres ?f) --[ ?a ]--> ?r |- _] =>
           inv H
         end)
@@ -681,14 +688,14 @@ Ltac unfold_estep := (match goal with
      induction K; cbn in H; try congruence; inv H
    end).
 
-Definition estepf (r : rtexpr) : option (event * rtexpr) :=
+Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
   let '(oΩ, e) := r in
   let* Ω := oΩ in
   let* (K, e0) := evalctx_of_expr e in
   let* _ := pstep_compatible e0 in
   let* (a, (oΩ, e0')) := pstepf (Ω ▷ e0) in
   match oΩ with
-  | None => Some(Scrash, ↯ ▷ stuck)
+  | None => Some(Some(Scrash), ↯ ▷ stuck)
   | Some Ω' => Some(a, Ω' ▷ insert K e0')
   end
 .
@@ -732,14 +739,14 @@ Proof.
 Qed.
 
 Lemma equiv_estep r0 a r1 :
-  r0 ==[ a ]==> r1 <-> estepf r0 = Some(a, r1).
+  r0 ==[, a ]==> r1 <-> estepf r0 = Some(a, r1).
 Proof.
   split.
   - induction 1.
     + apply (@grab_ectx e0 K e H) in H0 as H0'.
       cbn; rewrite H0'; rewrite equiv_pstep in H2; inv H.
       change (match pstepf (Ω ▷ e) with
-              | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
+              | Some(_, (None, _)) => Some(Some(Scrash), ↯ ▷ stuck)
               | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
               | None => None
               end = Some (a, (Some Ω', insert K e'))).
@@ -747,10 +754,10 @@ Proof.
     + apply (@grab_ectx e0 K e H) in H0 as H0'.
       cbn; rewrite H0'; rewrite equiv_pstep in H1; inv H.
       change (match pstepf (Ω ▷ e) with
-              | Some(_, (None, _)) => Some(Scrash, ↯ ▷ stuck)
+              | Some(_, (None, _)) => Some(Some(Scrash), ↯ ▷ stuck)
               | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
               | None => None
-              end = Some(Scrash, ↯ ▷ stuck)).
+              end = Some(Some(Scrash), ↯ ▷ stuck)).
       now rewrite H1.
   - destruct r0 as [Ω e], r1 as [Ω' e'].
     intros H; unfold estepf in H.
@@ -786,12 +793,11 @@ Inductive star_step : MultStep :=
 | ES_refl : forall (Ω : state) (f : ferr),
     Ω ▷ f ==[ Tnil ]==>* Ω ▷ f
 | ES_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref),
-    a <> Sε ->
     r1 ==[ a ]==> r2 ->
     r2 ==[ As ]==>* r3 ->
     r1 ==[ Tcons a As ]==>* r3
 | ES_trans_unimportant : forall (r1 r2 r3 : rtexpr) (As : tracepref),
-    r1 ==[ Sε ]==> r2 ->
+    r1 ==[]==> r2 ->
     r2 ==[ As ]==>* r3 ->
     r1 ==[ As ]==>* r3
 (*where "r0 '==[' As ']==>*' r1" := (star_step r0 As r1)*)
@@ -813,8 +819,8 @@ Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
       let* (a, r') := estepf r in
       let* (As, r'') := doo fuel' r' in
       match a with
-      | Sε => Some(As, r'')
-      | _ => Some(Tcons a As, r'')
+      | None => Some(As, r'')
+      | Some(a') => Some(Tcons a' As, r'')
       end
     | _, _ => None
     end
@@ -880,7 +886,7 @@ end).
 
 Lemma atleast_once Ω e r a fuel :
   Some fuel = get_fuel e ->
-  Ω ▷ e ==[ a ]==> r ->
+  Ω ▷ e ==[, a ]==> r ->
   exists fuel', fuel = S fuel'.
 Proof.
   revert fuel; induction e; cbn; intros fuel H; intros Ha.
@@ -899,22 +905,27 @@ Proof.
 Qed.
 Lemma star_stepf_one_step Ω e r r' a As fuel :
   Some (S fuel) = get_fuel e ->
-  estep (Ω ▷ e) a r ->
+  estep (Ω ▷ e) (Some a) r ->
   star_stepf fuel r = Some(As, r') ->
   star_stepf (S fuel) (Ω ▷ e) = Some(a · As, r')
 .
 Proof. Admitted.
 Lemma star_stepf_one_unimportant_step Ω e r r' As fuel :
   Some (S fuel) = get_fuel e ->
-  Ω ▷ e ==[ Sε ]==> r ->
+  Ω ▷ e ==[]==> r ->
   star_stepf fuel r = Some(As, r') ->
   star_stepf (S fuel) (Ω ▷ e) = Some(As, r')
 .
 Proof. Admitted.
 Lemma estep_good_fuel Ω e r a fuel :
   Some(S fuel) = get_fuel e ->
-  Ω ▷ e ==[ a ]==> r ->
+  Ω ▷ e ==[, a ]==> r ->
   Some fuel = get_fuel (let '(_, e') := r in e').
+Proof. Admitted.
+Lemma fuel_step oΩ e a oΩ' e' fuel :
+  Some(S fuel) = get_fuel e ->
+  (oΩ, e) ==[, a ]==> (oΩ', e') ->
+  Some fuel = get_fuel e'.
 Proof. Admitted.
 Lemma equiv_starstep Ω e r1 As fuel :
   Some fuel = get_fuel e ->
@@ -928,27 +939,59 @@ Proof.
     revert fuel Hf; induction H; intros fuel Hf; cbn in Hf.
     + inv Hf; now cbn.
     + clear Ω e oΩ' e'; destruct r1 as [[oΩ1|] e1].
-      * assert (H0':=H0); apply (@atleast_once oΩ1 e1 r2 a fuel Hf) in H0 as [fuel' ->];
+      * assert (H':=H); apply (@atleast_once oΩ1 e1 r2 (Some a) fuel Hf) in H as [fuel' ->];
         eapply star_stepf_one_step; eauto;
         eapply IHstar_step; eapply estep_good_fuel; eauto.
-      * inv H0.
+      * inv H.
     + clear Ω e oΩ' e'; destruct r1 as [[oΩ1|] e1].
-      * assert (H':=H); apply (@atleast_once oΩ1 e1 r2 Sε fuel Hf) in H as [fuel' ->].
+      * assert (H':=H); apply (@atleast_once oΩ1 e1 r2 None fuel Hf) in H as [fuel' ->].
         eapply star_stepf_one_unimportant_step; eauto;
         eapply IHstar_step; eapply estep_good_fuel; eauto.
       * inv H.
   - revert Ω e r1 As Hf H; induction fuel; intros Ω e r1 As Hf H.
     + destruct e; cbn in Hf; repeat destruct (get_fuel _); try congruence;
       cbn in H; inv H; apply ES_refl.
-    + cbn in H. destruct (evalctx_of_expr _); try congruence; destruct p as [K e0].
-      destruct (pstep_compatible _); try congruence.
-      destruct e0; try congruence.
-      * grab_value2 e0_1 e0_2; try congruence.
-        eapply ES_trans_unimportant.
-        (* annoying... *)
-Admitted.
-
-
+    + unfold star_stepf in H.
+      rewrite (get_rid_of_letstar Ω) in H.
+      destruct (option_dec (estepf (Some Ω, e))) as [Hx|Hy]; try rewrite Hy in H.
+      2: inv H.
+      apply not_eq_None_Some in Hx as [[a [Ω' e']] Hx].
+      rewrite Hx in H.
+      rewrite (get_rid_of_letstar (a, (Ω', e'))) in H.
+      destruct (option_dec ((
+fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
+            let (oΩ, e) := r in
+            let* _ := oΩ
+            in match fuel with
+               | 0 => match e with
+                      | Xres _ => Some (Tnil, r)
+                      | _ => None
+                      end
+               | S fuel' =>
+                   let* (a, r') := estepf r
+                   in let* (As, r'') := doo fuel' r'
+                      in match a with
+                         | Some a' => Some (Tcons a' As, r'')
+                         | None => Some (As, r'')
+                         end
+               end
+                ) fuel (Ω', e'))) as [Hx0|Hy0]; try rewrite Hy0 in H.
+      2: inv H.
+      apply not_eq_None_Some in Hx0 as [[As0 r1'] Hx0]; rewrite Hx0 in H.
+      rewrite (get_rid_of_letstar (As0, r1')) in H.
+      rewrite <- equiv_estep in Hx;
+      destruct a as [a|]; inv H.
+      * eapply ES_trans_important; eauto.
+        destruct Ω' as [Ω'|].
+        2: destruct fuel; inv Hx0.
+        apply (fuel_step Hf) in Hx.
+        eapply IHfuel; eauto.
+      * eapply ES_trans_unimportant; eauto.
+        destruct Ω' as [Ω'|].
+        2: destruct fuel; inv Hx0.
+        apply (fuel_step Hf) in Hx.
+        eapply IHfuel; eauto.
+Qed.
 
 (** Fill hole expression. *)
 Variant fill_placeholder : Type :=
@@ -1071,7 +1114,6 @@ Admitted.
 
 
 Inductive msevent :=
-| MSε : msevent
 | MSalloc (ℓ : loc) (n : nat) : msevent
 | MSdealloc (ℓ : loc) : msevent
 | MSuse (ℓ : loc) (n : nat) : msevent
@@ -1081,7 +1123,6 @@ Inductive msevent :=
 .
 Definition mseveq (ev0 ev1 : msevent) : bool :=
   match ev0, ev1 with
-  | MSε, MSε => true
   | MSalloc (addr ℓ0) n0, MSalloc (addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
   | MSdealloc (addr ℓ0), MSdealloc (addr ℓ1) => Nat.eqb ℓ0 ℓ1
   | MSuse (addr ℓ0) n0, MSuse (addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
@@ -1100,7 +1141,6 @@ Instance msevent__Instance : TraceEvent msevent := {}.
 Fixpoint θ (As : @tracepref event event__Instance) :=
   let θev a :=
     match a with
-    | Sε => MSε
     | Salloc ℓ n => MSalloc ℓ n
     | Sdealloc ℓ => MSdealloc ℓ
     | Sset ℓ n _ => MSuse ℓ n
@@ -1163,9 +1203,6 @@ Fixpoint backtrans (f : @CSC.Fresh.fresh_state) (G : locvarmap)
     end
   | Tcons a As' =>
     match a with
-    | MSε =>
-      (* backtrans-empty *)
-      R As' f G (fun e => Xlet ("_"%string) (Xbinop Badd 40 2) e)
     | MSalloc ℓ n =>
       (* backtrans-alloc *)
       let G' := add_or_nothing_lv f ℓ G in

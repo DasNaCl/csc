@@ -714,10 +714,22 @@ Lemma ungrab_ectx e K e0 :
   Some e0 = pstep_compatible e0 ->
   evalctx_of_expr e = Some(K, e0) ->
   e = insert K e0.
-Proof. Admitted.
+Proof.
+  intros H0 H1.
+Admitted.
 Lemma pstep_compatible_some e e' :
   pstep_compatible e = Some e' -> e = e'.
-Proof. Admitted.
+Proof.
+  revert e'; induction e; intros; cbn in H; try congruence.
+  - grab_value2 e1 e2.
+  - grab_value e.
+  - grab_value2 e1 e2.
+  - grab_value e1.
+  - grab_value e1.
+  - grab_value e.
+  - grab_value e.
+  - grab_value e1; destruct e1; now inv H.
+Qed.
 
 Lemma equiv_estep r0 a r1 :
   r0 ==[ a ]==> r1 <-> estepf r0 = Some(a, r1).

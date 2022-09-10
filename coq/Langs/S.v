@@ -537,7 +537,7 @@ Inductive evalctx : Type :=
 (** this function returns an eval context K and an expr e' such that K[e'] = e given some e *)
 Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
   match e with
-  | Xres _ => Some(Khole, e)
+  | Xres _ => None
   | Xhole _ _ _ => None
   | Xdel x => Some(Khole, Xdel x)
   | Xabort => Some(Khole, Xabort)
@@ -572,8 +572,8 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xlet x e1 e2 =>
     match e1 with
-    | Xres(Fres(Fval(Vnat n))) =>
-      Some(Khole, Xlet x n e2)
+    | Xres(Fres f) =>
+      Some(Khole, Xlet x f e2)
     | _ => let* (K, e1') := evalctx_of_expr e1 in
           Some(Klet x K e2, e1')
     end
@@ -586,15 +586,15 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xreturning e =>
     match e with
-    | Xres(Fres(Fval(Vnat n))) =>
-      Some(Khole, Xreturning n)
+    | Xres f =>
+      Some(Khole, Xreturning f)
     | _ => let* (K, e') := evalctx_of_expr e in
           Some(Kreturning K, e')
     end
   | Xcalling e =>
     match e with
-    | Xres(Fres(Fval(Vnat n))) =>
-      Some(Khole, Xcalling n)
+    | Xres f =>
+      Some(Khole, Xcalling f)
     | _ => let* (K, e') := evalctx_of_expr e in
           Some(Kcalling K, e')
     end
@@ -626,8 +626,8 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
 (* Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
 Definition pstep_compatible (e : expr) : option expr :=
   match e with
-  | Xreturning f => Some (Xreturning f)
-  | Xcalling f => Some (Xcalling f)
+  | Xreturning(Xres f) => Some (Xreturning f)
+  | Xcalling(Xres f) => Some (Xcalling f)
   | Xifz 0 e0 e1 => Some (Xifz 0 e0 e1)
   | Xifz (S n) e0 e1 => Some (Xifz (S n) e0 e1)
   | Xabort => Some (Xabort)
@@ -693,16 +693,31 @@ Definition estepf (r : rtexpr) : option (event * rtexpr) :=
   end
 .
 
+Ltac crush_insert :=
+  (match goal with
+   | [H: ?f = insert ?K ?e |- _] =>
+     let H' := fresh "H" in
+     assert (H':=H); generalize dependent e; induction K; intros; cbn in H; try congruence; inv H
+   end)
+.
+
 Lemma grab_ectx e K e0 :
   Some e0 = pstep_compatible e0 ->
   e = insert K e0 ->
   evalctx_of_expr e = Some(K, e0)
 .
 Proof.
-  destruct e; intros H.
-  - induction K; cbn in *; try congruence; try (destruct (insert K e0); congruence).
-  - induction K; cbn in *; try congruence; try (destruct (insert K e0); congruence).
+  revert K e0; induction e; intros.
+  - crush_insert; inv H.
 Admitted.
+Lemma ungrab_ectx e K e0 :
+  Some e0 = pstep_compatible e0 ->
+  evalctx_of_expr e = Some(K, e0) ->
+  e = insert K e0.
+Proof. Admitted.
+Lemma pstep_compatible_some e e' :
+  pstep_compatible e = Some e' -> e = e'.
+Proof. Admitted.
 
 Lemma equiv_estep r0 a r1 :
   r0 ==[ a ]==> r1 <-> estepf r0 = Some(a, r1).
@@ -726,11 +741,32 @@ Proof.
               end = Some(Scrash, ↯ ▷ stuck)).
       now rewrite H1.
   - destruct r0 as [Ω e], r1 as [Ω' e'].
-    destruct e; intros H.
-    + cbn in H. destruct Ω in H; congruence.
-    + destruct Ω' as [Ω'|]; destruct Ω as [Ω|]; try (cbn in H; congruence).
-    (* rather annoying *)
-Admitted.
+    intros H; unfold estepf in H.
+    destruct Ω as [Ω|].
+    destruct (option_dec (evalctx_of_expr e)) as [Hx0 | Hy0]; try rewrite Hy0 in H.
+    2,3: inv H.
+    rewrite (get_rid_of_letstar Ω) in H.
+    apply not_eq_None_Some in Hx0 as [[K e0] Hx0].
+    rewrite Hx0 in H.
+    rewrite (get_rid_of_letstar (K, e0)) in H.
+    destruct (option_dec (pstep_compatible e0)) as [Hx1 | Hy1]; try rewrite Hy1 in H.
+    2: inv H.
+    apply not_eq_None_Some in Hx1 as [e0p Hx1].
+    rewrite Hx1 in H.
+    rewrite (get_rid_of_letstar e0p) in H.
+    destruct (option_dec (pstepf (Some Ω, e0))) as [Hx|Hy].
+    + apply (not_eq_None_Some) in Hx as [[ap [oΩ' oe0']] Hx].
+      rewrite Hx in H.
+      rewrite (get_rid_of_letstar (ap, (oΩ', oe0'))) in H.
+      destruct oΩ' as [oΩ'|].
+      * apply pstep_compatible_some in Hx1 as Hx1'; subst.
+        assert (H':=H); inv H; eapply E_ctx; eauto using ungrab_ectx.
+        apply equiv_pstep. eapply Hx.
+      * apply pstep_compatible_some in Hx1 as Hx1'; subst.
+        inv H. apply (@E_abrt_ctx Ω e0p e K); eauto using ungrab_ectx.
+        apply equiv_pstep in Hx. inv Hx. apply e_abort.
+    + rewrite Hy in H; inv H.
+Qed.
 
 (*Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).*)
 (*Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=*)

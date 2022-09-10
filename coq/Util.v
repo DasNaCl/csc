@@ -151,3 +151,7 @@ Instance OptionMonad__Instance : Monad option := {
                   | Some x => f x
                   end
 }.
+
+Lemma get_rid_of_letstar {A B:Type} (a : A) (x : A) (f : A -> option B):
+  (let* a := Some x in f a) = f x.
+Proof. now cbn. Qed.

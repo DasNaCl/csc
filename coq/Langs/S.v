@@ -436,7 +436,10 @@ Lemma splitat_elim (Δ1 Δ2 : store) (x : vart) (ℓ : loc) (ρ : poison) :
 Proof. Admitted.
 Lemma splitat_base (Δ : store) (x : vart) :
   splitat Δ x <> None -> exists Δ1 ℓ ρ Δ2, Δ = (Δ1 ◘ x ↦ (ℓ ⋅ ρ) ◘ Δ2).
-Proof. Admitted.
+Proof.
+  intros H; apply not_eq_None_Some in H as [[[[Δ1 y] [ℓ ρ]] Δ2] H].
+  exists Δ1. exists ℓ. exists ρ. exists Δ2.
+Admitted.
 Lemma splitat_none_or_not_none (Δ : store) (x : vart) :
   splitat Δ x = None \/ splitat Δ x <> None.
 Proof. Admitted.

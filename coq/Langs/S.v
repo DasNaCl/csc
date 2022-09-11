@@ -820,13 +820,27 @@ Proof.
   induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
 Qed.
 
+Lemma easy_ectx e0 :
+  Some e0 = pstep_compatible e0 ->
+  evalctx_of_expr e0 = Some(Khole, e0).
+Proof. induction e0; cbn in *; intros H; crush_grab_ectx. Qed.
+
+Lemma det_ectx e0 K e e' :
+  Some e0 = pstep_compatible e0 ->
+  evalctx_of_expr e = Some(K, e0) ->
+  evalctx_of_expr e' = Some(K, e0) ->
+  e = e'.
+Proof. Admitted.
+
 Lemma ungrab_ectx e K e0 :
   Some e0 = pstep_compatible e0 ->
   evalctx_of_expr e = Some(K, e0) ->
   e = insert K e0.
 Proof.
-  intros H0 H1.
-Admitted.
+  intros H H1; remember (insert K e0) as e1;
+  eapply grab_ectx in Heqe1 as H2; eauto;
+  eapply det_ectx; eauto.
+Qed.
 Lemma pstep_compatible_some e e' :
   pstep_compatible e = Some e' -> e = e'.
 Proof.

@@ -183,6 +183,10 @@ Fixpoint Hgrow (H : heap) (s : nat) : heap :=
   | S s' => mapCons s' 0 (Hgrow H s')
   end
 .
+(** We assume a mild axiom about the shape of heaps.
+    It simply restricts the keys to be less than the length of a heap. *)
+Axiom heap_axiom0 : forall (H : heap), forall (n : nat), n >= length H -> mget H n = None /\ forall v, mset H n v = None.
+Axiom heap_axiom1 : forall (H : heap), forall (n : nat), n < length H -> mget H n <> None /\ forall v, mset H n v <> None.
 Definition state : Type := CSC.Fresh.fresh_state * heap * store.
 Notation "F ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (H : heap), (Δ : store)) (at level 81, H at next level, Δ at next level).
 
@@ -442,19 +446,25 @@ Proof.
 Admitted.
 Lemma splitat_none_or_not_none (Δ : store) (x : vart) :
   splitat Δ x = None \/ splitat Δ x <> None.
-Proof. Admitted.
+Proof. destruct (option_dec (splitat Δ x)); now (left + right). Qed.
 Lemma Hget_none (H : heap) (n : nat) :
   n >= length H -> mget H n = None.
-Proof. Admitted.
+Proof. eapply heap_axiom0. Qed.
 Lemma Hget_some (H : heap) (n : nat) :
   n < length H -> exists v, mget H n = Some v.
-Proof. Admitted.
+Proof.
+  intros H0; apply heap_axiom1 in H0 as [H0 _]; apply not_eq_None_Some in H0;
+  unfold is_Some in H0; deex; eauto.
+Qed.
 Lemma Hset_none (H : heap) (n : nat) v :
   n >= length H -> mset H n v = None.
-Proof. Admitted.
+Proof. intros H0; eapply heap_axiom0; trivial. Qed.
 Lemma Hset_some (H : heap) (n : nat) v :
   n < length H -> exists H', mset H n v = Some H'.
-Proof. Admitted.
+Proof.
+  intros H0; apply heap_axiom1 in H0 as [_ H0]; specialize (H0 v); apply not_eq_None_Some in H0;
+  unfold is_Some in H0; deex; eauto.
+Qed.
 
 (** We use an alternative notation of pstep here that does not constrain a to be *either* Some/None *)
 Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
@@ -704,6 +714,10 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
 .
 
 Ltac crush_insert :=
+  match goal with
+  | [H: insert ?K ?e = ?f |- _] => symmetry in H
+  | _ => trivial
+  end;
   (match goal with
    | [H: ?f = insert ?K ?e |- _] =>
      let H' := fresh "H" in
@@ -711,15 +725,101 @@ Ltac crush_insert :=
    end)
 .
 
+Inductive is_val : expr -> Prop :=
+| Cfres : forall e f, e = Xres(Fres(Fval(Vnat f))) -> is_val e
+.
+
+Lemma expr_val_dec e :
+  { is_val e } + { ~is_val e }.
+Proof.
+  induction e.
+  1: destruct f. destruct f. destruct v. left; eauto using Cfres.
+  all: right; intros H; inv H; inv H0.
+Qed.
+#[local]
+Ltac crush_grab_ectx :=
+      (repeat match goal with
+      | [H: Some(Xres ?f) = pstep_compatible(Xres ?f) |- _] => inv H
+      | [H: Some(?e) = pstep_compatible ?e |- _] => cbn in H
+      | [H: Some(_) = match ?e with
+                      | Xres _ => _
+                      | _ => _
+                      end |- _] => grab_value e
+      | [H: Some _ = None |- _] => inv H
+      end; try now cbn;
+      match goal with
+      | [v : value |- _] => destruct v
+      | [ |- _ ] => trivial
+      end;
+      cbn; repeat match goal with
+           | [H1: _ = insert _ _ |- _] => cbn in H1
+           | [H: Some ?e0 = pstep_compatible ?e0 |- match insert ?K ?e0 with
+                                                   | Xres _ => _
+                                                   | _ => _
+                                                   end = _] => let ek := fresh "ek" in
+                                                              let H2 := fresh "H2" in
+                                                              remember (insert K e0) as ek;
+                                                              destruct (expr_val_dec ek) as [H2|H2];
+                                                              try (inv H2; crush_insert; match goal with
+                                                              | [H: Some ?f = pstep_compatible ?f, f: nat |- _] => inv H
+                                                              end)
+           | [H: Some(?e0) = pstep_compatible ?e0,
+             H1: _ = insert _ _ |- _] => cbn in H
+           end;
+      match goal with
+      | [K: evalctx, e0: expr, ek: expr,
+         H: Some ?e0 = pstep_compatible ?e0,
+         Heqek: ?ek = insert ?K ?e0,
+         IHe: (forall (K' : evalctx) (e0' : expr), Some e0' = pstep_compatible e0' ->
+                                              ?ek = insert K' e0' ->
+                                              evalctx_of_expr ?ek = Some(K', e0'))
+         |- _] =>
+         specialize (IHe K e0 H Heqek) as ->
+      end;
+      repeat match goal with
+      | [H: ~ is_val ?ek |- match ?ek with
+                           | Xres _ => _
+                           | _ => _
+                           end = _] => destruct ek; trivial
+      | [H: ~ is_val (Xres ?f) |- match ?f with
+                          | Fres _ => _
+                          | _ => _
+                          end = _] => destruct f; trivial
+      | [H: ~ is_val (Xres(Fres ?f)) |- match ?f with
+                          | Fval _ => _
+                          | _ => _
+                          end = _] => destruct f; trivial
+      | [H: ~ is_val (Xres(Fres(Fval ?v))) |- _ ] => destruct v; destruct H; eauto using Cfres
+      end).
 Lemma grab_ectx e K e0 :
   Some e0 = pstep_compatible e0 ->
   e = insert K e0 ->
   evalctx_of_expr e = Some(K, e0)
 .
 Proof.
-  revert K e0; induction e; intros.
-  - crush_insert; inv H.
-Admitted.
+  revert K e0; induction e; intros; crush_insert; crush_grab_ectx.
+  cbn. remember (insert K e0) as ek.
+  destruct (expr_val_dec ek) as [H2|H2];
+  try (inv H2; crush_insert; inv H).
+  specialize (IHe1 K e0 H Heqek) as ->.
+  destruct ek; trivial. destruct f; trivial.
+  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
+
+  cbn; remember (insert K e0) as ek.
+  destruct (expr_val_dec ek) as [H2|H2];
+  try (inv H2; crush_insert; inv H).
+  specialize (IHe K e0 H Heqek) as ->;
+  destruct ek; trivial.
+  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
+
+  cbn; remember (insert K e0) as ek.
+  destruct (expr_val_dec ek) as [H2|H2];
+  try (inv H2; crush_insert; inv H).
+  specialize (IHe K e0 H Heqek) as ->;
+  destruct ek; trivial.
+  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
+Qed.
+
 Lemma ungrab_ectx e K e0 :
   Some e0 = pstep_compatible e0 ->
   evalctx_of_expr e = Some(K, e0) ->

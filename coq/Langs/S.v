@@ -825,7 +825,7 @@ Lemma easy_ectx e0 :
   evalctx_of_expr e0 = Some(Khole, e0).
 Proof. induction e0; cbn in *; intros H; crush_grab_ectx. Qed.
 
-Lemma det_ectx e0 K e e' :
+Lemma injective_ectx e0 K e e' :
   Some e0 = pstep_compatible e0 ->
   evalctx_of_expr e = Some(K, e0) ->
   evalctx_of_expr e' = Some(K, e0) ->
@@ -839,7 +839,7 @@ Lemma ungrab_ectx e K e0 :
 Proof.
   intros H H1; remember (insert K e0) as e1;
   eapply grab_ectx in Heqe1 as H2; eauto;
-  eapply det_ectx; eauto.
+  eapply injective_ectx; eauto.
 Qed.
 Lemma pstep_compatible_some e e' :
   pstep_compatible e = Some e' -> e = e'.

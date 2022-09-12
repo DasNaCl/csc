@@ -1008,7 +1008,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \begin{center}
   \judgbox{\plugs{e_0}{e_1}=\src{e_2}}{,,Replace any $\src{hole}$ in $\src{e_1}$ by $\src{e_0}$, resulting in $\src{e_2}$.\\$Q$ is a placeholder for either $Q$ or $N$ and may be used to switch\\hole filling modes.''}
     \typerule{plug-hole}{
-      \typechecks{x:\type_1}{e}{\type_2}
+      \left[\typechecks{x:\type_1}{e}{\type_2}\right]
     }{
       \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{calling\ x; returning\ e}
     }{s-plug-hole}
@@ -4275,15 +4275,16 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
 \begin{lemma}[Expression-based Backtranslation Correctness without Wrapper]\label{lem:exprbacktranslation:wowrapper:correct}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
+  \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback[\Game,()]{\mstrace}=\Game',\src{e}$
+  \item $\mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\mstrace}=\Game',\src{e_{H}}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\src{e}=\plugs{\finalexprnoerr_{INIT}}{e_{H}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\src{\trace[_1]}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
@@ -4296,57 +4297,65 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
 
   If
   \begin{assumptions}
-  \item\label[ass]{asm:backtranscorr:case0:exect} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\hole{\cdot}}$
-  \item $\mmlAmmlAtback[\Game,()]{\hole{\cdot}}=\Game,\src{e}$
+  \item\label[ass]{asm:backtranscorr:case0:exect} $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\hole{\cdot}}$
+  \item\label[ass]{asm:backtranscorr:case0:thebacktrans} $\mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\hole{\cdot}}=\Game,\src{e_{H}}$
   \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\src{e}=\plugs{\finalexprnoerr_{INIT}}{e_{H}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
   \end{goals}
 
-  By inversion on (b), what is left to show is:
-  $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  By inversion on \Cref{asm:backtranscorr:case0:thebacktrans}, what is left to show is:
+  If
+  \begin{assumptions}
+  \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\hole{\cdot}}$
+  \item $\mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\hole{\cdot}}=\Game,\src{hole:(x:\type_{1})\to\type_{2}}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item\label[ass]{asm:backtranscorr:case0:plugs} $\src{e}=\plugs{\finalexprnoerr_{INIT}}{hole:(x:\type_{1})\to\type_{2}}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{42}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\src{\hole{\cdot}}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
   \end{goals}
 
-  Instantiate our goal with $\delta' = \delta, \src{\Omega'}=\src{\Omega}, \src{\trace}=\src{\hole{\cdot}}, \src{\valueexpr}=\src{42}$, the first two goals and the fourth follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.
+  Invert \Cref{asm:backtranscorr:case0:plugs} to obtain $\left[\typechecks{x:\type_{1}}{\finalexprnoerr_{INIT}}{\type_{2}}\right]$ and instantiate our goal with $\delta' = \delta, \src{\Omega'}=\src{\Omega}, \src{\trace}=\src{\hole{\cdot}}, \src{\finalexprnoerr}=\src{\finalexprnoerr_{INIT}}$, the first two goals and the fourth follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.\MK{lemma: step with no events doesn't change $\trg{\Omega}$}
 
   \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
   If
   \begin{assumptions}
-  \item\label{asm:backtranscorr:indu:step} $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\event\cdot\trace}$
+  \item\label{asm:backtranscorr:indu:step} $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\event\cdot\trace}$
   \item\label{asm:backtranscorr:indu:spectrace} $\trg{\msevent\cdot\mstrace}=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
   \item $\mmlAmmlAtback{\msevent\cdot\mstrace}=\Game',\src{e}$
   \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
   \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\event}$
   \end{goals}
 
   The induction hypothesis is:
-  If $\forall \trg{\Omega_{\IH}}\ \trg{\Omega'_{\IH}}\ \trg{e_{\IH}}\ \trg{\valueexpr_{\IH}}\ \src{\Omega_{\IH}}\ \src{e_{\IH}}\ \delta_{\IH}\ \Game_{\IH}\ \Game_{\IH}',$
+  If $\forall \trg{\Omega_{\IH}}\ \trg{\Omega'_{\IH}}\ \trg{e_{\IH}}\ \trg{\finalexprnoerr_{\IH}}\ \src{\Omega_{\IH}}\ \src{e_{\IH}}\ \delta_{\IH}\ \Game_{\IH}\ \Game_{\IH}',$
   \begin{assumptions}
-  \item $\exect{\Omega_{\IH}}{e_{\IH}}{\Omega'_{\IH}}{\valueexpr_{\IH}}{\trace}$
+  \item $\exect{\Omega_{\IH}}{e_{\IH}}{\Omega'_{\IH}}{\finalexprnoerr_{\IH}}{\trace}$
   \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
   \item $\mmlAmmlAtback[\Game_{\IH}]{\mstrace}=\Game_{\IH}',\src{e_{\IH}}$
   \item $\xlangbackstateeq[\delta_{\IH}]{\Omega_{\IH}}{\Omega_{\IH}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\delta_{\IH}\subseteq\delta'$
-  \item $\exec{\src{\Omega_{\IH}}}{\src{e_{\IH}}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\exec{\src{\Omega_{\IH}}}{\src{e_{\IH}}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'_{\IH}}{\Omega'}$
   \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
@@ -4362,13 +4371,13 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
     \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_{x},()]{\mstrace}=\Game',\src{e_a}$
       \end{passumptions}
 
-      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificevt{Alloc\ \loc\ n}=\trg{Alloc\ \loc\ n}$, subsequently inverting \Cref{asm:backtranscorr:indu:step}\todo{not inversion,technical lemma} yields:
+      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificevt{Alloc\ \loc\ n}=\thetospecificfilter\left(\trg{Alloc\ \loc\ n}\right)$, subsequently inverting \Cref{asm:backtranscorr:indu:step}\todo{not inversion,technical lemma} yields:
       \begin{passumptions}{H}
       \setcounter{enumi}{4}
     \item $\trg{\Omega}=\trg{H;\Delta}$
     \item $\trg{H'}=\grow{\trg{H}}{\trg{n}}$
     \item\label[ass]{asm:backtranscorr:indu:allocstep} $\exect[]{H;\Delta}{let\ x = new\ n\ in\ e'}{H';z\mapsto\loc_{\poisonless},\Delta}{e'[z/x]}{Alloc\ \loc\ n}$
-    \item\label[ass]{asm:backtranscorr:indu:steps} $\exect{H';z\mapsto\loc_{\poisonless},\Delta}{e'}{\Omega''}{v}{\trace}$
+    \item\label[ass]{asm:backtranscorr:indu:steps} $\exect{H';z\mapsto\loc_{\poisonless},\Delta}{e'}{\Omega''}{\finalexprnoerr}{\trace}$
       \end{passumptions}
 
       Let $\delta_x=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$, obviously $\delta\subseteq\delta_x$.
@@ -4384,20 +4393,20 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
       \item\label[ass]{asm:backtranscorr:indu:trace} $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
       \end{passumptions}
 
-      We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{H';z,\mapsto\loc_{\poisonless},\Delta}$, $\trg{\Omega_{\IH}'}=\trg{\Omega''}$, $\trg{e_{\IH}}=\trg{e'[z/x]}$, $\trg{\valueexpr_{\IH}}=\trg{\valueexpr}$, $\src{\Omega_{\IH}}=\src{H';z\mapsto\loc_{\poisonless},\Delta}$, $\src{e_{\IH}}=\src{e_a}$, $\delta_{\IH}=\delta_x$, $\Game_{\IH}=\Game_x$, and $\Game_{\IH}'=\Game'$.
+      We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{H';z,\mapsto\loc_{\poisonless},\Delta}$, $\trg{\Omega_{\IH}'}=\trg{\Omega''}$, $\trg{e_{\IH}}=\trg{e'[z/x]}$, $\trg{\finalexprnoerr_{\IH}}=\trg{\finalexprnoerr}$, $\src{\Omega_{\IH}}=\src{H';z\mapsto\loc_{\poisonless},\Delta}$, $\src{e_{\IH}}=\src{e_a}$, $\delta_{\IH}=\delta_x$, $\Game_{\IH}=\Game_x$, and $\Game_{\IH}'=\Game'$.
       Whence, specialize it with \Cref{asm:backtranscorr:indu:steps,asm:backtranscorr:indu:trace,asm:backtranscorr:indu:backtrans,asm:backtranscorr:indu:staterel}, giving us:
       \begin{passumptions}{F}
       \item\label[ass]{asm:backtranscorr:indu:deltasubset} $\delta_x\subseteq\delta'$
-      \item\label[ass]{asm:backtranscorr:indu:afterallocstep} $\exec{\src{H';z\mapsto\loc_{\poisonless},\Delta}}{\src{e'[z/x]}}{\src{\configs''}}{\src{\valueexpr}}{\src{\trace}}$
+      \item\label[ass]{asm:backtranscorr:indu:afterallocstep} $\exec{\src{H';z\mapsto\loc_{\poisonless},\Delta}}{\src{e'[z/x]}}{\src{\configs''}}{\src{\finalexprnoerr}}{\src{\trace}}$
       \item\label[ass]{asm:backtranscorr:indu:finalstaterel} $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$
       \item\label[ass]{asm:backtranscorr:indu:tracerel1} $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
       \end{passumptions}
 
       For the sake of clarity, we repeat our goal: 
-      $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+      $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
       \begin{goals}
       \item $\delta\subseteq\delta'$
-      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
       \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega'}$
       \item $\src{\trace}\thexlangtraceeq[\delta']\trg{Alloc\ \loc\ n\cdot\trace}$
       \end{goals}
@@ -4407,7 +4416,7 @@ Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the r
       \item $\delta\subseteq\delta'$
         
         Follows by definition of $\delta_x$ and \Cref{asm:backtranscorr:indu:deltasubset}.
-      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs''}}{\src{\valueexpr}}{\src{Alloc\ \loc\ n\cdot\trace}}$
+      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs''}}{\src{\finalexprnoerr}}{\src{Alloc\ \loc\ n\cdot\trace}}$
 
         Apply \Cref{tr:ws-e-trans-important}, use \Cref{tr:w-e-let-new} and then we are done using \Cref{asm:backtranscorr:indu:afterallocstep} .
       \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$

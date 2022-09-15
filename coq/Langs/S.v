@@ -696,16 +696,18 @@ Ltac crush_estep := (match goal with
                      | [H: _ ▷ (Xres ?f) ==[, ?a ]==> ?r |- _] =>
                        inv H
                      end);
-  (do 2 match goal with
-        | [H: Xres ?f = insert ?K ?e |- _] =>
-          induction K; cbn in H; try congruence; inv H
-        | [H: _ ▷ (Xres ?f) --[]--> ?r |- _] =>
-          inv H
-        | [H: _ ▷ (Xres ?f) --[, ?a ]--> ?r |- _] =>
-          inv H
-        | [H: _ ▷ (Xres ?f) --[ ?a ]--> ?r |- _] =>
-          inv H
-        end)
+  (repeat match goal with
+   | [H: insert ?E (Xreturn (Xres(Fres ?f0))) = Xres ?f |- _] => induction E; try congruence; inv H
+   | [H: insert ?E (Xcall ?foo (Xres(Fres ?f0))) = Xres ?f |- _] => induction E; try congruence; inv H
+   | [H: Xres ?f = insert ?K ?e |- _] =>
+     induction K; cbn in H; try congruence; inv H
+   | [H: _ ▷ (Xres ?f) --[]--> ?r |- _] =>
+     inv H
+   | [H: _ ▷ (Xres ?f) --[, ?a ]--> ?r |- _] =>
+     inv H
+   | [H: _ ▷ (Xres ?f) --[ ?a ]--> ?r |- _] =>
+     inv H
+   end)
 .
 Ltac unfold_estep := (match goal with
                       | [H: _ ▷ _ ==[ _ ]==> _ ▷ _ |- _ ] => inv H
@@ -1046,10 +1048,10 @@ Fixpoint get_fuel (e : expr) : option nat :=
     let* ge1 := get_fuel e1 in
     Some(1 + ge0 + ge1)
   | Xdel x => Some(1)
-  | Xreturning e =>
+  | Xreturn e =>
     let* ge := get_fuel e in
     Some(1 + ge)
-  | Xcalling e =>
+  | Xcall foo e =>
     let* ge := get_fuel e in
     Some(1 + ge)
   | Xifz c e0 e1 =>
@@ -1058,7 +1060,6 @@ Fixpoint get_fuel (e : expr) : option nat :=
     let* ge1 := get_fuel e1 in
     Some(1 + gc + ge0 + ge1)
   | Xabort => Some(1)
-  | Xhole _ _ _ => None
   end
 .
 Ltac crush_option :=
@@ -1096,7 +1097,6 @@ Proof.
   - crush_fuel; try crush_option; exists n0; now inv H.
   - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
   - exists 0; now inv H.
-  - crush_option.
 Qed.
 Lemma star_stepf_one_step Ω e r r' a As fuel :
   Some (S fuel) = get_fuel e ->
@@ -1188,51 +1188,15 @@ fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
         eapply IHfuel; eauto.
 Qed.
 
-(** Fill hole expression. *)
-Variant fill_placeholder : Type :=
-| FP_Q : fill_placeholder
-| FP_N (freshid : vart) : fill_placeholder
-.
-Definition fill (Q : fill_placeholder) (e0 e1 : expr) : expr :=
-  let ifill := (fix ifill e :=
-    let R := exprmap ifill in
-    match e with
-    | Xhole x τ1 τ2 =>
-        match Q with
-        | FP_Q => (* plug-hole *)
-            Xlet x (Xcalling (Fvar x)) (Xreturning e0)
-        | FP_N freshid => (* plug-hole' *)
-            Xlet freshid (Xhole x τ1 τ2) (Xlet dontcare e0 (Fvar freshid))
-        end
-    | _ => R e
-    end)
-  in
-  ifill e1
-.
-(*TODO: add typing*)
-Inductive fill_j : list string -> fill_placeholder -> expr -> expr -> expr -> Prop :=
-| fillQ : forall e0 e1 e2, fill FP_Q e0 e1 = e2 -> fill_j nil FP_Q e0 e1 e2
-| fillN : forall q e0 e1 e2 z X, fresh_tvar X z -> q = FP_N z -> fill q e0 e1 = e2 -> fill_j X q e0 e1 e2
-.
-#[global]
-Hint Constructors fill_j : core.
-
 (** Evaluation of programs *)
 (*TODO: add typing*)
+Set Printing All.
 Inductive wstep : ProgStep :=
-| e_wprog : forall (y : vart)
-              (e0 ep e1 : expr)
-              (e0' ep0 e0'' : expr)
-              (f0 fp fp' f1 : fnoerr)
-              (Ω0 Ωp0 Ω0' Ω1 : state)
-              (As0 Asp As0' As1 : tracepref),
-    fill_j nil FP_Q ep e0 e0' ->
+| e_wprog : forall (symbs : symbols) (E : evalctx) (As : tracepref) (r : rtexpr),
     (* typing -> *)
-    (Fresh.empty_fresh ; hNil ; sNil ▷ e0' ==[ As0 · Scall f0 ]==>* Ω0 ▷ ep0) ->
-    (Ω0 ▷ ep0 ==[ Asp · Sret fp ]==>* Ωp0 ▷ e0'') ->
-    (Ωp0 ▷ e0'' ==[ As0' ]==>* Ω0' ▷ fp') ->
-    (Ω0' ▷ (subst y e1 fp') ==[ As1 ]==>* Ω1 ▷ f1) ->
-    PROG[e0][ep][e1]====[ Sret 0 · As0 · Scall f0 · Asp · Sret fp · As0' · As1 · Scall f1]===> (Ω1 ▷ f1)
+    Some E = mget symbs ("main"%string) ->
+    (Fresh.empty_fresh ; symbs ; E :: nil ; hNil ; sNil ▷ insert E 0 ==[ As ]==>* r) ->
+    PROG[symbs]["main"%string]====[ As ]===> r
 .
 #[local]
 Existing Instance wstep.

@@ -116,9 +116,9 @@ Definition ev_to_tracepref {Ev : Type} `{TraceEvent Ev} (e : Ev) : tracepref := 
 Class PrimStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := pstep__Class : A -> (option Ev) -> A -> Prop.
 Class CtxStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := estep__Class : A -> (option Ev) -> A -> Prop.
 Class MultStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := sstep__Class : A -> tracepref -> A -> Prop.
-Class ProgStep (A B : Type) (Ev : Type) (Prog : Type)
-               `{ExprClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass A Prog}
-  := wstep__Class : Prog -> tracepref -> B -> Prop.
+Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
+               `{HasEquality C} `{EvalCtxClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass C A Prog}
+  := wstep__Class : Prog -> C -> tracepref -> B -> Prop.
 Class VDash (A B C : Type) `{ExprClass B} := vDash : A -> B -> C -> Prop.
 
 End Util.
@@ -146,6 +146,6 @@ Notation "e0 '==[' a ']==>' e1" := (estep__Class e0 (Some a) e1) (at level 82, e
 #[global]
 Notation "e0 '==[' a ']==>*' e1" := (sstep__Class e0 a e1) (at level 82, e1 at next level).
 #[global]
-Notation "'PROG[' e0 '][' ep '][' e1 ']====[' As ']===>' r" := (wstep__Class (Cprog__Class e0 ep e1) As r) (at level 81, r at next level).
+Notation "'PROG[' symbs '][' start ']====[' As ']===>' r" := (wstep__Class (Cprog__Class symbs) start As r) (at level 81, r at next level).
 #[global]
 Notation "G '|-' e ':' t" := (vDash G e t) (at level 200, t at next level).

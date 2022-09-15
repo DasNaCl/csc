@@ -66,11 +66,10 @@ Inductive expr : Type :=
 | Xlet (x : vart) (e0 e1 : expr) : expr
 | Xnew (x : vart) (e0 e1 : expr) : expr
 | Xdel (x : vart) : expr
-| Xreturning (e : expr) : expr
-| Xcalling (e : expr) : expr
+| Xreturn (e : expr) : expr
+| Xcall (foo : vart) (e : expr) : expr
 | Xifz (c e0 e1 : expr) : expr
 | Xabort : expr
-| Xhole (x : vart) (τ1 τ2 : ty) : expr
 .
 Coercion Xres : ferr >-> expr.
 #[local]
@@ -104,19 +103,18 @@ Fixpoint string_of_expr (e : expr) :=
     let s1 := string_of_expr e1 in
     String.append ("let "%string) (String.append x (String.append " = new " (String.append s0 (String.append (";"%string) s1))))
   | Xdel x => String.append ("delete "%string) x
-  | Xreturning e =>
+  | Xreturn e =>
     let s := string_of_expr e in
-    String.append ("returning "%string) s
-  | Xcalling e =>
+    String.append ("return "%string) s
+  | Xcall f e =>
     let s := string_of_expr e in
-    String.append ("calling "%string) s
+    String.append (String.append ("call "%string) f) s
   | Xifz c e0 e1 =>
     let cs := string_of_expr c in
     let s0 := string_of_expr e0 in
     let s1 := string_of_expr e1 in
     String.append (String.append (String.append ("ifz "%string) cs) (String.append (" then "%string) s0)) (String.append (" else "%string) s1)
   | Xabort => "abort"%string
-  | Xhole x τ1 τ2 => String.append "hole : " x
   end
 .
 
@@ -128,12 +126,30 @@ Definition exprmap (h : expr -> expr) (e : expr) :=
   | Xset x e0 e1 => Xset x (h e0) (h e1)
   | Xlet x e0 e1 => Xlet x (h e0) (h e1)
   | Xnew x e0 e1 => Xnew x (h e0) (h e1)
-  | Xreturning e => Xreturning (h e)
-  | Xcalling e => Xcalling (h e)
+  | Xreturn e => Xreturn (h e)
+  | Xcall f e => Xcall f (h e)
   | Xifz c e0 e1 => Xifz (h c) (h e0) (h e1)
   | _ => e
   end
 .
+
+(** We proceed to define the dynamic semantics via evaluation contexts/environments. *)
+(** The reason we introduce them here is to define functions, since we model them simply as evaluation contexts. *)
+Inductive evalctx : Type :=
+| Khole : evalctx
+| KbinopL (b : binopsymb) (K : evalctx) (e : expr) : evalctx
+| KbinopR (b : binopsymb) (v : value) (K : evalctx) : evalctx
+| Kget (x : vart) (K : evalctx) : evalctx
+| KsetL (x : vart) (K : evalctx) (e : expr) : evalctx
+| KsetR (x : vart) (v : value) (K : evalctx) : evalctx
+| Klet (x : vart) (K : evalctx) (e : expr) : evalctx
+| Knew (x : vart) (K : evalctx) (e : expr) : evalctx
+| Kifz (K : evalctx) (e0 e1 : expr) : evalctx
+| Kreturn (K : evalctx) : evalctx
+| Kcall (foo : vart) (K : evalctx) : evalctx
+.
+#[local]
+Instance evalctx__Instance : EvalCtxClass evalctx := {}.
 
 (** * Freshness *)
 
@@ -187,18 +203,24 @@ Fixpoint Hgrow (H : heap) (s : nat) : heap :=
     It simply restricts the keys to be less than the length of a heap. *)
 Axiom heap_axiom0 : forall (H : heap), forall (n : nat), n >= length H -> mget H n = None /\ forall v, mset H n v = None.
 Axiom heap_axiom1 : forall (H : heap), forall (n : nat), n < length H -> mget H n <> None /\ forall v, mset H n v <> None.
-Definition state : Type := CSC.Fresh.fresh_state * heap * store.
-Notation "F ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (H : heap), (Δ : store)) (at level 81, H at next level, Δ at next level).
 
-Inductive context : Type := Ccontext : expr -> expr -> context.
-Inductive component : Type := Ccomponent : expr -> component.
-Inductive prog : Type := Cprog : expr -> expr -> expr -> prog.
-#[global]
+Definition active_ectx := list evalctx.
+
+#[local]
+Existing Instance varteq__Instance | 0.
+Definition state : Type := CSC.Fresh.fresh_state * symbols * active_ectx * heap * store.
+Notation "F ';' Ξ ';' ξ ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (Ξ : symbols),
+                                         (ξ : active_ectx), (H : heap), (Δ : store))
+                                         (at level 81, ξ at next level, Ξ at next level, H at next level, Δ at next level).
+
+(** A program is just a collection of symbols. The symbol `main` is the associated entry-point. *)
+Inductive prog : Type := Cprog : symbols -> prog.
+#[local]
 Instance prog__Instance : ProgClass prog := Cprog.
 
 Definition string_of_prog (p : prog) :=
-  let '(Cprog e0 ep e1) := p in
-  String.append (String.append (String.append ("prog ["%string) (string_of_expr e0)) (String.append ("]["%string) (string_of_expr ep))) (String.append ("]["%string) (String.append (string_of_expr e1) ("]"%string)))
+  let '(Cprog s) := p in
+  "prog"%string (*TODO*)
 .
 
 (** Types of events that may occur in a trace. *)
@@ -208,7 +230,7 @@ Variant event : Type :=
 | Sget (ℓ : loc) (n : nat) : event
 | Sset (ℓ : loc) (n : nat) (v : value) : event
 | Scrash : event
-| Scall (f : fnoerr) : event
+| Scall (foo : vart) (arg : fnoerr) : event
 | Sret (f : fnoerr) : event
 .
 #[local]
@@ -232,10 +254,10 @@ Definition string_of_event (e : event) :=
                                (String.append (" "%string) (string_of_nat n)))
                              (String.append (" "%string) (string_of_nat m))
   | (Scrash) => "↯"%string
-  | (Scall(Fval(Vnat n))) => String.append ("Call ?"%string) (string_of_nat n)
-  | (Scall(Fvar x)) => String.append ("Call ?"%string) x
-  | (Sret(Fval(Vnat n))) => String.append ("Ret !"%string) (string_of_nat n)
-  | (Sret(Fvar x)) => String.append ("Ret !"%string) x
+  | (Scall foo (Fval(Vnat n))) => String.append ("Call ?"%string) (string_of_nat n)
+  | (Scall foo (Fvar x)) => String.append ("Call ?"%string) x
+  | (Sret (Fval(Vnat n))) => String.append ("Ret !"%string) (string_of_nat n)
+  | (Sret (Fvar x)) => String.append ("Ret !"%string) x
   end
 .
 Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
@@ -282,14 +304,10 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
                | Some y => Xdel y
                end
     | Xres(Fres(Fvar x)) => if vareq what x then forr else e
-    | Xhole x τ1 τ2 => match substid with
-                      | None => Xhole x
-                      | Some y => Xhole y
-                      end τ1 τ2
     | Xbinop b e1 e2 => Xbinop b (R e1) (R e2)
     | Xifz c e1 e2 => Xifz (R c) (R e1) (R e2)
-    | Xreturning e => Xreturning (R e)
-    | Xcalling e => Xcalling (R e)
+    | Xreturn e => Xreturn (R e)
+    | Xcall foo e => Xcall foo (R e)
     | _ => e
     end
   in
@@ -297,10 +315,6 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
 .
 
 Inductive pstep : PrimStep :=
-| e_returning : forall (Ω : state) (f : fnoerr),
-    Ω ▷ Xreturning f --[ (Sret f) ]--> Ω ▷ f
-| e_calling : forall (Ω : state) (f : fnoerr),
-    Ω ▷ Xcalling f  --[ (Scall f) ]--> Ω ▷ f
 | e_binop : forall (Ω : state) (n1 n2 n3 : nat) (b : binopsymb),
     Vnat n3 = eval_binop b n1 n2 ->
     Ω ▷ Xbinop b n1 n2 --[]--> Ω ▷ n3
@@ -310,26 +324,26 @@ Inductive pstep : PrimStep :=
     Ω ▷ Xifz (S n) e1 e2 --[]--> Ω ▷ e2
 | e_abort : forall (Ω : state),
     Ω ▷ Xabort --[ (Scrash) ]--> ↯ ▷ stuck
-| e_get : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
+| e_get : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some v = mget H (ℓ + n))
       (H0b : ℓ + n >= length H -> v = 1729),
-    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ (Sget (addr ℓ) n) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
-| e_set : forall (F : CSC.Fresh.fresh_state) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
+    (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ (Sget (addr ℓ) n) ]--> (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
+| e_set : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some H' = mset H (ℓ + n) v)
       (H0b : ℓ + n >= length H -> H' = H),
-    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ (Sset (addr ℓ) n v) ]--> (F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
-| e_delete : forall (F : CSC.Fresh.fresh_state) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
-    (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ (Sdealloc (addr ℓ)) ]--> (F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
+    (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ (Sset (addr ℓ) n v) ]--> (F ; Ξ ; ξ ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
+| e_delete : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
+    (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ (Sdealloc (addr ℓ)) ]--> (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
 | e_let : forall (Ω : state) (x : vart) (f : fnoerr) (e e' : expr),
     e' = subst x e f ->
     Ω ▷ Xlet x f e --[]--> Ω ▷ e'
-| e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (H H' : heap) (Δ : store) (x z : vart) (ℓ n : nat) (e : expr),
+| e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ : store) (x z : vart) (ℓ n : nat) (e : expr),
     ℓ = Fresh.fresh F ->  F' = Fresh.advance F ->
     z = Fresh.freshv F' -> F'' = Fresh.advance F' ->
     (*TODO: fresh_loc (Δimg Δ) (addr ℓ) ->*)
     (*fresh_tvar (Δdom Δ) z ->*)
     H' = Hgrow H n ->
-    (F ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x e (Fvar z))
+    (F ; Ξ ; ξ ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; Ξ ; ξ ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x e (Fvar z))
 .
 #[local]
 Existing Instance pstep.
@@ -341,18 +355,6 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   let '(oΩ, e) := r in
   let* Ω := oΩ in
   match e with
-  | Xreturning F => (* e-returning *)
-    match F with
-    | Xres(Fres f) =>
-      Some(Some(Sret f), Ω ▷ F)
-    | _ => None
-    end
-  | Xcalling F => (* e-calling *)
-    match F with
-    | Xres(Fres f) =>
-      Some(Some(Scall f), Ω ▷ F)
-    | _ => None
-    end
   | Xbinop b n1 n2 => (* e-binop *)
     match n1, n2 with
     | Xres(Fres(Fval(Vnat m1))), Xres(Fres(Fval(Vnat m2))) =>
@@ -369,7 +371,7 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   | Xget x en => (* e-get *)
     match en with
     | Xres(Fres(Fval(Vnat n))) =>
-      let '(F, H, Δ) := Ω in
+      let '(F, Ξ, ξ, H, Δ) := Ω in
       let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
       let '(addr ℓ) := L in
       let v := match mget H (ℓ + n) with
@@ -377,28 +379,28 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
               | Some w => w
               end
       in
-        Some(Some(Sget (addr ℓ) n), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sget (addr ℓ) n), F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
     | _ => None
     end
   | Xset x en ev => (* e-set *)
     match en, ev with
     | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
-      let '(F, H, Δ) := Ω in
+      let '(F, Ξ, ξ, H, Δ) := Ω in
       let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
       let '(addr ℓ) := L in
       match mset H (ℓ + n) v with
       | Some H' =>
-        Some(Some(Sset (addr ℓ) n v), F ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sset (addr ℓ) n v), F ; Ξ ; ξ ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
       | None =>
-        Some(Some(Sset (addr ℓ) n v), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sset (addr ℓ) n v), F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
       end
     | _, _ => None
     end
   | Xdel x => (* e-delete *)
-    let '(F, H, Δ) := Ω in
+    let '(F, Ξ, ξ, H, Δ) := Ω in
     let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
     let '(addr ℓ) := L in
-    Some(Some(Sdealloc (addr ℓ)), F ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
+    Some(Some(Sdealloc (addr ℓ)), F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
   | Xlet x ef e' => (* e-let *)
     match ef with
     | Xres(Fres f) =>
@@ -409,13 +411,13 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   | Xnew x ef e' => (* e-new *)
     match ef with
     | Xres(Fres(Fval(Vnat n))) =>
-      let '(F, H, Δ) := Ω in
+      let '(F, Ξ, ξ, H, Δ) := Ω in
       let H' := Hgrow H n in
       let ℓ := CSC.Fresh.fresh F in
       let F' := Fresh.advance F in
       let z := CSC.Fresh.freshv F' in
       let e'' := subst x e' (Fvar z) in
-      Some(Some(Salloc (addr ℓ) n), Fresh.advance F' ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
+      Some(Some(Salloc (addr ℓ) n), Fresh.advance F' ; Ξ ; ξ ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
     | _ => None
     end
   | _ => None (* no matching rule *)
@@ -428,11 +430,11 @@ Ltac crush_interp :=
         let Ω := fresh "Ω" in destruct oΩ as [|]; inversion H
     end.
 Ltac grab_value e :=
-  (destruct e as [[[[e]|]|]| | | | | | | | | | |]; try congruence)
+  (destruct e as [[[[e]|]|]| | | | | | | | | |]; try congruence)
 .
 Ltac grab_value2 e1 e2 := (grab_value e1; grab_value e2).
 Ltac grab_final e :=
-  (destruct e as [[e|]| | | | | | | | | | | ]; try congruence)
+  (destruct e as [[e|]| | | | | | | | | | ]; try congruence)
 .
 
 Lemma splitat_elim (Δ1 Δ2 : store) (x : vart) (ℓ : loc) (ρ : poison) :
@@ -472,8 +474,6 @@ Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
 Proof.
   split.
   - induction 1.
-    + (* e-returning *) now cbn.
-    + (* e-calling *) now cbn.
     + (* e-binop *) rewrite H; now cbn.
     + (* e-ifz-true *) now cbn.
     + (* e-ifz-false *) now cbn.
@@ -495,14 +495,14 @@ Proof.
     + (* e = e1 ⊕ e2 *)
       now grab_value2 e1 e2; inv H1; eapply e_binop.
     + (* e = x[e] *)
-      grab_value e. destruct s as [[F H] Δ].
+      grab_value e. destruct s as [[[[F Ξ] ξ] H] Δ].
       destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H1; congruence).
       apply splitat_base in H0 as [Δ1 [[ℓ] [ρ [Δ2 H0]]]]. rewrite H0 in H1.
       rewrite splitat_elim in H1. inv H1. eapply e_get; intros H0.
       * now apply Hget_some in H0 as [v ->].
       * now apply Hget_none in H0 as ->.
     + (* e = x[e1] <- e2 *)
-      grab_value2 e1 e2. destruct s as [[F H] Δ].
+      grab_value2 e1 e2. destruct s as [[[[F Ξ] ξ] H] Δ].
       destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H1; congruence).
       apply splitat_base in H0 as [Δ1 [[ℓ] [ρ [Δ2 H0]]]]. rewrite H0 in H1.
       rewrite splitat_elim in H1.
@@ -515,42 +515,22 @@ Proof.
     + (* e = let x = e1 in e2 *)
       grab_final e1; inv H1; now eapply e_let.
     + (* e = let x = new e1 in e2 *)
-      grab_value e1; destruct s as [[F H] Δ]; inv H1; eapply e_alloc; eauto.
+      grab_value e1; destruct s as [[[[F Ξ] ξ] H] Δ]; inv H1; eapply e_alloc; eauto.
     + (* e = delete x *)
-      destruct s as [[F H] Δ]; inv H1.
+      destruct s as [[[[F Ξ] ξ] H] Δ]; inv H1.
       destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H2; congruence).
       apply splitat_base in H0 as [Δ1 [[ℓ] [ρ [Δ2 H0]]]]. rewrite H0 in H2.
       rewrite splitat_elim in H2; subst. inv H2. apply e_delete.
-    + (* e = returning e *)
-      grab_final e; inv H1; apply e_returning.
-    + (* e = calling e *)
-      grab_final e; inv H1; apply e_calling.
     + (* e = ifz c e0 e1 *)
       grab_value e1. destruct e1; inv H1; apply e_ifz_true || apply e_ifz_false.
     + (* e = abort *)
       apply e_abort.
 Qed.
-
-(** We proceed to define the dynamic semantics via evaluation contexts/environments. *)
-Inductive evalctx : Type :=
-| Khole : evalctx
-| KbinopL (b : binopsymb) (K : evalctx) (e : expr) : evalctx
-| KbinopR (b : binopsymb) (v : value) (K : evalctx) : evalctx
-| Kget (x : vart) (K : evalctx) : evalctx
-| KsetL (x : vart) (K : evalctx) (e : expr) : evalctx
-| KsetR (x : vart) (v : value) (K : evalctx) : evalctx
-| Klet (x : vart) (K : evalctx) (e : expr) : evalctx
-| Knew (x : vart) (K : evalctx) (e : expr) : evalctx
-| Kifz (K : evalctx) (e0 e1 : expr) : evalctx
-| Kcalling (K : evalctx) : evalctx
-| Kreturning (K : evalctx) : evalctx
-.
 (** convert an expression to evalctx in order to execute it functionally + "contextually" *)
 (** this function returns an eval context K and an expr e' such that K[e'] = e given some e *)
 Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
   match e with
   | Xres _ => None
-  | Xhole _ _ _ => None
   | Xdel x => Some(Khole, Xdel x)
   | Xabort => Some(Khole, Xabort)
   | Xbinop b e1 e2 =>
@@ -596,19 +576,19 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     | _ => let* (K, e1') := evalctx_of_expr e1 in
           Some(Knew x K e2, e1')
     end
-  | Xreturning e =>
+  | Xreturn e =>
     match e with
     | Xres f =>
-      Some(Khole, Xreturning f)
+      Some(Khole, Xreturn f)
     | _ => let* (K, e') := evalctx_of_expr e in
-          Some(Kreturning K, e')
+          Some(Kreturn K, e')
     end
-  | Xcalling e =>
+  | Xcall foo e =>
     match e with
     | Xres f =>
-      Some(Khole, Xcalling f)
+      Some(Khole, Xcall foo f)
     | _ => let* (K, e') := evalctx_of_expr e in
-          Some(Kcalling K, e')
+          Some(Kcall foo K, e')
     end
   | Xifz c e0 e1 =>
     match c with
@@ -631,15 +611,13 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   | Klet x K' e => Xlet x (R K') e
   | Knew x K' e => Xnew x (R K') e
   | Kifz K' e0 e1 => Xifz (R K') e0 e1
-  | Kcalling K' => Xcalling (R K')
-  | Kreturning K' => Xreturning (R K')
+  | Kcall foo K' => Xcall foo (R K')
+  | Kreturn K' => Xreturn (R K')
   end
 .
 (* Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
 Definition pstep_compatible (e : expr) : option expr :=
   match e with
-  | Xreturning(Xres f) => Some (Xreturning f)
-  | Xcalling(Xres f) => Some (Xcalling f)
   | Xifz 0 e0 e1 => Some (Xifz 0 e0 e1)
   | Xifz (S n) e0 e1 => Some (Xifz (S n) e0 e1)
   | Xabort => Some (Xabort)
@@ -653,7 +631,15 @@ Definition pstep_compatible (e : expr) : option expr :=
   end
 .
 
+(** Environment Semantics extended with context switches *)
 Inductive estep : CtxStep :=
+| E_return : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
+               (E E__foo : evalctx) (f : fnoerr),
+    (F ; Ξ ; E__foo :: ξ ; H ; Δ ▷ insert E (Xreturn f) ==[ Sret f ]==> F ; Ξ ; ξ ; H ; Δ ▷ insert E__foo f)
+| E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
+             (E E__foo : evalctx) (foo : vart) (f : fnoerr),
+    Some E__foo = mget Ξ foo ->
+    (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ insert E__foo f)
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
@@ -705,11 +691,28 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
   let '(oΩ, e) := r in
   let* Ω := oΩ in
   let* (K, e0) := evalctx_of_expr e in
-  let* _ := pstep_compatible e0 in
-  let* (a, (oΩ, e0')) := pstepf (Ω ▷ e0) in
-  match oΩ with
-  | None => Some(Some(Scrash), ↯ ▷ stuck)
-  | Some Ω' => Some(a, Ω' ▷ insert K e0')
+  match e0 with
+  | Xcall foo (Xres(Fres f)) =>
+    let '(F, Ξ, ξ, H, Δ) := Ω in
+    match mget Ξ foo with
+    | None => None
+    | Some K__foo =>
+    Some(Some(Scall foo f), (F ; Ξ ; (K :: ξ) ; H ; Δ ▷ (insert K__foo (Xres(Fres f)))))
+    end
+  | Xreturn(Xres(Fres f)) =>
+    let '(F, Ξ, ξ', H, Δ) := Ω in
+    match ξ' with
+    | nil => None
+    | K__foo :: ξ =>
+      Some(Some(Sret f), F ; Ξ ; ξ ; H ; Δ ▷ insert K__foo f)
+    end
+  | _ =>
+    let* _ := pstep_compatible e0 in
+    let* (a, (oΩ, e0')) := pstepf (Ω ▷ e0) in
+    match oΩ with
+    | None => Some(Some(Scrash), ↯ ▷ stuck)
+    | Some Ω' => Some(a, Ω' ▷ insert K e0')
+    end
   end
 .
 
@@ -845,37 +848,47 @@ Lemma pstep_compatible_some e e' :
   pstep_compatible e = Some e' -> e = e'.
 Proof.
   revert e'; induction e; intros; cbn in H; try congruence.
-  - grab_value2 e1 e2.
-  - grab_value e.
-  - grab_value2 e1 e2.
-  - grab_value e1.
-  - grab_value e1.
-  - grab_value e.
-  - grab_value e.
-  - grab_value e1; destruct e1; now inv H.
+  - (* binop *) grab_value2 e1 e2.
+  - (* get *) grab_value e.
+  - (* set *) grab_value2 e1 e2.
+  - (* let *) grab_value e1.
+  - (* new *) grab_value e1.
+  - (* ifz *) grab_value e1; destruct e1; now inv H.
 Qed.
+Lemma elim_ectx_ret K (f : fnoerr) :
+  evalctx_of_expr (insert K (Xreturn f)) = Some(K, Xreturn f).
+Proof. Admitted.
+Lemma elim_ectx_call K foo (f : fnoerr) :
+  evalctx_of_expr (insert K (Xcall foo f)) = Some(K, Xcall foo f).
+Proof. Admitted.
 
 Lemma equiv_estep r0 a r1 :
   r0 ==[, a ]==> r1 <-> estepf r0 = Some(a, r1).
 Proof.
   split.
   - induction 1.
-    + apply (@grab_ectx e0 K e H) in H0 as H0'.
-      cbn; rewrite H0'; rewrite equiv_pstep in H2; inv H.
-      change (match pstepf (Ω ▷ e) with
-              | Some(_, (None, _)) => Some(Some(Scrash), ↯ ▷ stuck)
-              | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
-              | None => None
-              end = Some (a, (Some Ω', insert K e'))).
-      now rewrite H2.
-    + apply (@grab_ectx e0 K e H) in H0 as H0'.
-      cbn; rewrite H0'; rewrite equiv_pstep in H1; inv H.
-      change (match pstepf (Ω ▷ e) with
-              | Some(_, (None, _)) => Some(Some(Scrash), ↯ ▷ stuck)
-              | Some(a, (Some Ω', e0')) => Some(a, Ω' ▷ insert K e0')
-              | None => None
-              end = Some(Some(Scrash), ↯ ▷ stuck)).
-      now rewrite H1.
+    + (* ret *)
+      unfold estepf.
+      rewrite (get_rid_of_letstar (F, Ξ, E__foo :: ξ, H, Δ)).
+      rewrite elim_ectx_ret.
+      now rewrite (get_rid_of_letstar (E, Xreturn f)).
+    + (* call *)
+      unfold estepf.
+      rewrite (get_rid_of_letstar (F, Ξ, E__foo :: ξ, H, Δ)).
+      rewrite elim_ectx_call.
+      rewrite (get_rid_of_letstar (E, Xcall foo f)).
+      now rewrite <- H0.
+    + (* normal step *) apply (@grab_ectx e0 K e H) in H0 as H0';
+      unfold estepf; rewrite H0'; rewrite equiv_pstep in H2;
+      rewrite (get_rid_of_letstar Ω); rewrite (get_rid_of_letstar (K, e));
+      inv H; rewrite (get_rid_of_letstar e);
+      rewrite H2; rewrite (get_rid_of_letstar (a, (Some Ω', e')));
+      destruct e; trivial; inv H4.
+    + (* crash *) apply (@grab_ectx e0 K e H) in H0 as H0'.
+      unfold estepf; rewrite H0'; rewrite equiv_pstep in H1;
+      rewrite (get_rid_of_letstar Ω); rewrite (get_rid_of_letstar (K, e));
+      inv H; rewrite (get_rid_of_letstar e);
+      rewrite H1; destruct e; trivial; inv H3.
   - destruct r0 as [Ω e], r1 as [Ω' e'].
     intros H; unfold estepf in H.
     destruct Ω as [Ω|].
@@ -886,23 +899,47 @@ Proof.
     rewrite Hx0 in H.
     rewrite (get_rid_of_letstar (K, e0)) in H.
     destruct (option_dec (pstep_compatible e0)) as [Hx1 | Hy1]; try rewrite Hy1 in H.
-    2: inv H.
-    apply not_eq_None_Some in Hx1 as [e0p Hx1].
-    rewrite Hx1 in H.
-    rewrite (get_rid_of_letstar e0p) in H.
-    destruct (option_dec (pstepf (Some Ω, e0))) as [Hx|Hy].
-    + apply (not_eq_None_Some) in Hx as [[ap [oΩ' oe0']] Hx].
-      rewrite Hx in H.
-      rewrite (get_rid_of_letstar (ap, (oΩ', oe0'))) in H.
-      destruct oΩ' as [oΩ'|].
-      * apply pstep_compatible_some in Hx1 as Hx1'; subst.
-        assert (H':=H); inv H; eapply E_ctx; eauto using ungrab_ectx.
-        apply equiv_pstep. eapply Hx.
-      * apply pstep_compatible_some in Hx1 as Hx1'; subst.
-        inv H. apply (@E_abrt_ctx Ω e0p e K); eauto using ungrab_ectx.
-        apply equiv_pstep in Hx. inv Hx. apply e_abort.
-    + rewrite Hy in H; inv H.
-Qed.
+    + apply not_eq_None_Some in Hx1 as [e0p Hx1].
+      rewrite Hx1 in H.
+      rewrite (get_rid_of_letstar e0p) in H.
+      destruct (option_dec (pstepf (Some Ω, e0))) as [Hx|Hy].
+      -- apply (not_eq_None_Some) in Hx as [[ap [oΩ' oe0']] Hx].
+         rewrite Hx in H.
+         rewrite (get_rid_of_letstar (ap, (oΩ', oe0'))) in H.
+         destruct oΩ' as [oΩ'|].
+         * apply pstep_compatible_some in Hx1 as Hx1'; subst.
+           destruct (e0p); try inversion Hx1;
+           assert (H':=H); inv H; eapply E_ctx; eauto using ungrab_ectx;
+           apply equiv_pstep; try eapply Hx.
+         * apply pstep_compatible_some in Hx1 as Hx1'; subst.
+           destruct e0p; try inversion Hx1; inv H;
+           eapply E_abrt_ctx; eauto using ungrab_ectx;
+           apply equiv_pstep in Hx; inv Hx; try apply e_abort.
+      -- rewrite Hy in H; inv H.
+         destruct e0; try congruence; inv Hx1.
+    + destruct e0; try congruence; inv Hy1; inv H.
+      * (* ret *)
+        grab_value e0.
+        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
+           inv H1;
+           eapply ungrab_ectx in Hx0; subst. eapply E_return. admit. (*TODO: change premises of ungrab_ectx*)
+        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
+           inv H1;
+           eapply ungrab_ectx in Hx0; subst. eapply E_return. admit. (*TODO: change premises of ungrab_ectx*)
+      * (* call *)
+        grab_value e0.
+        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
+           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
+           apply (not_eq_None_Some) in Hx as [E__foo Hx].
+           rewrite Hx in H1. inv H1.
+           eapply ungrab_ectx in Hx0. rewrite Hx0. eapply E_call; now symmetry.
+           admit. (*TODO: change premises of ungrab_ectx*)
+        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
+           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
+           apply (not_eq_None_Some) in Hx as [E__foo Hx].
+           rewrite Hx in H1. inv H1.
+           eapply ungrab_ectx in Hx0; subst. eapply E_call; now symmetry. admit. (*TODO: change premises of ungrab_ectx*)
+Admitted.
 
 (*Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).*)
 (*Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=*)

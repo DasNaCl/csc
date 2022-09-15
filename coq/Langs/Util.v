@@ -88,8 +88,15 @@ Definition mset { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B)
 (** These are synthetic. They simply allow us to write e.g. `PrimStep` instead of supplying it with parameters *)
 Class ExprClass (Expr : Type) := {}.
 Class RuntimeExprClass (Expr : Type) := {}.
+Class EvalCtxClass (Ectx : Type) := {}.
 Class TraceEvent (Ev : Type) := {}.
-Class ProgClass (A : Type) (Prog : Type) `{ExprClass A} := Cprog__Class : A -> A -> A -> Prog.
+
+(** Definition of the symbol table. *)
+Definition symbols {V E} `{H: HasEquality V} `{EvalCtxClass E} := mapind H E.
+Definition nosymb {V E} `{H: HasEquality V} `{EvalCtxClass E} : symbols := mapNil H E.
+
+Class ProgClass {V E} (Prog : Type) `{Hv: HasEquality V}
+                      `{He: EvalCtxClass E} := Cprog__Class : symbols -> Prog.
 
 (** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
 Inductive tracepref {Ev : Type} `{TraceEvent Ev} : Type :=

@@ -254,8 +254,8 @@ Definition string_of_event (e : event) :=
                                (String.append (" "%string) (string_of_nat n)))
                              (String.append (" "%string) (string_of_nat m))
   | (Scrash) => "↯"%string
-  | (Scall foo (Fval(Vnat n))) => String.append ("Call ?"%string) (string_of_nat n)
-  | (Scall foo (Fvar x)) => String.append ("Call ?"%string) x
+  | (Scall foo (Fval(Vnat n))) => String.append (String.append (String.append ("Call ?"%string) foo) " "%string) (string_of_nat n)
+  | (Scall foo (Fvar x)) => String.append (String.append (String.append ("Call ?"%string) foo) " "%string) x
   | (Sret (Fval(Vnat n))) => String.append ("Ret !"%string) (string_of_nat n)
   | (Sret (Fvar x)) => String.append ("Ret !"%string) x
   end
@@ -667,7 +667,7 @@ Inductive estep : CtxStep :=
 | E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
              (E E__foo : evalctx) (foo : vart) (f : fnoerr),
     Some E__foo = mget Ξ foo ->
-    (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ insert E__foo f)
+    (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ insert (Kreturn E__foo) f)
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
@@ -727,7 +727,7 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
     match mget Ξ foo with
     | None => None
     | Some K__foo =>
-    Some(Some(Scall foo f), (F ; Ξ ; (K :: ξ) ; H ; Δ ▷ (insert K__foo (Xres(Fres f)))))
+    Some(Some(Scall foo f), (F ; Ξ ; (K :: ξ) ; H ; Δ ▷ (insert (Kreturn K__foo) (Xres(Fres f)))))
     end
   | Xreturn(Xres(Fres f)) =>
     let '(F, Ξ, ξ', H, Δ) := Ω in
@@ -1049,8 +1049,12 @@ Fixpoint get_fuel (e : expr) : option nat :=
     Some(1 + ge0 + ge1)
   | Xdel x => Some(1)
   | Xreturn e =>
-    let* ge := get_fuel e in
-    Some(1 + ge)
+    match e with
+    | Xreturn e' => let* ge := get_fuel e' in Some(S ge)
+    | _ =>
+      let* ge := get_fuel e in
+      Some(1 + ge)
+    end
   | Xcall foo e =>
     let* ge := get_fuel e in
     Some(1 + ge)
@@ -1093,7 +1097,7 @@ Proof.
   - repeat (crush_fuel + crush_option); now exists (n0 + n1).
   - repeat (crush_fuel + crush_option); now exists (n0 + n1).
   - crush_fuel; now exists 0.
-  - crush_fuel; try crush_option; exists n0; now inv H.
+  - destruct e; crush_fuel; try crush_option; exists n0; now inv H.
   - crush_fuel; try crush_option; exists n0; now inv H.
   - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
   - exists 0; now inv H.
@@ -1191,10 +1195,9 @@ Qed.
 (** Evaluation of programs *)
 (*TODO: add typing*)
 Inductive wstep : ProgStep :=
-| e_wprog : forall (symbs : symbols) (E : evalctx) (As : tracepref) (r : rtexpr),
+| e_wprog : forall (symbs : symbols) (As : tracepref) (r : rtexpr),
     (* typing -> *)
-    Some E = mget symbs ("main"%string) ->
-    (Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ insert E 0 ==[ As ]==>* r) ->
+    (Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ Xcall "main"%string 0 ==[ As ]==>* r) ->
     PROG[symbs]["main"%string]====[ As ]===> r
 .
 #[local]
@@ -1270,40 +1273,34 @@ Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
     let* r0 := collect_callsites ξ e0 in
     let* r1 := collect_callsites ξ e1 in
     Some(cr ◘ r0 ◘ r1)
-  | _ => None
+  | _ => Some(nosymb)
   end
 .
+(** Compute the total amount of fuel necessary to run a complete program. Each context corresponding to a call
+    artificially gets a return in the semantics (estep), so add 1.
+    Also, add 1 to the final result, because the top-level performs a call to "main". *)
 Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
   let* K := mget ξ foo in
   let e := insert K 0 in
+  let* ge := get_fuel e in
   let* symbs := collect_callsites ξ e in
   let* res := List.fold_left (fun acc E =>
                                 let* a := acc in
                                 let* b := get_fuel_fn_aux E in
-                                Some(a + b)) (img symbs) (Some 0) in
-  Some res
+                                Some(1 + a + b)) (img symbs) (Some ge) in
+  Some(S res)
 .
 
-Definition wstepfn (fuel : nat) (p : prog) : option (tracepref * rtexpr) :=
+Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
   let '(Cprog symbs) := p in
-  let* E := mget symbs ("main"%string) in
-  let e := insert E 0 in
+  let e := Xcall "main"%string 0 in
+  let* fuel := get_fuel_toplevel symbs "main"%string in
   let R := Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ e in
   star_stepf fuel R
 .
-
-Definition wstepf_findn (p : prog) : option (tracepref * rtexpr) :=
-  let cofix doo (n : nat) : cooption (tracepref * rtexpr) :=
-    match wstepfn n p with
-    | None => cooption_of_option (let* x := option_of_cooption(doo (S n)) in Some x)
-    | Some R => coSome R
-    end
-  in option_of_cooption (doo 0)
-.
-
-Definition cmptrpref (p : prog) :=
-  let '(Cprog symbs) := p in
-  exists As Ω f, PROG[symbs]["main"%string]====[ As ]===> (Ω ▷ f)
+Definition debug_eval (p : prog) :=
+  let* (As, _) := wstepf p in
+  Some(string_of_tracepref As)
 .
 
 (* let x = [] in
@@ -1325,305 +1322,35 @@ Definition smsunsafe_ep : evalctx :=
 .
 (* let x = 3 in call foo x *)
 Definition smsunsafe_ctx : evalctx :=
-  Klet ("_"%string)
+  Kreturn (Klet ("_"%string)
     Khole
     (Xlet ("x"%string)
           3
-          (Xcall ("foo"%string) (Fvar "x"%string)))
+          (Xcall ("foo"%string) (Fvar "x"%string))))
 .
 
 Definition smsunsafe_prog := Cprog ("foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)).
 
-Compute (let p := smsunsafe_prog in
-  let '(Cprog symbs) := p in
-  let* E := mget symbs ("main"%string) in
-  let e := insert E 0 in
-  (*let* ge := get_fuel e in*)
-  let ge := 9 in
-  let R := Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ e in
-  star_stepf ge R
-             ).
-Goal
-    exists As r,
-    PROG["foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)]["main"%string]====[ As ]===> r.
+Goal exists As R,
+    PROG["foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)]["main"%string]====[As]===> R.
 Proof.
-  do 2 eexists. econstructor.
-  now cbn.
-  econstructor 3.
-  cbn. rewrite equiv_estep. now cbn.
-  econstructor 3; cbn. rewrite equiv_estep. now cbn.
-  econstructor 2; cbn. rewrite equiv_estep. now cbn.
-  econstructor 3; cbn. rewrite equiv_estep. now cbn.
-  econstructor 2; cbn. rewrite equiv_estep. now cbn.
-  econstructor 2; cbn. rewrite equiv_estep. now cbn.
-  econstructor 3; cbn. rewrite equiv_estep. now cbn.
-  econstructor 2; cbn. rewrite equiv_estep. now cbn.
-  econstructor 3; cbn. rewrite equiv_estep. now cbn.
+  do 2 eexists.
+  econstructor.
+  econstructor 2. rewrite equiv_estep; now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn.
   econstructor.
 Qed.
-Compute (wstepf smsunsafe_prog).
-Definition debug_eval (p : prog) :=
-  let* (As, _) := wstepf p in
-  Some(string_of_tracepref As)
-.
+
+Compute (let '(Cprog symbs) := smsunsafe_prog in get_fuel_toplevel symbs "main"%string).
+
 Compute (debug_eval smsunsafe_prog).
-
-(*TODO: use functional-style interpreters to get concrete trace via simple `cbn` *)
-Goal cmptrpref smsunsafe_prog.
-Proof.
-  unfold cmptrpref. do 3 eexists.
-  eapply e_wprog; eauto; cbn.
-
-Admitted.
-
-
-Inductive msevent :=
-| MSalloc (ℓ : loc) (n : nat) : msevent
-| MSdealloc (ℓ : loc) : msevent
-| MSuse (ℓ : loc) (n : nat) : msevent
-| MScrash : msevent
-| MScall (f : fnoerr) : msevent
-| MSret (f : fnoerr) : msevent
-.
-Definition mseveq (ev0 ev1 : msevent) : bool :=
-  match ev0, ev1 with
-  | MSalloc (addr ℓ0) n0, MSalloc (addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
-  | MSdealloc (addr ℓ0), MSdealloc (addr ℓ1) => Nat.eqb ℓ0 ℓ1
-  | MSuse (addr ℓ0) n0, MSuse (addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
-  | MScrash, MScrash => true
-  | MScall(Fval(Vnat n0)), MScall(Fval(Vnat n1)) => Nat.eqb n0 n1
-  | MScall(Fvar x), MScall (Fvar y) => vareq x y
-  | MSret(Fval(Vnat n0)), MSret(Fval(Vnat n1)) => Nat.eqb n0 n1
-  | MSret(Fvar x), MSret (Fvar y) => vareq x y
-  | _, _ => false
-  end
-.
-#[local]
-Instance msevent__Instance : TraceEvent msevent := {}.
-
-(** Project concrete program traces to property-specific ones *)
-Fixpoint θ (As : @tracepref event event__Instance) :=
-  let θev a :=
-    match a with
-    | Salloc ℓ n => MSalloc ℓ n
-    | Sdealloc ℓ => MSdealloc ℓ
-    | Sset ℓ n _ => MSuse ℓ n
-    | Sget ℓ n => MSuse ℓ n
-    | Scrash => MScrash
-    | Scall f => MScall f
-    | Sret f => MSret f
-    end
-  in
-  match As with
-  | Tnil => Tnil
-  | Tcons a As' => Tcons (θev a) (θ As')
-  end
-.
-
-(** Map from locations to source variable names. *)
-Inductive locvarmap : Type :=
-| LVnil : locvarmap
-| LVcons : loc -> vart -> locvarmap -> locvarmap
-.
-Fixpoint add_or_nothing_lv (f : @CSC.Fresh.fresh_state) (ℓ : loc) (G : locvarmap) :=
-  match G with
-  | LVnil =>
-    let x := CSC.Fresh.freshv f in
-    LVcons ℓ x LVnil
-  | LVcons ℓ0 y G' => LVcons ℓ0 y (add_or_nothing_lv f ℓ G')
-  end
-.
-Fixpoint lookup_lv (ℓ : loc) (G : locvarmap) : option vart :=
-  match G with
-  | LVnil => None
-  | LVcons ℓ0 x G' =>
-    let '(addr n0) := ℓ0 in
-    let '(addr n) := ℓ in
-    if Nat.eqb n0 n then
-      Some x
-    else
-      lookup_lv ℓ G'
-  end
-.
-
-(** Backtranslation of values *)
-Definition backtransv (e : fnoerr) := e.
-
-(** Backtranslation of MS traces *)
-Fixpoint backtrans (f : @CSC.Fresh.fresh_state) (G : locvarmap)
-                   (As : tracepref) (B : option (vart * ty * ty))
-  : option(@CSC.Fresh.fresh_state * locvarmap * expr) :=
-  let R As' f' G' f :=
-    let* (f'', G'', e) := backtrans f' G' As' B in
-    Some(f'', G'', f e)
-  in
-  match As with
-  | Tnil =>
-    match B with
-    | None => (*backtrans-empty-unit*)
-      Some(f, G, 42 : expr)
-    | Some(x,τ1,τ2) => (* backtrans-empty-hole *)
-      Some(f, G, Xhole x τ1 τ2)
-    end
-  | Tcons a As' =>
-    match a with
-    | MSalloc ℓ n =>
-      (* backtrans-alloc *)
-      let G' := add_or_nothing_lv f ℓ G in
-      let* z := lookup_lv ℓ G' in
-      R As' (advance f) G' (fun e => Xnew z (backtransv n) e)
-    | MSdealloc ℓ =>
-      (* backtrans-dealloc *)
-      let* x := lookup_lv ℓ G in
-      R As' f G (fun e => Xlet ("_"%string) (Xdel x) e)
-    | MSuse ℓ n =>
-      (* backtrans-use *)
-      let* z := lookup_lv ℓ G in
-      R As' f G (fun e => Xlet ("_"%string) (Xget z (backtransv n)) e)
-    | MScrash => Some(f, G, Xabort)
-    | MScall _ => None
-    | MSret _ => None
-    end
-  end
-.
-(** Backtranslation of single call event *)
-Definition backtranslate_call (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
-                              (a : msevent) (B : option (vart * ty * ty))
-  : option (CSC.Fresh.fresh_state * locvarmap * (option loc) * expr) :=
-  match a with
-  | MScall f =>
-    match B with
-    | None => (* backtrans-call-nohole *)
-      Some(fresh, G, None, (backtransv f) : expr)
-    | Some(x,_,_) => (* backtrans-call-hole *)
-      let ℓ := CSC.Fresh.fresh fresh in
-      let* (fresh', G', e) := backtrans (advance fresh) G (Tcons (MSalloc (addr 0) 42) Tnil) B in
-      Some(fresh', G', Some(addr 0), Xlet x (backtransv f) e)
-    end
-  | _ => None
-  end
-.
-(** Backtranslation of single ret event *)
-Definition backtranslate_ret (fresh : @CSC.Fresh.fresh_state) (G : locvarmap)
-                             (a : msevent) (C : option (loc * expr))
-  : option (@CSC.Fresh.fresh_state * locvarmap * expr) :=
-  match a with
-  | MSret f =>
-    match C with
-    | None => (* backtrans-ret-nowrap *)
-      Some(fresh, G, (backtransv f) : expr)
-    | Some(ℓ, e) => (* backtrans-ret-wrap *)
-      let* z := lookup_lv ℓ G in
-      let y := CSC.Fresh.freshv fresh in
-      let e' := fill (FP_N y) (Xdel z) e in
-      Some((advance fresh), G, Xlet ("_"%string) e' (backtransv f))
-    end
-  | _ => None
-  end
-.
-
-(** splits trace *)
-Definition ms_splitat_call (As : tracepref) : option (tracepref * msevent * tracepref) :=
-  let fix doo (accAs : tracepref) (As : tracepref) :=
-    match As with
-    | Tnil => None
-    | Tcons (MScall f) As' => Some(accAs, MScall f, As')
-    | Tcons a As' => doo (Tcons a accAs) As'
-    end
-  in doo Tnil As
-.
-Definition ms_splitat_ret (As : tracepref) : option (tracepref * msevent * tracepref) :=
-  let fix doo (accAs : tracepref) (As : tracepref) :=
-    match As with
-    | Tnil => None
-    | Tcons (MSret f) As' => Some(accAs, MSret f, As')
-    | Tcons a As' => doo (Tcons a accAs) As'
-    end
-  in doo Tnil As
-.
-
-Definition tl_tracesplit (As : tracepref) :=
-  match ms_splitat_ret As with
-  | Some(Tnil, MSret (Fval(Vnat 0)), As0') =>
-    match ms_splitat_call As0' with
-    | Some(As0, MScall f0, Ap') =>
-      match ms_splitat_ret Ap' with
-      | Some(Ap, MSret fp, As1') =>
-        match ms_splitat_call As1' with
-        | Some(As1, MScall f1, Tnil) =>
-          Some(Fval(Vnat 0), As0, f0, Ap, fp, As1, f1)
-        | _ => None
-        end
-      | _ => None
-      end
-    | _ => None
-    end
-  | _ => None
-  end
-.
-
-(** technicality for generating fresh names/locations *)
-Fixpoint collect_max_loc (As : tracepref) : nat :=
-  match As with
-  | Tnil => 0
-  | Tcons a As' =>
-    match a with
-    | MSalloc ℓ n => let '(addr m) := ℓ in m
-    | MSuse ℓ n => let '(addr m) := ℓ in m
-    | MSdealloc ℓ => let '(addr m) := ℓ in m
-    | _ => 0
-    end + collect_max_loc As'
-  end
-.
-Fixpoint advance_fresh_n (f : @CSC.Fresh.fresh_state) (n : nat) : @CSC.Fresh.fresh_state :=
-  match n with
-  | 0 => f
-  | S n' => advance_fresh_n (advance f) n'
-  end
-.
-
-(** Top-Level Backtranslation *)
-Definition tl_backtranslation (As : tracepref) :=
-  let fresh0 := advance_fresh_n (@CSC.Fresh.empty_fresh) (collect_max_loc As) in
-  let G0 := LVnil in
-  match tl_tracesplit As with
-  | Some(Fval(Vnat 0), As0, f0, _Ap, fp, As1, f1) =>
-    let* (fresh00, G00, e00) := backtranslate_ret fresh0 G0 (MSret (Fval(Vnat 0))) None in
-    let* (fresh01, G01, e01) := backtrans fresh00 G00 As0 None in
-    let* (fresh02, G02, oℓ, e02) := backtranslate_call fresh01 G01 (MScall f0) (Some("x"%string, Tnat, Tnat)) in
-    let* ℓ := oℓ in
-    let* (fresh03, G03, e03) := backtranslate_ret fresh02 G02 (MSret fp) (Some(ℓ, e02)) in
-    let e0 := Xlet ("_"%string) e00
-                    (Xlet ("_"%string)
-                          e01
-                          e03
-                    ) in
-    let* (fresh10, G10, e10) := backtrans fresh03 G03 As1 None in
-    match backtranslate_call fresh10 G10 (MScall f1) None with
-    | Some(fresh11, G11, None, e11) =>
-      let e1 := Xlet ("_"%string) e10 e11 in
-      Some(fresh11, G11, Ccontext e0 e1)
-    | _ => None
-    end
-  | _ => None
-  end
-.
-
-Definition eval_bt_prog (p : prog) :=
-  let* (As,_) := wstepf p in
-  let* (_, _, Ccontext e0 e1) := tl_backtranslation (θ As) in
-  Some(Cprog e0 smsunsafe_ep e1)
-.
-Definition debug_eval_bt_prog (p : prog) :=
-  let* p := eval_bt_prog p in Some(string_of_prog p)
-.
-Compute (debug_eval_bt_prog smsunsafe_prog).
-
-Definition debug_eval_bt (p : prog) :=
-  let* s0 := debug_eval p in
-  let* p_bt := eval_bt_prog p in
-  let* s1 := debug_eval p_bt in
-  Some(s0, s1)
-.
-
-Compute (debug_eval_bt smsunsafe_prog).

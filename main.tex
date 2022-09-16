@@ -1007,7 +1007,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \typerule{plug-hole}{
       \left[\typechecks{x:\type_1}{e}{\type_2}\right]
     }{
-      \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{calling\ x; returning\ e}
+      \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{e}
     }{s-plug-hole}
     %
     \typerule{plug-hole'}{
@@ -1212,7 +1212,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
   \begin{center}
     \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
-    \plugs{e_p}{e_0}=\src{e_0'}&
+    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
     \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
@@ -1222,14 +1222,14 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot\trace[_0']\cdot \trace[_1]\cdot Call\ ?\finalexprnoerr_1}
   }{ws-e-prog}
   \typerule{$e-\text{wprog}-$fail0}{
-    \plugs{e_p}{e_0}=\src{e_0'}&
+    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\lightning}{stuck}{\trace[_0]}&
   }{
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
   }{ws-e-prog-fail0}
   \typerule{$e-\text{wprog}-$failp}{
-    \plugs{e_p}{e_0}=\src{e_0'}&
+    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
     \execs{\configs_0}{e_{po}}{\configs_{po}}{stuck}{\trace[_p]}\\
@@ -1237,7 +1237,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
   }{ws-e-prog-failp}
   \typerule{$e-\text{wprog}-$fail0'}{
-    \plugs{e_p}{e_0}=\src{e_0'}&
+    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
     \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
@@ -1246,7 +1246,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_0'}}
   }{ws-e-prog-fail0p}
   \typerule{$e-\text{wprog}-$fail1}{
-    \plugs{e_p}{e_0}=\src{e_0'}&
+    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
     \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
     \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
     \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
@@ -4145,7 +4145,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \mmlAmmlAtbackdetail[\Game,\src{(\_:\nat)\to\nat}]{\specificev{Call\ ?0}}=\Game_{INIT},\trg{\ell_{INIT}},\src{e_{INIT}}\\\vspace{0.33cm}
       \mmlAmmlAtbackdetail[\Game_{INIT},\src{(x:\type_{1})\to\type_{2}},\src{e_{INIT}},\trg{\ell_{INIT}}]{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}} = \Game',\src{e_{wrapend}^{(0)}},\src{e_{0}'},\trg{\ell}\\\vspace{0.33cm}
       \mmlAmmlAtbackdetail[\Game',\src{(\_:\nat)\to\nat},\src{e_{0}'},\trg{\ell}]{\specificev{Ret\ !\finalexprnoerr_{p}}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}} = \Game'',\src{e_{wrapend}^{(1)}},\src{e_{1}'},\trg{\ell_{END}}\\
-      \mmlAmmlAtbackdetail[\Game'',\trg{\ell_{END}},\src{e_1'}]{\specificev{Ret\ ?0}} = \Game''', \src{e_1^{(H)}}\\
+      \mmlAmmlAtbackdetail[\Game'',\trg{\ell_{END}},\src{e_1'}]{\specificev{Ret\ !0}} = \Game''', \src{e_1^{(H)}}\\
       \src{e_0^{(0)}} = \plugs{0}{e_{wrapend}^{(0)}} &
       \src{e_0} = \src{e_0^{(0)};e_{wrapend}^{(1)}} \\
       \src{e_1} = \plugs{0}{e_1'} \\

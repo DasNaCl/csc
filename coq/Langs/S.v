@@ -108,7 +108,7 @@ Fixpoint string_of_expr (e : expr) :=
     String.append ("return "%string) s
   | Xcall f e =>
     let s := string_of_expr e in
-    String.append (String.append ("call "%string) f) s
+    String.append (String.append (String.append ("call "%string) f) " "%string) s
   | Xifz c e0 e1 =>
     let cs := string_of_expr c in
     let s0 := string_of_expr e0 in
@@ -1190,72 +1190,177 @@ Qed.
 
 (** Evaluation of programs *)
 (*TODO: add typing*)
-Set Printing All.
 Inductive wstep : ProgStep :=
 | e_wprog : forall (symbs : symbols) (E : evalctx) (As : tracepref) (r : rtexpr),
     (* typing -> *)
     Some E = mget symbs ("main"%string) ->
-    (Fresh.empty_fresh ; symbs ; E :: nil ; hNil ; sNil ▷ insert E 0 ==[ As ]==>* r) ->
+    (Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ insert E 0 ==[ As ]==>* r) ->
     PROG[symbs]["main"%string]====[ As ]===> r
 .
 #[local]
 Existing Instance wstep.
 
-Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
-  let '(Cprog e0 ep e1) := p in
-  let e0' := fill FP_Q ep e0 in
-  let* ge0' := get_fuel e0' in
-  match star_stepf ge0' ((Fresh.empty_fresh; hNil; sNil) ▷ e0') with
-  | Some(As0, (None, Xres(Fabrt))) => Some(Sret 0 · As0, ↯ ▷ stuck)
-  | Some(As0, (Some Ω0', fp')) =>
-    let e1' := subst ("y"%string) e1 fp' in
-    let* ge1' := get_fuel e1' in
-    match star_stepf ge1' (Ω0' ▷ e1') with
-    | Some(As1, (Some Ω1, Xres(Fres(f1)))) => Some(Sret 0 · As0 · As1 · Scall f1, Ω1 ▷ f1)
-    | Some(As1, (None, Xres(Fabrt))) => Some(Sret 0 · As0 · As1, ↯ ▷ stuck)
-    | _ => None
-    end
+Fixpoint get_fuel_fn_aux (E : evalctx) {struct E} : option nat :=
+  match E with
+  | Khole => Some 0
+  | KbinopL b K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | KbinopR b v K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Kget x K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | KsetL x K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | KsetR x v K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Klet x K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | Knew x K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | Kifz K e0 e1 =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(ge0 + ge1 + gK + 1)
+  | Kreturn K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Kcall foo K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  end
+.
+Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
+  match e with
+  | Xbinop _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xget _ e => collect_callsites ξ e
+  | Xset _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xlet _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xnew _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xreturn e' => collect_callsites ξ e'
+  | Xcall foo e' =>
+    let* res := collect_callsites ξ e' in
+    let* K := mget ξ foo in
+    Some(foo ↦ K ◘ res)
+  | Xifz c e0 e1 =>
+    let* cr := collect_callsites ξ c in
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(cr ◘ r0 ◘ r1)
   | _ => None
   end
 .
+Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
+  let* K := mget ξ foo in
+  let e := insert K 0 in
+  let* symbs := collect_callsites ξ e in
+  let* res := List.fold_left (fun acc E =>
+                                let* a := acc in
+                                let* b := get_fuel_fn_aux E in
+                                Some(a + b)) (img symbs) (Some 0) in
+  Some res
+.
+
+Definition wstepfn (fuel : nat) (p : prog) : option (tracepref * rtexpr) :=
+  let '(Cprog symbs) := p in
+  let* E := mget symbs ("main"%string) in
+  let e := insert E 0 in
+  let R := Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ e in
+  star_stepf fuel R
+.
+
+Definition wstepf_findn (p : prog) : option (tracepref * rtexpr) :=
+  let cofix doo (n : nat) : cooption (tracepref * rtexpr) :=
+    match wstepfn n p with
+    | None => cooption_of_option (let* x := option_of_cooption(doo (S n)) in Some x)
+    | Some R => coSome R
+    end
+  in option_of_cooption (doo 0)
+.
 
 Definition cmptrpref (p : prog) :=
-  let '(Cprog e0 ep e1) := p in
-  exists As Ω f, PROG[e0][ep][e1]====[ As ]===> (Ω ▷ f)
+  let '(Cprog symbs) := p in
+  exists As Ω f, PROG[symbs]["main"%string]====[ As ]===> (Ω ▷ f)
 .
 
-(* let z = new x in let w = x[1337] in let _ = delete z in w*)
-Definition smsunsafe_ep : expr :=
-  Xnew "z"%string
-       (Fvar "x"%string)
-       (Xlet "w"%string
-             (Xget "x"%string 1337)
-             (Xlet "_"%string
-                   (Xdel "z"%string)
-                   (Fvar "w"%string))
-       )
+(* let x = [] in
+     let z = new x in
+     let w = x[1337] in
+     let _ = delete z in
+     w*)
+Definition smsunsafe_ep : evalctx :=
+  Klet "x"%string
+    Khole
+    (Xnew "z"%string
+        (Fvar "x"%string)
+        (Xlet "w"%string
+              (Xget "x"%string 1337)
+              (Xlet "_"%string
+                    (Xdel "z"%string)
+                    (Fvar "w"%string))
+        ))
 .
-(* let x = 42 in hole : (x : nat) -> nat *)
-Definition smsunsafe_e0 : expr :=
-  Xlet "x"%string
-       3
-       (Xhole "x"%string Tnat Tnat)
-.
-(* y *)
-Definition smsunsafe_e1 : expr :=
-  Fvar "y"%string
-.
-
-Definition smsunsafe_prog := Cprog smsunsafe_e0 smsunsafe_ep smsunsafe_e1.
-
-Definition smsunsafe_e0' := fill FP_Q smsunsafe_ep smsunsafe_e0.
-
-Definition rest :=
-          Xreturning
-            (Xlet "z"%string (Fvar "x"%string)
-               (Xlet "w"%string (Xget "x"%string 1337) (Xlet "_"%string (Xdel "z"%string) (Fvar "w"%string))))
+(* let x = 3 in call foo x *)
+Definition smsunsafe_ctx : evalctx :=
+  Klet ("_"%string)
+    Khole
+    (Xlet ("x"%string)
+          3
+          (Xcall ("foo"%string) (Fvar "x"%string)))
 .
 
+Definition smsunsafe_prog := Cprog ("foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)).
+
+Compute (let p := smsunsafe_prog in
+  let '(Cprog symbs) := p in
+  let* E := mget symbs ("main"%string) in
+  let e := insert E 0 in
+  (*let* ge := get_fuel e in*)
+  let ge := 9 in
+  let R := Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ e in
+  star_stepf ge R
+             ).
+Goal
+    exists As r,
+    PROG["foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)]["main"%string]====[ As ]===> r.
+Proof.
+  do 2 eexists. econstructor.
+  now cbn.
+  econstructor 3.
+  cbn. rewrite equiv_estep. now cbn.
+  econstructor 3; cbn. rewrite equiv_estep. now cbn.
+  econstructor 2; cbn. rewrite equiv_estep. now cbn.
+  econstructor 3; cbn. rewrite equiv_estep. now cbn.
+  econstructor 2; cbn. rewrite equiv_estep. now cbn.
+  econstructor 2; cbn. rewrite equiv_estep. now cbn.
+  econstructor 3; cbn. rewrite equiv_estep. now cbn.
+  econstructor 2; cbn. rewrite equiv_estep. now cbn.
+  econstructor 3; cbn. rewrite equiv_estep. now cbn.
+  econstructor.
+Qed.
 Compute (wstepf smsunsafe_prog).
 Definition debug_eval (p : prog) :=
   let* (As, _) := wstepf p in

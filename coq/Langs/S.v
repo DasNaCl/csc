@@ -56,6 +56,7 @@ Inductive ty : Type :=
 | Tnat : ty
 | Tnatptr : qual -> ty
 .
+Notation "'Tℕ'" := (Tnat).
 Notation "'Tptr'" := (Tnatptr Qfull).
 Notation "'Twptr'" := (Tnatptr Qhalf).
 Inductive expr : Type :=
@@ -150,6 +151,9 @@ Inductive evalctx : Type :=
 .
 #[local]
 Instance evalctx__Instance : EvalCtxClass evalctx := {}.
+Inductive ety : Type :=
+| Tarrow : ty -> ty -> ety
+.
 
 (** * Freshness *)
 
@@ -159,6 +163,39 @@ Inductive fresh (A : Type) (eq : A -> A -> bool) (xs : list A) (x : A) : Prop :=
 .
 Definition fresh_loc := @fresh loc loc_eqb.
 Definition fresh_tvar := @fresh string String.eqb.
+
+
+(** * Statics *)
+Inductive Ty : Type :=
+| Texpr : ty -> Ty
+| Tectx : ety -> Ty
+.
+Coercion Texpr : ty >-> Ty.
+Coercion Tectx : ety >-> Ty.
+Definition Gamma := mapind varteq__Instance Ty.
+Definition Gnil : Gamma := mapNil varteq__Instance Ty.
+Notation "'[⋅]'" := (Gnil).
+(** Context splitting *)
+Reserved Notation "Γ '≡' Γ1 '∘' Γ2" (at level 81, Γ1 at next level, Γ2 at next level).
+Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
+| splitEmpty : [⋅] ≡ [⋅] ∘ [⋅]
+| splitEmptyL : forall (Γ : Gamma), [⋅] ≡ [⋅] ∘ Γ
+| splitEmptyR : forall (Γ : Gamma), [⋅] ≡ Γ ∘ [⋅]
+| ℕsplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    x ↦ (Texpr Tℕ) ◘ Γ ≡ x ↦ (Texpr Tℕ) ◘ Γ1 ∘ (x ↦ (Texpr Tℕ) ◘ Γ2)
+| weakPtrSplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    x ↦ (Texpr Twptr) ◘ Γ ≡ x ↦ (Texpr Twptr) ◘ Γ1 ∘ (x ↦ (Texpr Twptr) ◘ Γ2)
+| ptrLSplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    x ↦ (Texpr Tptr) ◘ Γ ≡ x ↦ (Texpr Tptr) ◘ Γ1 ∘ Γ2
+| ptrRSplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    x ↦ (Texpr Tptr) ◘ Γ ≡ x ↦ (Texpr Twptr) ◘ Γ1 ∘ (x ↦ (Texpr Tptr) ◘ Γ2)
+where "Γ '≡' Γ1 '∘' Γ2" := (splitting Γ Γ1 Γ2)
+.
+
 
 (** * Dynamics *)
 

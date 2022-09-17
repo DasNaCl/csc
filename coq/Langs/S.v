@@ -198,11 +198,11 @@ where "Γ '≡' Γ1 '∘' Γ2" := (splitting Γ Γ1 Γ2)
 (** Typechecking *)
 Definition NoOwnedPtr (Γ : Gamma) := forall (x : vart) (τ : ty), mget Γ x = Some(Texpr τ) -> τ <> Tptr.
 Inductive check : VDash :=
-| tVar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : ty),
+| tVar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
     NoOwnedPtr Γ1 ->
-    NoOwnedPtr (x ↦ (Texpr τ) ◘ [⋅]) ->
+    NoOwnedPtr (x ↦ τ ◘ [⋅]) ->
     NoOwnedPtr Γ2 ->
-    (Γ1 ◘ x ↦ (Texpr τ) ◘ Γ2) ⊦ Xres(Fvar x) : τ
+    (Γ1 ◘ x ↦ τ ◘ Γ2) ⊦ Xres(Fvar x) : τ
 | tℕ : forall (Γ : Gamma) (n : nat),
     NoOwnedPtr Γ ->
     Γ ⊦ Xres n : Tℕ
@@ -235,6 +235,13 @@ Inductive check : VDash :=
     (Γ3 ⊦ Xnew x e1 e2 : (Texpr τ))
 | tdel : forall (Γ1 Γ2 : Gamma) (x : vart),
     (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2 ⊦ Xdel x : (Texpr Tℕ))
+| tcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
+    (Γ ⊦ Xres(Fvar foo) : (Tectx(Tarrow τ0 τ1))) ->
+    (Γ ⊦ arg : (Texpr τ0)) ->
+    (Γ ⊦ Xcall foo arg : (Texpr τ1))
+| tret : forall (Γ : Gamma) (e : expr) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
+    (Γ ⊦ e : (Texpr τ)) ->
+    (Γ ⊦ Xreturn e : (Texpr τ))
 | tifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ c : (Texpr Tℕ)) ->
@@ -242,8 +249,6 @@ Inductive check : VDash :=
     (Γ2 ⊦ e2 : (Texpr τ)) ->
     (Γ3 ⊦ Xifz c e1 e2 : (Texpr τ))
 .
-(*TODO: add typecheck for call/return *)
-
 
 (** * Dynamics *)
 

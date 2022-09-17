@@ -195,6 +195,12 @@ Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
 where "Γ '≡' Γ1 '∘' Γ2" := (splitting Γ Γ1 Γ2)
 .
 
+(** Interface types *)
+Inductive int : ty -> Prop :=
+| intℕ : int Tℕ
+| intwptr : int Twptr
+.
+
 (** Typechecking *)
 Definition NoOwnedPtr (Γ : Gamma) := forall (x : vart) (τ : ty), mget Γ x = Some(Texpr τ) -> τ <> Tptr.
 Inductive check : VDash :=
@@ -236,6 +242,7 @@ Inductive check : VDash :=
 | tdel : forall (Γ1 Γ2 : Gamma) (x : vart),
     (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2 ⊦ Xdel x : (Texpr Tℕ))
 | tcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
+    int τ0 -> int τ1 ->
     (Γ ⊦ Xres(Fvar foo) : (Tectx(Tarrow τ0 τ1))) ->
     (Γ ⊦ arg : (Texpr τ0)) ->
     (Γ ⊦ Xcall foo arg : (Texpr τ1))

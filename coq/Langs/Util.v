@@ -90,6 +90,7 @@ Class ExprClass (Expr : Type) := {}.
 Class RuntimeExprClass (Expr : Type) := {}.
 Class EvalCtxClass (Ectx : Type) := {}.
 Class TraceEvent (Ev : Type) := {}.
+Class TyClass (T : Type) := {}.
 
 (** Definition of the symbol table. *)
 Definition symbols {V E} `{H: HasEquality V} `{EvalCtxClass E} := mapind H E.
@@ -97,6 +98,9 @@ Definition nosymb {V E} `{H: HasEquality V} `{EvalCtxClass E} : symbols := mapNi
 
 Class ProgClass {V E} (Prog : Type) `{Hv: HasEquality V}
                       `{He: EvalCtxClass E} := Cprog__Class : symbols -> Prog.
+
+Definition Gamma {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} := mapind H TheTy.
+Definition Gnil {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} : Gamma := mapNil H TheTy.
 
 (** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
 Inductive tracepref {Ev : Type} `{TraceEvent Ev} : Type :=
@@ -119,7 +123,7 @@ Class MultStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := 
 Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
                `{HasEquality C} `{EvalCtxClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass C A Prog}
   := wstep__Class : Prog -> C -> tracepref -> B -> Prop.
-Class VDash (A B C : Type) `{ExprClass B} := vDash : A -> B -> C -> Prop.
+Class VDash {K Expr TheTy : Type} `{ExprClass Expr} `{T: TyClass TheTy} `{H: HasEquality K} := vDash__Class : Gamma -> Expr -> TheTy -> Prop.
 
 End Util.
 
@@ -148,4 +152,6 @@ Notation "e0 '==[' a ']==>*' e1" := (sstep__Class e0 a e1) (at level 82, e1 at n
 #[global]
 Notation "'PROG[' symbs '][' start ']====[' As ']===>' r" := (wstep__Class (Cprog__Class symbs) start As r) (at level 81, r at next level).
 #[global]
-Notation "G '|-' e ':' t" := (vDash G e t) (at level 200, t at next level).
+Notation "G '⊦' e ':' t" := (vDash__Class G e t) (at level 82, e at next level, t at next level).
+#[global]
+Notation "'[⋅]'" := (Gnil).

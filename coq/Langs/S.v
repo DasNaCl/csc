@@ -170,11 +170,10 @@ Inductive Ty : Type :=
 | Texpr : ty -> Ty
 | Tectx : ety -> Ty
 .
+#[local]
+Instance TheTy__Instance : TyClass Ty := {}.
 Coercion Texpr : ty >-> Ty.
 Coercion Tectx : ety >-> Ty.
-Definition Gamma := mapind varteq__Instance Ty.
-Definition Gnil : Gamma := mapNil varteq__Instance Ty.
-Notation "'[⋅]'" := (Gnil).
 (** Context splitting *)
 Reserved Notation "Γ '≡' Γ1 '∘' Γ2" (at level 81, Γ1 at next level, Γ2 at next level).
 Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
@@ -195,6 +194,55 @@ Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
     x ↦ (Texpr Tptr) ◘ Γ ≡ x ↦ (Texpr Twptr) ◘ Γ1 ∘ (x ↦ (Texpr Tptr) ◘ Γ2)
 where "Γ '≡' Γ1 '∘' Γ2" := (splitting Γ Γ1 Γ2)
 .
+
+(** Typechecking *)
+Definition NoOwnedPtr (Γ : Gamma) := forall (x : vart) (τ : ty), mget Γ x = Some(Texpr τ) -> τ <> Tptr.
+Inductive check : VDash :=
+| tVar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : ty),
+    NoOwnedPtr Γ1 ->
+    NoOwnedPtr (x ↦ (Texpr τ) ◘ [⋅]) ->
+    NoOwnedPtr Γ2 ->
+    (Γ1 ◘ x ↦ (Texpr τ) ◘ Γ2) ⊦ Xres(Fvar x) : τ
+| tℕ : forall (Γ : Gamma) (n : nat),
+    NoOwnedPtr Γ ->
+    Γ ⊦ Xres n : Tℕ
+| toplus : forall (Γ1 Γ2 Γ3 : Gamma) (e1 e2 : expr) (b : binopsymb),
+    Γ3 ≡ Γ1 ∘ Γ2 ->
+    (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
+    (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
+    (Γ3 ⊦ Xbinop b e1 e2 : (Texpr Tℕ))
+| tget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e : expr),
+    Γ3 ≡ Γ1 ∘ Γ2 ->
+    (Γ2 ⊦ Xres(Fvar x) : (Texpr Twptr)) ->
+    (Γ1 ⊦ e : (Texpr Tℕ)) ->
+    (Γ3 ⊦ Xget x e : (Texpr Tℕ))
+| tset : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (e1 e2 : expr),
+    Γ12 ≡ Γ1 ∘ Γ2 ->
+    Γ4 ≡ Γ12 ∘ Γ3 ->
+    (Γ3 ⊦ (Xres(Fvar x)) : (Texpr Twptr)) ->
+    (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
+    (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
+    (Γ4 ⊦ Xset x e1 e2 : (Texpr Tℕ))
+| tlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ1 τ2 : ty),
+    Γ3 ≡ Γ1 ∘ Γ2 ->
+    (Γ1 ⊦ e1 : (Texpr τ1)) ->
+    (x ↦ (Texpr τ1) ◘ Γ2 ⊦ e2 : (Texpr τ2)) ->
+    (Γ3 ⊦ Xlet x e1 e2 : (Texpr τ2))
+| tnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ : ty),
+    Γ3 ≡ Γ1 ∘ Γ2 ->
+    (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
+    (x ↦ (Texpr Tptr) ◘ Γ2 ⊦ e2 : (Texpr τ)) ->
+    (Γ3 ⊦ Xnew x e1 e2 : (Texpr τ))
+| tdel : forall (Γ1 Γ2 : Gamma) (x : vart),
+    (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2 ⊦ Xdel x : (Texpr Tℕ))
+| tifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
+    Γ3 ≡ Γ1 ∘ Γ2 ->
+    (Γ1 ⊦ c : (Texpr Tℕ)) ->
+    (Γ2 ⊦ e1 : (Texpr τ)) ->
+    (Γ2 ⊦ e2 : (Texpr τ)) ->
+    (Γ3 ⊦ Xifz c e1 e2 : (Texpr τ))
+.
+(*TODO: add typecheck for call/return *)
 
 
 (** * Dynamics *)

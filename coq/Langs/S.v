@@ -174,6 +174,12 @@ Inductive Ty : Type :=
 Instance TheTy__Instance : TyClass Ty := {}.
 Coercion Texpr : ty >-> Ty.
 Coercion Tectx : ety >-> Ty.
+
+(** Interface types *)
+Inductive int : ty -> Prop :=
+| intℕ : int Tℕ
+| intwptr : int Twptr
+.
 (** Context splitting *)
 Reserved Notation "Γ '≡' Γ1 '∘' Γ2" (at level 81, Γ1 at next level, Γ2 at next level).
 Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
@@ -192,65 +198,63 @@ Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
 | ptrRSplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
     Γ ≡ Γ1 ∘ Γ2 ->
     x ↦ (Texpr Tptr) ◘ Γ ≡ x ↦ (Texpr Twptr) ◘ Γ1 ∘ (x ↦ (Texpr Tptr) ◘ Γ2)
+| ArrowSplit : forall (x : vart) (τ0 τ1 : ty) (Γ Γ1 Γ2 : Gamma),
+    int τ0 -> int τ1 ->
+    Γ ≡ Γ1 ∘ Γ2 ->
+    x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ ≡ x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ1 ∘ (x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ2)
 where "Γ '≡' Γ1 '∘' Γ2" := (splitting Γ Γ1 Γ2)
-.
-
-(** Interface types *)
-Inductive int : ty -> Prop :=
-| intℕ : int Tℕ
-| intwptr : int Twptr
 .
 
 (** Typechecking *)
 Definition NoOwnedPtr (Γ : Gamma) := forall (x : vart) (τ : ty), mget Γ x = Some(Texpr τ) -> τ <> Tptr.
 Inductive check : VDash :=
-| Tvar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
+| CTvar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
     NoOwnedPtr Γ1 ->
     NoOwnedPtr (x ↦ τ ◘ [⋅]) ->
     NoOwnedPtr Γ2 ->
     (Γ1 ◘ x ↦ τ ◘ Γ2) ⊦ Xres(Fvar x) : τ
-| Tℕ : forall (Γ : Gamma) (n : nat),
+| CTℕ : forall (Γ : Gamma) (n : nat),
     NoOwnedPtr Γ ->
     Γ ⊦ Xres n : Tℕ
-| Toplus : forall (Γ1 Γ2 Γ3 : Gamma) (e1 e2 : expr) (b : binopsymb),
+| CToplus : forall (Γ1 Γ2 Γ3 : Gamma) (e1 e2 : expr) (b : binopsymb),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
     (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
     (Γ3 ⊦ Xbinop b e1 e2 : (Texpr Tℕ))
-| Tget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e : expr),
+| CTget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e : expr),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ2 ⊦ Xres(Fvar x) : (Texpr Twptr)) ->
     (Γ1 ⊦ e : (Texpr Tℕ)) ->
     (Γ3 ⊦ Xget x e : (Texpr Tℕ))
-| Tset : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (e1 e2 : expr),
+| CTset : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (e1 e2 : expr),
     Γ12 ≡ Γ1 ∘ Γ2 ->
     Γ4 ≡ Γ12 ∘ Γ3 ->
     (Γ3 ⊦ (Xres(Fvar x)) : (Texpr Twptr)) ->
     (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
     (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
     (Γ4 ⊦ Xset x e1 e2 : (Texpr Tℕ))
-| Tlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ1 τ2 : ty),
+| CTlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ1 τ2 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ e1 : (Texpr τ1)) ->
     (x ↦ (Texpr τ1) ◘ Γ2 ⊦ e2 : (Texpr τ2)) ->
     (Γ3 ⊦ Xlet x e1 e2 : (Texpr τ2))
-| Tnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ : ty),
+| CTnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
     (x ↦ (Texpr Tptr) ◘ Γ2 ⊦ e2 : (Texpr τ)) ->
     (Γ3 ⊦ Xnew x e1 e2 : (Texpr τ))
-| Tdel : forall (Γ1 Γ2 : Gamma) (x : vart),
+| CTdel : forall (Γ1 Γ2 : Gamma) (x : vart),
     (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2 ⊦ Xdel x : (Texpr Tℕ))
-| Tcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
+| CTcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
     int τ0 -> int τ1 ->
     (Γ ⊦ Xres(Fvar foo) : (Tectx(Tarrow τ0 τ1))) ->
     (Γ ⊦ arg : (Texpr τ0)) ->
     (Γ ⊦ Xcall foo arg : (Texpr τ1))
-| Tret : forall (Γ : Gamma) (e : expr) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
+| CTret : forall (Γ : Gamma) (e : expr) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
     int τ ->
     (Γ ⊦ e : (Texpr τ)) ->
     (Γ ⊦ Xreturn e : (Texpr τ))
-| Tifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
+| CTifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ c : (Texpr Tℕ)) ->
     (Γ2 ⊦ e1 : (Texpr τ)) ->
@@ -259,6 +263,11 @@ Inductive check : VDash :=
 .
 #[local]
 Hint Constructors check : core.
+
+(** Symbols are pairs consisting of the function and its type. *)
+Definition symbol : Type := evalctx * Ty.
+#[local]
+Instance symbol__Instance : SymbolClass symbol := {}.
 
 (** A program is just a collection of symbols. The symbol `main` is the associated entry-point. *)
 Inductive prog : Type := Cprog : symbols -> prog.
@@ -334,14 +343,33 @@ Inductive ectx_check (s : symbols) : @Gamma vart Ty TheTy__Instance varteq__Inst
 .
 #[local]
 Hint Constructors ectx_check : core.
+
+Fixpoint interfaces (s : symbols) : option(Gamma) :=
+  match s with
+  | mapNil _ _ => Some [⋅]
+  | mapCons name EL s' =>
+    let* a := interfaces s' in
+    match EL with
+    | (E, Tectx(Tarrow τ0 τ1)) => Some(name ↦ Tectx(Tarrow τ0 τ1) ◘ a)
+    | _ => None
+    end
+  end
+.
+
 Definition prog_check (p : prog) : Prop :=
   let '(Cprog symbs) := p in
-  let fix doo (stack : symbols) :=
-    match stack with
-    | mapNil _ _ => True
-    | mapCons foo E xs => exists τ0 τ1, ectx_check symbs [⋅] E (Tectx(Tarrow τ0 τ1)) /\ doo xs
-    end
-  in doo symbs
+  let intt := interfaces symbs in
+  match intt with
+  | Some ints =>
+    let fix doo (stack : symbols) :=
+      match stack with
+      | mapNil _ _ => True
+      | mapCons foo (E, Tectx(Tarrow τ0 τ1)) xs => ectx_check symbs ints E (Tectx(Tarrow τ0 τ1)) /\ doo xs
+      | _ => False
+      end
+    in doo symbs
+  | None => False
+  end
 .
 
 (** * Dynamics *)
@@ -856,8 +884,8 @@ Inductive estep : CtxStep :=
                (E E__foo : evalctx) (f : fnoerr),
     (F ; Ξ ; E__foo :: ξ ; H ; Δ ▷ insert E (Xreturn f) ==[ Sret f ]==> F ; Ξ ; ξ ; H ; Δ ▷ insert E__foo f)
 | E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
-             (E E__foo : evalctx) (foo : vart) (f : fnoerr),
-    Some E__foo = mget Ξ foo ->
+             (E E__foo : evalctx) (τ__int : Ty) (foo : vart) (f : fnoerr),
+    Some (E__foo,τ__int) = mget Ξ foo ->
     (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ insert (Kreturn E__foo) f)
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
@@ -917,7 +945,7 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
     let '(F, Ξ, ξ, H, Δ) := Ω in
     match mget Ξ foo with
     | None => None
-    | Some K__foo =>
+    | Some (K__foo,_) =>
     Some(Some(Scall foo f), (F ; Ξ ; (K :: ξ) ; H ; Δ ▷ (insert (Kreturn K__foo) (Xres(Fres f)))))
     end
   | Xreturn(Xres(Fres f)) =>
@@ -1111,6 +1139,10 @@ Proof.
       rewrite (get_rid_of_letstar (F, Ξ, E__foo :: ξ, H, Δ)).
       rewrite elim_ectx_call.
       rewrite (get_rid_of_letstar (E, Xcall foo f)).
+      change ((fun o => match o with
+                    | Some(K__foo, _) => Some(Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), insert (Kreturn K__foo) f))
+                    | None => None
+                    end = Some(Some(Scall foo f), (Some(F, Ξ, E :: ξ, H, Δ), insert (Kreturn E__foo) f))) (mget Ξ foo)).
       now rewrite <- H0.
     + (* normal step *) assert (H':=H); eapply pstep_compat_weaken in H.
       apply (@grab_ectx e0 K e H) in H0 as H0';
@@ -1166,14 +1198,14 @@ Proof.
         grab_value e0.
         -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
            destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-           apply (not_eq_None_Some) in Hx as [E__foo Hx].
+           apply (not_eq_None_Some) in Hx as [[E__foo τ__int] Hx].
            rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto. eapply E_call; now symmetry.
+           eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto. eapply E_call; symmetry; eassumption.
         -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
            destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-           apply (not_eq_None_Some) in Hx as [E__foo Hx].
+           apply (not_eq_None_Some) in Hx as [[E__foo τ__int] Hx].
            rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; subst; eauto. eapply E_call; now symmetry.
+           eapply ungrab_ectx in Hx0; subst; eauto. eapply E_call; symmetry; eassumption.
 Qed.
 
 (*Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).*)
@@ -1471,11 +1503,13 @@ Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
     artificially gets a return in the semantics (estep), so add 1.
     Also, add 1 to the final result, because the top-level performs a call to "main". *)
 Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
-  let* K := mget ξ foo in
+  let* Kτ := mget ξ foo in
+  let '(K,_) := Kτ in
   let e := insert K 0 in
   let* ge := get_fuel e in
   let* symbs := collect_callsites ξ e in
-  let* res := List.fold_left (fun acc E =>
+  let* res := List.fold_left (fun acc Eτ =>
+                                let '(E,_) := Eτ in
                                 let* a := acc in
                                 let* b := get_fuel_fn_aux E in
                                 Some(1 + a + b)) (img symbs) (Some ge) in
@@ -1520,24 +1554,116 @@ Definition smsunsafe_ctx : evalctx :=
           (Xcall ("foo"%string) (Fvar "x"%string))))
 .
 
-Definition smsunsafe_prog := Cprog ("foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)).
+Definition smsunsafe_prog_aux : symbols :=
+  ("foo"%string ↦ (smsunsafe_ep, Tectx(Tarrow Tℕ Tℕ)) ◘ ("main"%string ↦ (smsunsafe_ctx, Tectx(Tarrow Tℕ Tℕ)) ◘ nosymb)).
+Definition smsunsafe_prog := Cprog smsunsafe_prog_aux.
+
+Tactic Notation "splitΓfor" :=
+try do 2 match goal with
+| [|- _ ⊦ _ : _] => unfold "_ ⊦ _ : _"
+| [|- check ?P (Xdel ?x) ?τ] =>
+  match P with
+  | context E__Γ [(x ↦ ?H ◘ ?R)] =>
+    let nP := constr:([⋅] ◘ (x ↦ H ◘ R)) in
+    let NP := constr:(ltac:(let t := context E__Γ [[⋅]] in exact t)) in
+    let nnP := constr:(NP ◘ nP) in
+    let G := constr:(check nnP (Xdel x) τ) in
+    change G
+  end
+| [|- check ?P (Xres(Fres(Fvar ?x))) ?τ] =>
+  match P with
+  | context E__Γ [(x ↦ ?H ◘ ?R)] =>
+    let nP := constr:([⋅] ◘ (x ↦ H ◘ R)) in
+    let NP := constr:(ltac:(let t := context E__Γ [[⋅]] in exact t)) in
+    let nnP := constr:(NP ◘ nP) in
+    let G := constr:(check nnP (Xres(Fres(Fvar x))) τ) in
+    change G
+  end
+end.
+
+Lemma ownedptrsplit Γ1 Γ2 : NoOwnedPtr Γ1 -> NoOwnedPtr Γ2 -> NoOwnedPtr (Γ1 ◘ Γ2).
+Proof.
+Admitted.
+Lemma ownedptrcons x y Γ2 : NoOwnedPtr (x ↦ y ◘ [⋅]) -> NoOwnedPtr Γ2 -> NoOwnedPtr (x ↦ y ◘ Γ2).
+Proof.
+Admitted.
 
 Goal prog_check smsunsafe_prog.
 Proof.
-  cbn; do 2 eexists; split; try do 2 eexists; try split; trivial.
-  - eapply ETlet. eapply splitEmpty. eapply EThole.
-    eapply intℕ. easy. eapply Tnew. eapply ℕsplit, splitEmpty.
-    change (check ([⋅] ◘ "x"%string ↦ (Texpr Tℕ) ◘ [⋅]) (Fvar "x"%string) Tℕ).
-    eapply Tvar. easy. unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+  assert (NoOwnedPtr ("foo"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ ("main"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ [⋅]))) as G.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0;
+    destruct a; inv H1; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H0;
+    destruct x; inv H1; destruct a; inv H0; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1;
+    destruct x; inv H0; destruct a; inv H1; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H0.
+    destruct x; inv H1.
+  cbn; repeat split; trivial.
+  - eapply ETlet. repeat (eapply ArrowSplit; try eapply intℕ); eapply splitEmpty. eapply EThole.
+    eapply intℕ. exact G.
+    eapply CTnew. eapply ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; try eapply intℕ.
+    splitΓfor.
+    eapply CTvar. easy. unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
     destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
-    easy.
-    eapply Tlet. eapply ptrRSplit, ℕsplit, splitEmpty.
-    eapply Tget. eapply weakPtrSplit, ℕsplit, splitEmpty.
-    (*change (check ("z"%string ↦ (Texpr Twptr) ◘ ("x"%string ↦ (Texpr Tℕ) ◘ [⋅])) (Fvar "x"%string) Twptr).*)
-Admitted.
+    exact G.
+    eapply CTlet. eapply ptrRSplit, ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; try eapply intℕ.
+    eapply CTget. eapply weakPtrSplit, ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; try eapply intℕ.
+    splitΓfor.
+    eapply CTvar. easy. unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
+    eapply ownedptrcons; trivial.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
+    eapply CTℕ. do 2 eapply ownedptrcons; try easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    eapply CTlet. eapply ℕsplit, ptrLSplit, ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; eapply intℕ.
+    instantiate (1:=Tℕ).
+    splitΓfor.
+    eapply CTdel.
+    splitΓfor.
+    eapply CTvar.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    eapply ownedptrcons; try easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+  - eapply ETret. eapply intℕ. eapply ETlet. eapply ArrowSplit, ArrowSplit, splitEmpty; eapply intℕ.
+    eapply EThole. eapply intℕ. assumption.
+    eapply CTlet. eapply ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; eapply intℕ. eapply CTℕ.
+    eapply ownedptrcons; try easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    eapply CTcall. eapply intℕ. eapply intℕ.
+    splitΓfor. eapply CTvar; try easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0.
+    destruct a; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    splitΓfor.
+    eapply CTvar. easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    eapply ownedptrcons; try easy.
+    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+Qed.
 
 Goal exists As R,
-    PROG["foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)]["main"%string]====[As]===> R.
+    PROG[smsunsafe_prog_aux]["main"%string]====[As]===> R.
 Proof.
   do 2 eexists.
   econstructor.

@@ -91,13 +91,14 @@ Class RuntimeExprClass (Expr : Type) := {}.
 Class EvalCtxClass (Ectx : Type) := {}.
 Class TraceEvent (Ev : Type) := {}.
 Class TyClass (T : Type) := {}.
+Class SymbolClass (Symb : Type) := {}.
 
 (** Definition of the symbol table. *)
-Definition symbols {V E} `{H: HasEquality V} `{EvalCtxClass E} := mapind H E.
-Definition nosymb {V E} `{H: HasEquality V} `{EvalCtxClass E} : symbols := mapNil H E.
+Definition symbols {V E} `{H: HasEquality V} `{SymbolClass E} := mapind H E.
+Definition nosymb {V E} `{H: HasEquality V} `{SymbolClass E} : symbols := mapNil H E.
 
 Class ProgClass {V E} (Prog : Type) `{Hv: HasEquality V}
-                      `{He: EvalCtxClass E} := Cprog__Class : symbols -> Prog.
+                      `{He: SymbolClass E} := Cprog__Class : symbols -> Prog.
 
 Definition Gamma {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} := mapind H TheTy.
 Definition Gnil {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} : Gamma := mapNil H TheTy.
@@ -121,7 +122,7 @@ Class PrimStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := 
 Class CtxStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := estep__Class : A -> (option Ev) -> A -> Prop.
 Class MultStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := sstep__Class : A -> tracepref -> A -> Prop.
 Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
-               `{HasEquality C} `{EvalCtxClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass C A Prog}
+               `{HasEquality C} `{SymbolClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass C A Prog}
   := wstep__Class : Prog -> C -> tracepref -> B -> Prop.
 Class VDash {K Expr TheTy : Type} `{ExprClass Expr} `{T: TyClass TheTy} `{H: HasEquality K} := vDash__Class : Gamma -> Expr -> TheTy -> Prop.
 

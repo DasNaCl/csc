@@ -204,53 +204,53 @@ Inductive int : ty -> Prop :=
 (** Typechecking *)
 Definition NoOwnedPtr (Γ : Gamma) := forall (x : vart) (τ : ty), mget Γ x = Some(Texpr τ) -> τ <> Tptr.
 Inductive check : VDash :=
-| tVar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
+| Tvar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
     NoOwnedPtr Γ1 ->
     NoOwnedPtr (x ↦ τ ◘ [⋅]) ->
     NoOwnedPtr Γ2 ->
     (Γ1 ◘ x ↦ τ ◘ Γ2) ⊦ Xres(Fvar x) : τ
-| tℕ : forall (Γ : Gamma) (n : nat),
+| Tℕ : forall (Γ : Gamma) (n : nat),
     NoOwnedPtr Γ ->
     Γ ⊦ Xres n : Tℕ
-| toplus : forall (Γ1 Γ2 Γ3 : Gamma) (e1 e2 : expr) (b : binopsymb),
+| Toplus : forall (Γ1 Γ2 Γ3 : Gamma) (e1 e2 : expr) (b : binopsymb),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
     (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
     (Γ3 ⊦ Xbinop b e1 e2 : (Texpr Tℕ))
-| tget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e : expr),
+| Tget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e : expr),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ2 ⊦ Xres(Fvar x) : (Texpr Twptr)) ->
     (Γ1 ⊦ e : (Texpr Tℕ)) ->
     (Γ3 ⊦ Xget x e : (Texpr Tℕ))
-| tset : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (e1 e2 : expr),
+| Tset : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (e1 e2 : expr),
     Γ12 ≡ Γ1 ∘ Γ2 ->
     Γ4 ≡ Γ12 ∘ Γ3 ->
     (Γ3 ⊦ (Xres(Fvar x)) : (Texpr Twptr)) ->
     (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
     (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
     (Γ4 ⊦ Xset x e1 e2 : (Texpr Tℕ))
-| tlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ1 τ2 : ty),
+| Tlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ1 τ2 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ e1 : (Texpr τ1)) ->
     (x ↦ (Texpr τ1) ◘ Γ2 ⊦ e2 : (Texpr τ2)) ->
     (Γ3 ⊦ Xlet x e1 e2 : (Texpr τ2))
-| tnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ : ty),
+| Tnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
     (x ↦ (Texpr Tptr) ◘ Γ2 ⊦ e2 : (Texpr τ)) ->
     (Γ3 ⊦ Xnew x e1 e2 : (Texpr τ))
-| tdel : forall (Γ1 Γ2 : Gamma) (x : vart),
+| Tdel : forall (Γ1 Γ2 : Gamma) (x : vart),
     (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2 ⊦ Xdel x : (Texpr Tℕ))
-| tcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
+| Tcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
     int τ0 -> int τ1 ->
     (Γ ⊦ Xres(Fvar foo) : (Tectx(Tarrow τ0 τ1))) ->
     (Γ ⊦ arg : (Texpr τ0)) ->
     (Γ ⊦ Xcall foo arg : (Texpr τ1))
-| tret : forall (Γ : Gamma) (e : expr) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
+| Tret : forall (Γ : Gamma) (e : expr) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
     int τ ->
     (Γ ⊦ e : (Texpr τ)) ->
     (Γ ⊦ Xreturn e : (Texpr τ))
-| tifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
+| Tifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ c : (Texpr Tℕ)) ->
     (Γ2 ⊦ e1 : (Texpr τ)) ->
@@ -484,15 +484,15 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
     | Xnew x e0 e1 => if vareq what x then Xnew x (R e0) e1 else Xnew x (R e0) (R e1)
     | Xget x e' => match substid with
                   | None => Xget x
-                  | Some y => Xget y
+                  | Some y => if vareq what x then Xget y else Xget x
                   end (R e')
     | Xset x e0 e1 => match substid with
                      | None => Xset x
-                     | Some y => Xset y
+                     | Some y => if vareq what x then Xset y else Xset x
                      end (R e0) (R e1)
     | Xdel x => match substid with
                | None => Xdel x
-               | Some y => Xdel y
+               | Some y => if vareq what x then Xdel y else Xdel x
                end
     | Xres(Fres(Fvar x)) => if vareq what x then forr else e
     | Xbinop b e1 e2 => Xbinop b (R e1) (R e2)
@@ -1496,7 +1496,7 @@ Definition debug_eval (p : prog) :=
 
 (* let x = [] in
      let z = new x in
-     let w = x[1337] in
+     let w = z[1337] in
      let _ = delete z in
      w*)
 Definition smsunsafe_ep : evalctx :=
@@ -1505,7 +1505,7 @@ Definition smsunsafe_ep : evalctx :=
     (Xnew "z"%string
         (Fvar "x"%string)
         (Xlet "w"%string
-              (Xget "x"%string 1337)
+              (Xget "z"%string 1337)
               (Xlet "_"%string
                     (Xdel "z"%string)
                     (Fvar "w"%string))
@@ -1521,6 +1521,20 @@ Definition smsunsafe_ctx : evalctx :=
 .
 
 Definition smsunsafe_prog := Cprog ("foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)).
+
+Goal prog_check smsunsafe_prog.
+Proof.
+  cbn; do 2 eexists; split; try do 2 eexists; try split; trivial.
+  - eapply ETlet. eapply splitEmpty. eapply EThole.
+    eapply intℕ. easy. eapply Tnew. eapply ℕsplit, splitEmpty.
+    change (check ([⋅] ◘ "x"%string ↦ (Texpr Tℕ) ◘ [⋅]) (Fvar "x"%string) Tℕ).
+    eapply Tvar. easy. unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
+    easy.
+    eapply Tlet. eapply ptrRSplit, ℕsplit, splitEmpty.
+    eapply Tget. eapply weakPtrSplit, ℕsplit, splitEmpty.
+    (*change (check ("z"%string ↦ (Texpr Twptr) ◘ ("x"%string ↦ (Texpr Tℕ) ◘ [⋅])) (Fvar "x"%string) Twptr).*)
+Admitted.
 
 Goal exists As R,
     PROG["foo"%string ↦ smsunsafe_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)]["main"%string]====[As]===> R.

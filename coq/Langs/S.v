@@ -257,6 +257,8 @@ Inductive check : VDash :=
     (Γ2 ⊦ e2 : (Texpr τ)) ->
     (Γ3 ⊦ Xifz c e1 e2 : (Texpr τ))
 .
+#[local]
+Hint Constructors check : core.
 
 (** A program is just a collection of symbols. The symbol `main` is the associated entry-point. *)
 Inductive prog : Type := Cprog : symbols -> prog.
@@ -271,71 +273,73 @@ Definition string_of_prog (p : prog) :=
 (*TODO: doesn't this need to have type TArrow τ1 τ2? *)
 (** Typechecking evaluation contexts, which represent functions. *)
 Inductive ectx_check (s : symbols) : @Gamma vart Ty TheTy__Instance varteq__Instance -> evalctx -> Ty -> Prop :=
-| EThole : forall (Γ : Gamma) (τ : ty),
-    int τ ->
+| EThole : forall (Γ : Gamma) (τ0 : ty),
+    int τ0 ->
     NoOwnedPtr Γ ->
-    ectx_check s Γ Khole τ
-| ETbinopL : forall (Γ1 Γ2 Γ3 : Gamma) (b : binopsymb) (K : evalctx) (e : expr),
+    ectx_check s Γ Khole (Tectx(Tarrow τ0 τ0))
+| ETbinopL : forall (Γ1 Γ2 Γ3 : Gamma) (b : binopsymb) (K : evalctx) (e : expr) (τ0 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K Tℕ ->
+    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
     check Γ2 e Tℕ ->
-    ectx_check s Γ3 (KbinopL b K e) Tℕ
-| ETbinopR : forall (Γ1 Γ2 Γ3 : Gamma) (b : binopsymb) (K : evalctx) (v : value),
+    ectx_check s Γ3 (KbinopL b K e) (Tectx(Tarrow τ0 Tℕ))
+| ETbinopR : forall (Γ1 Γ2 Γ3 : Gamma) (b : binopsymb) (K : evalctx) (v : value) (τ0 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     check Γ1 v Tℕ ->
-    ectx_check s Γ2 K Tℕ ->
-    ectx_check s Γ3 (KbinopR b v K) Tℕ
-| ETget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx),
+    ectx_check s Γ2 K (Tectx(Tarrow τ0 Tℕ)) ->
+    ectx_check s Γ3 (KbinopR b v K) (Tectx(Tarrow τ0 Tℕ))
+| ETget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (τ0 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     check Γ2 (Fvar x) Twptr ->
-    ectx_check s Γ1 K Tℕ ->
-    ectx_check s Γ3 (Kget x K) Tℕ
-| ETsetL : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (K : evalctx) (e2 : expr),
+    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
+    ectx_check s Γ3 (Kget x K) (Tectx(Tarrow τ0 Tℕ))
+| ETsetL : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (K : evalctx) (e2 : expr) (τ0 : ty),
     Γ12 ≡ Γ1 ∘ Γ2 ->
     Γ4 ≡ Γ12 ∘ Γ3 ->
     check Γ3 (Fvar x) Twptr ->
-    ectx_check s Γ1 K Tℕ ->
+    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
     check Γ2 e2 Tℕ ->
-    ectx_check s Γ4 (KsetL x K e2) Tℕ
-| ETsetR : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (K : evalctx) (v : value),
+    ectx_check s Γ4 (KsetL x K e2) (Tectx(Tarrow τ0 Tℕ))
+| ETsetR : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (K : evalctx) (v : value) (τ0 : ty),
     Γ12 ≡ Γ1 ∘ Γ2 ->
     Γ4 ≡ Γ12 ∘ Γ3 ->
     check Γ3 (Fvar x) Twptr ->
     check Γ1 v Tℕ ->
-    ectx_check s Γ2 K Tℕ ->
-    ectx_check s Γ4 (KsetR x v K) Tℕ
-| ETlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (e : expr) (τ1 τ2 : ty),
+    ectx_check s Γ2 K (Tectx(Tarrow τ0 Tℕ)) ->
+    ectx_check s Γ4 (KsetR x v K) (Tectx(Tarrow τ0 Tℕ))
+| ETlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (e : expr) (τ0 τ1 τ2 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K τ1 ->
+    ectx_check s Γ1 K (Tectx(Tarrow τ0 τ1)) ->
     check (x ↦ (Texpr τ1) ◘ Γ2) e τ2 ->
-    ectx_check s Γ3 (Klet x K e) τ2
-| ETnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (e : expr),
+    ectx_check s Γ3 (Klet x K e) (Tectx(Tarrow τ0 τ2))
+| ETnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (e : expr) (τ0 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K Tℕ ->
+    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
     check (x ↦ (Texpr Tptr) ◘ Γ2) e Tℕ ->
-    ectx_check s Γ3 (Knew x K e) Tℕ
-| ETifz : forall (Γ1 Γ2 Γ3 : Gamma) (K : evalctx) (e1 e2 : expr) (τ1 τ2 : ty),
+    ectx_check s Γ3 (Knew x K e) (Tectx(Tarrow τ0 Tℕ))
+| ETifz : forall (Γ1 Γ2 Γ3 : Gamma) (K : evalctx) (e1 e2 : expr) (τ0 τ1 τ2 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K τ1 ->
+    ectx_check s Γ1 K (Tectx(Tarrow τ0 τ1)) ->
     check Γ2 e1 τ2 ->
     check Γ2 e2 τ2 ->
-    ectx_check s Γ3 (Kifz K e1 e2) τ2
-| ETcall : forall (Γ : Gamma) (foo : vart) (K : evalctx) (τ0 τ1 : ty),
-    int τ0 -> int τ1 ->
-    check Γ (Xres(Fvar foo)) (Tectx(Tarrow τ0 τ1)) ->
-    ectx_check s Γ K τ1 ->
-    ectx_check s Γ (Kcall foo K) (Tectx(Tarrow τ0 τ1))
-| ETret : forall (Γ : Gamma) (K : evalctx) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
-    int τ ->
-    ectx_check s Γ K (Texpr τ) ->
-    ectx_check s Γ (Kreturn K) (Texpr τ)
+    ectx_check s Γ3 (Kifz K e1 e2) (Tectx(Tarrow τ0 τ2))
+| ETcall : forall (Γ : Gamma) (foo : vart) (K : evalctx) (τ0 τ1 τ2 : ty),
+    int τ1 -> int τ2 ->
+    check Γ (Xres(Fvar foo)) (Tectx(Tarrow τ1 τ2)) ->
+    ectx_check s Γ K (Tectx(Tarrow τ0 τ1)) ->
+    ectx_check s Γ (Kcall foo K) (Tectx(Tarrow τ0 τ2))
+| ETret : forall (Γ : Gamma) (K : evalctx) (τ0 τ1 : ty), (*TODO: intuitively, this should yield ⊥...?*)
+    int τ1 ->
+    ectx_check s Γ K (Tectx(Tarrow τ0 τ1)) ->
+    ectx_check s Γ (Kreturn K) (Tectx(Tarrow τ0 τ1))
 .
+#[local]
+Hint Constructors ectx_check : core.
 Definition prog_check (p : prog) : Prop :=
   let '(Cprog symbs) := p in
   let fix doo (stack : symbols) :=
     match stack with
     | mapNil _ _ => True
-    | mapCons foo E xs => exists τ, ectx_check symbs [⋅] E τ /\ doo xs
+    | mapCons foo E xs => exists τ0 τ1, ectx_check symbs [⋅] E (Tectx(Tarrow τ0 τ1)) /\ doo xs
     end
   in doo symbs
 .

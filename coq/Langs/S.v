@@ -279,7 +279,6 @@ Definition string_of_prog (p : prog) :=
   "prog"%string (*TODO*)
 .
 
-(*TODO: doesn't this need to have type TArrow τ1 τ2? *)
 (** Typechecking evaluation contexts, which represent functions. *)
 Inductive ectx_check (s : symbols) : @Gamma vart Ty TheTy__Instance varteq__Instance -> evalctx -> Ty -> Prop :=
 | EThole : forall (Γ : Gamma) (τ0 : ty),
@@ -325,12 +324,12 @@ Inductive ectx_check (s : symbols) : @Gamma vart Ty TheTy__Instance varteq__Inst
     ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
     check (x ↦ (Texpr Tptr) ◘ Γ2) e Tℕ ->
     ectx_check s Γ3 (Knew x K e) (Tectx(Tarrow τ0 Tℕ))
-| ETifz : forall (Γ1 Γ2 Γ3 : Gamma) (K : evalctx) (e1 e2 : expr) (τ0 τ1 τ2 : ty),
+| ETifz : forall (Γ1 Γ2 Γ3 : Gamma) (K : evalctx) (e1 e2 : expr) (τ0 τ1 : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K (Tectx(Tarrow τ0 τ1)) ->
-    check Γ2 e1 τ2 ->
-    check Γ2 e2 τ2 ->
-    ectx_check s Γ3 (Kifz K e1 e2) (Tectx(Tarrow τ0 τ2))
+    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
+    check Γ2 e1 τ1 ->
+    check Γ2 e2 τ1 ->
+    ectx_check s Γ3 (Kifz K e1 e2) (Tectx(Tarrow τ0 τ1))
 | ETcall : forall (Γ : Gamma) (foo : vart) (K : evalctx) (τ0 τ1 τ2 : ty),
     int τ1 -> int τ2 ->
     check Γ (Xres(Fvar foo)) (Tectx(Tarrow τ1 τ2)) ->
@@ -426,20 +425,20 @@ Notation "F ';' Ξ ';' ξ ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (Ξ : s
                                          (at level 81, ξ at next level, Ξ at next level, H at next level, Δ at next level).
 
 (** Store splitting. We don't need a case for nat, since identifiers with type nat get substituted at runtime. *)
-Inductive store_split : store -> Gamma -> Prop :=
-| TemptyΔ : store_split sNil [⋅]
+Inductive store_split (Ξ : symbols) : store -> Gamma -> Prop :=
+| TemptyΔ : forall (Γ : Gamma), interfaces Ξ = Some Γ -> store_split Ξ sNil Γ
 | Tref1ℕ : forall (Γ : Gamma) (Δ : store) (x : vart) (ℓ : loc),
-    store_split Δ Γ ->
-    store_split (x ↦ (ℓ ⋅ ◻) ◘ Δ) (x ↦ (Texpr Tptr) ◘ Γ)
+    store_split Ξ Δ Γ ->
+    store_split Ξ (x ↦ (ℓ ⋅ ◻) ◘ Δ) (x ↦ (Texpr Tptr) ◘ Γ)
 | Tref1ℕpoison : forall (Γ : Gamma) (Δ : store) (x : vart) (ℓ : loc),
-    store_split Δ Γ ->
-    store_split (x ↦ (ℓ ⋅ ☣) ◘ Δ) (x ↦ (Texpr Twptr) ◘ Γ)
+    store_split Ξ Δ Γ ->
+    store_split Ξ (x ↦ (ℓ ⋅ ☣) ◘ Δ) (x ↦ (Texpr Twptr) ◘ Γ)
 | Tsplitign : forall (Γ : Gamma) (Δ : store) (x : vart) (τ0 τ1 : ty),
-    store_split Δ Γ ->
-    store_split Δ (x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ)
+    store_split Ξ Δ Γ ->
+    store_split Ξ Δ (x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ)
 .
 Inductive state_split : state -> Gamma -> Prop :=
-| TΩ : forall F Ξ ξ H Δ (Γ : Gamma), store_split Δ Γ -> state_split (F ; Ξ ; ξ ; H ; Δ) Γ
+| TΩ : forall F Ξ ξ H Δ (Γ : Gamma), store_split Ξ Δ Γ -> state_split (F ; Ξ ; ξ ; H ; Δ) Γ
 .
 
 (** Types of events that may occur in a trace. *)

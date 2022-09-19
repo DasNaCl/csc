@@ -575,19 +575,24 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Expressions}~\src{e} \bnfdef&\ \src{x} \mid \src{v} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
-  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{returning\ \finalexprnoerr} \mid \src{calling\ \finalexprnoerr} \\
-  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} \\
-  &\mid \src{hole : (x:\type_1)\to\type_2} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
+  \mi{Expressions}~\src{e} \bnfdef&\ \src{\finalexpr} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{return\ e} \mid \src{call\ x\ e} \\
+  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
   %
-  \mi{Types}~\types \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
+  \mi{Expr.\ Types}~\types_{\src{e}} \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
   %
   \mi{Qualifier}~\src{q} \bnfdef\ \full \mid \half\hspace{0.25cm}
-  %
   \mi{Values}~\src{\valueexpr} \bnfdef\ \src{n}\in\src{\nat} \\
-  \mi{References}~\src{\loc}&\in\src{\nat} \hspace{0.5cm}
   %
-  \mi{Variables}~\ \src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
+  \mi{Ectx\ Types}~\types_{\lambda}\ \bnfdef& \types_{\src{e}}\to\types_{\src{e}} \hspace{0.25cm}
+  \mi{Types}~\types \bnfdef \types_{\src{e}}\mid\types_{\lambda} \hspace{0.25cm}
+  %
+  \mi{References}~\src{\loc}\in\src{\nat} \\
+  \mi{Eval. Ctx.}~\src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus K}\mid \src{x[K]}\mid \src{let\ x=K\ in\ e}\\
+                     &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e} \\
+                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2} \mid \src{call\ x\ K}\mid \src{return\ K} \\
+  %
+  \mi{Variables}~\ &\src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
   %
   \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
@@ -596,14 +601,15 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
   %
-  \mi{State}\ \configs \bnfdef\ \sconfig{H}{\Delta} \\
+  \mi{Symbol}~\src{\asymbol} \bnfdef\ \src{K}\times\types_{\lambda}  \\
+  \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid \src{K},\src{\kontstack} \hspace{0.5cm}
+  \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{x}\mapsto\src{\asymbol},\src{\library}\\
+  \mi{State}~\configs\ \bnfdef&\ \src{\library;\kontstack;H;\Delta} \hspace{0.5cm}
   %
-  \mi{Contexts}\ &\src{context\ e_0\ e_1} \hspace{0.5cm}
-  \mi{Components}\ \src{component\ e_p} \\
-  \mi{Whole\ Programs}\ &\src{prog\ e_0\ e_1\ e_2}\hspace{0.5cm}
+  \mi{Programs}\ \src{prog\ \library} \\
   %
-  \mi{Final\ Result}\ \src{\finalexprnoerr} \bnfdef\ \src{\valueexpr} \mid \src{x} \hspace{0.5cm}
-  \src{\finalexpr} \bnfdef\ \src{\finalexprnoerr} \mid \src{stuck} \\
+  \mi{Final\ Result}\ \src{\finalexprnoerr} \bnfdef&\ \src{\valueexpr} \mid \src{x} \hspace{0.5cm}
+  \mi{May\ be\ a\ Result}\ \src{\finalexpr} \bnfdef\ \src{\finalexprnoerr} \mid \src{stuck} \\
   \end{aligned}
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlAs$}
@@ -616,57 +622,78 @@ We chose to distinguish between successful final results ($\src{\finalexprnoerr}
 Note that a final result may also be an identifier, which we keep around as abstract representation for locations of pointers.
 However, we still distinct them from ordinary values ($\src{\valueexpr}$), since they don't behave like normal values.
 For example, we cannot make canonical typing lemmas for them without the additional information contained in a non-empty typing-context.
-We also have an additional expression $\src{hole : (x:\type_1)\to\type_2}$ that intuitively can be replaced by an expression $\src{e : \type_2}$ that {\em may} rely on an $\src{x:\type_1}$ to be present in the static context.
-It is used as a placeholder to be filled by a $\src{component\ e}$.
 
 \subsubsection{Static Semantics}
-\begin{definition}[NoPtr]
-  We write $\src{\noptr{\Gamma}}$ if for any $\src{x}, \src{\type}$, if $\src{x} : \src{\type}\in\src{\Gamma}$, then $\types\not=\ptr$.
+\begin{definition}[NoOwnedPtr]
+  We write $\src{\noptr{\Gamma}}$ iff for any $\src{x}, \src{\type}$, if $\src{x} : \src{\type}\in\src{\Gamma}$, then $\types\not=\ptr$.
 \end{definition}
+\myfig{
+  \begin{center}
+    \judgbox{\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
+  \typerule{int-$\src{\nat}$}{
+  }{
+    \src{\nat}\operatorname{int}
+  }{src-int-type-nat}
+  \typerule{int-$\src{\wptr}$}{
+  }{
+  \src{\wptr}\operatorname{int}
+  }{src-int-type-wptr}
+  \end{center}
+}{src-int-types}{Interface types of $\mmlAs$.}
+
+We introduce interface types to explicitly disallow passing owned pointers.
 
 \myfig{
   \begin{center}
-  \judgbox{\Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}}{,,Environment $\Gammas$ can be split into $\src{\Gamma_1}$ and $\src{\Gamma_2}$.''}
+  \judgbox{\Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}}{,,Environment $\Gammas$ can be split into $\src{\Gamma_1}$ and $\src{\Gamma_2}$.''}
   %
   $\;$\\
   \typerule{splitEmpty}{
   }{
-    \src{\hole{\cdot}} = \src{\hole{\cdot}}\circ\src{\hole{\cdot}}
+    \src{\hole{\cdot}} \equiv \src{\hole{\cdot}}\circ\src{\hole{\cdot}}
   }{t-empty-split}
   %
   \typerule{splitEmptyL}{
   }{
-    \src{\Gamma} = \src{\hole{\cdot}}\circ\src{\Gamma}
+    \src{\Gamma} \equiv \src{\hole{\cdot}}\circ\src{\Gamma}
   }{t-empty-splitL}
   %
   \typerule{splitEmptyR}{
   }{
-    \src{\Gamma} = \src{\Gamma}\circ\src{\hole{\cdot}}
+    \src{\Gamma} \equiv \src{\Gamma}\circ\src{\hole{\cdot}}
   }{t-empty-splitR}
   %
   \typerule{$\nat$split}{
-    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
   }{
-    \src{x:\nat},\Gammas = \src{x:\nat},\src{\Gamma_1}\circ\src{x:\nat},\src{\Gamma_2}
+    \src{x:\nat},\Gammas \equiv \src{x:\nat},\src{\Gamma_1}\circ\src{x:\nat},\src{\Gamma_2}
   }{t-nat-split}
   %
   \typerule{weakPtrSplit}{
-    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
   }{
-    \src{x:\wptr},\Gammas = \src{x:\wptr},\src{\Gamma_1}\circ\src{x:\wptr},\src{\Gamma_2}
+    \src{x:\wptr},\Gammas \equiv \src{x:\wptr},\src{\Gamma_1}\circ\src{x:\wptr},\src{\Gamma_2}
   }{t-wptr-split}
   %
   \typerule{ptrLSplit}{
-    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
   }{
-    \src{x:\ptr},\Gammas = \src{x:\ptr},\src{\Gamma_1}\circ\src{\Gamma_2}
+    \src{x:\ptr},\Gammas \equiv \src{x:\ptr},\src{\Gamma_1}\circ\src{\Gamma_2}
   }{t-ptr-l-split}
   %
   \typerule{ptrRSplit}{
-    \Gammas = \src{\Gamma_1}\circ\src{\Gamma_2}
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
   }{
-    \src{x:\ptr},\Gammas = \src{x:\wptr,\Gamma_1}\circ\src{x:\ptr},\src{\Gamma_2}
+    \src{x:\ptr},\Gammas \equiv \src{x:\wptr,\Gamma_1}\circ\src{x:\ptr},\src{\Gamma_2}
   }{t-ptr-r-split}
+  %
+  \typerule{arrowSplit}{
+    \src{\type_e^{(1)}}\ \operatorname{int} &
+    \src{\type_e^{(2)}}\ \operatorname{int} &
+    \src{\Gamma}\equiv\src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{foo:\type_e^{(1)}\to\type_e^{(2)}},\Gammas \equiv \src{foo:\type_e^{(1)}\to\type_e^{(2)}},\src{\Gamma_1}\circ\src{foo:\type_e^{(1)}\to\type_e^{(2)}},\src{\Gamma_2}
+  }{t-arrow-split}
   \end{center}
 }{w-ctx-split}{Context Splitting of $\mmlAs$ typing contexts.}
 
@@ -686,7 +713,7 @@ Note that non-owned pointers and values may be freely duplicated and that we can
     \typechecks{\Gamma_1,x:\type,\Gamma_2}{x}{\type}
 	}{t-var}
   %
-  \typerule{$t-\nat$}{
+  \typerule{$t-\src{\nat}$}{
     \src{\noptr{\Gamma}}
   }{
     \typechecks{\Gamma}{n}{\nat}
@@ -715,30 +742,11 @@ Note that non-owned pointers and values may be freely duplicated and that we can
   }{t-set}
   %
   \typerule{$t-\src{let}$}{
-    \typechecks{\Gamma_1}{e_1}{\type_1} &
-    \typechecks{x:\type_1,\Gamma_2}{e_2}{\type_2}
+    \typechecks{\Gamma_1}{e_1}{\type_{e}^{(1)}} &
+    \typechecks{x:\type_{e}^{(1)},\Gamma_2}{e_2}{\type_{e}^{(2)}}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\type_2}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\type_{e}^{(2)}}
   }{t-let}
-  %
-  \typerule{$t-\src{hole}$}{
-    \src{\Gamma}=\src{\Gamma_1,x:\type_1,\Gamma_2} &
-    \src{\noptr{\Gamma}}
-  }{
-    \typechecks{\Gamma}{hole : \type_1\to\type_2}{\type_2}
-  }{t-hole}
-  %
-  \typerule{$t-\src{calling}$}{
-    \typechecks{\Gamma}{e}{\type}
-  }{
-    \typechecks{\Gamma}{calling\ e}{\type}
-  }{t-calling}
-  %
-  \typerule{$t-\src{returning}$}{
-    \typechecks{\Gamma}{e}{\type}
-  }{
-    \typechecks{\Gamma}{returning\ e}{\type}
-  }{t-returning}
   %
   \typerule{$t-\src{new}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
@@ -753,235 +761,193 @@ Note that non-owned pointers and values may be freely duplicated and that we can
     \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{\nat}
   }{w-t-delete}
   %
+  \typerule{$t-\src{call}$}{
+    \src{\type_e^{(1)}}\ \operatorname{int} &
+    \src{\type_e^{(2)}}\ \operatorname{int} \\
+    \typechecks{\Gamma}{foo}{\type_e^{(1)}\to\type_e^{(2)}} &
+    \typechecks{\Gamma}{e}{\type_e^{(1)}}
+  }{
+    \typechecks{\Gamma}{call\ foo\ e}{\type_e^{(2)}}
+  }{t-calling}
+  %
+  \typerule{$t-\src{return}$}{
+    \src{\type_e}\ \operatorname{int} &
+    \typechecks{\Gamma}{e}{\type_e}
+  }{
+    \typechecks{\Gamma}{return\ e}{\type_e}
+  }{t-returning}
+  %
   \typerule{$t-\src{ifz}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
-    \typechecks{\Gamma_2}{e_2}{\type} &
-    \typechecks{\Gamma_2}{e_3}{\type}
+    \typechecks{\Gamma_2}{e_2}{\type_e} &
+    \typechecks{\Gamma_2}{e_3}{\type_e}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type}
+    \typechecks{\Gamma_1\circ\Gamma_2}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_e}
   }{w-t-if}
   \end{center}
 }{w-expr-ty}{Checking of $\mmlAs$ expressions.}
 The context splitting takes care that for e.g. \Cref{tr:t-binop} it cannot happen that we do something like $\src{(delete\ x) + x[0]}$.
 For \Cref{tr:t-var,tr:t-nat} we require that the contexts do not contain any owned pointer.
 Intuitively, an owned pointer is useless upto getting a non-owned version from context splitting, because we cannot do anything with it besides deleting.
-This is inspired by linear logic. To deal with program contexts, we have two additional rules \Cref{tr:t-let,tr:t-hole} that carry additional type informationn.
-Note that $\src{hole : \type}$ has no runtime action, which is why we have an additional judgement as presented in \Cref{fig:runtime-term} that ensures that a given well-typed program can run.
-Without the hole, we cannot represent the context as a simple, nested $\src{let}$-expression, which also means that the static contexts of the two expressions that wrap around the component have no interaction, i.e. for $\src{context\ e_1\ e_2}$ we cannot typecheck the case where $\src{e_1}$ wants to allocate some memory and keep it around for deallocation in $\src{e_2}$.
+This is inspired by linear logic.
 
 \myfig{
+  \judgbox{\typechecks{\Gamma}{K}{\types^{(1)}\to\types^{(2)}}}{,,Under environment $\Gammas$ the evaluation context $\src{K}$ requires an\\object of type $\src{\type^{(1)}}$ and yields one of type $\src{\type^{(2)}}$.''}
   \begin{center}
-    \judgbox{\hasholes{x:\type_1}{e}{\type_2}}{,,$\src{e}$ contains exacty one $\src{hole:(x:\type_1)\to\type_2}$ that\\may be filled with an expression $\src{e':\type_2}$ that\\uses $\src{x:\type_1}$.''}
-  \typerule{has-hole-$\src{hole}$}{
-  }{
-    \hasholes{x:\type_1}{hole:(x:\type_1)\to\type_2}{\type_2}
-  }{hashole-hole}
-  %
-  \typerule{has-hole-L$\src{\oplus}$}{
-    \hasholes{x:\type_1}{e_1}{\type_2}&
-    \neg\left(\hasholes{x:\type_1}{e_2}{\type_2}\right)
-  }{
-    \hasholes{x:\type_1}{e_1\oplus e_2}{\type_2}
-  }{hashole-Lbinop}
-  %
-  \typerule{has-hole-R$\src{\oplus}$}{
-    \neg\left(\hasholes{x:\type_1}{e_2}{\type_2}\right)&
-    \hasholes{x:\type_1}{e_2}{\type_2}
-  }{
-    \hasholes{x:\type_1}{e_1\oplus e_2}{\type_2}
-  }{hashole-Rbinop}
-  %
-  \typerule{has-hole-$\src{y[e]}$}{
-    \hasholes{x:\type_1}{e}{\type_2}
-  }{
-    \hasholes{x:\type_1}{y[e]}{\type_2}
-  }{hashole-access}
-  %
-  \typerule{has-hole-L$\src{let}$}{
-    \hasholes{x:\type_1}{e_1}{\type_2}&
-    \neg\left(\hasholes{x:\type_1}{e_2}{\type_2}\right)
-  }{
-    \hasholes{x:\type_1}{let\ y=e_1\ in\ e_2}{\type_2}
-  }{hashole-Llet}
-  %
-  \typerule{has-hole-R$\src{let}$}{
-    \neg\left(\hasholes{x:\type_1}{e_1}{\type_2}\right)&
-    \hasholes{x:\type_1}{e_2}{\type_2}
-  }{
-    \hasholes{x:\type_1}{let\ y=e_1\ in\ e_2}{\type_2}
-  }{hashole-Rlet}
-  %
-  \typerule{has-hole-Lput}{
-    \hasholes{x:\type_1}{e_1}{\type_2} &
-    \neg\left(\hasholes{x:\type_1}{e_2}{\type_2}\right)
-  }{
-    \hasholes{x:\type_1}{y[e_1]\leftarrow e_2}{\type_2}
-  }{hashole-Lput}
-  %
-  \typerule{has-hole-Rput}{
-    \neg\left(\hasholes{x:\type_1}{e_1}{\type_2}\right)&
-    \hasholes{x:\type_1}{e_2}{\type_2}
-  }{
-    \hasholes{x:\type_1}{y[e_1]\leftarrow e_2}{\type_2}
-  }{hashole-Rput}
-  %
-  \typerule{has-hole-L$\src{new}$}{
-    \hasholes{x:\type_1}{e_1}{\type_2}&
-    \neg\left(\hasholes{x:\type_1}{e_2}{\type_2}\right)
-  }{
-    \hasholes{x:\type_1}{let\ y=new\ e_1\ in\ e_2}{\type_2}
-  }{hashole-Lnew}
-  %
-  \typerule{has-hole-R$\src{new}$}{
-    \neg\left(\hasholes{x:\type_1}{e_1}{\type_2}\right)&
-    \hasholes{x:\type_1}{e_2}{\type_2}
-  }{
-    \hasholes{x:\type_1}{let\ y=new\ e_1\ in\ e_2}{\type_2}
-  }{hashole-Rnew}
-  %
-  \typerule{has-hole-C$\src{ifz}$}{
-    \hasholes{x:\type_1}{e_1}{\type_2}\\
-    \neg\left(\hasholes{x:\type_1}{e_2}{\type_2}\right)&
-    \neg\left(\hasholes{x:\type_1}{e_3}{\type_2}\right)
-  }{
-    \hasholes{x:\type_1}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_2}
-  }{hashole-Cif}
-  %
-  \typerule{has-hole-T$\src{ifz}$}{
-    \neg\left(\hasholes{x:\type_1}{e_1}{\type_2}\right)\\
-    \hasholes{x:\type_1}{e_2}{\type_2}&
-    \neg\left(\hasholes{x:\type_1}{e_3}{\type_2}\right)
-  }{
-    \hasholes{x:\type_1}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_2}
-  }{hashole-Tif}
-  %
-  \typerule{has-hole-F$\src{ifz}$}{
-    \neg\left(\hasholes{x:\type_1}{e_1}{\type_2}\right)\\
-    \neg\left(\hasholes{x:\type_1}{e_2}{\type_2}\right)&
-    \hasholes{x:\type_1}{e_3}{\type_2}&
-  }{
-    \hasholes{x:\type_1}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_2}
-  }{hashole-Fif}
-  \end{center}
-}{hashole}{A check for $\mmlAs$ expressions to see whether they contain exactly one $\src{hole:(x:\type_1)\to\type_2}$.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\closed{\src{x_1},\cdots,\src{x_n}}{\src{e}}}{,,At most all $\mmlAs$ variables in the set $\left\{\src{x_1},\cdots,\src{x_n}\right\}$ occur in $\src{e}$.''}
-    \typerule{$\mmlAs-$program}{
-      \closed{}{\src{component\ e_p}}&
-      \closed{}{\src{context\ e_0\ e_1}}
+    \typerule{et-$\src{\hole{\cdot}}$}{
     }{
-      \closed{}{\src{prog\ e_0\ e_p\ e_1}}
-    }{src-program}
+      \typechecks{\Gamma}{\hole{\cdot}}{\type\to\type}
+    }{w-te-hole}
     %
-    \typerule{$\mmlAs-$component}{
-      \closed{\src{x}}{\src{e}}
+    \typerule{et-$\src{\oplus}$R}{
+      \typechecks{\Gamma}{\valueexpr}{\nat} &
+      \typechecks{\Gamma}{K}{\type\to\nat}
     }{
-      \closed{}{\src{component\ e}}
-    }{src-component}
+      \typechecks{\Gamma}{\valueexpr\oplus K}{\type\to\nat}
+    }{w-te-bionpR}
     %
-    \typerule{$\mmlAs-$context}{
-      \closed{}{\src{e_0}}&
-      \closed{\src{y}}{\src{e_1}}
+    \typerule{et-$\src{\oplus}$L}{
+      \typechecks{\Gamma}{K}{\type\to\nat} &
+      \typechecks{\Gamma}{e}{\nat}
     }{
-      \closed{}{\src{context\ e_0\ e_1}}
-    }{src-context}
+      \typechecks{\Gamma}{K\oplus e}{\type\to\nat}
+    }{w-te-bionpL}
+    %
+    \typerule{et-get}{
+      \typechecks{\Gamma}{x}{\wptr} &
+      \typechecks{\Gamma}{K}{\type\to\nat}
+    }{
+      \typechecks{\Gamma}{x[K]}{\type\to\nat}
+    }{w-te-get}
+    %
+    \typerule{et-setR}{
+      \typechecks{\Gamma}{v}{\nat} &
+      \typechecks{\Gamma}{K}{\type\to\nat}
+    }{
+      \typechecks{\Gamma}{x[\valueexpr]\leftarrow K}{\type\to\nat}
+    }{w-te-setR}
+    %
+    \typerule{et-setL}{
+      \typechecks{\Gamma}{K}{\type\to\nat} &
+      \typechecks{\Gamma}{e}{\nat}
+    }{
+      \typechecks{\Gamma}{x[K]\leftarrow e}{\type\to\nat}
+    }{w-te-setL}
+    %
+    \typerule{et-let}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type'} &
+      \typechecks{x:\type',\Gamma}{e}{\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{let\ x=K\ in\ e}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-let}
+    %
+    \typerule{et-new}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\nat} &
+      \typechecks{x:\ptr,\Gamma}{e}{\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{let\ x=new\ K\ in\ e}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-new}
+    %
+    \typerule{et-ifz}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\nat} &
+      \typechecks{\Gamma}{e_2}{\type^{(2)}}&
+      \typechecks{\Gamma}{e_3}{\type^{(2)}}&
+    }{
+      \typechecks{\Gamma}{ifz\ K\ then\ e_2\ else\ e_3}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-ifz}
+    %
+    \typerule{et-call}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type'} &
+      \typechecks{\Gamma}{foo}{\type'\to\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{call\ foo\ K}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-call}
+    %
+    \typerule{et-ret}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{return\ K}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-ret}
   \end{center}
-}{src-programs}{$\mmlAs$ programs, contexts, and components.}
-%TODO: add judgement for closedness
+}{w-ectx-ty}{Checking of $\mmlAs$ functions/evaluation contexts.}
+
+\myfig{
+  \judgbox{\src{\library}\downarrow=\src{\Gamma}}{,,Project $\mmlAs$ library to static typing context.''}$\;$\\
+  \begin{center}
+    \typerule{$\src{\library}$-proj-$\src{\hole{\cdot}}$}{
+    }{
+      \src{\hole{\cdot}}\downarrow = \src{\hole{\cdot}}
+    }{w-lib-proj-empty}
+    %
+    \typerule{$\src{\library}$-cons}{
+      \src{\library}\downarrow = \src{\Gamma}
+    }{
+      \src{foo\mapsto} (\src{K},\src{\type}_\lambda)\src{,\library}\downarrow = \src{foo\mapsto\type}_\lambda,\src{\Gamma}
+    }{w-lib-proj-cons}
+  \end{center}
+}{w-gamma-of-symbols}{Extracting type annotations.}
 
 \myfig{
   \begin{center}
-    \judgbox{\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
-  \typerule{int-$\src{\nat}$}{
-  }{
-    \src{\nat}\operatorname{int}
-  }{src-int-type-nat}
-  \typerule{int-$\src{\wptr}$}{
-  }{
-  \src{\wptr}\operatorname{int}
-  }{src-int-type-wptr}
-  \end{center}
-}{src-int-types}{Interface types of $\mmlAs$.}
+    \judgbox{\src{\Gamma}\vdash\src{\library}\ \operatorname{ok}}{,,$\mmlAs$ library typechecks.''}
 
-We introduce interface types to explicitly disallow passing owned pointers.
+    %
+    \typerule{t-$\src{\library}$-empty}{
+    }{
+      \src{\Gamma}\vdash\src{\hole{\cdot}}\ \operatorname{ok}
+    }{w-t-lib-empty}
+    %
+    \typerule{t-$\src{\library}$-cons}{
+      \src{\type^{(1)}}\ \operatorname{int} &
+      \src{\type^{(2)}}\ \operatorname{int} &
+      \src{\Gamma}\vdash\src{\library}\ \operatorname{ok} &
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type^{(2)}}
+    }{
+      \src{\Gamma}\vdash\src{foo\mapsto (K,\type^{(1)}\to\type^{(2)}),\library}\ \operatorname{ok}
+    }{w-t-lib-cons}
 
-\myfig{
-  \begin{center}
-    \judgbox{\typecheck{}{\src{context\ e_1\ e_2}}{\src{(\type_1\to\type_2)\to\nat}}}{,,$\mmlAs$ context $\src{context\ e_1\ e_2}$ typechecks.''}$\;$\\
-    \judgbox{\typechecks{}{component\ e_p}{\type_1\to\type_2}}{,,$\mmlAs$ component $\src{component\ e_p}$ typechecks.''}$\;$\\
-    \judgbox{\typechecks{}{program\ e_1\ e_p\ e_2}{\nat}}{,,$\mmlAs$ program $\src{program\ e_1\ e_p\ e_2}$ typechecks.''}$\;$\\
-  \typerule{$t-\text{ctx}$}{
-    \hasholes{x:\type_1}{e_1}{\type_2}&
-    \typechecks{}{let\ y=e_1\ in\ e_2}{\nat}&
-    %\typechecks{}{e_1}{\type_1}&
-    %\typechecks{y:\type_2}{e_2}{\nat}&
-    \src{\type_1}\operatorname{int}&
-    \src{\type_2}\operatorname{int}&
-	}{
-  \typecheck{}{\src{context\ e_1\ e_2}}{\src{(\type_1\to\type_2)\to\nat}}
-	}{w-t-ctx}
+    \judgbox{\vdash\src{prog\ \library}\operatorname{ok}}{,,$\mmlAs$ program $\src{prog\ \library}$ typechecks.''}$\;$\\
   %
-  \typerule{$t-\text{component}$}{
-    \typechecks{x:\type_1}{e}{\type_2}&
-    \src{\type_1}\operatorname{int}&
-    \src{\type_2}\operatorname{int}&
+  \typerule{$t-\text{prog}$}{
+    \src{main}\in\operatorname{dom} \src{\library} &
+    \src{\library}\downarrow = \src{\Gamma_0} &
+    \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok}
 	}{
-  \typechecks{}{component\ e}{\type_1\to\type_2}
-	}{w-t-comp}
-  %
-  \typerule{$t-\text{wprog}$}{
-    \typecheck{}{\src{context\ e_0\ e_1}}{\src{(\type_1\to\type_2)\to\nat}} &
-    \typechecks{}{component\ e_p}{\type_1\to\type_2}
-	}{
-    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat}
+    \vdash\src{prog\ \library}\operatorname{ok}
 	}{w-t-wprog}
+
   %
   \judgbox{\typechecks{}{\configs\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\configs\triangleright e}$ typechecks.''}$\;$\\
   \typerule{$t-\text{prog}$}{
-    \typechecks{}{\Delta}{\Gamma}&
+    \typechecks{\library}{\Delta}{\Gamma}&
     \typechecks{\Gamma}{e}{\type}
 	}{
-  \typechecks{}{H;\Delta\triangleright e}{\type}
+  \typechecks{}{\library;\kontstack;H;\Delta\triangleright e}{\type}
 	}{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
 Perhaps most interesting is \Cref{tr:w-t-prog} which generates a suitable typing context from the execution context.
 \Cref{fig:store-ty} shows how this works exactly.
-For \Cref{tr:w-t-ctx}, note that $\src{e_{1}}$ encodes the input to the component bound to variable $\src{x}$.
-\myfig{
-  \begin{center}
-    \judgbox{\left[\typechecks{}{\Omega\triangleright\src{e}}{\type}\right]}{,,$\src{e}$ is a valid runtime term.''}
-    \begin{center}
-      \typerule{runtime-term}{
-        \neg\left(\hasholes{x:\type_1}{e}{\type_2}\right) &
-        \typechecks{}{\Omega\triangleright e}{\type}
-      }{
-        \left[\typechecks{}{\Omega\triangleright\src{e}}{\type}\right]
-      }{runtime-term-rule}
-    \end{center}
-  \end{center}
-}{runtime-term}{A check for $\mmlAs$ expressions to see whether they are a valid runtime term or not.}
 
 \myfig{
   \begin{center}
-    \judgbox{\typechecks{}{\Delta}{\Gamma}}{,,$\mmlAs$ location map $\Deltas$ yields static typing environment $\Gammas$.''}
+    \judgbox{\typechecks{\library}{\Delta}{\Gamma}}{,,$\mmlAs$ location map $\Deltas$ yields static typing environment $\Gammas$.''}
     \typerule{$T\text{empty}\src{\Delta}$}{
+      \src{\library}\downarrow=\src{\Gamma}
     }{
-    \typechecks{}{\hole{\cdot}}{\hole{\cdot}}
+      \typechecks{}{\hole{\cdot}}{\Gammas}
     }{t-empty-store}
     %
     \typerule{$T\ptr$}{
-    \typechecks{}{\Delta}{\Gamma}
+    \typechecks{\library}{\Delta}{\Gamma}
     }{
-    \typechecks{}{x\mapsto\loc_\poisonless,\Delta}{x:\ptr,\Gamma}
+    \typechecks{\library}{x\mapsto\loc_\poisonless,\Delta}{x:\ptr,\Gamma}
     }{t-ptr-store}
     %
     \typerule{$T\ptr\text{poison}$}{
-    \typechecks{}{\Delta}{\Gamma}
+    \typechecks{\library}{\Delta}{\Gamma}
     }{
-    \typechecks{}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
+    \typechecks{\library}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
     }{t-poison-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
@@ -990,91 +956,28 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 
 \myfig{
   \begin{center}
-    $$
-    \typerule{plugging}{
-      \typechecks{}{context\ e_0\ e_1}{(\type_1\to\type_2)\to\nat}&
-      \typechecks{}{component\ e_p}{\type_1\to\type_2}
+    \judgbox{\src{\library}\equiv\src{\library_1}\cup\src{\library_2}}{,,Merging $\mmlAs$ libraries.''}$\;$\\
+    \typerule{lib-merge-empty}{
+      \src{\library}=\src{\library_1}
     }{
-    \src{context}\ (\src{e_0})\ (\src{e_1})\src{\linker}{\src{component\ e_p}} = \src{prog\ e_0\ e_p\ e_1}
-    }{src-plugging}
-    $$
-  \end{center}
-}{w-plugging-s}{$\mmlAs$ plugging of contexts and components.}
+      \src{\library}\equiv\src{\library_1}\cup\src{\hole{\cdot}}
+    }{src-lib-merge-empty}
+    %
+    \typerule{lib-merge-cons}{
+      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
+    }{
+      \src{foo\mapsto \symbol,\library}\equiv\src{\library_1}\cup\src{foo\mapsto \symbol,\library_2}
+    }{src-lib-merge-cons}
 
-\myfig{
-  \begin{center}
-  \judgbox{\plugs{e_0}{e_1}=\src{e_2}}{,,Replace any $\src{hole}$ in $\src{e_1}$ by $\src{e_0}$, resulting in $\src{e_2}$.\\$Q$ is a placeholder for either $Q$ or $N$ and may be used to switch\\hole filling modes.''}
-    \typerule{plug-hole}{
-      \left[\typechecks{x:\type_1}{e}{\type_2}\right]
+    \judgbox{\src{\library_1\linker\library_2}=\src{\library}}{,,Syntactically linking $\mmlAs$ libraries.''}$\;$\\
+    \typerule{syntactic-plugging}{
+      \operatorname{dom}\src{\library_1}\cap\operatorname{dom}\src{\library_2} = \emptyset &
+      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
     }{
-      \plugs{e}{hole:(x:\type_1)\to\type_2}=\src{e}
-    }{s-plug-hole}
-    %
-    \typerule{plug-hole'}{
-      \fresh{{\color{red}TODO}}{\src{z}} &
-    }{
-      \plugs[N]{e}{hole:(x:\type_1)\to\type_2}=\src{let\ z = hole:(x:\type_1)\to\type_2\ in\ e;z}
-    }{s-plug-holep}
-    %
-    \typerule{plug-finalexprnoerr}{
-    }{
-      \plugs{e}{\finalexprnoerr}=\src{\finalexprnoerr}
-    }{s-plug-finalexprnoerr}
-    %
-    \typerule{plug-$\src{delete}$}{
-    }{
-      \plugs{e}{delete\ x}=\src{delete\ x}
-    }{s-plug-delete}
-    %
-    \typerule{plug-$\src{abort}$}{
-    }{
-      \plugs{e}{abort}=\src{abort}
-    }{s-plug-abort}
-    %
-    \typerule{plug-$\src{\oplus}$}{
-      \plugs{e}{e_0}=\src{e_0'} &
-      \plugs{e}{e_1}=\src{e_1'}
-    }{
-      \plugs{e}{e_0\oplus e_1}=\src{e_0'\oplus e_1'}
-    }{s-plug-binop}
-    %
-    \typerule{plug-$\src{get}$}{
-      \plugs{e}{e_0}=\src{e_0'}
-    }{
-      \plugs{e}{x[e_0]}=\src{x[e_0']}
-    }{s-plug-get}
-    %
-    \typerule{plug-$\src{put}$}{
-      \plugs{e}{e_0}=\src{e_0'}&
-      \plugs{e}{e_1}=\src{e_1'}
-    }{
-      \plugs{e}{x[e_0]\leftarrow e_1}=\src{x[e_0']\leftarrow e_1'}
-    }{s-plug-put}
-    %
-    \typerule{plug-$\src{let}$}{
-      \plugs{e}{e_0}=\src{e_0'}&
-      \plugs{e}{e_1}=\src{e_1'}
-    }{
-      \plugs{e}{let\ x = e_0\ in\ e_1}=\src{let\ x = e_0'\ in\ e_1'}
-    }{s-plug-let}
-    %
-    \typerule{plug-$\src{new}$}{
-      \plugs{e}{e_0}=\src{e_0'}&
-      \plugs{e}{e_1}=\src{e_1'}
-    }{
-      \plugs{e}{let\ x = new\ e_0\ in\ e_1}=\src{let\ x = new\ e_0'\ in\ e_1'}
-    }{s-plug-new}
-    %
-    \typerule{plug-$\src{ifz}$}{
-      \plugs{e}{e_0}=\src{e_0'}&
-      \plugs{e}{e_1}=\src{e_1'}&
-      \plugs{e}{e_2}=\src{e_2'}
-    }{
-      \plugs{e}{ifz\ e_0\ then\ e_1\ else\ e_2}=\src{ifz\ e_0'\ then\ e_1'\ else\ e_2'}
-    }{s-plug-ifz}
+      \src{\library_1\linker\library_2} = \src{\library}
+    }{src-plugging}
   \end{center}
-}{w-plug-s}{Replace any $\src{hole}$ in an expression.}
-\Cref{tr:s-plug-holep} is needed for backtranslation. We insert wrapper code that allocates memory, which, as enforced by the typesystem, wants to be freed.
+}{w-plugging-s}{$\mmlAs$ plugging of libraries.}
 
 \subsubsection{Dynamic Semantics}
 
@@ -1087,16 +990,6 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
 
-\myfig{
-  \begin{gather*}
-    \begin{aligned}
-      \src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus E}\mid \src{x[K]}\mid
-      \src{let\ x=K\ in\ e}\\
-                     &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e} \\
-                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2} \mid \src{calling\ K}\mid \src{returning\ K}
-    \end{aligned}
-  \end{gather*}
-}{w-expr-eval-ectx}{Evaluation Contexts of $\mmlAs$.}
 
 \myfig{
   \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}

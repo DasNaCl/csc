@@ -114,6 +114,31 @@ Fixpoint Tappend {Ev : Type} `{TraceEvent Ev} (As Bs : tracepref) : tracepref :=
   | Tcons e Cs => Tcons e (Tappend Cs Bs)
   end
 .
+Fixpoint wherein_aux {Ev : Type} `{TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (As : tracepref) (a : Ev) (n : nat) : option nat :=
+  match As with
+  | Tnil => None
+  | Tcons e As' => if eventeq a e then Some n else wherein_aux eventeq As' a (S n)
+  end
+.
+Lemma wherein_aux_impossible {Ev : Type} `{TraceEvent Ev} eq As a n :
+  ~(wherein_aux eq As a (S n) = Some 0).
+Proof.
+  revert n; induction As; try easy.
+  cbn. destruct (eq a e); try easy.
+Qed.
+Definition wherein {Ev : Type} `{TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (As : tracepref) (a : Ev) : option nat :=
+  wherein_aux eventeq As a 0
+.
+Definition before {Ev : Type} `{H: TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (a0 a1 : Ev) (As : tracepref) :=
+  forall n, (@wherein Ev H eventeq As a0) = Some n -> exists m, (@wherein Ev H eventeq As a1) = Some m /\ n <= m
+.
+Lemma before_split {Ev : Type} `{TraceEvent Ev} eq a As a0 a1 :
+  before eq a0 a1 As \/ (a0 = a /\ wherein eq As a1 <> None) ->
+  before eq a0 a1 (Tcons a As).
+Proof. Admitted.
+Definition once {Ev : Type} `{H : TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (a : Ev) (As : tracepref) :=
+  forall n, (@wherein Ev H eventeq As a) = Some n -> ~exists m, (@wherein Ev H eventeq As a) = Some m /\ n <> m
+.
 (* Use this to define a coercion *)
 Definition ev_to_tracepref {Ev : Type} `{TraceEvent Ev} (e : Ev) : tracepref := Tcons e Tnil.
 

@@ -17,7 +17,7 @@ Inductive value : Type :=
 | Vnat : nat -> value
 .
 Coercion Vnat : nat >-> value.
-(** Locerences are not values. In fact, they cannot be represented syntactically. *)
+(** References are not values. In fact, they cannot be represented syntactically. *)
 Inductive loc : Type :=
 | addr : nat -> loc
 .

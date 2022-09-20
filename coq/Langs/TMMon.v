@@ -128,7 +128,5 @@ Proof.
   - intros [ℓ0] x Ha.
     destruct (PeanoNat.Nat.eq_dec ℓ ℓ0); subst.
     destruct x.
-    + cbn in Ha. rewrite PeanoNat.Nat.eqb_refl in Ha.
-      (*idea: unfold ihstar_step and get witness n, then instantiate with S(n)*)
-    (*apply not_eq_None_Some in Ha as [x Ha].*)
+    + cbn in Ha. clear Ha.
 Admitted.

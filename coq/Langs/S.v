@@ -1684,3 +1684,44 @@ Qed.
 Compute (let '(Cprog symbs) := smsunsafe_prog in get_fuel_toplevel symbs "main"%string).
 
 Compute (debug_eval smsunsafe_prog).
+
+
+Variant msevent : Type :=
+| MSalloc (ℓ : loc) (n : nat) : msevent
+| MSdealloc (ℓ : loc) : msevent
+| MSuse (ℓ : loc) (n : nat) : msevent
+| MScrash : msevent
+.
+#[local]
+Instance msevent__Instance : TraceEvent msevent := {}.
+Definition msev_to_tracepref := @Langs.Util.ev_to_tracepref msevent msevent__Instance.
+Coercion msev_to_tracepref : msevent >-> tracepref.
+
+Definition msev_of_ev (ev : event) : option msevent :=
+  match ev with
+  | Salloc ℓ n => Some(MSalloc ℓ n)
+  | Sdealloc ℓ => Some(MSdealloc ℓ)
+  | Sget ℓ n => Some(MSuse ℓ n)
+  | Sset ℓ n _ => Some(MSuse ℓ n)
+  | Scrash => Some(MScrash)
+  | Scall _ _ => None
+  | Sret _ => None
+  end
+.
+Fixpoint mstracepref_of_tracepref (tr : @tracepref event event__Instance) : tracepref :=
+  match tr with
+  | Tnil => Tnil
+  | Tcons a tr' =>
+    match msev_of_ev a with
+    | Some a' => Tcons a' (mstracepref_of_tracepref tr')
+    | None => mstracepref_of_tracepref tr'
+    end
+  end
+.
+
+Require CSC.Langs.TMMon.
+Module TMMon := CSC.Langs.TMMon.
+
+
+(* TODO: define trace agreement *)
+(* TODO: define store agreement with tmsmon *)

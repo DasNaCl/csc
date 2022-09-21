@@ -1,6 +1,5 @@
 Set Implicit Arguments.
-Require Import Lists.List.
-
+Require Import Lists.List Strings.String.
 
 Section Util.
 
@@ -103,52 +102,9 @@ Class ProgClass {V E} (Prog : Type) `{Hv: HasEquality V}
 Definition Gamma {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} := mapind H TheTy.
 Definition Gnil {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} : Gamma := mapNil H TheTy.
 
-(** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
-Inductive tracepref {Ev : Type} `{TraceEvent Ev} : Type :=
-| Tnil : tracepref
-| Tcons (e : Ev) (As : tracepref) : tracepref
-.
-Fixpoint Tappend {Ev : Type} `{TraceEvent Ev} (As Bs : tracepref) : tracepref :=
-  match As with
-  | Tnil => Bs
-  | Tcons e Cs => Tcons e (Tappend Cs Bs)
-  end
-.
-Fixpoint wherein_aux {Ev : Type} `{TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (As : tracepref) (a : Ev) (n : nat) : option nat :=
-  match As with
-  | Tnil => None
-  | Tcons e As' => if eventeq a e then Some n else wherein_aux eventeq As' a (S n)
-  end
-.
-Lemma wherein_aux_impossible {Ev : Type} `{TraceEvent Ev} eq As a n :
-  ~(wherein_aux eq As a (S n) = Some 0).
-Proof.
-  revert n; induction As; try easy.
-  cbn. destruct (eq a e); try easy.
-Qed.
-Definition wherein {Ev : Type} `{TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (As : tracepref) (a : Ev) : option nat :=
-  wherein_aux eventeq As a 0
-.
-Definition before {Ev : Type} `{H: TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (a0 a1 : Ev) (As : tracepref) :=
-  forall n, (@wherein Ev H eventeq As a0) = Some n -> exists m, (@wherein Ev H eventeq As a1) = Some m /\ n <= m
-.
-Lemma before_split {Ev : Type} `{TraceEvent Ev} eq a As a0 a1 :
-  before eq a0 a1 As \/ (a0 = a /\ wherein eq As a1 <> None) ->
-  before eq a0 a1 (Tcons a As).
-Proof. Admitted.
-Definition once {Ev : Type} `{H : TraceEvent Ev} (eventeq : Ev -> Ev -> bool) (a : Ev) (As : tracepref) :=
-  forall n, (@wherein Ev H eventeq As a) = Some n -> ~exists m, (@wherein Ev H eventeq As a) = Some m /\ n <> m
-.
-(* Use this to define a coercion *)
-Definition ev_to_tracepref {Ev : Type} `{TraceEvent Ev} (e : Ev) : tracepref := Tcons e Tnil.
-
 (* Step-Relation typeclasses. Used as a hack for "overloading" notations *)
 Class PrimStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := pstep__Class : A -> (option Ev) -> A -> Prop.
 Class CtxStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := estep__Class : A -> (option Ev) -> A -> Prop.
-Class MultStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := sstep__Class : A -> tracepref -> A -> Prop.
-Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
-               `{HasEquality C} `{SymbolClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass C A Prog}
-  := wstep__Class : Prog -> C -> tracepref -> B -> Prop.
 Class VDash {K Expr TheTy : Type} `{ExprClass Expr} `{T: TyClass TheTy} `{H: HasEquality K} := vDash__Class : Gamma -> Expr -> TheTy -> Prop.
 
 End Util.
@@ -158,13 +114,9 @@ Notation "a '↦' b '◘' M" := (mapCons a b M) (at level 81, b at next level).
 #[global]
 Notation "M1 '◘' M2" := (append M1 M2) (at level 82, M2 at next level).
 #[global]
-Notation "As '·' Bs" := (Tappend As Bs) (at level 81).
-#[global]
 Notation "e0 '--[]-->' e1" := (pstep__Class e0 (None) e1) (at level 82, e1 at next level).
 #[global]
 Notation "e0 '==[]==>' e1" := (estep__Class e0 (None) e1) (at level 82, e1 at next level).
-#[global]
-Notation "e0 '==[]==>*' e1" := (sstep__Class e0 (Tnil) e1) (at level 82, e1 at next level).
 #[global]
 Notation "e0 '--[,' a ']-->' e1" := (pstep__Class e0 a e1) (at level 82, e1 at next level).
 #[global]
@@ -174,10 +126,97 @@ Notation "e0 '--[' a ']-->' e1" := (pstep__Class e0 (Some a) e1) (at level 82, e
 #[global]
 Notation "e0 '==[' a ']==>' e1" := (estep__Class e0 (Some a) e1) (at level 82, e1 at next level).
 #[global]
-Notation "e0 '==[' a ']==>*' e1" := (sstep__Class e0 a e1) (at level 82, e1 at next level).
-#[global]
-Notation "'PROG[' symbs '][' start ']====[' As ']===>' r" := (wstep__Class (Cprog__Class symbs) start As r) (at level 81, r at next level).
-#[global]
 Notation "G '⊦' e ':' t" := (vDash__Class G e t) (at level 82, e at next level, t at next level).
 #[global]
 Notation "'[⋅]'" := (Gnil).
+
+Module Type MOD.
+  Parameter State : Type.
+  Parameter Ev : Type.
+  Parameter step : State -> option Ev -> State -> Prop.
+  Parameter ev_eq : Ev -> Ev -> bool.
+  Parameter string_of_event : Ev -> string.
+  Parameter is_value : State -> bool.
+End MOD.
+Module Mod (X : MOD).
+  Export X.
+
+  #[export]
+  Instance State__Instance : RuntimeExprClass State := {}.
+  #[export]
+  Instance Event__Instance : TraceEvent Ev := {}.
+
+  (** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
+  Inductive tracepref : Type :=
+  | Tnil : tracepref
+  | Tcons (e : Ev) (As : tracepref) : tracepref
+  .
+  Fixpoint Tappend (As Bs : tracepref) : tracepref :=
+    match As with
+    | Tnil => Bs
+    | Tcons e Cs => Tcons e (Tappend Cs Bs)
+    end
+  .
+  Notation "As '·' Bs" := (Tappend As Bs) (at level 81).
+
+  Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
+    match t with
+    | Tnil => acc
+    | Tcons a Tnil => String.append acc (string_of_event a)
+    | Tcons a As =>
+        let acc' := String.append acc (String.append (string_of_event a) (" · "%string))
+        in string_of_tracepref_aux As acc'
+    end
+  .
+  Definition string_of_tracepref (t : tracepref) : string := string_of_tracepref_aux t (""%string).
+  Fixpoint wherein_aux (As : tracepref) (a : Ev) (n : nat) : option nat :=
+    match As with
+    | Tnil => None
+    | Tcons e As' => if ev_eq a e then Some n else wherein_aux As' a (S n)
+    end
+  .
+  Lemma wherein_aux_impossible As a n :
+    ~(wherein_aux As a (S n) = Some 0).
+  Proof. revert n; induction As; try easy; cbn; destruct (ev_eq a e); try easy. Qed.
+  Definition wherein (As : tracepref) (a : Ev) : option nat :=
+    wherein_aux As a 0
+  .
+  Definition before (a0 a1 : Ev) (As : tracepref) :=
+    forall n, (wherein As a0) = Some n -> exists m, (wherein As a1) = Some m /\ n <= m
+  .
+  Lemma before_split a As a0 a1 :
+    before a0 a1 As \/ (a0 = a /\ wherein As a1 <> None) ->
+    before a0 a1 (Tcons a As).
+  Proof. Admitted.
+  Definition once (a : Ev) (As : tracepref) :=
+    forall n, (wherein As a) = Some n -> ~exists m, (wherein As a) = Some m /\ n <> m
+  .
+  (* Use this to define a coercion *)
+  Definition ev_to_tracepref (e : Ev) : tracepref := Tcons e Tnil.
+
+  Reserved Notation "e0 '==[' a ']==>*' e1" (at level 82, e1 at next level).
+  Inductive star_step : State -> tracepref -> State -> Prop :=
+  | ES_refl : forall (r1 : State),
+      is_value r1 = true ->
+      r1 ==[ Tnil ]==>* r1
+  | ES_trans_important : forall (r1 r2 r3 : State) (a : Ev) (As : tracepref),
+      step r1 (Some a) r2 ->
+      r2 ==[ As ]==>* r3 ->
+      r1 ==[ Tcons a As ]==>* r3
+  | ES_trans_unimportant : forall (r1 r2 r3 : State) (As : tracepref),
+      step r1 None r2 ->
+      r2 ==[ As ]==>* r3 ->
+      r1 ==[ As ]==>* r3
+  where "e0 '==[' a ']==>*' e1" := (star_step e0 a e1).
+  #[export]
+  Hint Constructors star_step : core.
+  Notation "e0 '==[]==>*' e1" := (star_step e0 (Tnil) e1) (at level 82, e1 at next level).
+End Mod.
+
+(*
+Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
+               `{HasEquality C} `{SymbolClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass C A Prog}
+  := wstep__Class : Prog -> C -> tracepref -> B -> Prop.
+#[global]
+Notation "'PROG[' symbs '][' start ']====[' As ']===>' r" := (wstep__Class (Cprog__Class symbs) start As r) (at level 81, r at next level).
+ *)

@@ -451,11 +451,23 @@ Variant event : Type :=
 | Scall (foo : vart) (arg : fnoerr) : event
 | Sret (f : fnoerr) : event
 .
+Definition eventeq (e1 e2 : event) : bool :=
+  match e1, e2 with
+  | Salloc(addr ℓ0) n0, Salloc(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | Sdealloc(addr ℓ0), Sdealloc(addr ℓ1) => Nat.eqb ℓ0 ℓ1
+  | Sget(addr ℓ0) n0, Sget(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | Sset(addr ℓ0) n0 (Vnat v0), Sset(addr ℓ1) n1 (Vnat v1) => andb (andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1))
+                                                                  (Nat.eqb v0 v1)
+  | Scrash, Scrash => true
+  | Scall foo (Fval(Vnat v0)), Scall bar (Fval(Vnat v1)) => andb (String.eqb foo bar) (Nat.eqb v0 v1)
+  | Scall foo (Fvar x), Scall bar (Fvar y) => andb (String.eqb foo bar) (String.eqb x y)
+  | Sret (Fval(Vnat v0)), Sret (Fval(Vnat v1)) => Nat.eqb v0 v1
+  | Sret (Fvar x), Sret (Fvar y) => String.eqb x y
+  | _, _ => false
+  end
+.
 #[local]
-Instance event__Instance : TraceEvent event := {}.
-Definition ev_to_tracepref := @Langs.Util.ev_to_tracepref event event__Instance.
-Coercion ev_to_tracepref : event >-> tracepref.
-
+Instance Event__Instance : TraceEvent event := {}.
 (** Pretty-printing function for better debuggability *)
 Definition string_of_event (e : event) :=
   match e with
@@ -478,16 +490,6 @@ Definition string_of_event (e : event) :=
   | (Sret (Fvar x)) => String.append ("Ret !"%string) x
   end
 .
-Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
-  match t with
-  | Tnil => acc
-  | Tcons a Tnil => String.append acc (string_of_event a)
-  | Tcons a As =>
-      let acc' := String.append acc (String.append (string_of_event a) (" · "%string))
-      in string_of_tracepref_aux As acc'
-  end
-.
-Definition string_of_tracepref (t : tracepref) : string := string_of_tracepref_aux t (""%string).
 
 (** A runtime program is a state plus an expression. *)
 Definition rtexpr : Type := (option state) * expr.
@@ -1207,24 +1209,19 @@ Proof.
            eapply ungrab_ectx in Hx0; subst; eauto. eapply E_call; symmetry; eassumption.
 Qed.
 
-(*Reserved Notation "r0 '==[' As ']==>*' r1" (at level 82, r1 at next level).*)
-(*Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=*)
-Inductive star_step : MultStep :=
-| ES_refl : forall (Ω : state) (f : ferr),
-    Ω ▷ f ==[ Tnil ]==>* Ω ▷ f
-| ES_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref),
-    r1 ==[ a ]==> r2 ->
-    r2 ==[ As ]==>* r3 ->
-    r1 ==[ Tcons a As ]==>* r3
-| ES_trans_unimportant : forall (r1 r2 r3 : rtexpr) (As : tracepref),
-    r1 ==[]==> r2 ->
-    r2 ==[ As ]==>* r3 ->
-    r1 ==[ As ]==>* r3
-.
-#[local]
-Existing Instance star_step.
-#[local]
-Hint Constructors star_step : core.
+Module ModAux <: CSC.Langs.Util.MOD.
+  Definition State := rtexpr.
+  Definition Ev := event.
+  Definition ev_eq := eventeq.
+  Definition step := estep.
+  Definition string_of_event := string_of_event.
+  Definition is_value := fun (r : rtexpr) => match r with
+                                          | (Some _, Xres(Fres _)) => true
+                                          | (_, _) => false
+                                          end.
+End ModAux.
+Module SMod := CSC.Langs.Util.Mod(ModAux).
+Import SMod.
 
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
 Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
@@ -1232,7 +1229,7 @@ Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
     let (oΩ, e) := r in
     let* Ω := oΩ in
     match fuel, e with
-    | 0, Xres _ => (* refl *)
+    | 0, Xres(Fres _) => (* refl *)
       Some(Tnil, r)
     | S fuel', _ => (* trans *)
       let* (a, r') := estepf r in
@@ -1328,7 +1325,7 @@ Lemma star_stepf_one_step Ω e r r' a As fuel :
   Some (S fuel) = get_fuel e ->
   estep (Ω ▷ e) (Some a) r ->
   star_stepf fuel r = Some(As, r') ->
-  star_stepf (S fuel) (Ω ▷ e) = Some(a · As, r')
+  star_stepf (S fuel) (Ω ▷ e) = Some(Tcons a As, r')
 .
 Proof. Admitted.
 Lemma star_stepf_one_unimportant_step Ω e r r' As fuel :
@@ -1358,7 +1355,9 @@ Proof.
                           | (_, e') => e'
                           end) in Hf.
     revert fuel Hf; induction H; intros fuel Hf; cbn in Hf.
-    + inv Hf; now cbn.
+    + destruct r1 as [[Ω0|] e0]; cbn in *; try congruence.
+      destruct e0; cbn in H; try congruence; destruct f; try congruence.
+      inv Hf; now cbn.
     + clear Ω e oΩ' e'; destruct r1 as [[oΩ1|] e1].
       * assert (H':=H); apply (@atleast_once oΩ1 e1 r2 (Some a) fuel Hf) in H as [fuel' ->];
         eapply star_stepf_one_step; eauto;
@@ -1371,7 +1370,7 @@ Proof.
       * inv H.
   - revert Ω e r1 As Hf H; induction fuel; intros Ω e r1 As Hf H.
     + destruct e; cbn in Hf; repeat destruct (get_fuel _); try congruence;
-      cbn in H; inv H; apply ES_refl.
+      cbn in H; inv H; destruct f; try congruence; inv H1; now apply ES_refl.
     + unfold star_stepf in H.
       rewrite (get_rid_of_letstar Ω) in H.
       destruct (option_dec (estepf (Some Ω, e))) as [Hx|Hy]; try rewrite Hy in H.
@@ -1385,7 +1384,7 @@ fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
             let* _ := oΩ
             in match fuel with
                | 0 => match e with
-                      | Xres _ => Some (Tnil, r)
+                      | Xres(Fres _) => Some (Tnil, r)
                       | _ => None
                       end
                | S fuel' =>
@@ -1416,14 +1415,12 @@ Qed.
 
 (** Evaluation of programs *)
 (*TODO: add typing*)
-Inductive wstep : ProgStep :=
+Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
 | e_wprog : forall (symbs : symbols) (As : tracepref) (r : rtexpr),
     (* typing -> *)
     (Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ Xcall "main"%string 0 ==[ As ]==>* r) ->
-    PROG[symbs]["main"%string]====[ As ]===> r
+    wstep (Cprog symbs) As r
 .
-#[local]
-Existing Instance wstep.
 
 Fixpoint get_fuel_fn_aux (E : evalctx) {struct E} : option nat :=
   match E with
@@ -1662,7 +1659,7 @@ Proof.
 Qed.
 
 Goal exists As R,
-    PROG[smsunsafe_prog_aux]["main"%string]====[As]===> R.
+    wstep smsunsafe_prog As R.
 Proof.
   do 2 eexists.
   econstructor.
@@ -1678,7 +1675,7 @@ Proof.
   econstructor 3. rewrite equiv_estep; now cbn.
   econstructor 2. rewrite equiv_estep; now cbn.
   econstructor 2. rewrite equiv_estep; now cbn.
-  econstructor.
+  now econstructor.
 Qed.
 
 Compute (let '(Cprog symbs) := smsunsafe_prog in get_fuel_toplevel symbs "main"%string).
@@ -1694,8 +1691,6 @@ Variant msevent : Type :=
 .
 #[local]
 Instance msevent__Instance : TraceEvent msevent := {}.
-Definition msev_to_tracepref := @Langs.Util.ev_to_tracepref msevent msevent__Instance.
-Coercion msev_to_tracepref : msevent >-> tracepref.
 
 Definition msev_of_ev (ev : event) : option msevent :=
   match ev with
@@ -1708,7 +1703,7 @@ Definition msev_of_ev (ev : event) : option msevent :=
   | Sret _ => None
   end
 .
-Fixpoint mstracepref_of_tracepref (tr : @tracepref event event__Instance) : tracepref :=
+Fixpoint mstracepref_of_tracepref (tr : tracepref) : tracepref :=
   match tr with
   | Tnil => Tnil
   | Tcons a tr' =>

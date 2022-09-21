@@ -19,10 +19,6 @@ Variant event : Type :=
 | Suse (ℓ : loc) : event
 | Scrash : event
 .
-#[local]
-Instance event__Instance : TraceEvent event := {}.
-Definition ev_to_tracepref := @Langs.Util.ev_to_tracepref event event__Instance.
-Coercion ev_to_tracepref : event >-> tracepref.
 Definition eventeq (a0 a1 : event) : bool :=
   match a0, a1 with
   | Salloc(addr ℓ0), Salloc(addr ℓ1) => Nat.eqb ℓ0 ℓ1
@@ -30,6 +26,15 @@ Definition eventeq (a0 a1 : event) : bool :=
   | Suse(addr ℓ0), Suse(addr ℓ1) => Nat.eqb ℓ0 ℓ1
   | Scrash, Scrash => true
   | _, _ => false
+  end
+.
+(** Pretty-printing function for better debuggability *)
+Definition string_of_event (e : event) :=
+  match e with
+  | (Salloc (addr ℓ)) => String.append ("Alloc ℓ"%string) (string_of_nat ℓ)
+  | (Sdealloc (addr ℓ)) => String.append ("Dealloc ℓ"%string) (string_of_nat ℓ)
+  | (Suse (addr ℓ)) => String.append ("Get ℓ"%string) (string_of_nat ℓ)
+  | (Scrash) => "↯"%string
   end
 .
 
@@ -40,8 +45,6 @@ Record TMSMonitor := {
   A: Loc ;
   F: Loc
 }.
-#[local]
-Instance tmsmon__Instance : RuntimeExprClass TMSMonitor := {}.
 
 Definition emptytmsmon : TMSMonitor := {|
   A := List.nil ;
@@ -73,43 +76,38 @@ Notation "'{' ℓ '}' '∪' T" := (extend ℓ T) (at level 82, T at next level).
 Notation "T '∖' '{' ℓ '}'" := (without T ℓ) (at level 82, ℓ at next level).
 
 (** Step Relations *)
-Inductive step : CtxStep :=
+Inductive step_aux : TMSMonitor -> option event -> TMSMonitor -> Prop :=
 | TMS_uninteresting : forall (T__TMS : TMSMonitor),
-    T__TMS ==[]==> T__TMS
+    step_aux T__TMS None T__TMS
 | TMS_use : forall (T__TMS : TMSMonitor) (ℓ : loc),
     ℓ ∈ T__TMS ->
-    T__TMS ==[Suse ℓ]==> T__TMS
+    step_aux T__TMS (Some(Suse ℓ)) T__TMS
 | TMS_alloc : forall (T__TMS T__TMS' : TMSMonitor) (ℓ : loc),
     T__TMS' = ({ ℓ } ∪ T__TMS) ->
     ℓ ∉ T__TMS ->
-    T__TMS ==[Salloc ℓ]==> T__TMS'
+    step_aux T__TMS (Some(Salloc ℓ)) T__TMS'
 | TMS_dealloc : forall (T__TMS T__TMS' : TMSMonitor) (ℓ : loc),
     ℓ ∈ T__TMS ->
     T__TMS' = (T__TMS ∖ { ℓ }) ->
-    T__TMS ==[Sdealloc ℓ]==> T__TMS'
+    step_aux T__TMS (Some(Sdealloc ℓ)) T__TMS'
 .
-#[local]
-Existing Instance step.
-Inductive star_step : MultStep :=
-| TMS_refl : forall (T__TMS : TMSMonitor),
-    T__TMS ==[]==>* T__TMS
-| TMS_trans : forall (T__TMS T__TMS' T__TMS'' : TMSMonitor) (a : event) (As : tracepref),
-    T__TMS ==[a]==> T__TMS' ->
-    T__TMS' ==[As]==>* T__TMS'' ->
-    T__TMS ==[Tcons a As]==>* T__TMS''
-| TMS_trans_uninteresting : forall (T__TMS T__TMS' T__TMS'' : TMSMonitor) (As : tracepref),
-    T__TMS ==[]==> T__TMS' ->
-    T__TMS' ==[As]==>* T__TMS'' ->
-    T__TMS ==[As]==>* T__TMS''
-.
-#[local]
-Existing Instance star_step.
+
+Module ModAux <: CSC.Langs.Util.MOD.
+  Definition State := TMSMonitor.
+  Definition Ev := event.
+  Definition ev_eq := eventeq.
+  Definition step := step_aux.
+  Definition string_of_event := string_of_event.
+  Definition is_value := fun (_ : State) => true.
+End ModAux.
+Module TMSMod := CSC.Langs.Util.Mod(ModAux).
+Import TMSMod.
 
 (** Definition of Temporal Memory Safety on Traces *)
 Definition tmssafe (As : tracepref) :=
-  forall ℓ, (before eventeq (Salloc ℓ) (Sdealloc ℓ) As
-    /\ ~(before eventeq (Suse ℓ) (Salloc ℓ)) As
-    /\ ~(before eventeq (Sdealloc ℓ) (Suse ℓ)) As)
+  forall ℓ, (before (Salloc ℓ) (Sdealloc ℓ) As
+    /\ ~(before (Suse ℓ) (Salloc ℓ)) As
+    /\ ~(before (Sdealloc ℓ) (Suse ℓ)) As)
 .
 (** Definition of Temporal Memory Safety on Traces, using our monitor. *)
 Definition TMS (As : tracepref) :=
@@ -117,7 +115,7 @@ Definition TMS (As : tracepref) :=
 .
 
 Definition simptmssafe (As : tracepref) :=
-  forall ℓ, before eventeq (Salloc ℓ) (Sdealloc ℓ) As.
+  forall ℓ, before (Salloc ℓ) (Sdealloc ℓ) As.
 
 (* Show the above are equally strong...? *)
 Theorem TMS_refines_tmssafe As :

@@ -130,3 +130,12 @@ Proof.
     destruct x.
     + cbn in Ha. clear Ha.
 Admitted.
+
+
+Module TMMonNotation.
+Notation "T1 '⊆__F' T2" := (entails T1 T2) (at level 82, T2 at next level).
+Notation "ℓ '∈' T" := (contains ℓ T) (at level 82, T at next level).
+Notation "ℓ '∉' T" := (notin ℓ T) (at level 82, T at next level).
+Notation "'{' ℓ '}' '∪' T" := (extend ℓ T) (at level 82, T at next level).
+Notation "T '∖' '{' ℓ '}'" := (without T ℓ) (at level 82, ℓ at next level).
+End TMMonNotation.

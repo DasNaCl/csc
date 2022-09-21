@@ -1722,6 +1722,34 @@ Fixpoint mstracepref_of_tracepref (tr : @tracepref event event__Instance) : trac
 Require CSC.Langs.TMMon.
 Module TMMon := CSC.Langs.TMMon.
 
+#[local]
+Instance loceq__Instance : HasEquality loc := loc_eqb.
+Definition deltamap := mapind loceq__Instance TMMon.loc.
 
-(* TODO: define trace agreement *)
-(* TODO: define store agreement with tmsmon *)
+(** Trace agreement between memory specific events and TMS monitor events. *)
+Inductive ev_eq (δ : deltamap) : msevent -> TMMon.event -> Prop :=
+| TMSAuthAlloc : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (MSalloc ℓ n) (TMMon.Salloc ℓ')
+| TMSAuthDealloc : forall ℓ ℓ', mget δ ℓ = Some ℓ' -> ev_eq δ (MSdealloc ℓ) (TMMon.Sdealloc ℓ')
+| TMSAuthUse : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (MSuse ℓ n) (TMMon.Suse ℓ')
+.
+Inductive mstracepref_eq (δ : deltamap) : tracepref -> @tracepref TMMon.event TMMon.event__Instance -> Prop :=
+| TMSAuthRefl : mstracepref_eq δ Tnil Tnil
+| TMSAuthTrans : forall a a' As As', ev_eq δ a a' ->
+                                mstracepref_eq δ As As' ->
+                                mstracepref_eq δ (a · As) (Tcons a' As')
+.
+
+Import TMMon.TMMonNotation.
+(** Store agreement between our stores and the TMS monitor. *)
+Inductive store_agree (δ : deltamap) : TMMon.TMSMonitor -> store -> Prop :=
+| EmptyAgree : store_agree δ TMMon.emptytmsmon sNil
+| ConsAgree : forall (x : vart) (ℓ : loc) (ℓ' : TMMon.loc) (T__TMS : TMMon.TMSMonitor) (Δ : store),
+    mget δ ℓ = Some ℓ' ->
+    ~(List.In ℓ' (TMMon.F T__TMS)) ->
+    store_agree δ T__TMS Δ ->
+    store_agree δ ({ℓ'} ∪ T__TMS) (x ↦ (ℓ ⋅ ◻) ◘ Δ)
+| PoisonAgree : forall (x : vart) (ℓ : loc) (ℓ' : TMMon.loc) (T__TMS : TMMon.TMSMonitor) (Δ : store),
+    mget δ ℓ = Some ℓ' ->
+    store_agree δ T__TMS Δ ->
+    store_agree δ ({ℓ'} ∪ T__TMS) (x ↦ (ℓ ⋅ ☣) ◘ Δ)
+.

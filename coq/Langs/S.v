@@ -1723,10 +1723,7 @@ Proof.
 Qed.
 
 
-Compute (let '(Cprog symbs) := smsunsafe_prog in get_fuel_toplevel symbs "main"%string).
-
 Compute (debug_eval smsunsafe_prog).
-
 
 Variant msevent : Type :=
 | MSalloc (ℓ : loc) (n : nat) : msevent

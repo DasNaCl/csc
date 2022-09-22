@@ -1832,6 +1832,18 @@ Definition TMS (As : tracepref) :=
                                                          TMMon.TMS Bs
 .
 
+Lemma estep_determinism Ω e a r1 r2 a' :
+  Ω ▷ e ==[ a ]==> r1 ->
+  Ω ▷ e ==[ a' ]==> r2 ->
+  a = a' /\ r1 = r2
+.
+Proof. Admitted.
+
+Lemma estep_progress Ω e τ :
+  rt_check Ω e τ ->
+  exists a Ω' e', Ω ▷ e ==[ a ]==> Ω' ▷ e'
+.
+Proof. Admitted.
 
 Lemma store_agree_subsets δ δ' T__TMS Δ :
   store_agree δ T__TMS Δ ->
@@ -1913,6 +1925,19 @@ Lemma steps_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (As : trace
   /\ state_agree δ' T__TMS' Ω'
 .
 Proof.
+  remember (Ω ▷ e) as r0; remember (Ω' ▷ e') as r1; intros Aa Ab Ac; dependent induction Ab.
+  - (* refl *)
+    destruct r1 as [[Ω1|] e1]; cbn in H; try congruence;
+    destruct e1; try congruence; destruct f; try congruence.
+    inv Heqr1; inv Heqr0. exists (TMMonM.Tnil). exists δ. exists T__TMS. repeat split; try easy; now constructor.
+  - (* trans *)
+    destruct r1 as [[Ω1|] e1]; destruct r3 as [[Ω3|] e3]; try congruence.
+    inv Heqr1; inv Heqr0.
+    assert (Aa':=Aa); apply estep_progress in Aa as [a0 [Ω2 [e2 Aa]]].
+    assert (Aa'':=Aa); eapply (estep_determinism Aa) in H as [H'a H'b].
+    eapply ctx_tms_via_monitor in Aa as [b [δ' [T__TMS' [Xa [Xb [Xc Xd]]]]]]; eauto.
+    admit.
+  - (* unimp *)
 Admitted.
 
 Theorem s_is_tms (Ξ : @symbols vart symbol varteq__Instance symbol__Instance) As Ω f :

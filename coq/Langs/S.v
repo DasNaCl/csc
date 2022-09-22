@@ -1461,7 +1461,7 @@ Qed.
 (*TODO: add typing*)
 Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
 | e_wprog : forall (symbs : symbols) (As : tracepref) (r : rtexpr),
-    (* typing -> *)
+    prog_check (Cprog symbs) ->
     (Fresh.empty_fresh ; symbs ; nil ; hNil ; sNil ▷ Xcall "main"%string 0 ==[ As ]==>* r) ->
     wstep (Cprog symbs) As r
 .
@@ -1628,7 +1628,7 @@ Lemma ownedptrcons x y Γ2 : NoOwnedPtr (x ↦ y ◘ [⋅]) -> NoOwnedPtr Γ2 ->
 Proof.
 Admitted.
 
-Goal prog_check smsunsafe_prog.
+Lemma smsunsafe_prog_checks : prog_check smsunsafe_prog.
 Proof.
   assert (NoOwnedPtr ("foo"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ ("main"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ [⋅]))) as G.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
@@ -1706,7 +1706,7 @@ Goal exists As R,
     wstep smsunsafe_prog As R.
 Proof.
   do 2 eexists.
-  econstructor.
+  econstructor; try exact smsunsafe_prog_checks.
   econstructor 2. rewrite equiv_estep; now cbn.
   econstructor 3. rewrite equiv_estep; now cbn.
   econstructor 3. rewrite equiv_estep; now cbn.
@@ -1721,6 +1721,7 @@ Proof.
   econstructor 2. rewrite equiv_estep; now cbn.
   now econstructor.
 Qed.
+
 
 Compute (let '(Cprog symbs) := smsunsafe_prog in get_fuel_toplevel symbs "main"%string).
 

@@ -241,7 +241,7 @@ Module Mod (X : MOD).
     wherein_aux As a 0
   .
   Definition before (a0 a1 : Ev) (As : tracepref) :=
-    forall n, (wherein As a0) = Some n -> exists m, (wherein As a1) = Some m /\ n <= m
+    forall n, (wherein As a0) = Some n -> exists m, (wherein As a1) = Some m /\ n < m
   .
   Lemma before_split a As a0 a1 :
     before a0 a1 As \/ (a0 = a /\ wherein As a1 <> None) ->

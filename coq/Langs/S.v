@@ -1691,6 +1691,38 @@ Variant msevent : Type :=
 .
 #[local]
 Instance msevent__Instance : TraceEvent msevent := {}.
+Definition mseventeq (e1 e2 : msevent) : bool :=
+  match e1, e2 with
+  | MSalloc(addr ℓ0) n0, MSalloc(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | MSdealloc(addr ℓ0), MSdealloc(addr ℓ1) => Nat.eqb ℓ0 ℓ1
+  | MSuse(addr ℓ0) n0, MSuse(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | MScrash, MScrash => true
+  | _, _ => false
+  end
+.
+(** Pretty-printing function for better debuggability *)
+Definition string_of_msevent (e : msevent) :=
+  match e with
+  | (MSalloc (addr ℓ) n) => String.append
+                      (String.append ("MsAlloc ℓ"%string) (string_of_nat ℓ))
+                      (String.append (" "%string) (string_of_nat n))
+  | (MSdealloc (addr ℓ)) => String.append ("MsDealloc ℓ"%string) (string_of_nat ℓ)
+  | (MSuse (addr ℓ) n) => String.append
+                    (String.append ("MsUse ℓ"%string) (string_of_nat ℓ))
+                    (String.append (" "%string) (string_of_nat n))
+  | (MScrash) => "↯"%string
+  end
+.
+
+Module MSModAux <: CSC.Langs.Util.MOD.
+  Definition State := True.
+  Definition Ev := msevent.
+  Definition ev_eq := mseventeq.
+  Definition step := fun (_ : State) (o : option msevent) (_ : State) => True.
+  Definition string_of_event := string_of_msevent.
+  Definition is_value := fun (r : State) => true.
+End MSModAux.
+Module SMSMod := CSC.Langs.Util.Mod(MSModAux).
 
 Definition msev_of_ev (ev : event) : option msevent :=
   match ev with
@@ -1703,12 +1735,12 @@ Definition msev_of_ev (ev : event) : option msevent :=
   | Sret _ => None
   end
 .
-Fixpoint mstracepref_of_tracepref (tr : tracepref) : tracepref :=
+Fixpoint mstracepref_of_tracepref (tr : tracepref) : SMSMod.tracepref :=
   match tr with
-  | Tnil => Tnil
+  | Tnil => SMSMod.Tnil
   | Tcons a tr' =>
     match msev_of_ev a with
-    | Some a' => Tcons a' (mstracepref_of_tracepref tr')
+    | Some a' => SMSMod.Tcons a' (mstracepref_of_tracepref tr')
     | None => mstracepref_of_tracepref tr'
     end
   end
@@ -1716,6 +1748,7 @@ Fixpoint mstracepref_of_tracepref (tr : tracepref) : tracepref :=
 
 Require CSC.Langs.TMMon.
 Module TMMon := CSC.Langs.TMMon.
+Module TMMonM := TMMon.TMSMod.
 
 #[local]
 Instance loceq__Instance : HasEquality loc := loc_eqb.
@@ -1727,11 +1760,11 @@ Inductive ev_eq (δ : deltamap) : msevent -> TMMon.event -> Prop :=
 | TMSAuthDealloc : forall ℓ ℓ', mget δ ℓ = Some ℓ' -> ev_eq δ (MSdealloc ℓ) (TMMon.Sdealloc ℓ')
 | TMSAuthUse : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (MSuse ℓ n) (TMMon.Suse ℓ')
 .
-Inductive mstracepref_eq (δ : deltamap) : tracepref -> @tracepref TMMon.event TMMon.event__Instance -> Prop :=
-| TMSAuthRefl : mstracepref_eq δ Tnil Tnil
+Inductive mstracepref_eq (δ : deltamap) : SMSMod.tracepref -> TMMonM.tracepref -> Prop :=
+| TMSAuthRefl : mstracepref_eq δ SMSMod.Tnil TMMonM.Tnil
 | TMSAuthTrans : forall a a' As As', ev_eq δ a a' ->
                                 mstracepref_eq δ As As' ->
-                                mstracepref_eq δ (a · As) (Tcons a' As')
+                                mstracepref_eq δ (SMSMod.Tcons a As) (TMMonM.Tcons a' As')
 .
 
 Import TMMon.TMMonNotation.

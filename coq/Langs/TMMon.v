@@ -64,6 +64,10 @@ Definition without (T : TMSMonitor) (ℓ : loc) : TMSMonitor := {|
   A := List.remove loc_dec ℓ T.(A) ;
   F := List.cons ℓ T.(F)
 |}.
+Definition append (T1 T2 : TMSMonitor) := {|
+  A := List.app T1.(A) T2.(A) ;
+  F := List.app T1.(F) T2.(F) ;
+|}.
 #[local]
 Notation "T1 '⊆__F' T2" := (entails T1 T2) (at level 82, T2 at next level).
 #[local]
@@ -75,28 +79,35 @@ Notation "'{' ℓ '}' '∪' T" := (extend ℓ T) (at level 82, T at next level).
 #[local]
 Notation "T '∖' '{' ℓ '}'" := (without T ℓ) (at level 82, ℓ at next level).
 
+Lemma loc_inside_split (T1 T2 : TMSMonitor) (ℓ : loc) :
+  ℓ ∈ append T1 (append ({ℓ} ∪ TMMon.emptytmsmon) T2)
+.
+Proof. Admitted.
+#[global]
+Hint Resolve loc_inside_split : core.
+
 (** Step Relations *)
-Inductive step_aux : TMSMonitor -> option event -> TMSMonitor -> Prop :=
+Inductive step : TMSMonitor -> option event -> TMSMonitor -> Prop :=
 | TMS_uninteresting : forall (T__TMS : TMSMonitor),
-    step_aux T__TMS None T__TMS
+    step T__TMS None T__TMS
 | TMS_use : forall (T__TMS : TMSMonitor) (ℓ : loc),
     ℓ ∈ T__TMS ->
-    step_aux T__TMS (Some(Suse ℓ)) T__TMS
+    step T__TMS (Some(Suse ℓ)) T__TMS
 | TMS_alloc : forall (T__TMS T__TMS' : TMSMonitor) (ℓ : loc),
     T__TMS' = ({ ℓ } ∪ T__TMS) ->
     ℓ ∉ T__TMS ->
-    step_aux T__TMS (Some(Salloc ℓ)) T__TMS'
+    step T__TMS (Some(Salloc ℓ)) T__TMS'
 | TMS_dealloc : forall (T__TMS T__TMS' : TMSMonitor) (ℓ : loc),
     ℓ ∈ T__TMS ->
     T__TMS' = (T__TMS ∖ { ℓ }) ->
-    step_aux T__TMS (Some(Sdealloc ℓ)) T__TMS'
+    step T__TMS (Some(Sdealloc ℓ)) T__TMS'
 .
 
 Module ModAux <: CSC.Langs.Util.MOD.
   Definition State := TMSMonitor.
   Definition Ev := event.
   Definition ev_eq := eventeq.
-  Definition step := step_aux.
+  Definition step := step.
   Definition string_of_event := string_of_event.
   Definition is_value := fun (_ : State) => true.
 End ModAux.

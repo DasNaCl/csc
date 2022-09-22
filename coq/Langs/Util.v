@@ -1,9 +1,14 @@
 Set Implicit Arguments.
-Require Import Lists.List Strings.String.
+Require Import Lists.List Strings.String CSC.Util.
 
 Section Util.
 
-Class HasEquality (A : Type) := eq : A -> A -> bool.
+Class HasEquality (A : Type) := {
+  eq : A -> A -> bool ;
+  eq_refl : forall (a : A), eq a a = true ;
+  eqb_eq : forall (a b : A), eq a b = true <-> a = b ;
+  neqb_neq : forall (a b : A), eq a b = false <-> a <> b ;
+}.
 
 Inductive mapind {A : Type} (H : HasEquality A) (B : Type) : Type :=
 | mapNil : mapind H B
@@ -24,6 +29,48 @@ Definition dom { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) : li
     end
   in dom_aux m
 .
+Inductive nodupinv {A : Type} {H : HasEquality A} {B : Type} : mapind H B -> Prop :=
+| nodupmapNil : nodupinv (mapNil H B)
+| nodupmapCons : forall (a : A) (b : B) (m : mapind H B),
+    ~(List.In a (dom m)) ->
+    nodupinv m ->
+    nodupinv (mapCons a b m)
+.
+(** Returns None if m contains any duplicates. *)
+Definition undup {A : Type} {H : HasEquality A} { B : Type } (m : mapind H B) : option(mapind H B) :=
+  let thedom := dom m in
+  let fix doo m' :=
+    match m' with
+    | mapNil _ _ => Some(mapNil _ _)
+    | mapCons a b xs =>
+      match List.find (fun x => eq a x) thedom, doo xs with
+      | None, Some xs' => Some(mapCons a b xs')
+      | _, _ => None
+      end
+    end
+  in doo m
+.
+Lemma undup_refl {A : Type} {H : HasEquality A} {B : Type} (m m' : mapind H B) :
+  undup m = Some m' -> m = m'.
+Proof. Admitted.
+Lemma nodupinv_equiv_undup {A : Type} {H : HasEquality A} { B : Type } (m : mapind H B) :
+  undup m = Some m <-> nodupinv m.
+Proof. Admitted.
+Definition push { A : Type } { H : HasEquality A } { B : Type } (a : A) (b : B) (m : mapind H B) : option (mapind H B) :=
+  match undup (mapCons a b m) with
+  | Some m' => Some m'
+  | None => None
+  end
+.
+Lemma push_ok { A : Type } { H : HasEquality A } { B : Type } (a : A) (b : B) (m m' : mapind H B) :
+  push a b m = Some m' -> nodupinv m'.
+Proof.
+  intros H0. unfold push in H0.
+  destruct (option_dec (undup (mapCons a b m))) as [Hx|Hy]; try (rewrite Hy in *; congruence);
+  apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H0; inv H0;
+  apply nodupinv_equiv_undup; cbn in Hx; rewrite eq_refl in Hx; easy.
+Qed.
+
 Definition img { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) : list B :=
   let fix img_aux (m : mapind H B) :=
     match m with
@@ -41,7 +88,7 @@ Definition append { A : Type } {H : HasEquality A} {B : Type} (m0 m1 : mapind H 
   in append_aux m0
 .
 (* '↦' is `\mapsto` and '◘' is `\inversebullet`*)
-Notation "a '↦' b '◘' M" := (mapCons a b M) (at level 81, b at next level).
+Notation "a '↦' b '◘' M" := (push a b M) (at level 81, b at next level).
 Notation "M1 '◘' M2" := (append M1 M2) (at level 82, M2 at next level).
 
 Definition splitat { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) (x : A)
@@ -52,7 +99,8 @@ Definition splitat { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) 
     | mapCons a b m' => if eq a x then
                          Some(accM, a, b, m')
                        else
-                         doo (a ↦ b ◘ accM) m'
+                         let* aM := a ↦ b ◘ accM in
+                         doo aM m'
     end
   in doo (mapNil H B) m
 .
@@ -78,11 +126,22 @@ Definition mset { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B)
                         else
                           match doo m' with
                           | None => None
-                          | Some m'' => Some(a ↦ b ◘ m'')
+                          | Some m'' => a ↦ b ◘ m''
                           end
     end
   in doo m
 .
+Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
+  mget m x = Some v
+.
+Definition MSubset { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) : Prop :=
+  forall (x : A) (v : B), MIn m1 x v -> MIn m2 x v
+.
+Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
+  Some m' = (x ↦ v ◘ m) ->
+  MSubset m m'.
+Proof.
+Admitted.
 
 (** These are synthetic. They simply allow us to write e.g. `PrimStep` instead of supplying it with parameters *)
 Class ExprClass (Expr : Type) := {}.

@@ -10,7 +10,12 @@ Definition vareq := fun x y => (x =? y)%string.
 Definition dontcare := "_"%string.
 
 #[local]
-Instance varteq__Instance : HasEquality vart := vareq.
+Instance varteq__Instance : HasEquality vart := {
+  eq := vareq ;
+  eq_refl := String.eqb_refl ;
+  eqb_eq := String.eqb_eq ;
+  neqb_neq := String.eqb_neq
+}.
 
 (** The only values we have in S are natural numbers. *)
 Inductive value : Type :=
@@ -27,6 +32,34 @@ Definition loc_eqb :=
     | addr n1, addr n2 => Nat.eqb n1 n2
     end
 .
+Lemma loc_eqb_refl ℓ :
+  loc_eqb ℓ ℓ = true.
+Proof. destruct ℓ as [n]; induction n; now cbn. Qed.
+Lemma loc_eqb_eq ℓ0 ℓ1 :
+  loc_eqb ℓ0 ℓ1 = true <-> ℓ0 = ℓ1.
+Proof.
+  destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
+  - cbn in H; rewrite Nat.eqb_eq in H; now subst.
+  - inv H; apply loc_eqb_refl.
+Qed.
+Lemma loc_eqb_neq ℓ0 ℓ1 :
+  loc_eqb ℓ0 ℓ1 = false <-> ℓ0 <> ℓ1.
+Proof.
+  destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
+  - cbn in H; rewrite Nat.eqb_neq in H; congruence.
+  - destruct (Nat.eq_dec n0 n1).
+    + subst; congruence.
+    + now rewrite <- Nat.eqb_neq in n.
+Qed.
+#[local]
+Instance loceq__Instance : HasEquality loc := {
+  eq := loc_eqb ;
+  eq_refl := loc_eqb_refl ;
+  eqb_eq := loc_eqb_eq ;
+  neqb_neq := loc_eqb_neq
+}.
+#[local]
+Existing Instance varteq__Instance.
 (** Final Result (without error) *)
 Inductive fnoerr : Type :=
 | Fval : value -> fnoerr
@@ -401,7 +434,12 @@ Definition store := mapind varteq__Instance dynloc.
 Definition sNil : store := mapNil varteq__Instance dynloc.
 
 #[local]
-Instance nateq__Instance : HasEquality nat := Nat.eqb.
+Instance nateq__Instance : HasEquality nat := {
+  eq := Nat.eqb ;
+  eq_refl := Nat.eqb_refl ;
+  eqb_eq := Nat.eqb_eq ;
+  neqb_neq := Nat.eqb_neq
+}.
 Definition heap := mapind nateq__Instance nat.
 Definition hNil : heap := mapNil nateq__Instance nat.
 Fixpoint Hgrow (H : heap) (s : nat) : heap :=
@@ -439,6 +477,12 @@ Inductive store_split (Ξ : symbols) : store -> Gamma -> Prop :=
 .
 Inductive state_split : state -> Gamma -> Prop :=
 | TΩ : forall F Ξ ξ H Δ (Γ : Gamma), store_split Ξ Δ Γ -> state_split (F ; Ξ ; ξ ; H ; Δ) Γ
+.
+Inductive rt_check : state -> expr -> Ty -> Prop :=
+| Trtcheck : forall (Ω : state) (e : expr) (τ : Ty) (Γ : Gamma),
+    state_split Ω Γ ->
+    (check Γ e τ) ->
+    rt_check Ω e τ
 .
 
 (** Types of events that may occur in a trace. *)
@@ -1750,19 +1794,18 @@ Require CSC.Langs.TMMon.
 Module TMMon := CSC.Langs.TMMon.
 Module TMMonM := TMMon.TMSMod.
 
-#[local]
-Instance loceq__Instance : HasEquality loc := loc_eqb.
 Definition deltamap := mapind loceq__Instance TMMon.loc.
 
 (** Trace agreement between memory specific events and TMS monitor events. *)
-Inductive ev_eq (δ : deltamap) : msevent -> TMMon.event -> Prop :=
-| TMSAuthAlloc : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (MSalloc ℓ n) (TMMon.Salloc ℓ')
-| TMSAuthDealloc : forall ℓ ℓ', mget δ ℓ = Some ℓ' -> ev_eq δ (MSdealloc ℓ) (TMMon.Sdealloc ℓ')
-| TMSAuthUse : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (MSuse ℓ n) (TMMon.Suse ℓ')
+Inductive ev_eq (δ : deltamap) : option msevent -> option TMMon.event -> Prop :=
+| TMSAuthAlloc : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSalloc ℓ n)) (Some(TMMon.Salloc ℓ'))
+| TMSAuthDealloc : forall ℓ ℓ', mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSdealloc ℓ)) (Some(TMMon.Sdealloc ℓ'))
+| TMSAuthUse : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSuse ℓ n)) (Some(TMMon.Suse ℓ'))
+| TMSAuthNone : ev_eq δ (None) (None)
 .
 Inductive mstracepref_eq (δ : deltamap) : SMSMod.tracepref -> TMMonM.tracepref -> Prop :=
 | TMSAuthRefl : mstracepref_eq δ SMSMod.Tnil TMMonM.Tnil
-| TMSAuthTrans : forall a a' As As', ev_eq δ a a' ->
+| TMSAuthTrans : forall a a' As As', ev_eq δ (Some a) (Some a') ->
                                 mstracepref_eq δ As As' ->
                                 mstracepref_eq δ (SMSMod.Tcons a As) (TMMonM.Tcons a' As')
 .
@@ -1773,7 +1816,7 @@ Inductive store_agree (δ : deltamap) : TMMon.TMSMonitor -> store -> Prop :=
 | EmptyAgree : store_agree δ TMMon.emptytmsmon sNil
 | ConsAgree : forall (x : vart) (ℓ : loc) (ℓ' : TMMon.loc) (T__TMS : TMMon.TMSMonitor) (Δ : store),
     mget δ ℓ = Some ℓ' ->
-    ~(List.In ℓ' (TMMon.F T__TMS)) ->
+    ℓ' ∉ T__TMS ->
     store_agree δ T__TMS Δ ->
     store_agree δ ({ℓ'} ∪ T__TMS) (x ↦ (ℓ ⋅ ◻) ◘ Δ)
 | PoisonAgree : forall (x : vart) (ℓ : loc) (ℓ' : TMMon.loc) (T__TMS : TMMon.TMSMonitor) (Δ : store),
@@ -1781,3 +1824,102 @@ Inductive store_agree (δ : deltamap) : TMMon.TMSMonitor -> store -> Prop :=
     store_agree δ T__TMS Δ ->
     store_agree δ ({ℓ'} ∪ T__TMS) (x ↦ (ℓ ⋅ ☣) ◘ Δ)
 .
+Inductive state_agree (δ : deltamap) : TMMon.TMSMonitor -> state -> Prop :=
+| StateAgree : forall F Ξ ξ H Δ T__TMS, store_agree δ T__TMS Δ -> state_agree δ T__TMS (F ; Ξ ; ξ ; H ; Δ)
+.
+
+Definition TMS (As : tracepref) :=
+  forall MAs : SMSMod.tracepref, MAs = mstracepref_of_tracepref As ->
+                            exists δ (Bs : TMMonM.tracepref), mstracepref_eq δ MAs Bs /\
+                                                         TMMon.TMS Bs
+.
+
+
+Lemma store_agree_subsets δ δ' T__TMS Δ :
+  store_agree δ T__TMS Δ ->
+  MSubset δ δ' ->
+  store_agree δ' T__TMS Δ.
+Proof. Admitted.
+Lemma store_agree_split δ T__TMS Δ1 x ℓ ρ Δ2 :
+  store_agree δ T__TMS (Δ1 ◘ x ↦ (addr ℓ, ρ) ◘ Δ2) ->
+  exists T__TMS1 T__TMS2 ℓ', store_agree δ T__TMS1 Δ1 /\
+                    store_agree δ T__TMS2 Δ2 /\
+                    store_agree δ ({ℓ'} ∪ (TMMon.emptytmsmon)) (x ↦ (addr ℓ, ρ) ◘ sNil) /\
+                    T__TMS = TMMon.append T__TMS1 (TMMon.append ({ℓ'} ∪ TMMon.emptytmsmon) T__TMS2)
+.
+Proof. Admitted.
+Lemma base_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)
+                           (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
+  rt_check Ω e τ ->
+  (Ω ▷ e --[ a ]--> Ω' ▷ e') ->
+  state_agree δ T__TMS Ω ->
+  exists (b : TMMon.event) (δ' : deltamap) (T__TMS' : TMMon.TMSMonitor),
+     MSubset δ δ'
+  /\ ev_eq δ' (msev_of_ev a) (Some b)
+  /\ (TMMon.step T__TMS (Some b) T__TMS')
+  /\ state_agree δ' T__TMS' Ω'
+.
+Proof.
+  intros Aa Ab Ac. inv Ab.
+  - inv Ac; assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
+    exists (TMMon.Suse ℓ__TMS). exists δ. exists T__TMS.
+    repeat split; try easy; constructor; inv Ac3; easy.
+  - inv Ac; assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
+    exists (TMMon.Suse ℓ__TMS). exists δ. exists T__TMS.
+    repeat split; try easy; constructor; inv Ac3; easy.
+  - admit. (* use rt_check for contradiction *)
+  - remember (TMMon.addr(Fresh.fresh F)) as ℓ__TMS;
+    remember (addr(Fresh.fresh F)) as ℓ.
+    exists (TMMon.Salloc ℓ__TMS); exists (ℓ ↦ ℓ__TMS ◘ δ); exists ({ℓ__TMS} ∪ T__TMS); repeat split.
+    + apply (cons_msubset ℓ ℓ__TMS). cbn. admit. (* freshness assumption *)
+    + constructor; cbn; now rewrite loc_eqb_refl.
+    + constructor; try easy. admit. (* freshness assumption *)
+    + constructor.
+      * cbn; unfold eq; now rewrite loc_eqb_refl.
+      * admit. (* freshness assumption *)
+      * inv Ac. eapply store_agree_subsets; try exact H3.
+        apply (cons_msubset (addr(Fresh.fresh F)) (TMMon.addr(Fresh.fresh F))).
+        (* freshness assumption *)
+Admitted.
+
+Lemma ctx_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)
+                          (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
+  rt_check Ω e τ ->
+  (Ω ▷ e ==[ a ]==> Ω' ▷ e') ->
+  state_agree δ T__TMS Ω ->
+  exists (b : option TMMon.event) (δ' : deltamap) (T__TMS' : TMMon.TMSMonitor),
+     MSubset δ δ'
+  /\ (ev_eq δ' (msev_of_ev a) b)
+  /\ (TMMon.step T__TMS b T__TMS')
+  /\ state_agree δ' T__TMS' Ω'
+.
+Proof.
+  intros Aa Ab Ac.
+  inv Ab.
+  - exists None. exists δ. exists T__TMS. repeat split; eauto; try easy. cbn. constructor. constructor. now inv Ac.
+  - exists None. exists δ. exists T__TMS. repeat split; eauto; try easy. cbn. constructor. constructor. now inv Ac.
+  - eapply base_tms_via_monitor in H7; eauto.
+    + deex. destruct H7 as [H7a [H7b [H7c H7d]]].
+      do 3 eexists; repeat split; eauto.
+    + admit. (* typing decomposition *)
+Admitted.
+Lemma steps_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (As : tracepref)
+                          (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
+  rt_check Ω e τ ->
+  (Ω ▷ e ==[ As ]==>* Ω' ▷ e') ->
+  state_agree δ T__TMS Ω ->
+  exists (Bs : TMMonM.tracepref) (δ' : deltamap) (T__TMS' : TMMon.TMSMonitor),
+     MSubset δ δ'
+  /\ (mstracepref_eq δ' (mstracepref_of_tracepref As) Bs)
+  /\ (TMMonM.star_step T__TMS Bs T__TMS')
+  /\ state_agree δ' T__TMS' Ω'
+.
+Proof.
+Admitted.
+
+Theorem s_is_tms (Ξ : @symbols vart symbol varteq__Instance symbol__Instance) As Ω f :
+  prog_check(Cprog Ξ) ->
+  wstep (Cprog Ξ) As (Ω ▷ (Xres f)) ->
+  TMS As.
+Proof.
+Admitted.

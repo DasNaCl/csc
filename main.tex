@@ -768,14 +768,14 @@ Note that non-owned pointers and values may be freely duplicated and that we can
     \typechecks{\Gamma}{e}{\type_e^{(1)}}
   }{
     \typechecks{\Gamma}{call\ foo\ e}{\type_e^{(2)}}
-  }{t-calling}
+  }{t-call}
   %
   \typerule{$t-\src{return}$}{
     \src{\type_e}\ \operatorname{int} &
     \typechecks{\Gamma}{e}{\type_e}
   }{
     \typechecks{\Gamma}{return\ e}{\type_e}
-  }{t-returning}
+  }{t-return}
   %
   \typerule{$t-\src{ifz}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
@@ -935,7 +935,7 @@ Perhaps most interesting is \Cref{tr:w-t-prog} which generates a suitable typing
     \typerule{$T\text{empty}\src{\Delta}$}{
       \src{\library}\downarrow=\src{\Gamma}
     }{
-      \typechecks{}{\hole{\cdot}}{\Gammas}
+      \typechecks{\library}{\hole{\cdot}}{\Gammas}
     }{t-empty-store}
     %
     \typerule{$T\ptr$}{
@@ -992,25 +992,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 
 
 \myfig{
-  \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
   \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{\event}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
-  %
-  \typerule{$e-\text{ctx}$}{
-    \configs\not=\src{\lightning} &
-    \exprevals{\configs}{e}{\configs'}{e'}{\event}
-  }{
-    \execs[]{\qconfigs[i]}{K[e]}{\configs'}{K[e']}{\event}
-  }{w-e-ectx}
-  %
-  \typerule{$e-\src{returning}$}{
-  }{
-    \exprevals{\configs}{returning\ \finalexprnoerr}{\configs}{\finalexprnoerr}{Ret\ !\finalexprnoerr}
-  }{w-e-returning}
-  %
-  \typerule{$e-\src{calling}$}{
-  }{
-    \exprevals{\configs}{calling\ \finalexprnoerr}{\configs}{\finalexprnoerr}{Call\ ?\finalexprnoerr}
-  }{w-e-calling}
   %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}\oplus\src{n_2}=\src{n_3}
@@ -1061,10 +1043,37 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   %
   \typerule{$e-\src{abort}$}{
   }{
-    \exprevals{\configs}{abort()}{\lightning}{stuck}{\lightning}
+    \exprevals{\Omega}{abort()}{\Omega}{stuck}{\lightning}
   }{w-e-abort}
-}{w-expr-eval}{Evaluation of $\mmlAs$ expressions.}
-
+}{w-expr-prim-eval}{Primitive Evaluation of $\mmlAs$ expressions.}
+\myfig{
+  \begin{center}
+    \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
+    %
+    \typerule{$e-\text{ctx}$}{
+      \exprevals{\Omega}{e}{\Omega'}{e'}{\event}
+    }{
+      \execs[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
+    }{w-e-ectx}
+    %
+    \typerule{$e-\text{ctx}-\src{stuck}$}{
+      \exprevals{\Omega}{e}{\Omega'}{stuck}{\event}
+    }{
+      \execs[]{\Omega}{K[e]}{\Omega'}{stuck}{\event}
+    }{w-e-ectx-stuck}
+    %
+    \typerule{$e-\text{ctx}-\src{call}$}{
+      \src{\Omega}=\src{\library_1,foo\mapsto K_{foo},\library_2;\kontstack;H;\Delta}
+    }{
+      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega}{(return\ K_{foo})[f]}{Call\ ?foo\ f}
+    }{w-e-ectx-call}
+    %
+    \typerule{$e-\text{ctx}-\src{return}$}{
+    }{
+      \execs[]{\library;K,\kontstack;H;\Delta}{K'[return\ \finalexprnoerr]}{\library;\kontstack;H;\Delta}{K[f]}{Ret\ !\finalexprnoerr}
+    }{w-e-ectx-ret}
+  \end{center}
+}{w-expr-ctx-eval}{Contextual Evaluaton of $\mmlAs$ expressions.}
 Evaluation is mostly straightforward, the only interesting cases involve the pointers.
 Specifically, \Cref{tr:w-e-delete} demonstrates why we need the poison-tag on the locations: Regardless of the current tag, emit a $\src{Dealloc\ \loc}$ event and mark $\src{\loc}$ as poisoned ($\src{\poisoned}$).
 The intuitive solution, removing the mapping on deletion, doesn't allow to run programs that delete twice.
@@ -1105,49 +1114,11 @@ When generating the static context from the execution context, \Cref{tr:t-poison
   \begin{center}
     \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
-    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
-    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
-    \execs{\configs_{po}}{e_0''}{\configs_0'}{\finalexprnoerr_p'}{\trace[_0']}&
-    \execs{\configs_0'}{e_1[\finalexprnoerr_p'/y]}{\configs_1}{\finalexprnoerr_1}{\trace[_1]}
+    \vdash\src{prog\ \library}\operatorname{ok} &
+    \execs{\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot\trace[_0']\cdot \trace[_1]\cdot Call\ ?\finalexprnoerr_1}
+    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexpr}{\trace}
   }{ws-e-prog}
-  \typerule{$e-\text{wprog}-$fail0}{
-    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
-    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\lightning}{stuck}{\trace[_0]}&
-  }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
-  }{ws-e-prog-fail0}
-  \typerule{$e-\text{wprog}-$failp}{
-    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
-    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0}{e_{po}}{\configs_{po}}{stuck}{\trace[_p]}\\
-  }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
-  }{ws-e-prog-failp}
-  \typerule{$e-\text{wprog}-$fail0'}{
-    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
-    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
-    \execs{\configs_{po}}{e_0''}{\lightning}{stuck}{\trace[_0']}&
-  }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_0'}}
-  }{ws-e-prog-fail0p}
-  \typerule{$e-\text{wprog}-$fail1}{
-    \plugs{calling\ x;returning\ e_p}{e_0}=\src{e_0'}&
-    \typechecks{}{prog\ e_0\ e_p\ e_1}{\nat} \\
-    \execs{\hole{\cdot};\hole{\cdot}}{e_0'}{\configs_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \execs{\configs_0}{e_{po}}{\configs_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
-    \execs{\configs_{po}}{e_0''}{\configs_0'}{\finalexprnoerr_p'}{\trace[_0']}&
-    \execs{\configs_0'}{e_1[\finalexprnoerr_p'/y]}{\lightning}{stuck}{\trace[_1]}
-  }{
-  \wexecs{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace[_0]\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot \trace[_0']\cdot \trace[_1]}
-  }{ws-e-prog-fail1}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 Note that the rules in \Cref{fig:wprog-run} do not require the context to be well-typed.
@@ -1159,29 +1130,30 @@ We introduce another set of actions that allows us to abstract over reading or w
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \\
-                                    & \mid \specificev{\lightning} \mid \specificev{Call\ ?n} \mid \specificev{Ret\ !n}\\
+    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning}
   \end{aligned}
   \end{gather*}
 }{w-specific-events}{\gls*{ms}-Specific Events.}
 In addition to the actions, we also need a way to translate from concrete actions, as emitted by a program's execution, to these more abstract actions.
 The translation is, however, standard.
 The empty action $\specificev{\emptyevent}$ is necessary. When proving lemmas by structural induction on the primitive steps (\Cref{fig:w-expr-eval}), we get a concrete event $\src{\emptyevent}$ that needs to be related to some $\msevent$. The natural candidate is $\specificev{\emptyevent}$.
+We also use it to project the call/return events onto it.
 
 \myfig{
   \begin{center}
+    \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
     \judgbox{\tospecificevs{\event} = \msevent}{,,Project an $\mmlAs$ event $\src{\event}$ to $\msevent$.''}
 %    \judgbox{\tospecificevcomps{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring context.''}
 %    \judgbox{\tospecificevctxs{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring component.''}
     $$
-    \begin{array}{rcl}
-      \tospecificevs{Alloc\ \loc\ n} &\ = & \specificev{Alloc\ \loc\ n} \\
-      \tospecificevs{Dealloc\ \loc} &\ = & \specificev{Dealloc\ \loc} \\
-      \tospecificevs{Get\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} \\
-      \tospecificevs{Set\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} \\
-      \tospecificevs{Call\ ?n} &\ = & \specificev{Call\ ?n} \\
-      \tospecificevs{Ret\ !n} &\ = & \specificev{Ret\ !n} \\
-      \tospecificevs{\lightning} &\ = & \specificev{\lightning} \\
+    \begin{array}{rcll}
+      \tospecificevs[_{\delta_{MS}}]{Alloc\ \loc\ n} &\ = & \specificev{Alloc\ \loc\ n},&\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}]{Dealloc\ \loc} &\ = & \specificev{Dealloc\ \loc} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc}) \\
+      \tospecificevs[_{\delta_{MS}}]{Get\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}]{Set\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}]{Call\ ?n} &\ = & \specificev{\varepsilon} &\\
+      \tospecificevs[_{\delta_{MS}}]{Ret\ !n} &\ = & \specificev{\varepsilon} &\\
+      \tospecificevs[_{\delta_{MS}}]{\lightning} &\ = & \specificev{\lightning} &\\
     \end{array}
     $$
     \typerule{$\src{\mstrace}$-empty-$\theta$}{
@@ -1189,13 +1161,17 @@ The empty action $\specificev{\emptyevent}$ is necessary. When proving lemmas by
     \tospecificevs{\hole{\cdot}}=\hole{\cdot}
     }{src-mstrace-empty-map}
     \typerule{$\src{\mstrace}$-cons-$\theta$}{
-      \tospecificevs{\msevent}=\msevent[_0]&
-      \tospecificevs{\mstrace}=\mstrace[_0]&
+      \tospecificevs[_{\delta_{MS}}]{\msevent}=\msevent[_0]&
+      \tospecificevs[_{\delta_{MS}}]{\mstrace}=\mstrace[_0]&
     }{
-    \tospecificevs{\msevent\cdot\mstrace}=\msevent[_0]\cdot\mstrace[_0]
+      \tospecificevs[_{\delta_{MS}}]{\msevent\cdot\mstrace}=\msevent[_0]\cdot\mstrace[_0]
     }{src-cons-empty-map}
-%      \tospecificevctxs{Ret\ !n_1\cdot\trace{_1}\cdot Call\ ?n_2\cdot\trace{_p}} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Ret\ !n_1\cdot \trace{_1} \cdot Call\ ?n_2}\right)\\
-%      \tospecificevcomps{Ret\ !n_0 \cdot \trace{_1}\cdot Call\ ?n_1\cdot\trace{_p}\cdot Ret\ !n_2\cdot\trace{_2}\cdot Call\ n_3} &\ = & \operatorname{map}\ \thetospecificfilter\ \left(\src{Call\ ?n_1\cdot \trace{_p} \cdot Ret\ !n_2}\right)\\
+    \typerule{$\src{\mstrace}$-cons-$\theta$-ignore}{
+      \tospecificevs[_{\delta_{MS}}]{\msevent}=\specificev{\varepsilon}&
+      \tospecificevs[_{\delta_{MS}}]{\mstrace}=\mstrace[_0]&
+    }{
+      \tospecificevs[_{\delta_{MS}}]{\msevent\cdot\mstrace}=\mstrace[_0]
+    }{src-cons-empty-map}
   \end{center}
 }{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
 
@@ -1210,15 +1186,16 @@ In order to just talk about temporal memory safety, we introduce a monitor that 
       \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \loc \mid \textbf{Dealloc}\ \loc \mid \textbf{Use}\ \loc \mid \abstermination\\
       \mi{References\ Agreement}~\delta_{\text{tms}} :& \specificev{L}\to \bm{L} \\[0.6cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
-      \absevent\not\in \tmsmonitor['] &\text{ iff } \absevent \not\in {\tmsmonitor['.A]} \wedge \absevent \not\in {\tmsmonitor['.F]}\\
+      \absevent\in \tmsmonitor['] &\text{ iff } \absevent \in {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
+      \absevent\notin \tmsmonitor['] &\text{ iff } \absevent \notin {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
       \{\bm{\loc}\}\cup \tmsmonitor &= \{A : \{\bm{\loc}\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
       \tmsmonitor\setminus\{\bm{\loc}\} &= \{A : \tmsmonitor[.A]\setminus\{\bm{\loc}\}, F : \tmsmonitor[.F]\cup\left\{\bm{\loc}\right\}\}\\
+      \tmsmonitor\cup \tmsmonitor' &= \{A : \tmsmonitor[.A]\cup \tmsmonitor['.A], F : \tmsmonitor[.F]\cup \tmsmonitor['.F]\}\\
     \end{aligned}
   \end{gather*}
 }{tms-monitor}{\gls{tms} Monitor.}
 
-We have $\bm{\varepsilon}$ in order to accompany unimportant events, such as $\specificev{Call\ ?\finalexprnoerr}$ or $\specificev{Ret\ !\finalexprnoerr}$.
-Moreover, when doing structural induction over primitive steps (\Cref{fig:w-expr-eval}) we may encounter the $\src{\emptyevent}$, for which $\tospecificevs{\emptyevent}=\specificev{\emptyevent}$, which needs a ,,partner'' in the abstract events as defined in \Cref{fig:tms-monitor}: $\bm{\varepsilon}$.
+As before, when doing structural induction over primitive steps (\Cref{fig:w-expr-eval}) we may encounter the $\src{\emptyevent}$, for which $\tospecificevs{\emptyevent}=\specificev{\emptyevent}$, which needs a ,,partner'' in the abstract events as defined in \Cref{fig:tms-monitor}: $\bm{\varepsilon}$.
 
 \myfig{
   \begin{center}
@@ -1230,22 +1207,20 @@ Moreover, when doing structural induction over primitive steps (\Cref{fig:w-expr
     }{tms-uninteresting}
     %
     \typerule{TMS-Use}{
-      \bm{\loc}\in \tmsmonitor[.A] &
-      \bm{\loc}\not\in \tmsmonitor[.F] &
+      \bm{\loc}\in \tmsmonitor
     }{
       \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \bm{\loc}}
     }{tms-use}
     %
     \typerule{TMS-Alloc}{
       \tmsmonitor[']=\left\{\bm{\loc}\right\}\cup\tmsmonitor&
-      \bm{\loc}\not\in \tmsmonitor&
+      \bm{\loc}\notin \tmsmonitor
     }{
       \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \bm{\loc}}
     }{tms-alloc}
     %
     \typerule{TMS-Dealloc}{
-      \bm{\loc}\in \tmsmonitor[.A] &
-      \bm{\loc}\not\in \tmsmonitor[.F] &
+      \bm{\loc}\in \tmsmonitor &
       \tmsmonitor[']=\tmsmonitor\setminus\left\{\bm{\loc}\right\}
     }{
       \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \bm{\loc}}
@@ -1273,7 +1248,7 @@ As before, we need a way to translate one set of actions to another:
 
 \myfig{
   \begin{center}
-    \judgbox{\delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}}{,,A map from $\mmlAs$ memory locations $\specificev{\loc}$ to abstract memory locations $\bm{\loc}$.''}
+    \judgbox{\delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}}{,,A map from MS-specific locations $\specificev{\loc}$ to abstract memory locations $\bm{\loc}$.''}
     \judgbox{\tmstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
     \judgbox{\tmstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
@@ -1295,6 +1270,11 @@ As before, we need a way to translate one set of actions to another:
       \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \bm{\loc}}
     }{tms-use-auth}
     %
+    \typerule{TMS-None-Authentic}{
+    }{
+      \tmstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
+    }{tms-use-auth}
+    %
     \typerule{TMS-Refl-Authentic}{
     }{
       \tmstraceagree{\hole{\cdot}}{\hole{\cdot}}
@@ -1306,40 +1286,28 @@ As before, we need a way to translate one set of actions to another:
     }{
       \tmstraceagree{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
     }{tms-trans-auth}
-    %
-    \typerule{TMS-Call-Authentic}{
-      \tmstraceagree{\mstrace}{\abstrace}
-    }{
-      \tmstraceagree{\specificev{Call\ ?n}\cdot\mstrace}{\bm{\varepsilon}\cdot\abstrace}
-    }{tms-call-auth}
-    %
-    \typerule{TMS-Ret-Authentic}{
-      \tmstraceagree{\mstrace}{\abstrace}
-    }{
-      \tmstraceagree{\specificev{Ret\ !n}\cdot\mstrace}{\bm{\varepsilon}\cdot\abstrace}
-    }{tms-ret-auth}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
 
 \myfig{
   \begin{center}
-    \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta}}}{,,The abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
+    \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta}}}{,,Abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
     \typerule{Empty-Agree}{
     }{
       \storeagreetms{\emptyset}{\src{\hole{\cdot}}}
     }{store-empty-agree}
     %
     \typerule{Cons-Agree}{
-      \tospecificevs{\loc}=\specificev{\loc}&
+      \delta_{MS}(\src{\loc})=\specificev{\loc}&
       \delta_{\text{tms}}\left(\specificev{\loc}\right)=\bm{\loc}&
-      \bm{\loc}\not\in\tmsmonitor[.F]&
+      \bm{\loc}\notin\tmsmonitor&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
       \storeagreetms{\left\{\bm{\loc}\right\}\cup \tmsmonitor}{\src{x\mapsto\loc_\poisonless,\Delta}}
     }{store-cons-agree}
     %
     \typerule{Poison-Agree}{
-      \tospecificevs{\loc}=\specificev{\loc}&
+      \delta_{MS}(\src{\loc})=\specificev{\loc}&
       \delta_{\text{tms}}\left(\specificev{\loc}\right)=\bm{\loc}&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
@@ -1348,25 +1316,13 @@ As before, we need a way to translate one set of actions to another:
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
 
-We now define temporal and spatial memory safety in terms of traces on events $\src{\event}$.
+We now define temporal and spatial memory safety in terms of traces on events $\msevent$.
 
-\begin{definition}[Occurence]
-  Given an event $\event$ and a trace $\trace$, the event $\event$ occurs in $\trace$, written $\event\in\trace$, iff
-
-  $\exists n, \trace{[n]}=\event$
-\end{definition}
-
-\begin{definition}[Unicity]
-  Given an event $\event$ and a trace $\trace$, the event $\event$ occurs exactly once in $\trace$, written $\event!_{\trace}$, iff
-
-  $\exists n, \trace{[n]}=\event \wedge \nexists m, n\not= m \wedge \trace{[m]} = \event$
-\end{definition}
-
-\begin{definition}[Sequentiality]
-  Given two events $\event{_0},\event{_1}$ and a trace $\trace$, event $\event{_0}$ occurs before $\event{_1}$ in $\trace$, written
+\begin{definition}[Before]
+  Given two events $\msevent[_0],\msevent[_1]$ and a trace $\mstrace$, event $\msevent[_0]$ occurs before $\msevent[_1]$ in $\mstrace$, written
   $\event{_0}\le_{\trace}\event{_1}$, iff
 
-  $\exists n, \trace{[n]} = \event{_0}\implies \exists m, \trace{[m]} = \event{_1} \wedge n<m$
+  If $n\in\nat$ such that $\trace{[n]} = \event[_{0}]$, then $\exists m\in\nat, \trace{[m]} = \event[_1] \wedge n< m$
 \end{definition}
 
 
@@ -1376,18 +1332,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
     \item $\specificev{Alloc\ \loc\ s}\le_{{\mstrace}}\specificev{Dealloc\ \loc}$
     \item $\neg(\specificev{Use\ \loc\ n}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s})$
     \item $\neg(\specificev{Dealloc\ \loc}\le_{{\mstrace}}\specificev{Use\ \loc\ n})$
-    \item $\specificev{Dealloc\ \loc}\in!\;{\mstrace}$
-    \item $\specificev{Alloc\ \loc\ s}\in!\;{\mstrace}$
-    % \makebox(0,0){\put(0,3.0\normalbaselineskip){ %
-    % $\left.\rule{0pt}{1.32\normalbaselineskip}\right\}$ no reallocs, references are unique}}
   \end{itemize}
 \end{definition}
-% relaxed temporal memory safety       -> define garbage collector
-% generalize this over Γ, τ
-% might need an 'invariant'  -> connect typing to evaluation states
-% might need to do an induction on evaluation steps
-
-% might not need to do an induction at the general step, but for the primitive step we need it
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
   We define the property ${smsafe}\left({\mstrace}\right)$ as follows:
@@ -1397,9 +1343,9 @@ We now define temporal and spatial memory safety in terms of traces on events $\
 \end{definition}
 
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
-  We say $\texttt{TMS}(\src{\trace})$ iff $\exists \delta\ \abstrace\ \tmsmonitor$ such that:
+  We say $\texttt{TMS}(\mstrace)$ iff $\exists \delta_{\text{tms}}\ \abstrace\ \tmsmonitor$ such that:
   \begin{itemize}
-    \item $\tmstraceagree{\tospecificevs{\trace}}{\abstrace}$
+    \item $\tmstraceagree{\mstrace}{\abstrace}$
     \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
   \end{itemize}
 \end{definition}
@@ -1411,7 +1357,7 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\texttt{TMS}(\tospecificevcomps{\trace})$
+  \item $\texttt{TMS}(\tospecificevs[_{\emptyset}]{\trace})$
   \end{goals}.
 \end{scontents}
 \mockthm{thm:mmlAs:tmssafe}{1}
@@ -1420,6 +1366,8 @@ We now define temporal and spatial memory safety in terms of traces on events $\
   There is a well-typed $\mmlAs$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
   $\rsat{\src{p}}{smsafe}$
 \end{scontents}
+
+{\color{red}\large TODO}
 \realthm{thm:mmlAs:not:smssafe}{2}{$\mmlAs$ is not spatially memory safe}
 \begin{proof}
   Pick $\src{e_p}=\src{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]

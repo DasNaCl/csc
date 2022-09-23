@@ -208,6 +208,10 @@ Notation "G '⊦' e ':' t" := (vDash__Class G e t) (at level 82, e at next level
 #[global]
 Notation "'[⋅]'" := (Gnil).
 
+Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) (x : A) (v : B) :
+  splitat (m1 ◘ x ↦ v ◘ m2) x = Some (m1, x, v, m2).
+Proof. Admitted.
+
 Module Type MOD.
   Parameter State : Type.
   Parameter Ev : Type.

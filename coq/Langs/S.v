@@ -188,16 +188,6 @@ Inductive ety : Type :=
 | Tarrow : ty -> ty -> ety
 .
 
-(** * Freshness *)
-
-(** In here, we define a helper judgement that gives us fresh variables. *)
-Inductive fresh (A : Type) (eq : A -> A -> bool) (xs : list A) (x : A) : Prop :=
-| Cfresh : List.find (eq x) xs = (None : option A) -> @fresh A eq xs x
-.
-Definition fresh_loc := @fresh loc loc_eqb.
-Definition fresh_tvar := @fresh string String.eqb.
-
-
 (** * Statics *)
 Inductive Ty : Type :=
 | Texpr : ty -> Ty
@@ -442,11 +432,14 @@ Instance nateq__Instance : HasEquality nat := {
 }.
 Definition heap := mapind nateq__Instance nat.
 Definition hNil : heap := mapNil nateq__Instance nat.
-Fixpoint Hgrow (H : heap) (s : nat) : heap :=
-  match s with
-  | 0 => H
-  | S s' => mapCons s' 0 (Hgrow H s')
-  end
+Definition Hgrow (H : heap) (s : nat) : heap :=
+  let len := List.length (dom H) in
+  let fix doo (n : nat) :=
+    match n with
+    | 0 => H
+    | S n' => mapCons (len + n') 0 (doo n')
+    end
+  in doo s
 .
 (** We assume a mild axiom about the shape of heaps.
     It simply restricts the keys to be less than the length of a heap. *)
@@ -461,6 +454,30 @@ Definition state : Type := CSC.Fresh.fresh_state * symbols * active_ectx * heap 
 Notation "F ';' Ξ ';' ξ ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (Ξ : symbols),
                                          (ξ : active_ectx), (H : heap), (Δ : store))
                                          (at level 81, ξ at next level, Ξ at next level, H at next level, Δ at next level).
+Definition nodupinv (Ω : state) : Prop :=
+  let '(F, Ξ, ξ, H, Δ) := Ω in
+  nodupinv Ξ /\ nodupinv H /\ nodupinv Δ
+.
+Lemma nodupinv_empty Ξ :
+  Util.nodupinv Ξ ->
+  nodupinv(Fresh.empty_fresh ; Ξ ; nil ; hNil ; sNil).
+Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
+
+Lemma split_Hgrow (H : heap) H' n :
+  H' = Hgrow H (S n) ->
+  exists v, H' = ((List.length (dom H) + n) ↦ v ◘ (Hgrow H n))
+.
+Proof. Admitted.
+Lemma nodupinv_extend_H F Ξ ξ H Δ n H':
+  nodupinv (F;Ξ;ξ;H;Δ) ->
+  H' = Hgrow H n ->
+  nodupinv (F;Ξ;ξ;H';Δ)
+.
+Proof.
+Admitted.
+
+(*FIXME: maybe just put freshness as judgement all over the place...*)
+
 
 (** Store splitting. We don't need a case for nat, since identifiers with type nat get substituted at runtime. *)
 Inductive store_split (Ξ : symbols) : store -> Gamma -> Prop :=
@@ -701,9 +718,6 @@ Ltac grab_final e :=
   (destruct e as [[e|]| | | | | | | | | | ]; try congruence)
 .
 
-Lemma splitat_elim (Δ1 Δ2 : store) (x : vart) (ℓ : loc) (ρ : poison) :
-  splitat (Δ1 ◘ x ↦ (ℓ ⋅ ρ) ◘ Δ2) x = Some (Δ1, x, (ℓ ⋅ ρ), Δ2).
-Proof. Admitted.
 Lemma splitat_base (Δ : store) (x : vart) :
   splitat Δ x <> None -> exists Δ1 ℓ ρ Δ2, Δ = (Δ1 ◘ x ↦ (ℓ ⋅ ρ) ◘ Δ2).
 Proof.

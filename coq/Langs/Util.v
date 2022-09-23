@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Lists.List Strings.String CSC.Util.
+Require Import Lists.List Strings.String CSC.Util RelationClasses.
 
 Section Util.
 
@@ -143,6 +143,25 @@ Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapin
 Proof.
 Admitted.
 
+#[global]
+Instance MSubset__Transitivity { A : Type } { H : HasEquality A } { B : Type } :
+  Transitive (fun (a b : mapind H B) => MSubset a b).
+Proof. intros x y z Ha Hb f w Hc; now apply Hb, Ha. Qed.
+
+Lemma mget_min {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  mget m x = Some v <->
+  MIn m x v
+.
+Proof. split; induction m; cbn; eauto. Qed.
+
+Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
+  mget m x = Some v ->
+  MSubset m m' ->
+  mget m' x = Some v
+.
+Proof. intros Ha Hb; specialize (Hb x v); apply mget_min; apply mget_min in Ha; eauto. Qed.
+
+
 (** These are synthetic. They simply allow us to write e.g. `PrimStep` instead of supplying it with parameters *)
 Class ExprClass (Expr : Type) := {}.
 Class RuntimeExprClass (Expr : Type) := {}.
@@ -196,6 +215,7 @@ Module Type MOD.
   Parameter ev_eq : Ev -> Ev -> bool.
   Parameter string_of_event : Ev -> string.
   Parameter is_value : State -> bool.
+  Parameter is_stuck : State -> Prop.
 End MOD.
 Module Mod (X : MOD).
   Export X.
@@ -260,10 +280,12 @@ Module Mod (X : MOD).
       r1 ==[ Tnil ]==>* r1
   | ES_trans_important : forall (r1 r2 r3 : State) (a : Ev) (As : tracepref),
       step r1 (Some a) r2 ->
+      ~is_stuck r2 ->
       r2 ==[ As ]==>* r3 ->
       r1 ==[ Tcons a As ]==>* r3
   | ES_trans_unimportant : forall (r1 r2 r3 : State) (As : tracepref),
       step r1 None r2 ->
+      ~is_stuck r2 ->
       r2 ==[ As ]==>* r3 ->
       r1 ==[ As ]==>* r3
   where "e0 '==[' a ']==>*' e1" := (star_step e0 a e1).

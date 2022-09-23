@@ -1263,6 +1263,10 @@ Module ModAux <: CSC.Langs.Util.MOD.
                                           | (Some _, Xres(Fres _)) => true
                                           | (_, _) => false
                                           end.
+  Definition is_stuck := fun (r : rtexpr) => match r with
+                                          | (None, _) => True
+                                          | _ => False
+                                          end.
 End ModAux.
 Module SMod := CSC.Langs.Util.Mod(ModAux).
 Import SMod.
@@ -1445,14 +1449,13 @@ fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
       rewrite (get_rid_of_letstar (As0, r1')) in H.
       rewrite <- equiv_estep in Hx;
       destruct a as [a|]; inv H.
-      * eapply ES_trans_important; eauto.
-        destruct Ω' as [Ω'|].
-        2: destruct fuel; inv Hx0.
+      * eapply ES_trans_important; eauto;
+        destruct Ω' as [Ω'|]; try now cbn.
+        1,3: destruct fuel; inv Hx0.
         apply (fuel_step Hf) in Hx.
         eapply IHfuel; eauto.
-      * eapply ES_trans_unimportant; eauto.
-        destruct Ω' as [Ω'|].
-        2: destruct fuel; inv Hx0.
+      * eapply ES_trans_unimportant; eauto;
+        destruct Ω' as [Ω'|]; try now cbn.
         apply (fuel_step Hf) in Hx.
         eapply IHfuel; eauto.
 Qed.
@@ -1707,18 +1710,18 @@ Goal exists As R,
 Proof.
   do 2 eexists.
   econstructor; try exact smsunsafe_prog_checks.
-  econstructor 2. rewrite equiv_estep; now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
   now econstructor.
 Qed.
 
@@ -1762,7 +1765,8 @@ Module MSModAux <: CSC.Langs.Util.MOD.
   Definition ev_eq := mseventeq.
   Definition step := fun (_ : State) (o : option msevent) (_ : State) => True.
   Definition string_of_event := string_of_msevent.
-  Definition is_value := fun (r : State) => true.
+  Definition is_value := fun (_ : State) => true.
+  Definition is_stuck := fun (_ : State) => False.
 End MSModAux.
 Module SMSMod := CSC.Langs.Util.Mod(MSModAux).
 
@@ -1844,6 +1848,12 @@ Lemma estep_progress Ω e τ :
   exists a Ω' e', Ω ▷ e ==[ a ]==> Ω' ▷ e'
 .
 Proof. Admitted.
+Lemma estep_preservation Ω e τ Ω' e' a :
+  rt_check Ω e τ ->
+  Ω ▷ e ==[, a ]==> Ω' ▷ e' ->
+  rt_check Ω' e' τ
+.
+Proof. Admitted.
 
 Lemma store_agree_subsets δ δ' T__TMS Δ :
   store_agree δ T__TMS Δ ->
@@ -1913,6 +1923,17 @@ Proof.
       do 3 eexists; repeat split; eauto.
     + admit. (* typing decomposition *)
 Admitted.
+Lemma ctx_tms_via_monitor_ignore (Ω Ω' : state) (e e' : expr) (τ : Ty)
+                                 (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
+  rt_check Ω e τ ->
+  (Ω ▷ e ==[]==> Ω' ▷ e') ->
+  state_agree δ T__TMS Ω ->
+  exists (δ' : deltamap) (T__TMS' : TMMon.TMSMonitor),
+     MSubset δ δ'
+  /\ (TMMon.step T__TMS None T__TMS')
+  /\ state_agree δ' T__TMS' Ω'
+.
+Proof. Admitted.
 Lemma steps_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (As : tracepref)
                           (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
   rt_check Ω e τ ->
@@ -1925,20 +1946,34 @@ Lemma steps_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (As : trace
   /\ state_agree δ' T__TMS' Ω'
 .
 Proof.
-  remember (Ω ▷ e) as r0; remember (Ω' ▷ e') as r1; intros Aa Ab Ac; dependent induction Ab.
+  intros Aa Ab; revert δ T__TMS; dependent induction Ab; intros δ T__TMS Ac.
   - (* refl *)
-    destruct r1 as [[Ω1|] e1]; cbn in H; try congruence;
-    destruct e1; try congruence; destruct f; try congruence.
-    inv Heqr1; inv Heqr0. exists (TMMonM.Tnil). exists δ. exists T__TMS. repeat split; try easy; now constructor.
+    exists (TMMonM.Tnil). exists δ. exists T__TMS. repeat split; try easy; now constructor.
   - (* trans *)
-    destruct r1 as [[Ω1|] e1]; destruct r3 as [[Ω3|] e3]; try congruence.
-    inv Heqr1; inv Heqr0.
-    assert (Aa':=Aa); apply estep_progress in Aa as [a0 [Ω2 [e2 Aa]]].
-    assert (Aa'':=Aa); eapply (estep_determinism Aa) in H as [H'a H'b].
-    eapply ctx_tms_via_monitor in Aa as [b [δ' [T__TMS' [Xa [Xb [Xc Xd]]]]]]; eauto.
-    admit.
+    destruct r2 as [[Ω2|] e2]; cbn in H0; try contradiction; clear H0.
+    eapply estep_preservation in Aa as Aa'; eauto.
+    eapply ctx_tms_via_monitor in Aa as Aa''; eauto; deex; destruct Aa'' as [Ha [Hb [Hc Hd]]].
+    specialize (IHAb Ω2 Ω' e2 e' Aa' JMeq_refl JMeq_refl δ' T__TMS' Hd).
+    deex; rename T__TMS'0 into T__TMS''; rename δ'0 into δ''; destruct IHAb as [IHAb1 [IHAb2 [IHAb3 IHAb4]]].
+    destruct a; cbn in Hb; inv Hb;
+    match goal with
+    | [H: TMMon.step ?T__TMS (Some(?ev)) ?T__TMS' |- _] =>
+      exists (TMMonM.Tcons ev Bs); exists δ''; exists T__TMS''; repeat split; eauto;
+     (try (etransitivity; eauto)); econstructor; eauto; econstructor; eapply mget_subset; eauto
+    | [H: TMMon.step ?T__TMS None ?T__TMS' |- _] =>
+      exists Bs; exists δ''; exists T__TMS''; repeat split; eauto;
+     (try (etransitivity; eauto)); econstructor; eauto; econstructor; eapply mget_subset; eauto
+    end.
   - (* unimp *)
-Admitted.
+    destruct r2 as [[Ω2|] e2]; cbn in H0; try contradiction; clear H0.
+    eapply estep_preservation in Aa as Aa'; eauto.
+    eapply ctx_tms_via_monitor_ignore in Aa as Aa''; eauto; deex; destruct Aa'' as [Ha [Hb Hc]].
+    specialize (IHAb Ω2 Ω' e2 e' Aa' JMeq_refl JMeq_refl δ' T__TMS' Hc).
+    deex; rename T__TMS'0 into T__TMS''; rename δ'0 into δ''; destruct IHAb as [IHAb1 [IHAb2 [IHAb3 IHAb4]]].
+    exists Bs. exists δ''. exists T__TMS''. repeat split; eauto.
+    + etransitivity; eauto.
+    + econstructor; eauto; econstructor; eapply mget_subset; eauto.
+Qed.
 
 Theorem s_is_tms (Ξ : @symbols vart symbol varteq__Instance symbol__Instance) As Ω f :
   prog_check(Cprog Ξ) ->

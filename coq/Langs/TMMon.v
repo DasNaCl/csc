@@ -110,6 +110,7 @@ Module ModAux <: CSC.Langs.Util.MOD.
   Definition step := step.
   Definition string_of_event := string_of_event.
   Definition is_value := fun (_ : State) => true.
+  Definition is_stuck := fun (x : State) => False.
 End ModAux.
 Module TMSMod := CSC.Langs.Util.Mod(ModAux).
 Import TMSMod.

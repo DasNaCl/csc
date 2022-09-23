@@ -1824,7 +1824,7 @@ Inductive store_agree (δ : deltamap) : TMMon.TMSMonitor -> store -> Prop :=
 | PoisonAgree : forall (x : vart) (ℓ : loc) (ℓ' : TMMon.loc) (T__TMS : TMMon.TMSMonitor) (Δ : store),
     mget δ ℓ = Some ℓ' ->
     store_agree δ T__TMS Δ ->
-    store_agree δ ({ℓ'} ∪ T__TMS) (x ↦ (ℓ ⋅ ☣) ◘ Δ)
+    store_agree δ T__TMS (x ↦ (ℓ ⋅ ☣) ◘ Δ)
 .
 Inductive state_agree (δ : deltamap) : TMMon.TMSMonitor -> state -> Prop :=
 | StateAgree : forall F Ξ ξ H Δ T__TMS, store_agree δ T__TMS Δ -> state_agree δ T__TMS (F ; Ξ ; ξ ; H ; Δ)
@@ -1836,18 +1836,6 @@ Definition TMS (As : tracepref) :=
                                                          TMMon.TMS Bs
 .
 
-Lemma estep_determinism Ω e a r1 r2 a' :
-  Ω ▷ e ==[ a ]==> r1 ->
-  Ω ▷ e ==[ a' ]==> r2 ->
-  a = a' /\ r1 = r2
-.
-Proof. Admitted.
-
-Lemma estep_progress Ω e τ :
-  rt_check Ω e τ ->
-  exists a Ω' e', Ω ▷ e ==[ a ]==> Ω' ▷ e'
-.
-Proof. Admitted.
 Lemma estep_preservation Ω e τ Ω' e' a :
   rt_check Ω e τ ->
   Ω ▷ e ==[, a ]==> Ω' ▷ e' ->
@@ -1866,6 +1854,17 @@ Lemma store_agree_split δ T__TMS Δ1 x ℓ ρ Δ2 :
                     store_agree δ T__TMS2 Δ2 /\
                     store_agree δ ({ℓ'} ∪ (TMMon.emptytmsmon)) (x ↦ (addr ℓ, ρ) ◘ sNil) /\
                     T__TMS = TMMon.append T__TMS1 (TMMon.append ({ℓ'} ∪ TMMon.emptytmsmon) T__TMS2)
+.
+Proof. Admitted.
+Lemma store_agree_rsplit δ T__TMS1 T__TMS2 Δ1 Δ2 :
+  store_agree δ T__TMS1 Δ1 ->
+  store_agree δ T__TMS2 Δ2 ->
+  store_agree δ (TMMon.append T__TMS1 T__TMS2) (Δ1 ◘ Δ2)
+.
+Proof. Admitted.
+Lemma store_split_poisoned Ξ Δ1 x ℓ Δ2 Γ :
+  store_split Ξ (Δ1 ◘ x ↦ (addr ℓ, ☣) ◘ Δ2) Γ ->
+  store_split Ξ (Δ1 ◘ Δ2) Γ /\ (~ List.In x (dom Γ))
 .
 Proof. Admitted.
 Lemma base_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)
@@ -1887,7 +1886,18 @@ Proof.
   - inv Ac; assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
     exists (TMMon.Suse ℓ__TMS). exists δ. exists T__TMS.
     repeat split; try easy; constructor; inv Ac3; easy.
-  - admit. (* use rt_check for contradiction *)
+  - inv Ac; assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
+    exists (TMMon.Sdealloc ℓ__TMS). exists δ.
+    inv Ac3.
+    + (* Rule Cons-Agree *)
+      exists (TMMon.append T__TMS1 T__TMS2); repeat split; try easy; try now econstructor.
+      econstructor; try eapply TMMon.loc_inside_split; eauto.
+      eapply TMMon.remove_loc_from_union.
+      apply store_agree_rsplit; eauto; econstructor; eauto.
+    + (* Rule Cons-Agree-Ignore *)
+      inv Aa. inv H0. eapply store_split_poisoned in H11 as [H11a H11b].
+      inv H1; exfalso; revert H11b; clear; intros H; apply H; clear H.
+      induction Γ1; cbn; eauto.
   - remember (TMMon.addr(Fresh.fresh F)) as ℓ__TMS;
     remember (addr(Fresh.fresh F)) as ℓ.
     exists (TMMon.Salloc ℓ__TMS); exists (ℓ ↦ ℓ__TMS ◘ δ); exists ({ℓ__TMS} ∪ T__TMS); repeat split.

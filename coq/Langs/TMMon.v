@@ -86,6 +86,11 @@ Proof. Admitted.
 #[global]
 Hint Resolve loc_inside_split : core.
 
+Lemma remove_loc_from_union (T1 T2 : TMSMonitor) (ℓ : loc) :
+  append T1 T2 = (append T1 (append ({ℓ} ∪ emptytmsmon) T2) ∖ {ℓ})
+.
+Proof. Admitted.
+
 (** Step Relations *)
 Inductive step : TMSMonitor -> option event -> TMSMonitor -> Prop :=
 | TMS_uninteresting : forall (T__TMS : TMSMonitor),

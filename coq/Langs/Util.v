@@ -37,18 +37,16 @@ Inductive nodupinv {A : Type} {H : HasEquality A} {B : Type} : mapind H B -> Pro
     nodupinv (mapCons a b m)
 .
 (** Returns None if m contains any duplicates. *)
-Definition undup {A : Type} {H : HasEquality A} { B : Type } (m : mapind H B) : option(mapind H B) :=
-  let thedom := dom m in
-  let fix doo m' :=
-    match m' with
-    | mapNil _ _ => Some(mapNil _ _)
-    | mapCons a b xs =>
-      match List.find (fun x => eq a x) thedom, doo xs with
-      | None, Some xs' => Some(mapCons a b xs')
-      | _, _ => None
-      end
+Fixpoint undup {A : Type} {H : HasEquality A} { B : Type } (m : mapind H B) : option(mapind H B) :=
+  match m with
+  | mapNil _ _ => Some(mapNil _ _)
+  | mapCons a b m' =>
+    let thedom := dom m' in
+    match List.find (fun x => eq a x) thedom, undup m' with
+    | None, Some xs' => Some(mapCons a b xs')
+    | _, _ => None
     end
-  in doo m
+  end
 .
 Lemma undup_refl {A : Type} {H : HasEquality A} {B : Type} (m m' : mapind H B) :
   undup m = Some m' -> m = m'.
@@ -68,7 +66,14 @@ Proof.
   intros H0. unfold push in H0.
   destruct (option_dec (undup (mapCons a b m))) as [Hx|Hy]; try (rewrite Hy in *; congruence);
   apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H0; inv H0;
-  apply nodupinv_equiv_undup; cbn in Hx; rewrite eq_refl in Hx; easy.
+  apply nodupinv_equiv_undup; cbn in Hx.
+  destruct (option_dec (List.find (fun x : A => eq a x) (dom m))) as [Hx0|Hy0]; try (rewrite Hy0 in *; congruence).
+  apply not_eq_None_Some in Hx0 as [m'' Hx0]; rewrite Hx0 in Hx; inv Hx.
+  rewrite Hy0 in Hx. destruct (option_dec (undup m)) as [Hx1|Hy1].
+  apply not_eq_None_Some in Hx1 as [m'' Hx1]. rewrite Hx1 in Hx.
+  inv Hx. cbn. apply undup_refl in Hx1 as Hx1'. rewrite Hx1' in Hy0. rewrite Hy0.
+  rewrite (undup_refl m Hx1) in Hx1. now rewrite Hx1.
+  rewrite Hy1 in Hx. easy.
 Qed.
 
 Definition img { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) : list B :=
@@ -131,6 +136,12 @@ Definition mset { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B)
     end
   in doo m
 .
+Lemma nodupinv_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  Some m' = mset m x v ->
+  nodupinv m'
+.
+Proof. Admitted.
 Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
   mget m x = Some v
 .
@@ -305,3 +316,88 @@ Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
 #[global]
 Notation "'PROG[' symbs '][' start ']====[' As ']===>' r" := (wstep__Class (Cprog__Class symbs) start As r) (at level 81, r at next level).
  *)
+
+Lemma nodupinv_whocares { A : Type } { H : HasEquality A } { B : Type } (a : A) (b b' : B) (m m' : mapind H B) :
+  nodupinv (m ◘ a ↦ b ◘ m') <-> nodupinv (m ◘ a ↦ b' ◘ m')
+.
+Proof. Admitted.
+
+Module NoDupList.
+
+Inductive nodupinv {A : Type} {H : HasEquality A} : list A -> Prop :=
+| nodupinvNil : nodupinv (List.nil)
+| nodupinvCons : forall (x : A) (xs : list A),
+    ~(List.In x xs) ->
+    nodupinv xs ->
+    nodupinv (List.cons x xs)
+.
+Fixpoint undup {A : Type} {H : HasEquality A} (xs : list A) : option(list A) :=
+  match xs with
+  | List.nil => Some(List.nil)
+  | List.cons x xs' =>
+    match List.find (fun y => eq x y) xs', undup xs' with
+    | None, Some xs' => Some(List.cons x xs')
+    | _, _ => None
+    end
+  end
+.
+Lemma undup_refl {A : Type} {H : HasEquality A} (xs ys : list A) :
+  undup xs = Some ys -> xs = ys.
+Proof.
+  revert ys; induction xs; intros ys H0.
+  - now inv H0.
+  - cbn in H0. destruct (option_dec (List.find (fun y : A => eq a y) xs)) as [Hx|Hy].
+    + apply not_eq_None_Some in Hx as [zs Hx]; rewrite Hx in H0; congruence.
+    + rewrite Hy in H0; destruct (option_dec (undup xs)) as [Ha|Hb].
+      * apply not_eq_None_Some in Ha as [ys' Ha]; rewrite Ha in H0; rewrite (IHxs ys' Ha); now inv H0.
+      * rewrite Hb in H0; congruence.
+Qed.
+Lemma nodupinv_equiv_undup {A : Type} {H : HasEquality A} (xs : list A) :
+  undup xs = Some xs <-> nodupinv xs.
+Proof.
+  split.
+  - induction xs; intros H0; constructor.
+    + destruct (option_dec (List.find (fun y : A => eq a y) xs)) as [Hx|Hy].
+      * cbn in *; apply not_eq_None_Some in Hx as [zs Hx]; now rewrite Hx in H0.
+      * cbn in *; rewrite Hy in H0. intros H1. admit.
+    + apply IHxs. admit.
+  - induction 1; eauto. cbn. rewrite IHnodupinv.
+    destruct (option_dec (List.find (fun y : A => eq x y) xs)) as [Hx|Hy].
+    + apply not_eq_None_Some in Hx as [zs Hx]. rewrite Hx. admit.
+    + now rewrite Hy.
+Admitted.
+Definition push { A : Type } { H : HasEquality A } (x : A) (xs : list A) : option (list A) :=
+  match undup (List.cons x xs) with
+  | Some xs' => Some xs'
+  | None => None
+  end
+.
+Lemma push_refl { A : Type } { H : HasEquality A } (x : A) (xs ys : list A) :
+  push x xs = Some ys -> cons x xs = ys.
+Proof.
+  intros H0; unfold push in H0; destruct (option_dec (undup xs)) as [Hx|Hy].
+  - apply not_eq_None_Some in Hx as [zs Hx]. cbn in H0. rewrite (undup_refl xs Hx) in *.
+    destruct (option_dec (List.find (fun y : A => eq x y) zs)) as [Ha|Hb].
+    + apply not_eq_None_Some in Ha as [ws Ha]. now rewrite Ha in H0.
+    + rewrite Hb in H0. rewrite <- (undup_refl xs Hx) in H0. rewrite Hx in H0. now inv H0.
+  - cbn in H0. destruct (option_dec (List.find (fun y : A => eq x y) xs)) as [Ha|Hb].
+    + apply not_eq_None_Some in Ha as [ws Ha]. now rewrite Ha in H0.
+    + now rewrite Hb, Hy in H0.
+Qed.
+Lemma push_ok { A : Type } { H : HasEquality A } (x : A) (xs : list A) :
+  push x xs = Some (List.cons x xs) -> nodupinv (List.cons x xs).
+Proof.
+  intros H0. unfold push in H0.
+  destruct (option_dec (undup (List.cons x xs))) as [Hx|Hy]; try (rewrite Hy in *; congruence);
+  apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H0; inv H0;
+  apply nodupinv_equiv_undup; cbn in Hx.
+  destruct (option_dec (List.find (fun y : A => eq x y) xs)) as [Ha|Hb].
+  - apply not_eq_None_Some in Ha as [ys Ha]; now rewrite Ha in Hx.
+  - rewrite Hb in Hx.
+    destruct (option_dec (undup xs)) as [Hc|Hd].
+    + apply not_eq_None_Some in Hc as [ws Hc]; apply undup_refl in Hc as Hc'; rewrite Hc in *;
+      inv Hx; cbn; rewrite Hb; now rewrite Hc.
+    + now rewrite Hd in Hx.
+Qed.
+
+End NoDupList.

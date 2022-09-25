@@ -432,20 +432,17 @@ Instance nateq__Instance : HasEquality nat := {
 }.
 Definition heap := mapind nateq__Instance nat.
 Definition hNil : heap := mapNil nateq__Instance nat.
-Definition Hgrow (H : heap) (s : nat) : heap :=
-  let len := List.length (dom H) in
-  let fix doo (n : nat) :=
-    match n with
-    | 0 => H
-    | S n' => mapCons (len + n') 0 (doo n')
-    end
-  in doo s
+Fixpoint Hgrow_aux (H : heap) (s len : nat) : option heap :=
+  match s with
+  | 0 => Some(H)
+  | S n' =>
+    let* Hi := Hgrow_aux H n' len in
+    push (len + n') 0 Hi
+  end
 .
-(** We assume a mild axiom about the shape of heaps.
-    It simply restricts the keys to be less than the length of a heap. *)
-Axiom heap_axiom0 : forall (H : heap), forall (n : nat), n >= length H -> mget H n = None /\ forall v, mset H n v = None.
-Axiom heap_axiom1 : forall (H : heap), forall (n : nat), n < length H -> mget H n <> None /\ forall v, mset H n v <> None.
-
+Definition Hgrow (H : heap) (s : nat) : option heap :=
+  Hgrow_aux H s (List.length (dom H))
+.
 Definition active_ectx := list evalctx.
 
 #[local]
@@ -454,6 +451,14 @@ Definition state : Type := CSC.Fresh.fresh_state * symbols * active_ectx * heap 
 Notation "F ';' Ξ ';' ξ ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (Ξ : symbols),
                                          (ξ : active_ectx), (H : heap), (Δ : store))
                                          (at level 81, ξ at next level, Ξ at next level, H at next level, Δ at next level).
+Ltac splitΩ Ω :=
+  let F := fresh "F" in
+  let Ξ := fresh "Ξ" in
+  let ξ := fresh "ξ" in
+  let H := fresh "H" in
+  let Δ := fresh "Δ" in
+  destruct Ω as [[[[F Ξ] ξ] H] Δ].
+
 Definition nodupinv (Ω : state) : Prop :=
   let '(F, Ξ, ξ, H, Δ) := Ω in
   nodupinv Ξ /\ nodupinv H /\ nodupinv Δ
@@ -462,22 +467,34 @@ Lemma nodupinv_empty Ξ :
   Util.nodupinv Ξ ->
   nodupinv(Fresh.empty_fresh ; Ξ ; nil ; hNil ; sNil).
 Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
-
-Lemma split_Hgrow (H : heap) H' n :
-  H' = Hgrow H (S n) ->
-  exists v, H' = ((List.length (dom H) + n) ↦ v ◘ (Hgrow H n))
-.
-Proof. Admitted.
-Lemma nodupinv_extend_H F Ξ ξ H Δ n H':
+Lemma nodupinv_Δ F F' F'' Ξ ξ H Δ Δ' ℓ z :
   nodupinv (F;Ξ;ξ;H;Δ) ->
-  H' = Hgrow H n ->
+  ℓ = Fresh.fresh F ->
+  F' = Fresh.advance F ->
+  z = Fresh.freshv F' ->
+  F'' = Fresh.advance F' ->
+  push z ((addr ℓ) ⋅ ◻) Δ = Some Δ' ->
+  nodupinv (F'';Ξ;ξ;H;Δ')
+.
+Proof.
+  intros.
+  apply push_ok in H5. destruct H0 as [H0a [H0b H0c]].
+  repeat split; eauto.
+Qed.
+Lemma nodupinv_H F Ξ ξ H Δ n H':
+  nodupinv (F;Ξ;ξ;H;Δ) ->
+  Hgrow H n = Some H' ->
   nodupinv (F;Ξ;ξ;H';Δ)
 .
 Proof.
-Admitted.
-
-(*FIXME: maybe just put freshness as judgement all over the place...*)
-
+  intros [Ha [Hb Hc]]; repeat split; eauto.
+  revert H' H Hb H0; induction n; intros H' H Hb H0.
+  - now inv H0.
+  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)))) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
+    apply not_eq_None_Some in Hx as [H__x Hx].
+    rewrite Hx in H0.
+    cbn in H0. now apply push_ok in H0.
+Qed.
 
 (** Store splitting. We don't need a case for nat, since identifiers with type nat get substituted at runtime. *)
 Inductive store_split (Ξ : symbols) : store -> Gamma -> Prop :=
@@ -618,18 +635,43 @@ Inductive pstep : PrimStep :=
 | e_let : forall (Ω : state) (x : vart) (f : fnoerr) (e e' : expr),
     e' = subst x e f ->
     Ω ▷ Xlet x f e --[]--> Ω ▷ e'
-| e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ : store) (x z : vart) (ℓ n : nat) (e : expr),
+| e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ Δ' : store) (x z : vart) (ℓ n : nat) (e : expr),
     ℓ = Fresh.fresh F ->  F' = Fresh.advance F ->
     z = Fresh.freshv F' -> F'' = Fresh.advance F' ->
-    (*TODO: fresh_loc (Δimg Δ) (addr ℓ) ->*)
-    (*fresh_tvar (Δdom Δ) z ->*)
-    H' = Hgrow H n ->
-    (F ; Ξ ; ξ ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; Ξ ; ξ ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ)) ▷ (subst x e (Fvar z))
+    push z ((addr ℓ) ⋅ ◻) Δ = Some Δ' ->
+    Some H' = Hgrow H n ->
+    (F ; Ξ ; ξ ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; Ξ ; ξ ; H' ; Δ') ▷ (subst x e (Fvar z))
 .
 #[local]
 Existing Instance pstep.
 #[local]
 Hint Constructors pstep : core.
+
+Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
+  Ω ▷ e --[, a ]--> Ω' ▷ e' ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof.
+  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy.
+  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy.
+  induction 1; try (inv H; inv H0; easy).
+  - (*e_set*) splitΩ Ω; inv H; splitΩ Ω'; inv H0.
+    intros [Ha [Hb Hc]]; repeat split; eauto.
+    destruct (PeanoNat.Nat.le_decidable (length H1) (ℓ + n)).
+    + specialize (H0b H); now subst.
+    + apply PeanoNat.Nat.nle_gt in H; specialize (H0a H).
+      eapply nodupinv_mset in H0a; eauto.
+  - (*e_delete*) splitΩ Ω; inv H; splitΩ Ω'; inv H0.
+    intros [Ha [Hb Hc]]; repeat split; eauto. revert Hc; clear; intros H.
+    destruct ρ; try easy.
+    rewrite nodupinv_whocares in H; exact H.
+  - (*e_alloc*) splitΩ Ω; inv H; splitΩ Ω'; inv H0.
+    intros [Ha [Hb Hc]]; repeat split; eauto.
+    + eapply nodupinv_H; eauto. instantiate (1:=Δ'); instantiate (1:=ξ); instantiate (1:=Ξ); instantiate (1:=advance F).
+      repeat split; eauto. now apply push_ok in H6.
+    + now apply push_ok in H6.
+Qed.
 
 (** functional version of the above *)
 Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
@@ -693,12 +735,13 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
     match ef with
     | Xres(Fres(Fval(Vnat n))) =>
       let '(F, Ξ, ξ, H, Δ) := Ω in
-      let H' := Hgrow H n in
+      let* H' := Hgrow H n in
       let ℓ := CSC.Fresh.fresh F in
       let F' := Fresh.advance F in
       let z := CSC.Fresh.freshv F' in
+      let* Δ' := push z ((addr ℓ) ⋅ ◻) Δ in
       let e'' := subst x e' (Fvar z) in
-      Some(Some(Salloc (addr ℓ) n), Fresh.advance F' ; Ξ ; ξ ; H' ; (z ↦ ((addr ℓ) ⋅ ◻) ◘ Δ) ▷ e'')
+      Some(Some(Salloc (addr ℓ) n), (Fresh.advance F' ; Ξ ; ξ ; H' ; Δ') ▷ e'')
     | _ => None
     end
   | _ => None (* no matching rule *)
@@ -729,22 +772,16 @@ Lemma splitat_none_or_not_none (Δ : store) (x : vart) :
 Proof. destruct (option_dec (splitat Δ x)); now (left + right). Qed.
 Lemma Hget_none (H : heap) (n : nat) :
   n >= length H -> mget H n = None.
-Proof. eapply heap_axiom0. Qed.
+Proof. Admitted.
 Lemma Hget_some (H : heap) (n : nat) :
   n < length H -> exists v, mget H n = Some v.
-Proof.
-  intros H0; apply heap_axiom1 in H0 as [H0 _]; apply not_eq_None_Some in H0;
-  unfold is_Some in H0; deex; eauto.
-Qed.
+Proof. Admitted.
 Lemma Hset_none (H : heap) (n : nat) v :
   n >= length H -> mset H n v = None.
-Proof. intros H0; eapply heap_axiom0; trivial. Qed.
+Proof. Admitted.
 Lemma Hset_some (H : heap) (n : nat) v :
   n < length H -> exists H', mset H n v = Some H'.
-Proof.
-  intros H0; apply heap_axiom1 in H0 as [_ H0]; specialize (H0 v); apply not_eq_None_Some in H0;
-  unfold is_Some in H0; deex; eauto.
-Qed.
+Proof. Admitted.
 
 (** We use an alternative notation of pstep here that does not constrain a to be *either* Some/None *)
 Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
@@ -768,7 +805,19 @@ Proof.
         now rewrite (@Hset_none H (ℓ + n) v H1b).
     + (* e-delete *) now cbn; rewrite splitat_elim.
     + (* e-let *) now subst; cbn.
-    + (* e-new *) now rewrite H3; subst; cbn.
+    + (* e-new *) subst.
+      unfold pstepf. rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)).
+      rewrite <- H5. rewrite (get_rid_of_letstar H').
+      change ((fun Δ'0 : option store => (let* Δ'0 := Δ'0 in
+              Some
+                  (Some (Salloc (addr (fresh F)) n),
+                  (Some (advance (advance F), Ξ, ξ, H', Δ'0), subst x e (Fvar (freshv (advance F))))) =
+              Some
+                (Some (Salloc (addr (fresh F)) n),
+                (Some (advance (advance F), Ξ, ξ, H', Δ'), subst x e (Fvar (freshv (advance F)))))
+             )) (push (freshv (advance F)) (addr (fresh F), ◻) Δ)).
+      rewrite H4. rewrite (get_rid_of_letstar Δ').
+      easy.
   - intros H; destruct r0 as [oΩ e], r1 as [Ω' e']; destruct e; cbn in H; crush_interp; clear H.
     + (* e = e1 ⊕ e2 *)
       now grab_value2 e1 e2; inv H1; eapply e_binop.
@@ -793,7 +842,19 @@ Proof.
     + (* e = let x = e1 in e2 *)
       grab_final e1; inv H1; now eapply e_let.
     + (* e = let x = new e1 in e2 *)
-      grab_value e1; destruct s as [[[[F Ξ] ξ] H] Δ]; inv H1; eapply e_alloc; eauto.
+      change (pstepf (s ▷ Xnew x e1 e2) = Some (a, (Ω', e'))) in H1.
+      unfold pstepf in H1. rewrite (get_rid_of_letstar s) in H1.
+      grab_value e1. splitΩ s. destruct (option_dec (Hgrow H e1)) as [Hx|Hy]; try (rewrite Hy in H1; cbn in H1; congruence).
+      apply not_eq_None_Some in Hx as [H' Hx]; rewrite Hx in H1.
+      rewrite (get_rid_of_letstar H') in H1.
+      change ((fun Δ'0 : option store =>
+                 let* Δ' := Δ'0
+                 in Some(Some (Salloc (addr (fresh F)) e1),
+                        (Some (advance (advance F), Ξ, ξ, H', Δ'), subst x e2 (Fvar (freshv (advance F)))))
+                    = Some (a, (Ω', e'))) (push (freshv(advance F)) (addr(fresh F), ◻) Δ)) in H1.
+      destruct (option_dec (push (freshv(advance F)) (addr (fresh F), ◻) Δ)) as [Hx0|Hy0]; try (rewrite Hy0 in H1; cbn in H1; congruence).
+      apply not_eq_None_Some in Hx0 as [Δ' Hx0]; rewrite Hx0 in H1.
+      rewrite (get_rid_of_letstar Δ') in H1; inv H1. eapply e_alloc; eauto.
     + (* e = delete x *)
       destruct s as [[[[F Ξ] ξ] H] Δ]; inv H1.
       destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H2; congruence).
@@ -804,6 +865,13 @@ Proof.
     + (* e = abort *)
       apply e_abort.
 Qed.
+Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
+  pstepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof. intros H0 H1; apply equiv_pstep in H0; apply pstep_is_nodupinv_invariant in H0; eauto. Qed.
+
 (** convert an expression to evalctx in order to execute it functionally + "contextually" *)
 (** this function returns an eval context K and an expr e' such that K[e'] = e given some e *)
 Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
@@ -964,6 +1032,18 @@ Inductive estep : CtxStep :=
 Existing Instance estep.
 #[local]
 Hint Constructors estep : core.
+
+Lemma estep_is_nodupinv_invariant Ω e Ω' e' a :
+  Ω ▷ e ==[, a ]==> Ω' ▷ e' ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof.
+  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
+  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy;
+  induction 1; try (inv H; inv H0; easy);
+  inv H; inv H0; intros H0; apply pstep_is_nodupinv_invariant in H4; eauto.
+Qed.
 
 Local Set Warnings "-cast-in-pattern".
 Ltac crush_estep := (match goal with
@@ -1267,6 +1347,13 @@ Proof.
            eapply ungrab_ectx in Hx0; subst; eauto. eapply E_call; symmetry; eassumption.
 Qed.
 
+Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :
+  estepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof. intros H0 H1; apply equiv_estep in H0; apply estep_is_nodupinv_invariant in H0; eauto. Qed.
+
 Module ModAux <: CSC.Langs.Util.MOD.
   Definition State := rtexpr.
   Definition Ev := event.
@@ -1284,6 +1371,21 @@ Module ModAux <: CSC.Langs.Util.MOD.
 End ModAux.
 Module SMod := CSC.Langs.Util.Mod(ModAux).
 Import SMod.
+
+Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
+  Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof.
+  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
+  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy.
+  intros H__star; dependent induction H__star; try (inv H; inv H0; easy); try easy.
+  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x;
+    eapply estep_is_nodupinv_invariant in H; eauto.
+  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x;
+    eapply estep_is_nodupinv_invariant in H; eauto.
+Qed.
 
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
 Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
@@ -1474,6 +1576,14 @@ fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
         eapply IHfuel; eauto.
 Qed.
 
+Lemma star_stepf_is_nodupinv_invariant Ω e Ω' e' a fuel :
+  Some fuel = get_fuel e ->
+  star_stepf fuel (Ω ▷ e) = Some(a, Ω' ▷ e') ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof. intros H__fuel H0 H1; apply equiv_starstep in H0; eauto; apply star_step_is_nodupinv_invariant in H0; eauto. Qed.
+
 (** Evaluation of programs *)
 (*TODO: add typing*)
 Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
@@ -1591,20 +1701,20 @@ Definition debug_eval (p : prog) :=
      let _ = delete z in
      w*)
 Definition smsunsafe_ep : evalctx :=
-  Klet "x"%string
+  Klet "y"%string
     Khole
     (Xnew "z"%string
-        (Fvar "x"%string)
+        (Fvar "y"%string)
         (Xlet "w"%string
               (Xget "z"%string 1337)
-              (Xlet "_"%string
+              (Xlet "_1"%string
                     (Xdel "z"%string)
                     (Fvar "w"%string))
         ))
 .
 (* let x = 3 in call foo x *)
 Definition smsunsafe_ctx : evalctx :=
-  Kreturn (Klet ("_"%string)
+  Kreturn (Klet ("_0"%string)
     Khole
     (Xlet ("x"%string)
           3
@@ -1682,7 +1792,8 @@ Proof.
     splitΓfor.
     eapply CTvar.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
     destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
     eapply ownedptrcons; try easy.
@@ -1693,11 +1804,13 @@ Proof.
     eapply CTlet. eapply ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; eapply intℕ. eapply CTℕ.
     eapply ownedptrcons; try easy.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0; easy.
     eapply CTcall. eapply intℕ. eapply intℕ.
     splitΓfor. eapply CTvar; try easy.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy. easy.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
     destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
     destruct a; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0.
@@ -1716,7 +1829,8 @@ Proof.
     destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
     eapply ownedptrcons; try easy.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
+    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
+    destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
 Qed.
 
 Goal exists As R,
@@ -1915,11 +2029,20 @@ Proof.
   - remember (TMMon.addr(Fresh.fresh F)) as ℓ__TMS;
     remember (addr(Fresh.fresh F)) as ℓ.
     exists (TMMon.Salloc ℓ__TMS); exists (ℓ ↦ ℓ__TMS ◘ δ); exists ({ℓ__TMS} ∪ T__TMS); repeat split.
-    + apply (cons_msubset ℓ ℓ__TMS). cbn. admit. (* freshness assumption *)
+    + apply (cons_msubset ℓ ℓ__TMS). admit. (* freshness assumption *)
     + constructor; cbn; now rewrite loc_eqb_refl.
     + constructor; try easy. admit. (* freshness assumption *)
-    + constructor.
-      * cbn; unfold eq; now rewrite loc_eqb_refl.
+    + unfold push in H9.
+      change ((fun Δ'0 => match Δ'0 with
+                      | Some Δ'1 => Some Δ'1
+                      | None => None
+                      end = Some Δ') (undup (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ))) in H9.
+      destruct (option_dec (undup (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ))) as [Hx|Hy]; try (rewrite Hy in H9; cbn in H9; congruence).
+      apply not_eq_None_Some in Hx as [Δ__x Hx].
+      rewrite <- (undup_refl (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ) Hx) in Hx.
+      rewrite Hx in H9. inv H9.
+      constructor.
+      * cbn; now rewrite Nat.eqb_refl.
       * admit. (* freshness assumption *)
       * inv Ac. eapply store_agree_subsets; try exact H3.
         apply (cons_msubset (addr(Fresh.fresh F)) (TMMon.addr(Fresh.fresh F))).

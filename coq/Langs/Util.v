@@ -76,6 +76,18 @@ Proof.
   rewrite Hy1 in Hx. easy.
 Qed.
 
+Lemma push_ko { A : Type } { H : HasEquality A } { B : Type } (a : A) (b : B) (m : mapind H B) :
+  nodupinv m ->
+  ~ In a (dom m) ->
+  push a b m = Some (mapCons a b m)
+.
+Proof.
+  induction 1; cbn; intros H__a; trivial.
+  unfold push. destruct (option_dec (undup (mapCons a b (mapCons a0 b0 m)))) as [Hx|Hy].
+  - apply not_eq_None_Some in Hx as [m__x Hx]. rewrite Hx. apply undup_refl in Hx. now inv Hx.
+  - admit.
+Admitted.
+
 Definition img { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) : list B :=
   let fix img_aux (m : mapind H B) :=
     match m with
@@ -160,8 +172,7 @@ Instance MSubset__Transitivity { A : Type } { H : HasEquality A } { B : Type } :
 Proof. intros x y z Ha Hb f w Hc; now apply Hb, Ha. Qed.
 
 Lemma mget_min {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
-  mget m x = Some v <->
-  MIn m x v
+  mget m x = Some v <-> MIn m x v
 .
 Proof. split; induction m; cbn; eauto. Qed.
 
@@ -171,6 +182,13 @@ Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H
   mget m' x = Some v
 .
 Proof. intros Ha Hb; specialize (Hb x v); apply mget_min; apply mget_min in Ha; eauto. Qed.
+
+Lemma nodupinv_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  MSubset m m' ->
+  nodupinv m'
+.
+Proof. Admitted.
 
 
 (** These are synthetic. They simply allow us to write e.g. `PrimStep` instead of supplying it with parameters *)
@@ -316,11 +334,6 @@ Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
 #[global]
 Notation "'PROG[' symbs '][' start ']====[' As ']===>' r" := (wstep__Class (Cprog__Class symbs) start As r) (at level 81, r at next level).
  *)
-
-Lemma nodupinv_whocares { A : Type } { H : HasEquality A } { B : Type } (a : A) (b b' : B) (m m' : mapind H B) :
-  nodupinv (m ◘ a ↦ b ◘ m') <-> nodupinv (m ◘ a ↦ b' ◘ m')
-.
-Proof. Admitted.
 
 Module NoDupList.
 

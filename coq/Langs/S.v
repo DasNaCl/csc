@@ -1,6 +1,7 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef.
 Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Langs.Util.
+Require CSC.Langs.TMMon.
 
 (** * Syntax *)
 
@@ -416,12 +417,151 @@ Notation "'◻'" := (poisonless).
 Notation "'☣'" := (poisoned).
 
 Definition dynloc : Type := loc * poison.
+Definition dynloc_eqb :=
+  fun (dℓ1 dℓ2 : dynloc) =>
+    match dℓ1, dℓ2 with
+    | (ℓ1, ☣), (ℓ2, ☣) => loc_eqb ℓ1 ℓ2
+    | (ℓ1, ◻), (ℓ2, ◻) => loc_eqb ℓ1 ℓ2
+    | (ℓ1, ☣), (ℓ2, ◻) => false
+    | (ℓ1, ◻), (ℓ2, ☣) => false
+    end
+.
+Lemma dynloc_eqb_refl (dℓ1 : dynloc) :
+  dynloc_eqb dℓ1 dℓ1 = true.
+Proof. destruct dℓ1; destruct p; cbn; now apply loc_eqb_refl. Qed.
+Lemma dynloc_eqb_eq dℓ0 dℓ1 :
+  dynloc_eqb dℓ0 dℓ1 = true <-> dℓ0 = dℓ1.
+Proof.
+  destruct dℓ0, dℓ1; destruct p, p0; split; cbn; intros H; try apply loc_eqb_eq in H; subst; eauto;
+  inv H; apply loc_eqb_refl; inv H.
+Qed.
+Lemma dynloc_eqb_neq dℓ0 dℓ1 :
+  dynloc_eqb dℓ0 dℓ1 = false <-> dℓ0 <> dℓ1.
+Proof.
+  destruct dℓ0, dℓ1; destruct p, p0; split; cbn; intros H; try apply loc_eqb_neq in H; subst; eauto;
+  try (intros H'; apply H; now inv H').
+  1,4: apply loc_eqb_neq; intros H'; apply H; inversion H'; now subst.
+  1,2: congruence.
+Qed.
+#[local]
+Instance dynloceq__Instance : HasEquality dynloc := {
+  eq := dynloc_eqb ;
+  eq_refl := dynloc_eqb_refl ;
+  eqb_eq := dynloc_eqb_eq ;
+  neqb_neq := dynloc_eqb_neq
+}.
 (* '⋅' is `\cdot` *)
 Notation "ℓ '⋅' ρ" := (((ℓ : loc), (ρ : poison)) : dynloc) (at level 81).
 
 (** Stores map variables to potentially poisoned locations. *)
 Definition store := mapind varteq__Instance dynloc.
 Definition sNil : store := mapNil varteq__Instance dynloc.
+
+Fixpoint δ_of_Δ (Δ : store) :=
+  match Δ with
+  | mapNil _ _ => mapNil _ _
+  | mapCons _ ((addr ℓ), _) Δ' => mapCons (addr ℓ) (TMMon.addr ℓ) (δ_of_Δ Δ')
+  end
+.
+
+Inductive snodupinv : store -> Prop :=
+| snodupmapNil : snodupinv (sNil)
+| snodupmapCons : forall (x : vart) (ℓ : loc) (ρ : poison) (Δ : store),
+    ~(List.In x (dom Δ)) ->
+    ~(List.In ℓ (dom(δ_of_Δ Δ))) ->
+    snodupinv Δ ->
+    snodupinv (x ↦ (ℓ ⋅ ρ) ◘ Δ)
+.
+Lemma nodupinv_of_snodupinv (Δ : store) :
+  snodupinv Δ ->
+  nodupinv Δ
+.
+Proof. induction 1; constructor; eauto. Qed.
+
+Fixpoint sundup (Δ : store) : option(store) :=
+  match Δ with
+  | mapNil _ _ => Some(mapNil _ _)
+  | mapCons a (ℓ, ρ) Δ' =>
+    let thedom := dom Δ' in
+    let theimg := img Δ' in
+    match List.find (fun x => eq a x) thedom, List.find (fun x => let '(ℓ', _) := x in loc_eqb ℓ' ℓ) theimg, sundup Δ' with
+    | None, None, Some Δ'' => Some(mapCons a (ℓ,ρ) Δ'')
+    | _, _, _ => None
+    end
+  end
+.
+Lemma sundup_refl (Δ Δ' : store) :
+  sundup Δ = Some Δ' -> Δ = Δ'.
+Proof.
+  revert Δ'; induction Δ; cbn; intros; try (inv H; easy).
+  destruct b. destruct (option_dec (List.find (fun x : vart => vareq a x) (dom Δ))) as [Hx|Hy].
+  - apply not_eq_None_Some in Hx as [Δ__x Hx]; rewrite Hx in H; congruence.
+  - rewrite Hy in H.
+    destruct (option_dec (List.find (fun '(ℓ', _) => loc_eqb ℓ' l) (img Δ))) as [Hx0|Hy0].
+    + apply not_eq_None_Some in Hx0 as [Δ__x Hx0]; rewrite Hx0 in H; congruence.
+    + rewrite Hy0 in H. destruct (option_dec (sundup Δ)) as [Hx1|Hy1].
+      * apply not_eq_None_Some in Hx1 as [Δ__x Hx1]; rewrite Hx1 in H.
+        specialize (IHΔ Δ__x Hx1) as ->; now inv H.
+      * rewrite Hy1 in H; congruence.
+Qed.
+Lemma snodupinv_equiv_sundup (Δ : store) :
+  sundup Δ = Some Δ <-> snodupinv Δ.
+Proof.
+  split; intros H.
+  - induction Δ; cbn; try constructor.
+    cbn in H. destruct b. destruct (option_dec (List.find (fun x : vart => vareq a x) (dom Δ))) as [Hx|Hy].
+    + apply not_eq_None_Some in Hx as [Δ__x Hx]; rewrite Hx in H; congruence.
+    + rewrite Hy in H. destruct (option_dec (List.find (fun '(ℓ', _) => loc_eqb ℓ' l) (img Δ))) as [Hx0|Hy0].
+      * apply not_eq_None_Some in Hx0 as [Δ__x0 Hx0]; rewrite Hx0 in H; congruence.
+      * rewrite Hy0 in H. destruct (option_dec (sundup Δ)) as [Hx1|Hy1].
+        -- apply not_eq_None_Some in Hx1 as [Δ__x Hx1]; rewrite Hx1 in H.
+           admit.
+        -- rewrite Hy1 in H; congruence.
+  - induction H; cbn; try easy.
+    destruct (option_dec (List.find (fun x0 : vart => vareq x x0) (dom Δ))) as [Hx|Hy].
+    + admit.
+    + rewrite Hy. destruct (option_dec (List.find (fun '(ℓ', _) => loc_eqb ℓ' ℓ) (img Δ))) as [Hx0|Hy0].
+      * admit.
+      * rewrite Hy0. rewrite IHsnodupinv. easy.
+Admitted.
+Definition spush (x : vart) (dℓ : dynloc) (Δ : store) : option (store) :=
+  match sundup (mapCons x dℓ Δ) with
+  | Some Δ' => Some Δ'
+  | None => None
+  end
+.
+Lemma spush_ok (x : vart) (dℓ : dynloc) (Δ Δ' : store) :
+  spush x dℓ Δ = Some Δ' -> snodupinv Δ'.
+Proof.
+  intros H0. unfold spush in H0.
+  destruct (option_dec (sundup (mapCons x dℓ Δ))) as [Hx|Hy]; try (rewrite Hy in *; congruence);
+  apply not_eq_None_Some in Hx as [Δ__x Hx]; rewrite Hx in H0; inv H0;
+  apply snodupinv_equiv_sundup; cbn in Hx.
+  destruct dℓ.
+  destruct (option_dec (List.find (fun x0 : vart => vareq x x0) (dom Δ))) as [Hx0|Hy0]; try (rewrite Hy0 in *; congruence).
+  apply not_eq_None_Some in Hx0 as [Δ__x Hx0]; rewrite Hx0 in Hx; inv Hx.
+  rewrite Hy0 in Hx. destruct (option_dec (List.find (fun '(ℓ', _) => loc_eqb ℓ' l) (img Δ))) as [Hx1|Hy1].
+  apply not_eq_None_Some in Hx1 as [Δ__x Hx1]; rewrite Hx1 in Hx; inv Hx.
+  rewrite Hy1 in Hx. destruct (option_dec (sundup Δ)) as [Hx2|Hy2].
+  apply not_eq_None_Some in Hx2 as [Δ__x Hx1]. rewrite Hx1 in Hx.
+  inv Hx. cbn. apply sundup_refl in Hx1 as Hx1'. rewrite Hx1' in Hy0.
+  rewrite (sundup_refl Δ Hx1) in Hx1. rewrite Hx1' in Hy1. rewrite Hy0, Hy1, Hx1; easy.
+  rewrite Hy2 in Hx; congruence.
+Qed.
+Lemma snodupinv_whocares (a : vart) (b b' : dynloc) (Δ Δ' : store) :
+  snodupinv (Δ ◘ a ↦ b ◘ Δ') <-> snodupinv (Δ ◘ a ↦ b' ◘ Δ')
+.
+Proof. Admitted.
+Lemma spush_msubset (Δ Δ' : store) (x : vart) (v : dynloc) :
+  Some Δ' = spush x v Δ ->
+  MSubset Δ Δ'.
+Proof. Admitted.
+
+Lemma δΔ_msubset_invariant (Δ Δ' : store) :
+  MSubset Δ Δ' ->
+  MSubset (δ_of_Δ Δ) (δ_of_Δ Δ')
+.
+Proof. Admitted.
 
 #[local]
 Instance nateq__Instance : HasEquality nat := {
@@ -458,29 +598,14 @@ Ltac splitΩ Ω :=
   let H := fresh "H" in
   let Δ := fresh "Δ" in
   destruct Ω as [[[[F Ξ] ξ] H] Δ].
-
 Definition nodupinv (Ω : state) : Prop :=
   let '(F, Ξ, ξ, H, Δ) := Ω in
-  nodupinv Ξ /\ nodupinv H /\ nodupinv Δ
+  nodupinv Ξ /\ nodupinv H /\ snodupinv Δ
 .
 Lemma nodupinv_empty Ξ :
   Util.nodupinv Ξ ->
   nodupinv(Fresh.empty_fresh ; Ξ ; nil ; hNil ; sNil).
 Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
-Lemma nodupinv_Δ F F' F'' Ξ ξ H Δ Δ' ℓ z :
-  nodupinv (F;Ξ;ξ;H;Δ) ->
-  ℓ = Fresh.fresh F ->
-  F' = Fresh.advance F ->
-  z = Fresh.freshv F' ->
-  F'' = Fresh.advance F' ->
-  push z ((addr ℓ) ⋅ ◻) Δ = Some Δ' ->
-  nodupinv (F'';Ξ;ξ;H;Δ')
-.
-Proof.
-  intros.
-  apply push_ok in H5. destruct H0 as [H0a [H0b H0c]].
-  repeat split; eauto.
-Qed.
 Lemma nodupinv_H F Ξ ξ H Δ n H':
   nodupinv (F;Ξ;ξ;H;Δ) ->
   Hgrow H n = Some H' ->
@@ -638,7 +763,7 @@ Inductive pstep : PrimStep :=
 | e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ Δ' : store) (x z : vart) (ℓ n : nat) (e : expr),
     ℓ = Fresh.fresh F ->  F' = Fresh.advance F ->
     z = Fresh.freshv F' -> F'' = Fresh.advance F' ->
-    push z ((addr ℓ) ⋅ ◻) Δ = Some Δ' ->
+    spush z ((addr ℓ) ⋅ ◻) Δ = Some Δ' ->
     Some H' = Hgrow H n ->
     (F ; Ξ ; ξ ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; Ξ ; ξ ; H' ; Δ') ▷ (subst x e (Fvar z))
 .
@@ -665,12 +790,12 @@ Proof.
   - (*e_delete*) splitΩ Ω; inv H; splitΩ Ω'; inv H0.
     intros [Ha [Hb Hc]]; repeat split; eauto. revert Hc; clear; intros H.
     destruct ρ; try easy.
-    rewrite nodupinv_whocares in H; exact H.
+    rewrite snodupinv_whocares in H; exact H.
   - (*e_alloc*) splitΩ Ω; inv H; splitΩ Ω'; inv H0.
     intros [Ha [Hb Hc]]; repeat split; eauto.
     + eapply nodupinv_H; eauto. instantiate (1:=Δ'); instantiate (1:=ξ); instantiate (1:=Ξ); instantiate (1:=advance F).
-      repeat split; eauto. now apply push_ok in H6.
-    + now apply push_ok in H6.
+      repeat split; eauto using spush_ok.
+    + now apply spush_ok in H6.
 Qed.
 
 (** functional version of the above *)
@@ -739,7 +864,7 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       let ℓ := CSC.Fresh.fresh F in
       let F' := Fresh.advance F in
       let z := CSC.Fresh.freshv F' in
-      let* Δ' := push z ((addr ℓ) ⋅ ◻) Δ in
+      let* Δ' := spush z ((addr ℓ) ⋅ ◻) Δ in
       let e'' := subst x e' (Fvar z) in
       Some(Some(Salloc (addr ℓ) n), (Fresh.advance F' ; Ξ ; ξ ; H' ; Δ') ▷ e'')
     | _ => None
@@ -783,6 +908,7 @@ Lemma Hset_some (H : heap) (n : nat) v :
   n < length H -> exists H', mset H n v = Some H'.
 Proof. Admitted.
 
+(*
 (** We use an alternative notation of pstep here that does not constrain a to be *either* Some/None *)
 Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
   r0 --[, a ]--> r1 <-> pstepf r0 = Some(a, r1).
@@ -872,6 +998,7 @@ Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
 .
 Proof. intros H0 H1; apply equiv_pstep in H0; apply pstep_is_nodupinv_invariant in H0; eauto. Qed.
 
+*)
 (** convert an expression to evalctx in order to execute it functionally + "contextually" *)
 (** this function returns an eval context K and an expr e' such that K[e'] = e given some e *)
 Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
@@ -1044,7 +1171,7 @@ Proof.
   induction 1; try (inv H; inv H0; easy);
   inv H; inv H0; intros H0; apply pstep_is_nodupinv_invariant in H4; eauto.
 Qed.
-
+(*
 Local Set Warnings "-cast-in-pattern".
 Ltac crush_estep := (match goal with
                      | [H: _ ▷ (Xres ?f) ==[ ?a ]==> ?r |- _] =>
@@ -1353,6 +1480,7 @@ Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :
   nodupinv Ω'
 .
 Proof. intros H0 H1; apply equiv_estep in H0; apply estep_is_nodupinv_invariant in H0; eauto. Qed.
+*)
 
 Module ModAux <: CSC.Langs.Util.MOD.
   Definition State := rtexpr.
@@ -1372,6 +1500,8 @@ End ModAux.
 Module SMod := CSC.Langs.Util.Mod(ModAux).
 Import SMod.
 
+
+(*
 Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
   Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
   nodupinv Ω ->
@@ -1855,7 +1985,7 @@ Qed.
 
 
 Compute (debug_eval smsunsafe_prog).
-
+*)
 Variant msevent : Type :=
 | MSalloc (ℓ : loc) (n : nat) : msevent
 | MSdealloc (ℓ : loc) : msevent
@@ -1920,21 +2050,26 @@ Fixpoint mstracepref_of_tracepref (tr : tracepref) : SMSMod.tracepref :=
   end
 .
 
-Require CSC.Langs.TMMon.
 Module TMMon := CSC.Langs.TMMon.
 Module TMMonM := TMMon.TMSMod.
 
 Definition deltamap := mapind loceq__Instance TMMon.loc.
 
+Lemma snodupinv_implies_δnodupinv Δ :
+  snodupinv Δ ->
+  Util.nodupinv (δ_of_Δ Δ)
+.
+Proof. induction 1; try constructor; destruct ℓ; constructor; trivial. Qed.
+
 (** Trace agreement between memory specific events and TMS monitor events. *)
 Inductive ev_eq (δ : deltamap) : option msevent -> option TMMon.event -> Prop :=
-| TMSAuthAlloc : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSalloc ℓ n)) (Some(TMMon.Salloc ℓ'))
-| TMSAuthDealloc : forall ℓ ℓ', mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSdealloc ℓ)) (Some(TMMon.Sdealloc ℓ'))
-| TMSAuthUse : forall ℓ ℓ' n, mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSuse ℓ n)) (Some(TMMon.Suse ℓ'))
-| TMSAuthNone : ev_eq δ (None) (None)
+| TMSAuthAlloc : forall ℓ ℓ' n, Util.nodupinv δ -> mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSalloc ℓ n)) (Some(TMMon.Salloc ℓ'))
+| TMSAuthDealloc : forall ℓ ℓ', Util.nodupinv δ -> mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSdealloc ℓ)) (Some(TMMon.Sdealloc ℓ'))
+| TMSAuthUse : forall ℓ ℓ' n, Util.nodupinv δ -> mget δ ℓ = Some ℓ' -> ev_eq δ (Some(MSuse ℓ n)) (Some(TMMon.Suse ℓ'))
+| TMSAuthNone : Util.nodupinv δ -> ev_eq δ (None) (None)
 .
 Inductive mstracepref_eq (δ : deltamap) : SMSMod.tracepref -> TMMonM.tracepref -> Prop :=
-| TMSAuthRefl : mstracepref_eq δ SMSMod.Tnil TMMonM.Tnil
+| TMSAuthRefl : Util.nodupinv δ -> mstracepref_eq δ SMSMod.Tnil TMMonM.Tnil
 | TMSAuthTrans : forall a a' As As', ev_eq δ (Some a) (Some a') ->
                                 mstracepref_eq δ As As' ->
                                 mstracepref_eq δ (SMSMod.Tcons a As) (TMMonM.Tcons a' As')
@@ -1943,13 +2078,15 @@ Inductive mstracepref_eq (δ : deltamap) : SMSMod.tracepref -> TMMonM.tracepref 
 Import TMMon.TMMonNotation.
 (** Store agreement between our stores and the TMS monitor. *)
 Inductive store_agree (δ : deltamap) : TMMon.TMSMonitor -> store -> Prop :=
-| EmptyAgree : store_agree δ TMMon.emptytmsmon sNil
+| EmptyAgree : Util.nodupinv δ -> store_agree δ TMMon.emptytmsmon sNil
 | ConsAgree : forall (x : vart) (ℓ : loc) (ℓ' : TMMon.loc) (T__TMS : TMMon.TMSMonitor) (Δ : store),
+    Util.nodupinv δ ->
     mget δ ℓ = Some ℓ' ->
     ℓ' ∉ T__TMS ->
     store_agree δ T__TMS Δ ->
     store_agree δ ({ℓ'} ∪ T__TMS) (x ↦ (ℓ ⋅ ◻) ◘ Δ)
 | PoisonAgree : forall (x : vart) (ℓ : loc) (ℓ' : TMMon.loc) (T__TMS : TMMon.TMSMonitor) (Δ : store),
+    Util.nodupinv δ ->
     mget δ ℓ = Some ℓ' ->
     store_agree δ T__TMS Δ ->
     store_agree δ T__TMS (x ↦ (ℓ ⋅ ☣) ◘ Δ)
@@ -1971,12 +2108,7 @@ Lemma estep_preservation Ω e τ Ω' e' a :
 .
 Proof. Admitted.
 
-Lemma store_agree_subsets δ δ' T__TMS Δ :
-  store_agree δ T__TMS Δ ->
-  MSubset δ δ' ->
-  store_agree δ' T__TMS Δ.
-Proof. Admitted.
-Lemma store_agree_split δ T__TMS Δ1 x ℓ ρ Δ2 :
+Lemma store_agree_split T__TMS Δ1 x ℓ ρ Δ2 δ :
   store_agree δ T__TMS (Δ1 ◘ x ↦ (addr ℓ, ρ) ◘ Δ2) ->
   exists T__TMS1 T__TMS2 ℓ', store_agree δ T__TMS1 Δ1 /\
                     store_agree δ T__TMS2 Δ2 /\
@@ -1984,7 +2116,7 @@ Lemma store_agree_split δ T__TMS Δ1 x ℓ ρ Δ2 :
                     T__TMS = TMMon.append T__TMS1 (TMMon.append ({ℓ'} ∪ TMMon.emptytmsmon) T__TMS2)
 .
 Proof. Admitted.
-Lemma store_agree_rsplit δ T__TMS1 T__TMS2 Δ1 Δ2 :
+Lemma store_agree_rsplit T__TMS1 T__TMS2 Δ1 Δ2 δ:
   store_agree δ T__TMS1 Δ1 ->
   store_agree δ T__TMS2 Δ2 ->
   store_agree δ (TMMon.append T__TMS1 T__TMS2) (Δ1 ◘ Δ2)
@@ -1995,59 +2127,128 @@ Lemma store_split_poisoned Ξ Δ1 x ℓ Δ2 Γ :
   store_split Ξ (Δ1 ◘ Δ2) Γ /\ (~ List.In x (dom Γ))
 .
 Proof. Admitted.
+Lemma store_agree_subsets δ δ' T__TMS Δ :
+  store_agree δ T__TMS Δ ->
+  MSubset δ δ' ->
+  store_agree δ' T__TMS Δ
+.
+Proof.
+  induction 1; cbn; intros Ha; eauto. constructor.
+Admitted.
+Lemma store_agree_notin_propagates ℓ (Δ : store) T__TMS :
+  ~ In (addr ℓ) (dom(δ_of_Δ Δ)) ->
+  store_agree (δ_of_Δ Δ) T__TMS Δ ->
+  TMMon.addr(ℓ) ∉ T__TMS
+.
+Proof. Admitted.
+
 Lemma base_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)
                            (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
   rt_check Ω e τ ->
   (Ω ▷ e --[ a ]--> Ω' ▷ e') ->
   state_agree δ T__TMS Ω ->
+  δ = δ_of_Δ (let '(_,_,_,_,Δ) := Ω in Δ) ->
   exists (b : TMMon.event) (δ' : deltamap) (T__TMS' : TMMon.TMSMonitor),
-     MSubset δ δ'
+    MSubset δ δ'
   /\ ev_eq δ' (msev_of_ev a) (Some b)
   /\ (TMMon.step T__TMS (Some b) T__TMS')
   /\ state_agree δ' T__TMS' Ω'
 .
 Proof.
-  intros Aa Ab Ac. inv Ab.
+  intros Aa Ab Ac Ad. inv Ab.
+  - inv Ac. assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
+    exists (TMMon.Suse ℓ__TMS). exists (δ_of_Δ(Δ1 ◘ x ↦ (addr ℓ, ρ) ◘ Δ2)). exists T__TMS; repeat split; try easy; try now constructor.
+    cbn. inv Ac3; eauto.  constructor; eauto. constructor; eauto. inv H7.
+    constructor; eauto. inv Ac4; easy.
+  - inv Ac. assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
+    exists (TMMon.Suse ℓ__TMS). exists (δ_of_Δ(Δ1 ◘ x ↦ (addr ℓ, ρ) ◘ Δ2)). exists T__TMS; repeat split; try easy; try now constructor.
+    cbn. inv Ac3; eauto.  constructor; eauto. constructor; eauto. inv H7.
+    constructor; eauto. inv Ac4; easy.
   - inv Ac; assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
-    exists (TMMon.Suse ℓ__TMS). exists δ. exists T__TMS.
-    repeat split; try easy; constructor; inv Ac3; easy.
-  - inv Ac; assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
-    exists (TMMon.Suse ℓ__TMS). exists δ. exists T__TMS.
-    repeat split; try easy; constructor; inv Ac3; easy.
-  - inv Ac; assert (H3':=H3); apply store_agree_split in H3 as [T__TMS1 [T__TMS2 [ℓ__TMS [Ac1 [Ac2 [Ac3 Ac4]]]]]].
-    exists (TMMon.Sdealloc ℓ__TMS). exists δ.
+    exists (TMMon.Sdealloc ℓ__TMS). exists (δ_of_Δ(Δ1 ◘ x ↦ (addr ℓ, ρ) ◘ Δ2)).
     inv Ac3.
     + (* Rule Cons-Agree *)
       exists (TMMon.append T__TMS1 T__TMS2); repeat split; try easy; try now econstructor.
-      econstructor; try eapply TMMon.loc_inside_split; eauto.
-      eapply TMMon.remove_loc_from_union.
-      apply store_agree_rsplit; eauto; econstructor; eauto.
+      constructor; eauto using TMMon.remove_loc_from_union.
+      cbn. apply store_agree_rsplit; eauto. econstructor; eauto.
     + (* Rule Cons-Agree-Ignore *)
-      inv Aa. inv H0. eapply store_split_poisoned in H11 as [H11a H11b].
-      inv H1; exfalso; revert H11b; clear; intros H; apply H; clear H.
+      inv Aa. inv H0. eapply store_split_poisoned in H12 as [H12a H12b].
+      inv H1; exfalso; revert H12b; clear; intros H; apply H; clear H.
       induction Γ1; cbn; eauto.
   - remember (TMMon.addr(Fresh.fresh F)) as ℓ__TMS;
     remember (addr(Fresh.fresh F)) as ℓ.
-    exists (TMMon.Salloc ℓ__TMS); exists (ℓ ↦ ℓ__TMS ◘ δ); exists ({ℓ__TMS} ∪ T__TMS); repeat split.
-    + apply (cons_msubset ℓ ℓ__TMS). admit. (* freshness assumption *)
-    + constructor; cbn; now rewrite loc_eqb_refl.
-    + constructor; try easy. admit. (* freshness assumption *)
-    + unfold push in H9.
+    exists (TMMon.Salloc ℓ__TMS); exists (δ_of_Δ Δ'); exists ({ℓ__TMS} ∪ T__TMS); repeat split.
+    + unfold spush in H9.
+      change ((fun Δ__y : option store => match Δ__y with
+                                     | Some Δ__y' => Some Δ__y'
+                                     | None => None
+                                     end = Some Δ') (sundup (freshv(advance F) ↦ (ℓ, ◻) ◘ Δ))) in H9.
+      destruct (option_dec (sundup ((freshv(advance F)) ↦ (ℓ, ◻) ◘ Δ))) as [Hx|Hy].
+      * apply not_eq_None_Some in Hx as [Δ__x Hx]. rewrite Hx in H9. inv H9.
+        rewrite <- (sundup_refl (freshv(advance F) ↦ (addr(fresh F), ◻) ◘ Δ) Hx).
+        rewrite <- (sundup_refl (freshv(advance F) ↦ (addr(fresh F), ◻) ◘ Δ) Hx) in Hx.
+        apply snodupinv_equiv_sundup in Hx as Hx'; assert (Hx'':=Hx'). inv Hx'.
+        remember (freshv(advance F)↦(addr(fresh F),◻)◘Δ) as Δ__s'.
+        assert (Some Δ__s' = spush (freshv(advance F)) (addr(fresh F),◻) Δ).
+        unfold spush. symmetry.
+        change ((fun Δ__y : option store => match Δ__y with
+                                      | Some Δ__y' => Some Δ__y'
+                                      | None => None
+                                      end = Some Δ__s') (sundup((freshv(advance F))↦(addr(fresh F), ◻) ◘ Δ))).
+        rewrite HeqΔ__s' in Hx; rewrite Hx. now subst.
+        eapply spush_msubset in H0. subst. now apply δΔ_msubset_invariant.
+      * now rewrite Hy in H9.
+    + inv H9. inv Ac. apply spush_ok in H1 as H1'.
+      apply snodupinv_implies_δnodupinv in H1'.
+      constructor; eauto.
+      unfold spush in H1.
+      destruct (option_dec (sundup (freshv(advance F) ↦ (addr (fresh F), ◻) ◘ Δ))) as [Hx|Hy].
+      * apply not_eq_None_Some in Hx as [Δ__x Hx]. rewrite <- (sundup_refl _ Hx) in Hx.
+        change ((fun Δ__y : option store => match Δ__y with
+                                | Some Δ'0 => Some Δ'0
+                                | None => None
+                                end = Some Δ') (sundup (freshv(advance F) ↦ (addr(fresh F), ◻) ◘ Δ))) in H1.
+        rewrite Hx in H1.
+        inv H1. cbn. now rewrite Nat.eqb_refl.
+      * change ((fun Δ__y : option store => match Δ__y with
+                                       | Some Δ'0 => Some Δ'0
+                                       | None => None
+                                       end = Some Δ') (sundup (freshv(advance F) ↦ (addr(fresh F), ◻) ◘ Δ))) in H1.
+        rewrite Hy in H1; congruence.
+    + constructor; try easy. inv Ac. apply spush_ok in H9 as H9'.
+      unfold spush in H9.
+      destruct (option_dec (sundup (freshv(advance F) ↦ (addr (fresh F), ◻) ◘ Δ))) as [Hx|Hy].
+      * apply not_eq_None_Some in Hx as [Δ__x Hx].
+        change ((fun Δ__s : option store => match Δ__s with
+                                       | Some Δ__t => Some Δ__t
+                                       | None => None
+                                       end = Some Δ') (sundup (freshv(advance F) ↦ (addr(fresh F), ◻) ◘ Δ))) in H9.
+        rewrite Hx in H9. rewrite <- Hx in H9.
+        rewrite <- (sundup_refl (freshv(advance F) ↦ (addr(fresh F), ◻) ◘ Δ)) in H9'; eauto.
+        inv H9'. eauto using store_agree_notin_propagates.
+      * change ((fun Δ__y : option store => match Δ__y with
+                                       | Some Δ'0 => Some Δ'0
+                                       | None => None
+                                       end = Some Δ') (sundup (freshv(advance F) ↦ (addr(fresh F), ◻) ◘ Δ))) in H9.
+        rewrite Hy in H9; congruence.
+    + unfold spush in H9.
       change ((fun Δ'0 => match Δ'0 with
                       | Some Δ'1 => Some Δ'1
                       | None => None
-                      end = Some Δ') (undup (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ))) in H9.
-      destruct (option_dec (undup (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ))) as [Hx|Hy]; try (rewrite Hy in H9; cbn in H9; congruence).
+                      end = Some Δ') (sundup (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ))) in H9.
+      destruct (option_dec (sundup (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ))) as [Hx|Hy]; try (rewrite Hy in H9; cbn in H9; congruence).
       apply not_eq_None_Some in Hx as [Δ__x Hx].
-      rewrite <- (undup_refl (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ) Hx) in Hx.
+      rewrite <- (sundup_refl (freshv (advance F) ↦ (ℓ, ◻) ◘ Δ) Hx) in Hx.
       rewrite Hx in H9. inv H9.
-      constructor.
+      econstructor; eauto.
+      * apply snodupinv_equiv_sundup in Hx as Hx'; now apply snodupinv_implies_δnodupinv in Hx'.
       * cbn; now rewrite Nat.eqb_refl.
-      * admit. (* freshness assumption *)
-      * inv Ac. eapply store_agree_subsets; try exact H3.
+      * inv Ac. apply snodupinv_equiv_sundup in Hx. inv Hx. eauto using store_agree_notin_propagates.
+      * inv Ac. cbn. eapply store_agree_subsets; try exact H3.
         apply (cons_msubset (addr(Fresh.fresh F)) (TMMon.addr(Fresh.fresh F))).
-        (* freshness assumption *)
-Admitted.
+        symmetry. eapply snodupinv_equiv_sundup in Hx as Hx'. eapply snodupinv_implies_δnodupinv in Hx'.
+        eapply push_ko; cbn in Hx'; inv Hx'; eauto.
+Qed.
 
 Lemma ctx_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)
                           (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :

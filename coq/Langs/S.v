@@ -908,7 +908,6 @@ Lemma Hset_some (H : heap) (n : nat) v :
   n < length H -> exists H', mset H n v = Some H'.
 Proof. Admitted.
 
-(*
 (** We use an alternative notation of pstep here that does not constrain a to be *either* Some/None *)
 Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
   r0 --[, a ]--> r1 <-> pstepf r0 = Some(a, r1).
@@ -931,19 +930,8 @@ Proof.
         now rewrite (@Hset_none H (ℓ + n) v H1b).
     + (* e-delete *) now cbn; rewrite splitat_elim.
     + (* e-let *) now subst; cbn.
-    + (* e-new *) subst.
-      unfold pstepf. rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)).
-      rewrite <- H5. rewrite (get_rid_of_letstar H').
-      change ((fun Δ'0 : option store => (let* Δ'0 := Δ'0 in
-              Some
-                  (Some (Salloc (addr (fresh F)) n),
-                  (Some (advance (advance F), Ξ, ξ, H', Δ'0), subst x e (Fvar (freshv (advance F))))) =
-              Some
-                (Some (Salloc (addr (fresh F)) n),
-                (Some (advance (advance F), Ξ, ξ, H', Δ'), subst x e (Fvar (freshv (advance F)))))
-             )) (push (freshv (advance F)) (addr (fresh F), ◻) Δ)).
-      rewrite H4. rewrite (get_rid_of_letstar Δ').
-      easy.
+    + (* e-new *) subst; unfold pstepf.
+      now rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)), <- H5, (get_rid_of_letstar H'), H4, (get_rid_of_letstar Δ').
   - intros H; destruct r0 as [oΩ e], r1 as [Ω' e']; destruct e; cbn in H; crush_interp; clear H.
     + (* e = e1 ⊕ e2 *)
       now grab_value2 e1 e2; inv H1; eapply e_binop.
@@ -973,12 +961,7 @@ Proof.
       grab_value e1. splitΩ s. destruct (option_dec (Hgrow H e1)) as [Hx|Hy]; try (rewrite Hy in H1; cbn in H1; congruence).
       apply not_eq_None_Some in Hx as [H' Hx]; rewrite Hx in H1.
       rewrite (get_rid_of_letstar H') in H1.
-      change ((fun Δ'0 : option store =>
-                 let* Δ' := Δ'0
-                 in Some(Some (Salloc (addr (fresh F)) e1),
-                        (Some (advance (advance F), Ξ, ξ, H', Δ'), subst x e2 (Fvar (freshv (advance F)))))
-                    = Some (a, (Ω', e'))) (push (freshv(advance F)) (addr(fresh F), ◻) Δ)) in H1.
-      destruct (option_dec (push (freshv(advance F)) (addr (fresh F), ◻) Δ)) as [Hx0|Hy0]; try (rewrite Hy0 in H1; cbn in H1; congruence).
+      destruct (option_dec(spush(freshv(advance F)) (addr (fresh F), ◻) Δ)) as [Hx0|Hy0]; try (rewrite Hy0 in H1; cbn in H1; congruence).
       apply not_eq_None_Some in Hx0 as [Δ' Hx0]; rewrite Hx0 in H1.
       rewrite (get_rid_of_letstar Δ') in H1; inv H1. eapply e_alloc; eauto.
     + (* e = delete x *)
@@ -998,7 +981,6 @@ Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
 .
 Proof. intros H0 H1; apply equiv_pstep in H0; apply pstep_is_nodupinv_invariant in H0; eauto. Qed.
 
-*)
 (** convert an expression to evalctx in order to execute it functionally + "contextually" *)
 (** this function returns an eval context K and an expr e' such that K[e'] = e given some e *)
 Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
@@ -1171,7 +1153,6 @@ Proof.
   induction 1; try (inv H; inv H0; easy);
   inv H; inv H0; intros H0; apply pstep_is_nodupinv_invariant in H4; eauto.
 Qed.
-(*
 Local Set Warnings "-cast-in-pattern".
 Ltac crush_estep := (match goal with
                      | [H: _ ▷ (Xres ?f) ==[ ?a ]==> ?r |- _] =>
@@ -1370,6 +1351,7 @@ Proof.
   - (* new *) grab_value e1.
   - (* ifz *) grab_value e1; destruct e1; now inv H.
 Qed.
+
 Lemma pestep_compatible_some e e' :
   pestep_compatible e = Some e' -> e = e'.
 Proof.
@@ -1480,7 +1462,6 @@ Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :
   nodupinv Ω'
 .
 Proof. intros H0 H1; apply equiv_estep in H0; apply estep_is_nodupinv_invariant in H0; eauto. Qed.
-*)
 
 Module ModAux <: CSC.Langs.Util.MOD.
   Definition State := rtexpr.
@@ -1501,7 +1482,6 @@ Module SMod := CSC.Langs.Util.Mod(ModAux).
 Import SMod.
 
 
-(*
 Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
   Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
   nodupinv Ω ->
@@ -1983,9 +1963,8 @@ Proof.
   now econstructor.
 Qed.
 
-
 Compute (debug_eval smsunsafe_prog).
-*)
+
 Variant msevent : Type :=
 | MSalloc (ℓ : loc) (n : nat) : msevent
 | MSdealloc (ℓ : loc) : msevent
@@ -2264,8 +2243,8 @@ Lemma ctx_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)
 Proof.
   intros Aa Ab Ac.
   inv Ab.
-  - exists None. exists δ. exists T__TMS. repeat split; eauto; try easy. cbn. constructor. constructor. now inv Ac.
-  - exists None. exists δ. exists T__TMS. repeat split; eauto; try easy. cbn. constructor. constructor. now inv Ac.
+  - exists None. exists δ. exists T__TMS. repeat split; eauto; try easy. cbn. constructor. inv Ac. inv H3; easy. constructor. now inv Ac.
+  - exists None. exists δ. exists T__TMS. repeat split; eauto; try easy. cbn. constructor. inv Ac. inv H4; easy. constructor. now inv Ac.
   - eapply base_tms_via_monitor in H7; eauto.
     + deex. destruct H7 as [H7a [H7b [H7c H7d]]].
       do 3 eexists; repeat split; eauto.
@@ -2296,7 +2275,7 @@ Lemma steps_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (As : trace
 Proof.
   intros Aa Ab; revert δ T__TMS; dependent induction Ab; intros δ T__TMS Ac.
   - (* refl *)
-    exists (TMMonM.Tnil). exists δ. exists T__TMS. repeat split; try easy; now constructor.
+    exists (TMMonM.Tnil). exists δ. exists T__TMS. repeat split; try easy; constructor; try easy. inv Ac. now inv H1.
   - (* trans *)
     destruct r2 as [[Ω2|] e2]; cbn in H0; try contradiction; clear H0.
     eapply estep_preservation in Aa as Aa'; eauto.
@@ -2307,10 +2286,14 @@ Proof.
     match goal with
     | [H: TMMon.step ?T__TMS (Some(?ev)) ?T__TMS' |- _] =>
       exists (TMMonM.Tcons ev Bs); exists δ''; exists T__TMS''; repeat split; eauto;
-     (try (etransitivity; eauto)); econstructor; eauto; econstructor; eapply mget_subset; eauto
+     (try (etransitivity; eauto)); econstructor; eauto; econstructor; try eapply mget_subset; eauto
     | [H: TMMon.step ?T__TMS None ?T__TMS' |- _] =>
       exists Bs; exists δ''; exists T__TMS''; repeat split; eauto;
-     (try (etransitivity; eauto)); econstructor; eauto; econstructor; eapply mget_subset; eauto
+     (try (etransitivity; eauto)); econstructor; eauto; econstructor; try eapply mget_subset; eauto
+    end;
+    repeat match goal with
+    | [H: state_agree ?δ _ _ |- Util.nodupinv ?δ] => inv H
+    | [H: store_agree ?δ _ _ |- Util.nodupinv ?δ] => inv H; eauto
     end.
   - (* unimp *)
     destruct r2 as [[Ω2|] e2]; cbn in H0; try contradiction; clear H0.

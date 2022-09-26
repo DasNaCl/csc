@@ -504,6 +504,26 @@ Proof.
         specialize (IHΔ Δ__x Hx1) as ->; now inv H.
       * rewrite Hy1 in H; congruence.
 Qed.
+Lemma δ_of_Δ_in_dom (Δ : store) ℓ :
+  In ℓ (dom (δ_of_Δ Δ)) ->
+  exists ρ, In (ℓ ⋅ ρ) (img Δ)
+.
+Proof.
+  revert ℓ; induction Δ; cbn; intros; try easy.
+  destruct b, l; destruct H as [H|H].
+  - inv H. exists p; now left.
+  - specialize (IHΔ ℓ H); deex; exists ρ; now right.
+Qed.
+Lemma δ_of_Δ_in_img (Δ : store) ℓ ρ :
+  In (ℓ ⋅ ρ) (img Δ) ->
+  In ℓ (dom (δ_of_Δ Δ))
+.
+Proof.
+  induction Δ; cbn; intros H; try easy.
+  destruct H as [H|H]; destruct b, l.
+  - inv H. now left.
+  - specialize (IHΔ H). now right.
+Qed.
 Lemma snodupinv_equiv_sundup (Δ : store) :
   sundup Δ = Some Δ <-> snodupinv Δ.
 Proof.
@@ -515,15 +535,24 @@ Proof.
       * apply not_eq_None_Some in Hx0 as [Δ__x0 Hx0]; rewrite Hx0 in H; congruence.
       * rewrite Hy0 in H. destruct (option_dec (sundup Δ)) as [Hx1|Hy1].
         -- apply not_eq_None_Some in Hx1 as [Δ__x Hx1]; rewrite Hx1 in H.
-           admit.
+           rewrite <- (sundup_refl _ Hx1) in Hx1. specialize (IHΔ Hx1).
+           econstructor; eauto.
+           intros H__a. eapply find_none in Hy as Hy__f; eauto. unfold vareq in Hy__f.
+           now rewrite String.eqb_refl in Hy__f.
+           intros H__a.
+           apply δ_of_Δ_in_dom in H__a as H__a'; deex.
+           eapply find_none in Hy0 as Hy0__f; eauto; cbn in Hy0__f; now rewrite loc_eqb_refl in Hy0__f.
         -- rewrite Hy1 in H; congruence.
   - induction H; cbn; try easy.
     destruct (option_dec (List.find (fun x0 : vart => vareq x x0) (dom Δ))) as [Hx|Hy].
-    + admit.
+    + apply not_eq_None_Some in Hx as [x__x Hx].
+      apply find_some in Hx as [Hx1 Hx2]. unfold vareq in Hx2. apply String.eqb_eq in Hx2; subst. contradiction.
     + rewrite Hy. destruct (option_dec (List.find (fun '(ℓ', _) => loc_eqb ℓ' ℓ) (img Δ))) as [Hx0|Hy0].
-      * admit.
+      * apply not_eq_None_Some in Hx0 as [[ℓ__x ρ__x] Hx0].
+        apply find_some in Hx0 as [Hx1 Hx2]. apply loc_eqb_eq in Hx2; subst.
+        apply δ_of_Δ_in_img in Hx1. contradiction.
       * rewrite Hy0. rewrite IHsnodupinv. easy.
-Admitted.
+Qed.
 Definition spush (x : vart) (dℓ : dynloc) (Δ : store) : option (store) :=
   match sundup (mapCons x dℓ Δ) with
   | Some Δ' => Some Δ'

@@ -577,8 +577,18 @@ Proof.
   rewrite (sundup_refl Δ Hx1) in Hx1. rewrite Hx1' in Hy1. rewrite Hy0, Hy1, Hx1; easy.
   rewrite Hy2 in Hx; congruence.
 Qed.
-Lemma snodupinv_whocares (a : vart) (b b' : dynloc) (Δ Δ' : store) :
-  snodupinv (Δ ◘ a ↦ b ◘ Δ') <-> snodupinv (Δ ◘ a ↦ b' ◘ Δ')
+Lemma snodupinv_whocares0 (a : vart) (ℓ : loc) (ρ ρ' : poison) (Δ : store) :
+  snodupinv (a ↦ (ℓ,ρ) ◘ Δ) <-> snodupinv (a ↦ (ℓ, ρ') ◘ Δ)
+.
+Proof. split; intros H; constructor; inv H; eauto. Qed.
+Lemma snodupinv_split (Δ Δ' : store) :
+  snodupinv (Δ ◘ Δ') ->
+  snodupinv Δ /\ snodupinv Δ'
+.
+Proof. Admitted.
+
+Lemma snodupinv_whocares (a : vart) (ℓ : loc) (ρ ρ' : poison) (Δ Δ' : store) :
+  snodupinv (Δ ◘ a ↦ (ℓ,ρ) ◘ Δ') <-> snodupinv (Δ ◘ a ↦ (ℓ, ρ') ◘ Δ')
 .
 Proof. Admitted.
 Lemma spush_msubset (Δ Δ' : store) (x : vart) (v : dynloc) :

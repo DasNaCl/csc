@@ -986,7 +986,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \begin{gather*}
   \begin{aligned}
   \mi{Events}~\src{\event} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \\
-                             & \src{\lightning} \mid \src{Call\ ?foo\ n} \mid \src{Ret\ !n} \\
+                             & \mid \src{\lightning} \mid \src{Call\ ?foo\ n} \mid \src{Ret\ !n} \\
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
@@ -1001,12 +1001,17 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \exprevals{\configs}{n_1\oplus n_2}{\configs}{n_3}{\emptyevent}
   }{w-e-oplus}
   %
-  \typerule{$e-\src{get}$}{
-    \src{\loc}\in\text{dom }\src{H}\implies\src{v}=\src{H}(\src{\loc+n}) &
-    \src{\loc}\not\in\text{dom }\src{H}\implies\src{v}=\src{1729}
+  \typerule{$e-\src{get}-\in$}{
+    \src{\loc}+\src{n}\in\text{dom }\src{H}
   }{
-    \exprevals{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Get\ \loc\ n}
-  }{w-e-get}
+    \exprevals{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
+  }{w-e-get-in}
+  %
+  \typerule{$e-\src{get}-\notin$}{
+    \src{\loc}\notin\text{dom }\src{H}
+  }{
+    \exprevals{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
+  }{w-e-get-notin}
   %
   \typerule{$e-\src{set}$}{
     \src{H'} = \src{H}(\src{\loc+n}\mapsto \src{v})
@@ -1058,9 +1063,9 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     }{w-e-ectx}
     %
     \typerule{$e-\text{ctx}-\src{stuck}$}{
-      \exprevals{\Omega}{e}{\Omega'}{stuck}{\event}
+      \exprevals{\Omega}{e}{\Omega'}{stuck}{\lightning}
     }{
-      \execs[]{\Omega}{K[e]}{\Omega'}{stuck}{\event}
+      \execs[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
     }{w-e-ectx-stuck}
     %
     \typerule{$e-\text{ctx}-\src{call}$}{
@@ -1120,12 +1125,10 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \vdash\src{prog\ \library}\operatorname{ok} &
     \execs{\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexecs{prog\ \library}{\configs_1}{\finalexpr}{\trace}
+    \wexecs{prog\ \library}{\configs}{\finalexpr}{\trace}
   }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
-Note that the rules in \Cref{fig:wprog-run} do not require the context to be well-typed.
-In addition, this is where the top-level $\src{Ret}$ and $\src{Call}$ events are emitted.
 
 \subsubsection{\gls*{ms}-Specific Events}
 We introduce another set of actions that allows us to abstract over reading or writing at a certain location.
@@ -2251,252 +2254,124 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Expressions}~\trg{e} \bnfdef&\ \trg{x} \mid \trg{v} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
-    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \mid \trg{calling\ e} \mid \trg{returning\ e} \\
-    & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \mid \trg{hole:x} \\
+  \mi{Final\ Result}\ \trg{\finalexprnoerr} \bnfdef&\ \trg{\valueexpr} \mid \trg{x}\hspace{0.5cm}
+  \mi{May\ be\ a\ Result}\ \trg{\finalexpr} \bnfdef\ \trg{\finalexprnoerr} \mid \trg{stuck} \\
+  \mi{Expressions}~\trg{e} \bnfdef&\ \trg{\finalexpr} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
+    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \mid \trg{return\ e} \mid \trg{call\ x\ e} \\
+    & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \\
     & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}\mid \trg{e\ has\ \type}
   \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times},\trg{<}\}\\
-  \mi{Types}~\trg{\type} \bnfdef&\ \trg{\nat}\mid\trg{\nat\times\nat}\hspace{0.5cm}
+  \mi{Functions}~\trg{\asymbol} \bnfdef&\ \trg{let\ foo\ x:=e}\hspace{0.5cm}
+  \mi{Types}~\trg{\type} \bnfdef\ \trg{\nat}\mid\trg{\nat\times\nat} \\
   %
-  \mi{Values}~\trg{v} \bnfdef\ \trg{\langle n, n\rangle} \mid \trg{n}\in\trg{\nat} \hspace{0.5cm}
+  \mi{Values}~\trg{v} \bnfdef&\ \trg{\langle n_{1}, n_{2}\rangle} \mid \trg{n}\in\trg{\nat} \hspace{0.5cm}
   \mi{References}~\trg{\loc}\in\trg{\nat} \\
+  \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid \trg{let\ x=K\ in\ e} \\
+                 &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \\
+                 &\mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle} \mid \trg{ifz\ K\ then\ e_1\ else\ e_2} \\
+                 &\mid \trg{K\ has\ \type}\mid\trg{call\ foo\ K}\mid\trg{return\ K} \\
   %
-  \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \dots \hspace{0.5cm}
+  \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \dots \hspace{0.35cm}
   %
-  \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
+  \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\hspace{0.35cm}
   %
-  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\hspace{0.5cm}
-  \mi{Final\ Result}\ \trg{\finalexprnoerr} \bnfdef\ \trg{\valueexpr} \mid \trg{x}\\
-  \trg{\finalexpr} \bnfdef&\ \trg{\finalexprnoerr} \mid \trg{stuck} \hspace{0.5cm}
+  \mi{Store}~\trg{\Delta} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\\
+  \mi{Cont.\ Stack}~\trg{\kontstack} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{K},\trg{\kontstack} \hspace{0.5cm}
+  \mi{Library}~\trg{\library} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{\asymbol},\trg{\library}\\
   %
-  \mi{Heaps}~\trg{H} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
+  \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
   %
-  \mi{State}\ \configt \bnfdef\ \tconfig{H}{\Delta} \mid \trg{\lightning}\\
+  \mi{State}\ \configt \bnfdef\ \trg{\library;\kontstack;H;\Delta}\hspace{0.5cm}
   %
-  \mi{Contexts}\ &\trg{context\ e_0\ e_1} \hspace{0.5cm}
-  \mi{Components}\ \trg{component\ e_p} \\
-  \mi{Whole\ Programs}\ &\trg{prog\ e_0\ e_1\ e_2}\hspace{0.5cm}
-  \mi{Marked\ State}\ \qconfigt[i] \bnfdef\ \configt\mid \qconfigt\\
+  \mi{Programs}\ \trg{prog\ \library} \\
   \end{aligned}
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
 
 The target language is very similar to the source language presented in the previous section.
 However, it does contain simple, non-nested pairs and dynamic type checks.
-The language's operational state $\trg{\Omega}$ and locations $\trg{\ell}$ may be annotated by $\trg{\diamond}$, which indicates unimportance.
-We need such a marker to distinguish memory locations owned by the context from memory locations owned by the component, since we only care about safety in, as in {\em inside}, the component.
-The hole for program contexts $\trg{hole:x}$ is annotated with an identifier that describes the API used for passing the information to the component.
-
-\myfig{
-  \begin{center}
-  \judgbox{closed\ X\ \trg{e}}{,,At most all $\mmlAt$ variables in the set $X$ occur in $\trg{e}$.''}
-    \typerule{$\mmlAt-$program}{
-      \vdash_\copyright\trg{component\ e_p}&
-      \vdash_\copyright\trg{context\ e_0\ e_1}
-    }{
-      \vdash_\copyright\trg{prog\ e_0\ e_p\ e_1}
-    }{trg-program}
-    %
-    \typerule{$\mmlAt-$component}{
-      closed\ \{\trg{x}\}\ \trg{e}
-    }{
-      \vdash_\copyright\trg{component\ e}
-    }{trg-component}
-    %
-    \typerule{$\mmlAt-$context}{
-      closed\ \emptyset\ \trg{e_0} &
-      closed\ \{\trg{y}\}\ \trg{e_1}
-    }{
-      \vdash_\copyright\trg{context\ e_0\ e_1}
-    }{trg-context}
-  \end{center}
-}{t-programs}{$\mmlAt$ programs, contexts, and components.}
 
 \subsubsection{Dynamic Semantics}
 
 \myfig{
-  \begin{gather*}
-    \begin{aligned}
-      \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid
-      \trg{let\ x=K\ in\ e}\\
-                     &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle}\\
-                     &\mid \trg{ifz\ K\ then\ e_1\ else\ e_2}\mid\trg{K\ has\ \type}\mid\trg{calling\ K}\mid\trg{returning\ K}
-    \end{aligned}
-  \end{gather*}
-}{tw-expr-eval-ectx}{Evaluation Contexts of $\mmlAt$.}
-
-\myfig{
   \begin{center}
-    \judgbox{\hasholet{x}{e}}{,,$\trg{e}$ contains exacty one $\trg{hole:x}$ that\\may be filled with an expression $\trg{e'}$ that\\uses $\trg{x}$.''}
-  \typerule{t-has-hole-$\trg{hole}$}{
-  }{
-    \hasholet{x}{hole:x}
-  }{t-hashole-hole}
-  %
-  \typerule{t-has-hole-L$\trg{\oplus}$}{
-    \hasholet{x}{e_1}&
-    \neg\left(\hasholet{x}{e_2}\right)
-  }{
-    \hasholet{x}{e_1\oplus e_2}
-  }{t-hashole-Lbinop}
-  %
-  \typerule{t-has-hole-R$\trg{\oplus}$}{
-    \neg\left(\hasholet{x}{e_2}\right)&
-    \hasholet{x}{e_2}
-  }{
-    \hasholet{x:\type_1}{e_1\oplus e_2}
-  }{t-hashole-Rbinop}
-  %
-  \typerule{t-has-hole-$\trg{y[e]}$}{
-    \hasholet{x}{e}
-  }{
-    \hasholet{x}{y[e]}
-  }{t-hashole-access}
-  %
-  \typerule{t-has-hole-L$\trg{let}$}{
-    \hasholet{x:\type_1}{e_1}&
-    \neg\left(\hasholet{x}{e_2}\right)
-  }{
-    \hasholet{x}{let\ y=e_1\ in\ e_2}
-  }{t-hashole-Llet}
-  %
-  \typerule{t-has-hole-R$\trg{let}$}{
-    \neg\left(\hasholet{x}{e_1}\right)&
-    \hasholet{x}{e_2}
-  }{
-    \hasholet{x}{let\ y=e_1\ in\ e_2}
-  }{t-hashole-Rlet}
-  %
-  \typerule{t-has-hole-Lput}{
-    \hasholet{x}{e_1} &
-    \neg\left(\hasholet{x}{e_2}\right)
-  }{
-    \hasholet{x}{y[e_1]\leftarrow e_2}
-  }{t-hashole-Lput}
-  %
-  \typerule{t-has-hole-Rput}{
-    \neg\left(\hasholet{x}{e_1}\right)&
-    \hasholet{x}{e_2}
-  }{
-    \hasholet{x}{y[e_1]\leftarrow e_2}
-  }{t-hashole-Rput}
-  %
-  \typerule{t-has-hole-L$\trg{new}$}{
-    \hasholet{x}{e_1}&
-    \neg\left(\hasholet{x}{e_2}\right)
-  }{
-    \hasholet{x}{let\ y=new\ e_1\ in\ e_2}
-  }{t-hashole-Lnew}
-  %
-  \typerule{t-has-hole-R$\trg{new}$}{
-    \neg\left(\hasholet{x}{e_1}\right)&
-    \hasholet{x}{e_2}
-  }{
-    \hasholet{x}{let\ y=new\ e_1\ in\ e_2}
-  }{t-hashole-Rnew}
-  %
-  \typerule{t-has-hole-C$\trg{ifz}$}{
-    \hasholet{x}{e_1}\\
-    \neg\left(\hasholet{x}{e_2}\right)&
-    \neg\left(\hasholet{x}{e_3}\right)
-  }{
-    \hasholet{x}{ifz\ e_1\ then\ e_2\ else\ e_3}
-  }{t-hashole-Cif}
-  %
-  \typerule{t-has-hole-T$\trg{ifz}$}{
-    \neg\left(\hasholet{x}{e_1}\right)\\
-    \hasholet{x}{e_2}&
-    \neg\left(\hasholet{x:\type_1}{e_3}\right)
-  }{
-    \hasholet{x}{ifz\ e_1\ then\ e_2\ else\ e_3}
-  }{t-hashole-Tif}
-  %
-  \typerule{t-has-hole-F$\trg{ifz}$}{
-    \neg\left(\hasholet{x}{e_1}\right)\\
-    \neg\left(\hasholet{x}{e_2}\right)&
-    \hasholet{x}{e_3}&
-  }{
-    \hasholet{x}{ifz\ e_1\ then\ e_2\ else\ e_3}
-  }{t-hashole-Fif}
-  %
-  \typerule{t-has-hole-Lpair}{
-    \hasholet{x}{e_1}\\
-    \neg\left(\hasholet{x}{e_2}\right)
-  }{
-    \hasholet{x}{\langle e_1,e_2 \rangle}
-  }{t-hashole-Lpair}
-  %
-  \typerule{t-has-hole-Rpair}{
-    \neg\left(\hasholet{x}{e_1}\right)\\
-    \hasholet{x}{e_2}
-  }{
-    \hasholet{x}{\langle e_1,e_2 \rangle}
-  }{t-hashole-Rpair}
-  %
-  \typerule{t-has-hole-$\trg{\pi_{1}}$}{
-    \hasholet{x}{e}
-  }{
-    \hasholet{x}{\pi_1 e}
-  }{t-hashole-pi1}
-  %
-  \typerule{t-has-hole-$\trg{\pi_{2}}$}{
-    \hasholet{x}{e}
-  }{
-    \hasholet{x}{\pi_2 e}
-  }{t-hashole-pi2}
-  %
-  \typerule{t-has-hole-$\trg{has\ \type}$}{
-    \hasholet{x}{e}
-  }{
-    \hasholet{x}{e\ has\ \type}
-  }{t-hashole-hastype}
-  \end{center}
-}{t-hashole}{A check for $\mmlAt$ expressions to see whether they contain exactly one $\trg{hole:x}$.}
-
-\myfig{
-  \begin{center}
-    $$
-    \typerule{plugging}{
-      \hasholet{x}{e_{0}}&
-      \vdash_\copyright\trg{context\ e_0\ e_1} &
-      \vdash_\copyright\trg{component\ e_p}
+    \judgbox{\trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}}{,,Merging $\mmlAt$ libraries.''}$\;$\\
+    \typerule{lib-merge-empty}{
+      \trg{\library}=\trg{\library_1}
     }{
-    \trg{context}\ (\trg{e_0})\ (\trg{e_1})\trg{\linker}{\trg{component\ e_p}} = \trg{prog\ e_0\ e_p\ e_1}
+      \trg{\library}\equiv\trg{\library_1}\cup\trg{\hole{\cdot}}
+    }{trg-lib-merge-empty}
+    %
+    \typerule{lib-merge-cons}{
+      \trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}
+    }{
+      \trg{\asymbol,\library}\equiv\trg{\library_1}\cup\trg{\asymbol,\library_2}
+    }{trg-lib-merge-cons}
+
+    \judgbox{\trg{\library_1\linker\library_2}=\trg{\library}}{,,Syntactically linking $\mmlAt$ libraries.''}$\;$\\
+    \typerule{syntactic-plugging}{
+      \operatorname{dom}\trg{\library_1}\downarrow\cap\operatorname{dom}\trg{\library_2}\downarrow = \emptyset &
+      \trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}
+    }{
+      \trg{\library_1\linker\library_2} = \trg{\library}
     }{trg-plugging}
-    $$
   \end{center}
-}{w-plugging-t}{$\mmlAt$ plugging of contexts and components.}
+}{w-plugging-t}{$\mmlAt$ plugging of libraries.}
 
 
 \myfig{
   \begin{gather*}
   \begin{aligned}
   \mi{Events}~\trg{\event} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n}\\
-                             & \mid \trg{\lightning} \mid \trg{Call\ ?n} \mid \trg{Ret\ !n}
+                             & \mid \trg{\lightning} \mid \trg{Call\ ?foo\ \finalexprnoerr} \mid \trg{Ret\ !\finalexprnoerr}
   \end{aligned}
   \end{gather*}
 }{tw-events}{Events of $\mmlAt$.}
 
 \myfig{
-  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
   \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{\event}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{\event}$.''}
   %
-  \typerule{$e-\text{ctx}$}{
-    \configt\not=\trg{\lightning} &
-    \exprevalt{\configt}{e}{\configt'}{e'}{\event}
+  \typerule{$e-\trg{\oplus}$}{
+    \trg{n_1}\oplus\trg{n_2}=\trg{n_3}
   }{
-    \exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}
-  }{tw-e-ectx}
+    \exprevalt{\configt}{n_1\oplus n_2}{\configt}{n_3}{\emptyevent}
+  }{tw-e-oplus}
   %
-  \typerule{$e-\trg{returning}$}{
+  \typerule{$e-\trg{get}-\in$}{
+    \trg{\loc}+\trg{n}\in\text{dom }\trg{H}
   }{
-    \exprevalt{\configt}{returning\ \finalexprnoerr}{\configt}{\finalexprnoerr}{Ret\ !\finalexprnoerr}
-  }{tw-e-returning}
+    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
+  }{tw-e-get-in}
   %
-  \typerule{$e-\trg{calling}$}{
+  \typerule{$e-\trg{get}-\notin$}{
+    \trg{\loc}+\trg{n}\notin\text{dom }\trg{H}
   }{
-    \exprevalt{\configt}{calling\ \finalexprnoerr}{\configt}{\finalexprnoerr}{Call\ ?\finalexprnoerr}
-  }{tw-e-calling}
+    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
+  }{tw-e-get-notin}
+  %
+  \typerule{$e-\trg{set}$}{
+    \trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})
+  }{
+    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow \valueexpr}{\library;\kontstack;H';\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n\ \valueexpr}
+  }{tw-e-set}
+  %
+  \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
+  }{
+    \exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
+  }{tw-e-let-x}
+  %
+  \typerule{$e-\trg{delete}$}{
+  }{
+    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}
+  }{tw-e-delete}
+  %
+  \typerule{$e-\trg{new}$}{
+    \fresh{\trg{\Delta}}{\trg{\loc}} &
+    \fresh{\trg{\Delta}}{\trg{z}} &
+    \trg{H'} = \trg{H} \ll \trg{n} &
+  }{
+  \exprevalt{\library;\kontstack;H;\Delta}{let\ x=new\ n\ in\ e}{\library;\kontstack;H';z\mapsto \loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}
+  }{tw-e-let-new}
   %
   \typerule{$e-\trg{ifz}-$true}{
   }{
@@ -2513,42 +2388,6 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
     \exprevalt{\configt}{abort()}{\lightning}{stuck}{\lightning}
   }{tw-e-abort}
   %
-  \typerule{$e-\trg{\oplus}$}{
-    \trg{n_1}+\trg{n_2}=\trg{n_3}
-  }{
-    \exprevalt{\configt}{n_1+n_2}{\configt}{n_3}{\emptyevent}
-  }{tw-e-oplus}
-  % TODO
-  \typerule{$e-\trg{get}$}{
-    \trg{\loc}\in\text{dom }\trg{H}\implies\trg{v}=\trg{H}(\trg{\loc+n}) &
-    \trg{\loc}\not\in\text{dom }\trg{H}\implies\trg{v}=\trg{1729}
-  }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Get\ \loc\ n}
-  }{tw-e-get}
-  %
-  \typerule{$e-\trg{set}$}{
-    \trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})
-  }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{x[n]\leftarrow v}{\tconfig{H'}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{v}{Set\ \loc\ n\ v}
-  }{tw-e-set}
-  %
-  \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
-  }{
-    \exprevalt{\tconfig{H}{\Delta}}{let\ x=\finalexprnoerr\ in\ e}{\tconfig{H}{\Delta}}{e[\finalexprnoerr/x]}{\emptyevent}
-  }{tw-e-let-x}
-  %
-  \typerule{$e-\trg{delete}$}{
-  }{
-    \exprevalt{\tconfig{H}{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}{delete\ x}{\tconfig{H}{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{0}{Dealloc\ \loc}
-  }{tw-e-delete}
-  %
-  \typerule{$e-\trg{new}$}{
-    \fresh{\trg{\Delta}}{\trg{\loc}} &
-    \fresh{\trg{\Delta}}{\trg{z}} &
-    \trg{H'} = \trg{H} \ll \trg{n} &
-  }{
-  \exprevalt{\tconfig{H}{\Delta}}{let\ x=new\ n\ in\ e}{\tconfig{H'}{z\mapsto \loc_\poisonless,\Delta}}{e[z/x]}{Alloc\ \loc\ n}
-  }{tw-e-let-new}
   %
   \typerule{$e-\trg{\pi_1}$}{
   }{
@@ -2592,12 +2431,41 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
 
 \myfig{
+  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
+  %
+  \typerule{$e-\text{ctx}$}{
+    \exprevalt{\configt}{e}{\configt'}{e'}{\event}
+  }{
+    \exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}
+  }{tw-e-ectx}
+  %
+  \typerule{$e-\text{ctx}-\trg{stuck}$}{
+    \exprevalt{\configt}{e}{\configt'}{stuck}{\lightning}
+  }{
+    \exect[]{\configt}{K[e]}{\configt'}{stuck}{\lightning}
+  }{tw-e-ectx}
+  %
+  \typerule{$e-\text{ctx}-\trg{return}$}{
+  }{
+    \exprevalt{\library;K,\kontstack;H;\Delta}{K'[return\ \finalexprnoerr]}{\library;\kontstack;H;\Delta}{K[\finalexprnoerr]}{Ret\ !\finalexprnoerr}
+  }{tw-e-returning}
+  %
+  \typerule{$e-\text{ctx}-\trg{call}$}{
+    \trg{\Omega}=\trg{\library;\kontstack;H;\Delta}&
+    \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x := e})\trg{,\library_2} \\
+    \trg{\Omega'}=\trg{\library;K,\kontstack;H;\Delta}
+  }{
+    \exprevalt{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{return\ e[x/\finalexprnoerr]}{Call\ ?foo\ \finalexprnoerr}
+  }{tw-e-calling}
+}{tw-expr-ctx-eval}{Contextual Evaluation of $\mmlAt$ expressions.}
+
+\myfig{
   \begin{center}
     \judgbox{\exect{\configt}{e}{\configt'}{e'}{\trace}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting list of events $\trg{\trace}$.''}
     %
     \typerule{$et-\text{refl}$}{
     }{
-      \exect{\configt}{e}{\configt}{e}{\hole{\cdot}}
+      \exect{\configt}{\finalexpr}{\configt}{\finalexpr}{\hole{\cdot}}
     }{wt-e-refl}
     \typerule{$et-\text{trans}-$important}{
       \exect[]{\configt}{e}{\configt'}{e'}{\event}&
@@ -2617,167 +2485,12 @@ The hole for program contexts $\trg{hole:x}$ is annotated with an identifier tha
 
 \myfig{
   \begin{center}
-    \typerule{$\mmlAt$-state-unimportant-empty}{
-    }{
-      \trg{\hole{\cdot}^{\diamond(\valueexpr)}}=\trg{\hole{\cdot}}
-    }{trg-state-unimportant-empty}
-    \typerule{$\mmlAt$-state-unimportant-cons-mark}{
-      \trg{\Delta^{\diamond(\valueexpr)}}=\trg{\Delta'}
-    }{
-      \trg{(x\mapsto\loc_\poison,\Delta)^{\diamond(\finalexprnoerr)}}=\trg{x\mapsto\loc_\poison^\diamond,\Delta'}
-    }{trg-state-unimportant-cons-mark}
-    \typerule{$\mmlAt$-state-unimportant-cons-nomark}{
-      \trg{\Delta^{\diamond(x)}}=\trg{\Delta'}
-    }{
-      \trg{(x\mapsto\loc_\poison,\Delta)^{\diamond(x)}}=\trg{x\mapsto\loc_\poison,\Delta'}
-    }{trg-state-unimportant-cons-nomark}
-    \typerule{$\mmlAt$-state-unimportant-propagate}{
-      \trg{\Omega}=\trg{H;\Delta}&
-      \trg{\Delta^{\diamond(\finalexprnoerr)}}=\trg{\Delta'}
-    }{
-    \trg{\Omega^{\diamond(\finalexprnoerr)}}=\trg{H;\Delta'}
-    }{trg-state-unimportant-propagate}
-  \end{center}
-}{twstate-irrelevant}{Irrelevant location marker of $\mmlAt$ operational state.}
-\myfig{
-  \begin{center}
-  \judgbox{\plugt{e_0}{e_1}=\trg{e_2}}{,,Replace any $\trg{hole:x}$ in $\trg{e_1}$ by $\trg{e_0}$, resulting in $\trg{e_2}$.\\$Q$ is a placeholder for either $Q$ or $N$ and may be used to switch\\hole filling modes.''}
-    \typerule{t-plug-hole}{
-    }{
-      \plugt{e}{hole:x}=\trg{calling\ x; returning\ e}
-    }{t-plug-hole}
-    %
-    \typerule{t-plug-hole'}{
-      \fresh{{\color{red}TODO}}{\trg{z}} &
-    }{
-      \plugt[N]{e}{hole:x}=\trg{let\ z = hole:x\ in\ e;z}
-    }{t-plug-holep}
-    %
-    \typerule{t-plug-finalexprnoerr}{
-    }{
-      \plugt{e}{\finalexprnoerr}=\trg{\finalexprnoerr}
-    }{t-plug-finalexprnoerr}
-    %
-    \typerule{t-plug-$\trg{delete}$}{
-    }{
-      \plugt{e}{delete\ x}=\trg{delete\ x}
-    }{t-plug-delete}
-    %
-    \typerule{t-plug-$\trg{abort}$}{
-    }{
-      \plugt{e}{abort}=\trg{abort}
-    }{t-plug-abort}
-    %
-    \typerule{t-plug-$\trg{\oplus}$}{
-      \plugt{e}{e_0}=\trg{e_0'} &
-      \plugt{e}{e_1}=\trg{e_1'}
-    }{
-      \plugt{e}{e_0\oplus e_1}=\trg{e_0'\oplus e_1'}
-    }{t-plug-binop}
-    %
-    \typerule{t-plug-$\trg{get}$}{
-      \plugt{e}{e_0}=\trg{e_0'}
-    }{
-      \plugt{e}{x[e_0]}=\trg{x[e_0']}
-    }{t-plug-get}
-    %
-    \typerule{t-plug-$\trg{put}$}{
-      \plugt{e}{e_0}=\trg{e_0'}&
-      \plugt{e}{e_1}=\trg{e_1'}
-    }{
-      \plugt{e}{x[e_0]\leftarrow e_1}=\trg{x[e_0']\leftarrow e_1'}
-    }{t-plug-put}
-    %
-    \typerule{t-plug-$\trg{let}$}{
-      \plugt{e}{e_0}=\trg{e_0'}&
-      \plugt{e}{e_1}=\trg{e_1'}
-    }{
-      \plugt{e}{let\ x = e_0\ in\ e_1}=\trg{let\ x = e_0'\ in\ e_1'}
-    }{t-plug-let}
-    %
-    \typerule{t-plug-$\trg{new}$}{
-      \plugt{e}{e_0}=\trg{e_0'}&
-      \plugt{e}{e_1}=\trg{e_1'}
-    }{
-      \plugt{e}{let\ x = new\ e_0\ in\ e_1}=\trg{let\ x = new\ e_0'\ in\ e_1'}
-    }{t-plug-new}
-    %
-    \typerule{t-plug-$\trg{ifz}$}{
-      \plugt{e}{e_0}=\trg{e_0'}&
-      \plugt{e}{e_1}=\trg{e_1'}&
-      \plugt{e}{e_2}=\trg{e_2'}
-    }{
-      \plugt{e}{ifz\ e_0\ then\ e_1\ else\ e_2}=\trg{ifz\ e_0'\ then\ e_1'\ else\ e_2'}
-    }{t-plug-ifz}
-    %
-    \typerule{t-plug-pair}{
-      \plugt{e}{e_0}=\trg{e_0'}&
-      \plugt{e}{e_1}=\trg{e_1'}
-    }{
-      \plugt{e}{\langle e_0, e_1 \rangle}=\trg{\langle e_0',e_1' \rangle}
-    }{t-plug-pair}
-    %
-    \typerule{t-plug-$\trg{\pi_{1}}$}{
-      \plugt{e}{e_0}=\trg{e_0'}
-    }{
-      \plugt{e}{\pi_1 e_0}=\trg{\pi_1 e_0'}
-    }{t-plug-pi1}
-    %
-    \typerule{t-plug-$\trg{\pi_{2}}$}{
-      \plugt{e}{e_0}=\trg{e_0'}
-    }{
-      \plugt{e}{\pi_2 e_0}=\trg{\pi_2 e_0'}
-    }{t-plug-pi2}
-    %
-    \typerule{t-plug-$\trg{has\ \type}$}{
-      \plugt{e}{e_0}=\trg{e_0'}
-    }{
-      \plugt{e}{e_0\ has\ \type}=\trg{e_0'\ has\ \type}
-    }{t-plug-has}
-  \end{center}
-}{w-plug-s}{Replace any $\trg{hole:x}$ in an expression.}
-\myfig{
-  \begin{center}
-    \judgbox{\wexect{prog\ e_0\ e_p\ e_1}{\configt}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ e_0\ e_p\ e_1}$, giving dynamic\\state $\configt$ and emitting trace $\trg{\trace}$.''}
+    \judgbox{\wexect{prog\ \library}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \library}$, giving dynamic\\state $\configt$ and emitting trace $\trg{\trace}$.''}
   \typerule{$te-\text{wprog}$}{
-    \plugt{e_p}{e_0}=\trg{e_0'}\\
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\configt_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \exect{\configt_0}{e_{po}}{\configt_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
-    \exect{\configt_{po}}{e_0''}{\configt_0'}{\finalexprnoerr_p'}{\trace[_0']}&
-    \exect{\configt_0'}{e_1[\finalexprnoerr_p'/y]}{\configt_1}{\finalexprnoerr_1}{\trace[_1]}
+    \exect{\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\configt_1}{\finalexprnoerr_1}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot\trace[_0']\cdot \trace[_1]\cdot Call\ ?\finalexprnoerr_1}
+    \wexect{prog\ \library}{\Omega}{\finalexpr}{\trace}
   }{wt-e-prog}
-  \typerule{$te-\text{wprog}-$fail0}{
-    \plugt{e_p}{e_0}=\trg{e_0'}\\
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\lightning}{stuck}{\trace[_0]}&
-  }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}}
-  }{wt-e-prog-fail0}
-  \typerule{$te-\text{wprog}-$failp}{
-    \plugt{e_p}{e_0}=\trg{e_0'}\\
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\configt_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \exect{\configt_0}{e_{po}}{\configt_{po}}{stuck}{\trace[_p]}\\
-  }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}}
-  }{wt-e-prog-failp}
-  \typerule{$te-\text{wprog}-$fail0'}{
-    \plugt{e_p}{e_0}=\trg{e_0'}\\
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\configt_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \exect{\configt_0}{e_{po}}{\configt_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
-    \exect{\configt_{po}}{e_0''}{\lightning}{stuck}{\trace[_0']}&
-  }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace{_0}\cdot Call\ ?\finalexprnoerr_0\cdot \trace{_p}\cdot Ret\ !\finalexprnoerr_p\cdot \trace{_0'}}
-  }{wt-e-prog-fail0p}
-  \typerule{$te-\text{wprog}-$fail1}{
-    \plugt{e_p}{e_0}=\trg{e_0'}\\
-    \exect{\hole{\cdot};\hole{\cdot}}{e_0'}{\configt_0}{e_{po}}{\trace[_0]\cdot Call\ ?\finalexprnoerr_0}&
-    \exect{\configt_0}{e_{po}}{\configt_{po}}{e_0''}{\trace[_p]\cdot Ret\ !\finalexprnoerr_p}\\
-    \exect{\configt_{po}}{e_0''}{\configt_0'}{\finalexprnoerr_p'}{\trace[_0']}&
-    \exect{\configt_0'}{e_1[\finalexprnoerr_p'/y]}{\lightning}{stuck}{\trace[_1]}
-  }{
-    \wexect{prog\ e_0\ e_p\ e_1}{\lightning}{stuck}{Ret\ !0\cdot\trace[_0]\cdot Call\ ?\finalexprnoerr_0\cdot \trace[_p]\cdot Ret\ !\finalexprnoerr_p\cdot \trace[_0']\cdot \trace[_1]}
-  }{wt-e-prog-fail1}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
 

@@ -575,9 +575,14 @@ Then, swapping the behaviors from the previous example, the interpreter does not
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
+  \mi{Final\ Result}\ \src{\finalexprnoerr} \bnfdef&\ \src{\valueexpr} \mid \src{x} \hspace{0.5cm}
+  \mi{May\ be\ a\ Result}\ \src{\finalexpr} \bnfdef\ \src{\finalexprnoerr} \mid \src{stuck} \\
+  %
   \mi{Expressions}~\src{e} \bnfdef&\ \src{\finalexpr} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
   & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{return\ e} \mid \src{call\ x\ e} \\
   & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
+  %
+  \mi{Functions}~\src{\asymbol} \bnfdef&\ \src{let\ foo\ x : \type}_{\lambda}\src{:= e} \\
   %
   \mi{Expr.\ Types}~\types_{\src{e}} \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
   %
@@ -599,17 +604,13 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\type}\hspace{0.5cm}
   \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison},\Deltas\\
   %
-  \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \hspace{0.5cm}
+  \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \\
   %
-  \mi{Symbol}~\src{\asymbol} \bnfdef\ \src{K}\times\types_{\lambda}  \\
   \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid \src{K},\src{\kontstack} \hspace{0.5cm}
-  \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{x}\mapsto\src{\asymbol},\src{\library}\\
+  \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{\asymbol},\src{\library}\\
   \mi{State}~\configs\ \bnfdef&\ \src{\library;\kontstack;H;\Delta} \hspace{0.5cm}
   %
   \mi{Programs}\ \src{prog\ \library} \\
-  %
-  \mi{Final\ Result}\ \src{\finalexprnoerr} \bnfdef&\ \src{\valueexpr} \mid \src{x} \hspace{0.5cm}
-  \mi{May\ be\ a\ Result}\ \src{\finalexpr} \bnfdef\ \src{\finalexprnoerr} \mid \src{stuck} \\
   \end{aligned}
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlAs$}
@@ -629,14 +630,14 @@ For example, we cannot make canonical typing lemmas for them without the additio
 \end{definition}
 \myfig{
   \begin{center}
-    \judgbox{\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
+    \judgbox{\vdash\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
   \typerule{int-$\src{\nat}$}{
   }{
-    \src{\nat}\operatorname{int}
+    \vdash\src{\nat}\operatorname{int}
   }{src-int-type-nat}
   \typerule{int-$\src{\wptr}$}{
   }{
-  \src{\wptr}\operatorname{int}
+    \vdash\src{\wptr}\operatorname{int}
   }{src-int-type-wptr}
   \end{center}
 }{src-int-types}{Interface types of $\mmlAs$.}
@@ -688,8 +689,8 @@ We introduce interface types to explicitly disallow passing owned pointers.
   }{t-ptr-r-split}
   %
   \typerule{arrowSplit}{
-    \src{\type_e^{(1)}}\ \operatorname{int} &
-    \src{\type_e^{(2)}}\ \operatorname{int} &
+    \vdash\src{\type_e^{(1)}}\ \operatorname{int} &
+    \vdash\src{\type_e^{(2)}}\ \operatorname{int} &
     \src{\Gamma}\equiv\src{\Gamma_1}\circ\src{\Gamma_2}
   }{
     \src{foo:\type_e^{(1)}\to\type_e^{(2)}},\Gammas \equiv \src{foo:\type_e^{(1)}\to\type_e^{(2)}},\src{\Gamma_1}\circ\src{foo:\type_e^{(1)}\to\type_e^{(2)}},\src{\Gamma_2}
@@ -762,8 +763,8 @@ Note that non-owned pointers and values may be freely duplicated and that we can
   }{w-t-delete}
   %
   \typerule{$t-\src{call}$}{
-    \src{\type_e^{(1)}}\ \operatorname{int} &
-    \src{\type_e^{(2)}}\ \operatorname{int} \\
+    \vdash\src{\type_e^{(1)}}\ \operatorname{int} &
+    \vdash\src{\type_e^{(2)}}\ \operatorname{int} \\
     \typechecks{\Gamma}{foo}{\type_e^{(1)}\to\type_e^{(2)}} &
     \typechecks{\Gamma}{e}{\type_e^{(1)}}
   }{
@@ -869,7 +870,7 @@ This is inspired by linear logic.
       \typechecks{\Gamma}{return\ K}{\type^{(1)}\to\type^{(2)}}
     }{w-te-ret}
   \end{center}
-}{w-ectx-ty}{Checking of $\mmlAs$ functions/evaluation contexts.}
+}{w-ectx-ty}{Checking of $\mmlAs$ evaluation contexts.}
 
 \myfig{
   \judgbox{\src{\library}\downarrow=\src{\Gamma}}{,,Project $\mmlAs$ library to static typing context.''}$\;$\\
@@ -882,7 +883,7 @@ This is inspired by linear logic.
     \typerule{$\src{\library}$-cons}{
       \src{\library}\downarrow = \src{\Gamma}
     }{
-      \src{foo\mapsto} (\src{K},\src{\type}_\lambda)\src{,\library}\downarrow = \src{foo\mapsto\type}_\lambda,\src{\Gamma}
+      (\src{let\ foo\ x : \type}_\lambda\src{:= e})\src{,\library}\downarrow = (\src{foo \mapsto \type}_\lambda),\src{\Gamma}
     }{w-lib-proj-cons}
   \end{center}
 }{w-gamma-of-symbols}{Extracting type annotations.}
@@ -898,19 +899,19 @@ This is inspired by linear logic.
     }{w-t-lib-empty}
     %
     \typerule{t-$\src{\library}$-cons}{
-      \src{\type^{(1)}}\ \operatorname{int} &
-      \src{\type^{(2)}}\ \operatorname{int} &
+      \src{\type_e^{(1)}}\ \operatorname{int} &
+      \src{\type_e^{(2)}}\ \operatorname{int} &
       \src{\Gamma}\vdash\src{\library}\ \operatorname{ok} &
-      \typechecks{\Gamma}{K}{\type^{(1)}\to\type^{(2)}}
+      \typechecks{x:\type_e^{(1)},\Gamma}{e}{\type_e^{(2)}}
     }{
-      \src{\Gamma}\vdash\src{foo\mapsto (K,\type^{(1)}\to\type^{(2)}),\library}\ \operatorname{ok}
+      \src{\Gamma}\vdash(\src{let\ foo\ x : \type_e^{(1)}}\to\src{\type_e^{(2)}:= e}),\src{\library}\ \operatorname{ok}
     }{w-t-lib-cons}
 
     \judgbox{\vdash\src{prog\ \library}\operatorname{ok}}{,,$\mmlAs$ program $\src{prog\ \library}$ typechecks.''}$\;$\\
   %
   \typerule{$t-\text{prog}$}{
-    \src{main}\in\operatorname{dom} \src{\library} &
     \src{\library}\downarrow = \src{\Gamma_0} &
+    \src{main}\in\operatorname{dom} \src{\Gamma_0} &
     \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok}
 	}{
     \vdash\src{prog\ \library}\operatorname{ok}
@@ -966,12 +967,12 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \typerule{lib-merge-cons}{
       \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
     }{
-      \src{foo\mapsto \asymbol,\library}\equiv\src{\library_1}\cup\src{foo\mapsto \asymbol,\library_2}
+      \src{\asymbol,\library}\equiv\src{\library_1}\cup\src{\asymbol,\library_2}
     }{src-lib-merge-cons}
 
     \judgbox{\src{\library_1\linker\library_2}=\src{\library}}{,,Syntactically linking $\mmlAs$ libraries.''}$\;$\\
     \typerule{syntactic-plugging}{
-      \operatorname{dom}\src{\library_1}\cap\operatorname{dom}\src{\library_2} = \emptyset &
+      \operatorname{dom}\src{\library_1}\downarrow\cap\operatorname{dom}\src{\library_2}\downarrow = \emptyset &
       \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
     }{
       \src{\library_1\linker\library_2} = \src{\library}
@@ -985,7 +986,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \begin{gather*}
   \begin{aligned}
   \mi{Events}~\src{\event} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \\
-                             & \src{\lightning} \mid \src{Call\ ?n} \mid \src{Ret\ !n} \\
+                             & \src{\lightning} \mid \src{Call\ ?foo\ n} \mid \src{Ret\ !n} \\
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
@@ -1063,9 +1064,11 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     }{w-e-ectx-stuck}
     %
     \typerule{$e-\text{ctx}-\src{call}$}{
-      \src{\Omega}=\src{\library_1,foo\mapsto K_{foo},\library_2;\kontstack;H;\Delta}
+      \src{\Omega}=\src{\library;\kontstack;H;\Delta} &
+      \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
+      \src{\Omega'}=\src{\library;K,\kontstack;H;\Delta}
     }{
-      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega}{(return\ K_{foo})[f]}{Call\ ?foo\ f}
+      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{return\ e[x/\finalexprnoerr]}{Call\ ?foo\ f}
     }{w-e-ectx-call}
     %
     \typerule{$e-\text{ctx}-\src{return}$}{
@@ -1087,7 +1090,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     %
     \typerule{$es-\text{refl}$}{
     }{
-      \execs{\configs}{e}{\configs}{e}{\hole{\cdot}}
+      \execs{\configs}{\finalexpr}{\configs}{\finalexpr}{\hole{\cdot}}
     }{ws-e-refl}
     \typerule{$es-\text{trans}-$important}{
       \execs[]{\configs}{e}{\configs'}{e'}{\event}&
@@ -1112,12 +1115,12 @@ When generating the static context from the execution context, \Cref{tr:t-poison
 
 \myfig{
   \begin{center}
-    \judgbox{\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ e_0\ e_p\ e_1}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
+    \judgbox{\wexecs{prog\ \library}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
     \vdash\src{prog\ \library}\operatorname{ok} &
-    \execs{\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+    \execs{\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexecs{prog\ e_0\ e_p\ e_1}{\configs_1}{\finalexpr}{\trace}
+    \wexecs{prog\ \library}{\configs_1}{\finalexpr}{\trace}
   }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -1181,15 +1184,13 @@ In order to just talk about temporal memory safety, we introduce a monitor that 
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ References}~\bm{L} \subseteq& \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~\tmsmonitor =\{A : L, F : L\} \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \loc \mid \textbf{Dealloc}\ \loc \mid \textbf{Use}\ \loc \mid \abstermination\\
-      \mi{References\ Agreement}~\delta_{\text{tms}} :& \specificev{L}\to \bm{L} \\[0.6cm]
+      \mi{Abstract\ Store}~\tmsmonitor =&\{A : \specificev{L}, F : \specificev{L}\} \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \specificev{\loc} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc} \mid \abstermination\\[0.3cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
       \absevent\in \tmsmonitor['] &\text{ iff } \absevent \in {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
       \absevent\notin \tmsmonitor['] &\text{ iff } \absevent \notin {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
-      \{\bm{\loc}\}\cup \tmsmonitor &= \{A : \{\bm{\loc}\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
-      \tmsmonitor\setminus\{\bm{\loc}\} &= \{A : \tmsmonitor[.A]\setminus\{\bm{\loc}\}, F : \tmsmonitor[.F]\cup\left\{\bm{\loc}\right\}\}\\
+      \{\specificev{\loc}\}\cup \tmsmonitor &= \{A : \{\specificev{\loc}\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
+      \tmsmonitor\setminus\{\specificev{\loc}\} &= \{A : \tmsmonitor[.A]\setminus\{\specificev{\loc}\}, F : \tmsmonitor[.F]\cup\left\{\specificev{\loc}\right\}\}\\
       \tmsmonitor\cup \tmsmonitor' &= \{A : \tmsmonitor[.A]\cup \tmsmonitor['.A], F : \tmsmonitor[.F]\cup \tmsmonitor['.F]\}\\
     \end{aligned}
   \end{gather*}
@@ -1207,23 +1208,23 @@ As before, when doing structural induction over primitive steps (\Cref{fig:w-exp
     }{tms-uninteresting}
     %
     \typerule{TMS-Use}{
-      \bm{\loc}\in \tmsmonitor
+      \specificev{\loc}\in \tmsmonitor
     }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \bm{\loc}}
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \specificev{\loc}}
     }{tms-use}
     %
     \typerule{TMS-Alloc}{
-      \tmsmonitor[']=\left\{\bm{\loc}\right\}\cup\tmsmonitor&
-      \bm{\loc}\notin \tmsmonitor
+      \tmsmonitor[']=\left\{\specificev{\loc}\right\}\cup\tmsmonitor&
+      \specificev{\loc}\notin \tmsmonitor
     }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \bm{\loc}}
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}}
     }{tms-alloc}
     %
     \typerule{TMS-Dealloc}{
-      \bm{\loc}\in \tmsmonitor &
-      \tmsmonitor[']=\tmsmonitor\setminus\left\{\bm{\loc}\right\}
+      \specificev{\loc}\in \tmsmonitor &
+      \tmsmonitor[']=\tmsmonitor\setminus\left\{\specificev{\loc}\right\}
     }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \bm{\loc}}
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
     }{tms-dealloc}
     %
     \typerule{TMS-Refl}{
@@ -1248,26 +1249,22 @@ As before, we need a way to translate one set of actions to another:
 
 \myfig{
   \begin{center}
-    \judgbox{\delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}}{,,A map from MS-specific locations $\specificev{\loc}$ to abstract memory locations $\bm{\loc}$.''}
     \judgbox{\tmstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\tmstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    \judgbox{\tmstraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{TMS-Alloc-Authentic}{
-      \delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}
     }{
-      \tmstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \bm{\loc}}
+      \tmstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}}
     }{tms-alloc-auth}
     %
     \typerule{TMS-Dealloc-Authentic}{
-      \delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}
     }{
-      \tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \bm{\loc}}
+      \tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
     }{tms-dealloc-auth}
     %
     \typerule{TMS-Use-Authentic}{
-      \delta_{\text{tms}}(\specificev{\loc})=\bm{\loc}
     }{
-      \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \bm{\loc}}
+      \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}}
     }{tms-use-auth}
     %
     \typerule{TMS-None-Authentic}{
@@ -1291,6 +1288,7 @@ As before, we need a way to translate one set of actions to another:
 
 \myfig{
   \begin{center}
+    \judgbox{\delta_{MS}(\src{\ell})=\specificev{\ell}}{,,Map $\mmlAs$ locations $\src{\ell}$ to abstract locations $\specificev{\ell}$.''}
     \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta}}}{,,Abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
     \typerule{Empty-Agree}{
     }{
@@ -1299,16 +1297,14 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{Cons-Agree}{
       \delta_{MS}(\src{\loc})=\specificev{\loc}&
-      \delta_{\text{tms}}\left(\specificev{\loc}\right)=\bm{\loc}&
-      \bm{\loc}\notin\tmsmonitor&
+      \specificev{\loc}\notin\tmsmonitor&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagreetms{\left\{\bm{\loc}\right\}\cup \tmsmonitor}{\src{x\mapsto\loc_\poisonless,\Delta}}
+      \storeagreetms{\left\{\specificev{\loc}\right\}\cup \tmsmonitor}{\src{x\mapsto\loc_\poisonless,\Delta}}
     }{store-cons-agree}
     %
     \typerule{Poison-Agree}{
       \delta_{MS}(\src{\loc})=\specificev{\loc}&
-      \delta_{\text{tms}}\left(\specificev{\loc}\right)=\bm{\loc}&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
       \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\poisoned,\Delta}}
@@ -1316,7 +1312,7 @@ As before, we need a way to translate one set of actions to another:
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
 
-We now define temporal and spatial memory safety in terms of traces on events $\msevent$.
+We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
 \begin{definition}[Before]
   Given two events $\msevent[_0],\msevent[_1]$ and a trace $\mstrace$, event $\msevent[_0]$ occurs before $\msevent[_1]$ in $\mstrace$, written

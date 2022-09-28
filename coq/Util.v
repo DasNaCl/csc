@@ -113,8 +113,11 @@ Proof.
 Qed.
 Lemma nested_bool_pred (x y : bool) : ((if x then y else false) = true) <-> (andb x y = true).
 Proof. now destruct x,y. Qed.
+End Bool.
 
 Definition is_Some {A : Type} (mx : option A) := exists x, mx = Some x.
+#[global]
+Hint Unfold is_Some : core.
 
 Lemma is_Some_alt {A : Type} (mx : option A) :
   is_Some mx <-> match mx with Some _ => True | None => False end.
@@ -128,8 +131,6 @@ Proof. rewrite is_Some_alt; destruct mx; try easy; congruence. Qed.
 
 Lemma option_dec {A : Type} (mx : option A) : { mx <> None } + { mx = None }.
 Proof. destruct mx; now (left + right). Qed.
-
-End Bool.
 
 Class Monad (m : Type -> Type) : Type := {
   ret : forall {t : Type}, t -> m t ;

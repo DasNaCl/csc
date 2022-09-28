@@ -2499,13 +2499,14 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \begin{lemma}[Determinism of Step]\label{lem:determ:step}
   If
   \begin{assumptions}
-  \item $\exprevalt{\Omega}{e}{\Omega'}{v_1}{\event}$
-  \item $\exprevalt{\Omega}{e}{\Omega''}{v_2}{\event}$
+  \item $\exprevalt{\Omega}{e}{\Omega'}{v_1}{\event_{1}}$
+  \item $\exprevalt{\Omega}{e}{\Omega''}{v_2}{\event_{2}}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\trg{v'}=\trg{v''}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\event_{1}}=\trg{\event_{2}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -2546,19 +2547,14 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   A trace $\trg{\trace}$ is stuck if it ends with $\trg{\lightning}$.
 \end{definition}
 
-\begin{definition}[Stuck State]\label{def:stuck:trgstate}
-  A state $\trg{\Omega}$ is stuck if it is equal to $\trg{\lightning}$.
-\end{definition}
-
 \begin{lemma}[Non-stuck Trace Generation]\label{lem:nonstuck:traces}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{v}{\trace}$
+  \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\trg{\trace}$ is not stuck.
-  \item $\trg{\Omega'}$ is not stuck.
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -2569,10 +2565,8 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ References}~L \subseteq&\ \nat \hspace{0.5cm}
-      \mi{Abstract\ Store}~\smsmonitor =\ L\times\nat \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \textbf{Alloc}\ \loc\ n \mid \textbf{Dealloc}\ \loc \mid \textbf{Use}\ \loc\ n \mid \abstermination\\
-    \mi{References\ Agreement}~\delta_{\text{sms}} :&\ \trg{L}\to L \\[0.6cm]
+      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
     \end{aligned}
   \end{gather*}
 }{sms-monitor}{\gls{sms} Monitor.}
@@ -2583,94 +2577,71 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
     \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
     %
     \typerule{sms-Use}{
-      (\loc,m)\in \smsmonitor[.A]&
-      n<m&
+      (\specificev{\loc},m) \in \smsmonitor&
+      n < m
     }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ n}
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ \bm{n}}
     }{sms-use}
     %
     \typerule{sms-Alloc}{
-      \forall m,(\loc,m)\not\in \smsmonitor&
-      \smsmonitor[']=\smsmonitor\cup\left\{(\loc,n)\right\}&
+      \specificev{\loc} \notin \text{dom }\smsmonitor&
+      \smsmonitor[']=\smsmonitor \cup \left\{(\specificev{\loc},n)\right\}
     }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \loc\ n}
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
     }{sms-alloc}
     %
     \typerule{sms-Dealloc}{
-      (\loc,m)\in \smsmonitor[.A] &
-      \smsmonitor[']=\smsmonitor\setminus\left\{(\loc,m)\right\}
+      (\specificev{\loc},m) \in \smsmonitor &
+      \smsmonitor[']=\smsmonitor\setminus\left\{(\specificev{\loc},m)\right\}
     }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \loc}
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
     }{sms-dealloc}
     %
     \typerule{sms-Refl}{
     }{
-    \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
+      \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
     }{sms-refl}
     %
     \typerule{sms-Trans}{
       \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}&
-      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\abstrace}&
+      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\abstrace}
     }{
-    \monitorcheck{\smsmonitor}{\smsmonitor['']}{\absevent\cdot\abstrace}
+      \monitorcheck{\smsmonitor}{\smsmonitor['']}{\absevent\cdot\abstrace}
     }{sms-trans}
   \end{center}
 }{sms-step}{Steps of \gls{sms} Monitor.}
 
 \myfig{
   \begin{center}
-    \judgbox{\delta_{\text{sms}}(\trg{\loc})=\loc}{,,A map from $\mmlAt$ memory locations $\trg{\loc}$ to abstract memory locations $\loc$.''}
-    \judgbox{\smstraceagree{{\msevent}}{\absevent}}{,,Memory-Safety specific event $\trg{\msevent}$ describes same action as $\absevent$.''}
-    \judgbox{\smstraceagree{{\mstrace}}{\abstrace}}{,,Memory-Safety specific trace $\trg{\mstrace}$ describes same trace as $\abstrace$.''}
+    \judgbox{\smstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
+    \judgbox{\smstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{SMS-Alloc-Authentic}{
-      \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \loc\ n}
+      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
     }{sms-alloc-auth}
     %
     \typerule{SMS-Dealloc-Authentic}{
-      \delta_{\text{sms}}(\trg{\loc})=\loc
     }{
-    \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \loc}
+      \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
     }{sms-dealloc-auth}
     %
-    \typerule{SMS-Get-Authentic}{
-      \delta_{\text{sms}}(\trg{\loc})=\loc
+    \typerule{SMS-Use-Authentic}{
     }{
-    \smstraceagree{\specificev{Get\ \loc\ n}}{\textbf{Use}\ \loc\ n}
-    }{sms-get-auth}
-    %
-    \typerule{SMS-Set-Authentic}{
-      \delta_{\text{sms}}(\trg{\loc})=\loc
-    }{
-      \smstraceagree{\specificev{Set\ \loc\ n\ v}}{\textbf{Use}\ \loc\ n}
-    }{sms-set-auth}
+      \smstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
+    }{sms-use-auth}
     %
     \typerule{SMS-Refl-Authentic}{
     }{
-    \smstraceagree{{\hole{\cdot}}}{\hole{\cdot}}
+      \smstraceagree{\hole{\cdot}}{\hole{\cdot}}
     }{sms-refl-auth}
     %
     \typerule{SMS-Trans-Authentic}{
-      \smstraceagree{\specificev{\event}}{\absevent} &
-      \smstraceagree{{\mstrace}}{\abstrace}
+      \smstraceagree{\msevent}{\absevent} &
+      \smstraceagree{\mstrace}{\abstrace}
     }{
-      \smstraceagree{\specificev{\event}\cdot{\mstrace}}{\absevent\cdot\abstrace}
+      \smstraceagree{\msevent \cdot \mstrace}{\absevent \cdot \abstrace}
     }{sms-trans-auth}
-    %
-    \typerule{SMS-Call-Authentic}{
-      \smstraceagree{{\mstrace}}{\abstrace}
-    }{
-      \smstraceagree{\specificev{Call\ ?n}\cdot{\mstrace}}{\abstrace}
-    }{sms-call-auth}
-    %
-    \typerule{SMS-Ret-Authentic}{
-      \smstraceagree{{\mstrace}}{\abstrace}
-    }{
-      \smstraceagree{{\mstrace}\cdot\specificev{Ret\ !n}}{\abstrace}
-    }{sms-ret-auth}
-    %
   \end{center}
 }{sms-trace-agreement}{Trace Agreement.}
 
@@ -2679,51 +2650,41 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \begin{center}
     \typerule{abstract-agree-dealloc}{
     }{
-    \textbf{Dealloc}\ \loc \prec \textbf{Dealloc}\ \loc
+    \textbf{Dealloc}\ \specificev{\loc} \prec \textbf{Dealloc}\ \specificev{\loc}
     }{aagree-dealloc}
     %
     \typerule{abstract-agree-alloc}{
     }{
-    \textbf{Alloc}\ \loc\ n \prec \textbf{Alloc}\ \loc
+    \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \prec \textbf{Alloc}\ \specificev{\loc}
     }{aagree-alloc}
     %
     \typerule{abstract-agree-use}{
     }{
-    \textbf{Use}\ \loc\ n \prec \textbf{Use}\ \loc
+    \textbf{Use}\ \specificev{\loc}\ \bm{n} \prec \textbf{Use}\ \specificev{\loc}
     }{use-dealloc}
     %
     \typerule{tms-sms-E}{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\abstrace} & 
-    \absevent\prec \absevent['] &
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\abstrace[']} &
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absevent} &
+      \absevent\prec \absevent['] &
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absevent[']} &
     T = \tmsmonitor\times\smsmonitor
     }{
-    \monitorcheck[]{T}{T}{\absevent}
+      \monitorcheck[]{T}{T}{\absevent}
     }{tms-sms-empty}
     %
     \typerule{tms-sms-Refl}{
     }{
-    \monitorcheck{T}{T}{\hole{\cdot}}
+      \monitorcheck{T}{T}{\hole{\cdot}}
     }{tms-sms-refl}
     %
     \typerule{tms-sms-Trans}{
       \monitorcheck[]{T}{T'}{\absevent}&
       \monitorcheck{T'}{T''}{\abstrace}&
     }{
-    \monitorcheck{T}{T''}{\absevent\cdot\abstrace}
+      \monitorcheck{T}{T''}{\absevent\cdot\abstrace}
     }{tms-sms-trans}
   \end{center}
 }{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
-
-\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:trg:trace:tms}
-  \MK{We need to change the agreement definitions from using $\delta_{tms}$ to just $\delta_{ms}$}
-  We say $\texttt{TMS}(\trg{\trace})$ iff $\exists \delta\ \abstrace\ \tmsmonitor$ such that:
-  \begin{itemize}
-    \item $\tmstraceagree{\tospecificevt{\trace}}{\abstrace}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
-  \end{itemize}
-\end{definition}
-
 
 \subsection{Robust \gls*{tms} Preserving Compiler}
 
@@ -2732,32 +2693,54 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \myfig{
   \begin{center}
     \begin{gather*}
-    \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
     \judgbox{\mmlAmmlAtcomp{e}=\trg{e}}{,,Compile $\mmlAs$ expression $\src{e}$ to $\mmlAt$ expression $\trg{e}$.}\\
-    \judgbox{\mmlAmmlAtcomp{\left[\valueexpr / x\right]}=\trg{\left[\valueexpr / x\right]}}{,,Compile $\mmlAs$ substitution to $\mmlAt$ substitution.''}
+    \judgbox{\mmlAmmlAtcomp{\left[\valueexpr / x\right]}=\trg{\left[\valueexpr / x\right]}}{,,Compile $\mmlAs$ substitution to $\mmlAt$ substitution.''} \\
     \end{gather*}
     $$
     \begin{array}{rll}
     \mmlAmmlAtcomp{\finalexpr} &\ = & \trg{\finalexpr} \\
-    \mmlAmmlAtcomp{hole:(x:\type_{1})\to\type_{2}} &\ = & \trg{hole:}\mmlAmmlAtcomp{x} \\
-    \mmlAmmlAtcomp{calling\ e} &\ = & \trg{calling\ }\mmlAmmlAtcomp{e}\\
-    \mmlAmmlAtcomp{returning\ e} &\ = & \trg{returning\ }\mmlAmmlAtcomp{e}\\
+    \mmlAmmlAtcomp{call\ foo\ e} &\ = & \trg{call\ }\mmlAmmlAtcomp{foo}\ \mmlAmmlAtcomp{e}\\
+    \mmlAmmlAtcomp{return\ e} &\ = & \trg{return\ }\mmlAmmlAtcomp{e}\\
     \mmlAmmlAtcomp{abort()} &\ = & \trg{abort()}\\
     \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \mmlAmmlAtcomp{e_1} \trg{\oplus} \mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{x[e]} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e}\trg{]} \\
-    \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=new\ }\mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
-    \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e_1}\trg{]\leftarrow }\mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=} \mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
+    \mmlAmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e_1}\trg{]\leftarrow }\mmlAmmlAtcomp{e_2} \\
+    \mmlAmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=new\ }\mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{delete\ x} &\ = & \trg{delete\ }\mmlAmmlAtcomp{x} \\
     \mmlAmmlAtcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \trg{ifz\ }\mmlAmmlAtcomp{e_1}\\
                                                         &&\trg{then\ }\mmlAmmlAtcomp{e_2} \\
                                                         &&\trg{else\ }\mmlAmmlAtcomp{e_3} \\[0.5cm]
     %
-    \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \trg{\left[\right.}\mmlAmmlAtcomp{v}\trg{/}\mmlAmmlAtcomp{x}\trg{\left.\right]}\\[0.5cm]
+      \mmlAmmlAtcomp{\left[\src{v}/\src{x}\right]}&\ = & \trg{\left[\right.}\mmlAmmlAtcomp{v}\trg{/}\mmlAmmlAtcomp{x}\trg{\left.\right]}
     \end{array}
     $$
   \end{center}
 }{tms-pres-compiler}{Compiler from $\mmlAs$ to $\mmlAt$.}
+\myfig{
+  \begin{center}
+    \begin{gather*}
+    \judgbox{\mmlAmmlAtcomp{F}=\trg{F}}{,,Compile $\mmlAs$ procedures to $\mmlAt$ procedures.''}
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+    %
+      \mmlAmmlAtcompN{\src{let\ foo\ x :\nat \to \type_{e} := e}}&\ = & \trg{let\ }\mmlAmmlAtcomp{foo}\ \mmlAmmlAtcomp{x}\trg{ := }\\
+                               && \trg{ifz\ }\mmlAmmlAtcomp{x}\trg{\ has\ \nat\ then}\\
+                               && \ \ \mmlAmmlAtcomp{e}\\
+                               && \trg{else}\\
+                               && \ \ \trg{abort()}\\
+      \mmlAmmlAtcompN{\src{let\ foo\ x :\wptr \to \type_{e} := e}}&\ = & \trg{let\ }\mmlAmmlAtcomp{foo}\ \mmlAmmlAtcomp{x}\trg{ := }\\
+                               && \trg{ifz\ }\mmlAmmlAtcomp{x}\trg{\ has\ \nat\ then}\\
+                               && \ \ \trg{abort()}\\
+                               && \trg{else\ ifz\ }\mmlAmmlAtcomp{x}\trg{\ has\ \nat \times \nat\ then}\\
+                               && \ \ \trg{abort()}\\
+                               && \trg{else}\\
+                               && \ \ \mmlAmmlAtcomp{e}\\
+    \end{array}
+    $$
+  \end{center}
+}{tms-pres-compiler-comp}{Compiler from $\mmlAs$ components to $\mmlAt$ components.}
 \myfig{
   \begin{center}
     \begin{gather*}
@@ -2766,40 +2749,30 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
     $$
     \begin{array}{rll}
       \mmlAmmlAtcomp{\hole{\cdot}} &\ = & \trg{\hole{\cdot}} \\
-      \mmlAmmlAtcomp{K\oplus e} &\ = & \mmlAmmlAtcomp{K}\trg{\oplus}\mmlAmmlAtcomp{e} \\
-      \mmlAmmlAtcomp{\valueexpr\oplus K} &\ = & \mmlAmmlAtcomp{\valueexpr}\trg{\oplus}\mmlAmmlAtcomp{K} \\
-      \mmlAmmlAtcomp{x[K]} &\ = & \trg{x[}\mmlAmmlAtcomp{K}\trg{]} \\
-      \mmlAmmlAtcomp{let\ x\ = K\ in\ e} &\ = & \trg{let\ x\ = }\mmlAmmlAtcomp{K}\trg{\ in\ }\mmlAmmlAtcomp{e} \\
-      \mmlAmmlAtcomp{x[K]\leftarrow e} &\ = & \trg{x[}\mmlAmmlAtcomp{K}\trg{]\leftarrow} \mmlAmmlAtcomp{e} \\
-      \mmlAmmlAtcomp{x[\valueexpr]\leftarrow K} &\ = & \trg{x[}\mmlAmmlAtcomp{\valueexpr}\trg{]\leftarrow }\mmlAmmlAtcomp{K} \\
-      \mmlAmmlAtcomp{let\ x\ = new\ K\ in\ e} &\ = & \trg{let\ x\ = new\ }\mmlAmmlAtcomp{K}\trg{\ in\ }\mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{K \oplus e} &\ = & \mmlAmmlAtcomp{K}\trg{\oplus}\mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{\valueexpr \oplus K} &\ = & \mmlAmmlAtcomp{\valueexpr}\trg{\oplus}\mmlAmmlAtcomp{K} \\
+      \mmlAmmlAtcomp{x[K]} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{K}\trg{]} \\
+      \mmlAmmlAtcomp{let\ x\ = K\ in\ e} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{\ = }\mmlAmmlAtcomp{K}\trg{\ in\ }\mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{x[K] \leftarrow e} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{K}\trg{]\leftarrow} \mmlAmmlAtcomp{e} \\
+      \mmlAmmlAtcomp{x[\valueexpr] \leftarrow K} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{\valueexpr}\trg{]\leftarrow }\mmlAmmlAtcomp{K} \\
+      \mmlAmmlAtcomp{let\ x\ = new\ K\ in\ e} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{\ = new\ }\mmlAmmlAtcomp{K}\trg{\ in\ }\mmlAmmlAtcomp{e} \\
       \mmlAmmlAtcomp{ifz\ K\ then\ e_{1}\ else\ e_{2}} &\ = & \trg{ifz\ }\mmlAmmlAtcomp{K}\trg{\ then\ }\\
-                                                           &&\mmlAmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAmmlAtcomp{e_{2}} \\
-      \mmlAmmlAtcomp{calling\ K} &\ = & \trg{calling\ }\mmlAmmlAtcomp{K}\\
-      \mmlAmmlAtcomp{returning\ K} &\ = & \trg{returning\ }\mmlAmmlAtcomp{K}\\
+                               &&\ \ \mmlAmmlAtcomp{e_{1}}\\
+                               &&\trg{else\ }\\
+                               &&\ \ \mmlAmmlAtcomp{e_{2}} \\
+      \mmlAmmlAtcomp{call\ foo\ K} &\ = & \trg{call\ }\mmlAmmlAtcomp{foo}\ \mmlAmmlAtcomp{K}\\
+      \mmlAmmlAtcomp{return\ K} &\ = & \trg{return\ }\mmlAmmlAtcomp{K}\\
     \end{array}
     $$
   \end{center}
 }{tms-pres-compiler-ctx}{Compiling $\mmlAs$ evaluation contexts to $\mmlAt$ evaluation contexts.}
-\myfig{
-  \begin{center}
-      \judgbox{\mmlAmmlAtcomp{component\ e_p}=\trg{component\ e_p}}{,,Compile $\mmlAs$ components to\\$\mmlAt$ components.''}
-    $$
-    \begin{array}{rcl}
-    \mmlAmmlAtcomp{component\ e_p} =& \trg{component\ }&\trg{ifz\ x\ has\ \nat\ then\ }\\
-                                    &                  &~~\mmlAmmlAtcomp{e_p}\\
-                                    &                  &\trg{else\ ifz\ x\ has\ \nat\times\nat\ then\ }\\
-                                    &                  &~~\trg{abort()}\\
-                                    &                  &\trg{else}\\
-                                    &                  &~~\mmlAmmlAtcomp{e_p}
-    \end{array}
-    $$
-  \end{center}
-}{tms-pres-compiler-comp}{Compiling $\mmlAs$ components to $\mmlAt$ components.}
 Compiling components requires a wrapper to ensure that target contexts invoke the compiled component with the right runtime terms.
-For example, by adding the dynamic type check we prevent contexts from binding $\trg{\langle 42,1729\rangle}$ to $\trg{x}$.
+For example, by adding the dynamic type check we prevent contexts from binding $\trg{\langle 42,1729 \rangle}$ to $\trg{x}$, which is never valid for $\mmlAs$ components.
+
 \myfig{
   \begin{center}
+    \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,Map from $\mmlAs$ locations $\src{\loc}$ to $\mmlAt$ locations $\trg{\loc}$.''} \\
+    \judgbox{\xlangeventeq{\event}{\event}}{,,The $\mmlAs$ event $\src{\event}$ describes the same action as $\mmlAt$ event $\trg{\event}$.''} \\
     \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ describes the same actions as $\mmlAt$ trace $\trg{\trace}$.''} \\
     \typerule{empty-trace-eq}{
     }{
@@ -2842,8 +2815,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{call-event-eq}{
       \mmlAmmlAtcomp{n} = \trg{n} &
+      \mmlAmmlAtcomp{foo} = \trg{foo}
     }{
-      \xlangeventeq{Call\ ?n}{Call\ ?n}
+      \xlangeventeq{Call\ ?foo\ n}{Call\ ?foo\ n}
     }{call-event-eq}
     %
     \typerule{ret-event-eq}{
@@ -2948,6 +2922,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{back-cons-locmap-eq-unimportant}
   \end{center}
 }{tms-pres-state-relations}{State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
+$\;$\MK{fix lolly and the other one}
+
 
 \begin{lemma}[Related non-crashing states]\label{lem:relatednoncrash}
   If

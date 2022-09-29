@@ -163,8 +163,19 @@ Definition MSubset { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapi
 Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
   Some m' = (x ↦ v ◘ m) ->
   MSubset m m'.
+Proof. Admitted.
+
+Lemma MIn_in { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  MIn m x v -> In x (dom m) /\ In v (img m)
+.
 Proof.
-Admitted.
+  induction m; cbn; intros.
+  - inv H0.
+  - inv H0. remember (eq a x) as b__x; destruct b__x; symmetry in Heqb__x.
+    + inv H2. apply eqb_eq in Heqb__x; subst; split; now left.
+    + destruct (IHm H2) as [IHm1 IHm2].
+      split; now right.
+Qed.
 
 #[global]
 Instance MSubset__Transitivity { A : Type } { H : HasEquality A } { B : Type } :

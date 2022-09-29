@@ -2268,7 +2268,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \mi{References}~\trg{\loc}\in\trg{\nat} \\
   \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid \trg{let\ x=K\ in\ e} \\
                  &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \\
-                 &\mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle} \mid \trg{ifz\ K\ then\ e_1\ else\ e_2} \\
+                 &\mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle} \mid \trg{ifz\ K\ then\ e_1\ else\ e_2} \mid \trg{\pi_{1}\ K} \mid \trg{\pi_{2}\ K} \\
                  &\mid \trg{K\ has\ \type}\mid\trg{call\ foo\ K}\mid\trg{return\ K} \\
   %
   \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \dots \hspace{0.35cm}
@@ -3568,6 +3568,33 @@ $\;$\MK{fix lolly and the other one}
 \end{proof}
 
 \subsubsection{Trace-based Backtranslation}
+
+\myfig{
+  \begin{center}
+    $$
+    \src{\trace}=\src{Call\ ?main\ 0\cdot Call\ ?foo\ 42\cdot Alloc\ \ell_{0}\ 42\cdot Get\ \ell_{0}\ 1337\cdot\ Dealloc\ \ell_{0}\cdot\ Ret\ !1729\cdot\ Ret\ !1729}
+    $$
+
+    $$
+    \src{\trace}=\src{Call\ ?main\ 0\cdot }\underbrace{\src{Call\ ?foo\ 42\cdot Alloc\ \ell_{0}\ 42\cdot Get\ \ell_{0}\ 1337\cdot\ Dealloc\ \ell_{0}\cdot\ Ret\ !1729}}_{\src{foo}}\src{\cdot\ Ret\ !1729}
+    $$
+
+    Let $\xi$ be the set of component names we care about security-wise.
+
+    \typerule{nowrap}{
+      \trg{foo}\in\xi
+    }{
+      \mmlAmmlAtback[\xi]{Call\ ?foo\ f} = \src{call\ foo}
+    }{x}
+    \typerule{wrap}{
+      \trg{foo}\notin\xi &
+      \vdash\trg{\ell}\operatorname{fresh} &
+      \mmlAmmlAtback[\xi]{Alloc\ \ell\ 42} = \src{e}
+    }{
+      \mmlAmmlAtback[\xi]{Call\ ?foo\ f} = \src{e;call\ foo}
+    }{y}
+  \end{center}
+}{x}{x}
 
 \myfig{
   \begin{center}

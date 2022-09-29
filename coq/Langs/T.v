@@ -1890,9 +1890,9 @@ Compute (debug_eval smsunsafe_prog).
      delete z; delete z
 *)
 Definition smsoops_ep : evalctx :=
-  Klet "y"%string
+  Knew "z"%string
     Khole
-    (Xnew "z"%string
+    (Xlet "__"%string
         (Xdel "z"%string)
         (Xdel "z"%string))
 .
@@ -1987,10 +1987,12 @@ Definition TMS (As : tracepref) :=
                             exists δ (Bs : TMMonM.tracepref), mstracepref_eq δ MAs Bs /\
                                                          TMMon.TMS Bs
 .
+Definition smsoops_prog_aux := ("foo"%string ↦ smsoops_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)).
+Definition smsoops_prog := Cprog smsoops_prog_aux.
+Compute (debug_eval smsoops_prog).
 
-Definition smsoops_prog := Cprog ("foo"%string ↦ smsoops_ep ◘ ("main"%string ↦ smsunsafe_ctx ◘ nosymb)).
-
-Goal exists As R,
+Lemma smsoops_runs :
+  exists As R,
     wstep smsoops_prog As R.
 Proof.
   do 2 eexists.
@@ -1999,19 +2001,42 @@ Proof.
   econstructor 3. rewrite equiv_estep; now cbn. now cbn.
   econstructor 3. rewrite equiv_estep; now cbn. now cbn.
   econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 2. rewrite equiv_estep; (*FIXME*) now cbn. now cbn.
+  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
   econstructor 2. rewrite equiv_estep; now cbn. now cbn.
   econstructor 3. rewrite equiv_estep; now cbn. now cbn.
   econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
   econstructor 2. rewrite equiv_estep; now cbn. now cbn.
   econstructor 2. rewrite equiv_estep; now cbn. now cbn.
   now econstructor.
 Qed.
 
-Theorem s_is_not_tms (Ξ : @symbols vart symbol varteq__Instance symbol__Instance) As Ω f :
-  wstep (Cprog Ξ) As (Ω ▷ (Xres f)) ->
+Lemma deterministic_star_step Ω e R0 R1 As0 As1 :
+  Ω ▷ e ==[ As0 ]==>* R0 ->
+  Ω ▷ e ==[ As1 ]==>* R1 ->
+  R0 = R1 /\ As0 = As1
+.
+Proof. Admitted.
+
+Theorem s_is_not_tms :
+  exists Ξ As R, wstep (Cprog Ξ) As R /\
   ~TMS As.
 Proof.
+  assert (H:=smsoops_runs); deex; do 3 eexists; split; eauto.
+  inv H.
+  assert (Some 10 = get_fuel (Xcall "main"%string 0)) by admit.
+  eapply equiv_starstep in H1; eauto.
+  cbn in H1.
+  inv H1; clear H.
+  intros H. unfold TMS in H.
+
+  remember
+      (mstracepref_of_tracepref
+        (Tcons (Scall "main"%string 0)
+           (Tcons (Scall "foo"%string 3)
+              (Tcons (Salloc (addr 0) 3)
+                 (Tcons (Sdealloc (addr 0)) (Tcons (Sdealloc (addr 0)) (Tcons (Sret 0) (Tcons (Sret 0) Tnil)))))))) as MAs.
+  specialize (H MAs Logic.eq_refl); deex; destruct H as [H1 H2].
+  unfold TMMon.TMS in H2; deex.
+  induction H2; cbn in *; eauto.
+  inv H1; easy.
 Admitted.

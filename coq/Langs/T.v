@@ -476,11 +476,30 @@ Proof.
       apply loc_of_store_split in H4 as [H4__a H4__b];
       apply dom_split in H3 as [H3__a H3__b]; trivial.
 Qed.
+Lemma snodupinv_whocares_cons (a : vart) (ℓ : loc) (ρ ρ' : poison) (Δ : store) :
+  snodupinv (a ↦ (ℓ,ρ) ◘ Δ) <-> snodupinv (a ↦ (ℓ, ρ') ◘ Δ)
+.
+Proof. split; intros H; inv H; now constructor. Qed.
+Lemma dom_dont_care (Δ1 Δ2 : store) a ℓ ρ ρ' :
+  dom(Δ1 ◘ (a ↦ (ℓ, ρ) ◘ Δ2)) = dom(Δ1 ◘ (a ↦ (ℓ, ρ') ◘ Δ2))
+.
+Proof. induction Δ1; cbn; trivial; now f_equal. Qed.
+Lemma locs_of_store_dont_care (Δ1 Δ2 : store) a ℓ ρ ρ' :
+  locs_of_store(Δ1 ◘ (a ↦ (ℓ, ρ) ◘ Δ2)) = locs_of_store(Δ1 ◘ (a ↦ (ℓ, ρ') ◘ Δ2))
+.
+Proof. induction Δ1; cbn; trivial; destruct b; now f_equal. Qed.
 
 Lemma snodupinv_whocares (a : vart) (ℓ : loc) (ρ ρ' : poison) (Δ Δ' : store) :
   snodupinv (Δ ◘ a ↦ (ℓ,ρ) ◘ Δ') <-> snodupinv (Δ ◘ a ↦ (ℓ, ρ') ◘ Δ')
 .
-Proof. Admitted.
+Proof.
+  induction Δ.
+  - cbn; split; intros H; inv H; now constructor.
+  - destruct b as [ℓ0 ρ0]; split; intros H; inv H; constructor; eauto;
+    try (erewrite dom_dont_care in H3; eassumption);
+    try (erewrite locs_of_store_dont_care in H5; eassumption);
+    now eapply IHΔ.
+Qed.
 Lemma spush_msubset (Δ Δ' : store) (x : vart) (v : dynloc) :
   Some Δ' = spush x v Δ ->
   MSubset Δ Δ'.

@@ -108,6 +108,11 @@ Definition append { A : Type } {H : HasEquality A} {B : Type} (m0 m1 : mapind H 
 Notation "a '↦' b '◘' M" := (push a b M) (at level 81, b at next level).
 Notation "M1 '◘' M2" := (append M1 M2) (at level 82, M2 at next level).
 
+Lemma append_nil { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) :
+  append m (mapNil H B) = m
+.
+Proof. induction m; eauto; rewrite <- IHm at 2; now cbn. Qed.
+
 Definition splitat { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) (x : A)
   : option((mapind H B) * A * B * (mapind H B)) :=
   let fix doo (accM : mapind H B) (m : mapind H B) :=

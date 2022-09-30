@@ -50,10 +50,35 @@ Fixpoint undup {A : Type} {H : HasEquality A} { B : Type } (m : mapind H B) : op
 .
 Lemma undup_refl {A : Type} {H : HasEquality A} {B : Type} (m m' : mapind H B) :
   undup m = Some m' -> m = m'.
-Proof. Admitted.
+Proof.
+  revert m'; induction m; intros m' H0; inv H0; trivial.
+  destruct (option_dec (List.find (fun x : A => eq a x) (dom m))) as [Hx | Hy].
+  apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H2; inv H2.
+  rewrite Hy in H2.
+  destruct (option_dec (undup m)) as [H__x | H__y]; try rewrite H__y in H2; inv H2.
+  apply not_eq_None_Some in H__x as [m'' H__x]; rewrite H__x in H1.
+  rewrite (IHm m'' H__x); now inv H1.
+Qed.
 Lemma nodupinv_equiv_undup {A : Type} {H : HasEquality A} { B : Type } (m : mapind H B) :
   undup m = Some m <-> nodupinv m.
-Proof. Admitted.
+Proof.
+  induction m; cbn; split; try easy.
+  - constructor.
+  - intros H0; destruct (option_dec (List.find (fun x : A => eq a x) (dom m))) as [Hx | Hy].
+    apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H0; inv H0.
+    rewrite Hy in H0.
+    destruct (option_dec (undup m)) as [Hx | Hy']; try rewrite Hy' in H0; inv H0.
+    apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H2; inv H2.
+    constructor; try apply IHm; eauto. Search (List.find).
+    intros Ha. eapply List.find_none in Hy; eauto. rewrite eq_refl in Hy. inv Hy.
+  - intros H0; inv H0; destruct (option_dec (List.find (fun x : A => eq a x) (dom m))) as [Hx | Hy].
+    apply not_eq_None_Some in Hx as [a' Hx].
+    Search (List.find). apply List.find_some in Hx as [Hx1 Hx2].
+    rewrite eqb_eq in Hx2; subst; contradiction.
+    rewrite Hy. destruct (option_dec (undup m)) as [Hx | Hy'].
+    apply not_eq_None_Some in Hx as [m'' Hx]. rewrite Hx. f_equal. f_equal. apply undup_refl in Hx; easy.
+    apply IHm in H5. congruence.
+Qed.
 Definition push { A : Type } { H : HasEquality A } { B : Type } (a : A) (b : B) (m : mapind H B) : option (mapind H B) :=
   match undup (mapCons a b m) with
   | Some m' => Some m'
@@ -82,11 +107,17 @@ Lemma push_ko { A : Type } { H : HasEquality A } { B : Type } (a : A) (b : B) (m
   push a b m = Some (mapCons a b m)
 .
 Proof.
-  induction 1; cbn; intros H__a; trivial.
-  unfold push. destruct (option_dec (undup (mapCons a b (mapCons a0 b0 m)))) as [Hx|Hy].
-  - apply not_eq_None_Some in Hx as [m__x Hx]. rewrite Hx. apply undup_refl in Hx. now inv Hx.
-  - admit.
-Admitted.
+  unfold push, undup; intros H0 H1.
+  destruct (option_dec (List.find (fun x : A => eq a x) (dom m))) as [Hx | Hy].
+  apply not_eq_None_Some in Hx as [m__x Hx].
+  apply List.find_some in Hx as [Hx0 Hx1]. apply eqb_eq in Hx1; subst.
+  contradiction.
+  rewrite Hy in *. fold (undup m).
+  destruct (option_dec (undup m)) as [Hx | Hy''].
+  apply not_eq_None_Some in Hx as [m__x Hx].
+  rewrite Hx in *. apply undup_refl in Hx; subst; easy.
+  apply nodupinv_equiv_undup in H0; congruence.
+Qed.
 
 Definition img { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) : list B :=
   let fix img_aux (m : mapind H B) :=
@@ -158,17 +189,19 @@ Lemma nodupinv_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapi
   Some m' = mset m x v ->
   nodupinv m'
 .
-Proof. Admitted.
+Proof.
+  revert m'; induction m; intros.
+  - inv H1.
+  - inv H0. eapply IHm; eauto.
+    unfold mset in H1; unfold mset.
+    remember (eq a x) as b__x; destruct b__x; symmetry in Heqb__x.
+Admitted.
 Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
   mget m x = Some v
 .
 Definition MSubset { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) : Prop :=
   forall (x : A) (v : B), MIn m1 x v -> MIn m2 x v
 .
-Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
-  Some m' = (x ↦ v ◘ m) ->
-  MSubset m m'.
-Proof. Admitted.
 
 Lemma MIn_in { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
   MIn m x v -> In x (dom m) /\ In v (img m)
@@ -180,6 +213,23 @@ Proof.
     + inv H2. apply eqb_eq in Heqb__x; subst; split; now left.
     + destruct (IHm H2) as [IHm1 IHm2].
       split; now right.
+Qed.
+Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
+  Some m' = (x ↦ v ◘ m) ->
+  MSubset m m'.
+Proof.
+  intros H0 a b H1. symmetry in H0. apply push_ok in H0 as H0'.
+  unfold "_ ↦ _ ◘ _" in H0.
+  unfold MIn in *.
+  destruct (option_dec (undup (mapCons x v m))) as [Hx | Hy].
+  apply not_eq_None_Some in Hx as [m'' Hx].
+  rewrite Hx in H0; inv H0.
+  apply undup_refl in Hx. inv Hx. cbn. inv H0'.
+  destruct (Bool.bool_dec (eq x a) true) as [Hv | Hv].
+  exfalso. apply H4. apply eqb_eq in Hv. apply MIn_in in H1 as [H1a H1b].
+  subst; contradiction.
+  apply Bool.not_true_is_false in Hv; now rewrite Hv.
+  now rewrite Hy in H0.
 Qed.
 
 #[global]

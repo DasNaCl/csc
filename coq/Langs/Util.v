@@ -200,12 +200,8 @@ Lemma nodupinv_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapi
   nodupinv m'
 .
 Proof.
-  revert m'; induction m; intros.
-  - inv H1.
-  - inv H0. eapply IHm; eauto.
-    unfold mset in H1; unfold mset.
-    remember (eq a x) as b__x; destruct b__x; symmetry in Heqb__x.
-
+  remember (mset m x v) as om; revert om Heqom; induction m'; intros.
+  - constructor.
 Admitted.
 Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
   mget m x = Some v
@@ -343,15 +339,14 @@ Proof.
       apply dom_split in H2 as [H2__a H2__b]; trivial.
 Qed.
 
+Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (x ↦ v ◘ m2) ->
+  splitat (x ↦ v ◘ m2) x = Some (mapNil _ _, x, v, m2).
+Proof. cbn; now rewrite eq_refl. Qed.
 Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) (x : A) (v : B) :
   nodupinv (m1 ◘ x ↦ v ◘ m2) ->
   splitat (m1 ◘ x ↦ v ◘ m2) x = Some (m1, x, v, m2).
 Proof.
-  remember (m1 ◘ x ↦ v ◘ m2) as m'. revert m1 x v m2 Heqm'; induction m'; cbn; intros.
-  cbn in Heqm'; destruct m1; inv Heqm'.
-  destruct m1.
-  - cbn in Heqm'; inv Heqm'. now rewrite eq_refl.
-  - rewrite Heqm' in H0.
 Admitted.
 
 Module Type MOD.
@@ -412,7 +407,8 @@ Module Mod (X : MOD).
   Lemma before_split a As a0 a1 :
     before a0 a1 As \/ (a0 = a /\ wherein As a1 <> None) ->
     before a0 a1 (Tcons a As).
-  Proof. Admitted.
+  Proof.
+  Admitted.
   Definition once (a : Ev) (As : tracepref) :=
     forall n, (wherein As a) = Some n -> ~exists m, (wherein As a) = Some m /\ n <> m
   .
@@ -481,17 +477,23 @@ Qed.
 Lemma nodupinv_equiv_undup {A : Type} {H : HasEquality A} (xs : list A) :
   undup xs = Some xs <-> nodupinv xs.
 Proof.
-  split.
-  - induction xs; intros H0; constructor.
-    + destruct (option_dec (List.find (fun y : A => eq a y) xs)) as [Hx|Hy].
-      * cbn in *; apply not_eq_None_Some in Hx as [zs Hx]; now rewrite Hx in H0.
-      * cbn in *; rewrite Hy in H0. intros H1. admit.
-    + apply IHxs. admit.
-  - induction 1; eauto. cbn. rewrite IHnodupinv.
-    destruct (option_dec (List.find (fun y : A => eq x y) xs)) as [Hx|Hy].
-    + apply not_eq_None_Some in Hx as [zs Hx]. rewrite Hx. admit.
-    + now rewrite Hy.
-Admitted.
+  induction xs; cbn; split; try easy.
+  - constructor.
+  - intros H0; destruct (option_dec (List.find (fun y : A => eq a y) xs)) as [Hx | Hy].
+    apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H0; inv H0.
+    rewrite Hy in H0.
+    destruct (option_dec (undup xs)) as [Hx | Hy']; try rewrite Hy' in H0; inv H0.
+    apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H2; inv H2.
+    constructor; try apply IHxs; eauto.
+    intros Ha. eapply List.find_none in Hy; eauto. rewrite eq_refl in Hy. easy.
+  - intros H0; inv H0; destruct (option_dec (List.find (fun x : A => eq a x) xs)) as [Hx | Hy].
+    apply not_eq_None_Some in Hx as [a' Hx].
+    apply List.find_some in Hx as [Hx1 Hx2].
+    rewrite eqb_eq in Hx2; subst; contradiction.
+    rewrite Hy. destruct (option_dec (undup xs)) as [Hx | Hy'].
+    apply not_eq_None_Some in Hx as [m'' Hx]. rewrite Hx. f_equal. f_equal. apply undup_refl in Hx; easy.
+    apply IHxs in H4. congruence.
+Qed.
 Definition push { A : Type } { H : HasEquality A } (x : A) (xs : list A) : option (list A) :=
   match undup (List.cons x xs) with
   | Some xs' => Some xs'

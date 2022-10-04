@@ -9,6 +9,16 @@ Class HasEquality (A : Type) := {
   eqb_eq : forall (a b : A), eq a b = true <-> a = b ;
   neqb_neq : forall (a b : A), eq a b = false <-> a <> b ;
 }.
+Lemma eqb_dec { A : Type } { H : HasEquality A } (a x : A) :
+  eq a x = true \/ eq a x = false.
+Proof. destruct (eq a x); now (left + right). Qed.
+Lemma eq_dec { A : Type } { H : HasEquality A } (a x : A) :
+  a = x \/ a <> x.
+Proof.
+  destruct (eqb_dec a x).
+  apply eqb_eq in H0. now left.
+  apply neqb_neq in H0. now right.
+Qed.
 
 Inductive mapind {A : Type} (H : HasEquality A) (B : Type) : Type :=
 | mapNil : mapind H B
@@ -195,6 +205,7 @@ Proof.
   - inv H0. eapply IHm; eauto.
     unfold mset in H1; unfold mset.
     remember (eq a x) as b__x; destruct b__x; symmetry in Heqb__x.
+
 Admitted.
 Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
   mget m x = Some v
@@ -249,14 +260,6 @@ Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H
 .
 Proof. intros Ha Hb; specialize (Hb x v); apply mget_min; apply mget_min in Ha; eauto. Qed.
 
-Lemma nodupinv_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
-  nodupinv m ->
-  MSubset m m' ->
-  nodupinv m'
-.
-Proof. Admitted.
-
-
 (** These are synthetic. They simply allow us to write e.g. `PrimStep` instead of supplying it with parameters *)
 Class ExprClass (Expr : Type) := {}.
 Class RuntimeExprClass (Expr : Type) := {}.
@@ -303,9 +306,53 @@ Notation "G '⊦' e ':' t" := (vDash__Class G e t) (at level 82, e at next level
 #[global]
 Notation "'[⋅]'" := (Gnil).
 
+Lemma dom_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
+  ~ In x (dom(m1 ◘ m2)) ->
+  ~ In x (dom m1) /\ ~ In x (dom m2)
+.
+Proof.
+  remember (m1 ◘ m2) as m0; revert m1 m2 Heqm0; induction m0; cbn; intros m1 m2 Heqm0 H0.
+  - destruct m1, m2; inv Heqm0; split; intros [].
+  - destruct (eq_dec a x); subst.
+    + exfalso; exact (H0 (or_introl Logic.eq_refl)).
+    + destruct m1, m2; cbn in Heqm0.
+      * inv Heqm0.
+      * inv Heqm0; cbn; split; easy.
+      * fold (append m1 (mapNil _ _)) in Heqm0. fold (dom m0) in H0.
+        rewrite append_nil in Heqm0. split; inv Heqm0; cbn; easy.
+      * fold (append m1 (a1 ↦ b1 ◘ m2)) in Heqm0.
+        fold (dom m0) in H0.
+        inv Heqm0.
+        assert (~ In x (dom(m1 ◘ a1 ↦ b1 ◘ m2))).
+        intros X; specialize (H0 (or_intror X)); easy.
+        specialize (IHm0 m1 (a1 ↦ b1 ◘ m2) Logic.eq_refl H2).
+        destruct (IHm0) as [IHm0a IHm0b]; split; try easy.
+        intros []; subst; easy.
+Qed.
+Lemma nodupinv_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (m1 ◘ m2) ->
+  nodupinv m1 /\ nodupinv m2
+.
+Proof.
+  remember (m1 ◘ m2) as m0; revert m1 m2 Heqm0; induction m0; cbn; intros m m' Heqm0 H'; inv H'.
+  - inv Heqm0; destruct m, m'; inv H1; split; constructor.
+  - destruct m; inv Heqm0.
+    + split; cbn in H0; inv H0; now constructor.
+    + destruct (IHm0 m m' Logic.eq_refl H4) as [IHm0__a IHm0__b].
+      split; trivial; constructor; trivial.
+      apply dom_split in H2 as [H2__a H2__b]; trivial.
+Qed.
+
 Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (m1 ◘ x ↦ v ◘ m2) ->
   splitat (m1 ◘ x ↦ v ◘ m2) x = Some (m1, x, v, m2).
-Proof. Admitted.
+Proof.
+  remember (m1 ◘ x ↦ v ◘ m2) as m'. revert m1 x v m2 Heqm'; induction m'; cbn; intros.
+  cbn in Heqm'; destruct m1; inv Heqm'.
+  destruct m1.
+  - cbn in Heqm'; inv Heqm'. now rewrite eq_refl.
+  - rewrite Heqm' in H0.
+Admitted.
 
 Module Type MOD.
   Parameter State : Type.

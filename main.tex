@@ -1007,12 +1007,15 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 \myfig{
   \begin{gather*}
   \begin{aligned}
+  \mi{Interface\ Value}~\src{\interfacevalue} \bnfdef&\ \src{\valueexpr} \mid \src{\loc} \\
   \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \mid \src{\lightning} \\
-                                  & \mid \src{Call\ \comm\ foo\ n} \mid \src{Ret\ \comm\ n} \\
+                                  & \mid \src{Call\ \comm\ foo\ \interfacevalue} \mid \src{Ret\ \comm\ \interfacevalue} \\
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
 
+We add the syntactic category of {\em interface values} $\src{\interfacevalue}$, because we want call and return events to allow for values and for locations, which are not values.
+They do not have any other relevance.
 
 \myfig{
   \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{\event}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
@@ -1097,19 +1100,38 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \execs[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
     }{w-e-ectx-stuck}
     %
-    \typerule{$e-\text{ctx}-\src{call}$}{
+    \typerule{$e-\text{ctx}-\src{call}-\src{\valueexpr}$}{
       \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
       \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack}) = \src{\comm} &
       \src{\Omega'}=\src{\commlib;\library;K_{\comm}^{foo},\kontstack;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{return\ e[x/\finalexprnoerr]}{Call\ \comm\ foo\ f}
-    }{w-e-ectx-call}
+      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{return\ e[x/\valueexpr]}{Call\ \comm\ foo\ \valueexpr}
+    }{w-e-ectx-call-value}
     %
-    \typerule{$e-\text{ctx}-\src{return}$}{
+    \typerule{$e-\text{ctx}-\src{call}-\src{\loc}$}{
+      \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
+      \src{\memstate}=\src{H;\Delta}&
+      \src{\Delta}=\src{\Delta_1},\src{x\mapsto\loc_\poison},\src{\Delta_2}\\
+      \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack}) = \src{\comm} &
+      \src{\Omega'}=\src{\commlib;\library;K_{\comm}^{foo},\kontstack;\memstate} \\
+    }{
+      \execs[]{\Omega}{K[call\ foo\ \loc]}{\Omega'}{return\ e[x/\valueexpr]}{Call\ \comm\ foo\ \loc}
+    }{w-e-ectx-call-value}
+    %
+    \typerule{$e-\text{ctx}-\src{return}-\src{\valueexpr}$}{
       \rho_{\tiny ret}\left(\src{\comm}\right)=\src{\comm_0}\\
     }{
-      \execs[]{\commlib;foo;\library;K_{\comm},\kontstack;\memstate}{K'[return\ \finalexprnoerr]}{\commlib;\library;\kontstack;\memstate}{K[f]}{Ret\ \comm_0\ \finalexprnoerr}
+      \execs[]{\commlib;\library;K_{\comm},\kontstack;\memstate}{K'[return\ \valueexpr]}{\commlib;\library;\kontstack;\memstate}{K[\valueexpr]}{Ret\ \comm_0\ \valueexpr}
+    }{w-e-ectx-ret}
+    %
+    \typerule{$e-\text{ctx}-\src{return}-\src{\loc}$}{
+      \rho_{\tiny ret}\left(\src{\comm}\right)=\src{\comm_0} &
+      \src{\memstate}=\src{H;\Delta}&
+      \src{\Delta}=\src{\Delta_1},\src{x\mapsto\loc_\poison},\src{\Delta_2}
+    }{
+      \execs[]{\commlib;\library;K_{\comm},\kontstack;\memstate}{K'[return\ x]}{\commlib;\library;\kontstack;\memstate}{K[x]}{Ret\ \comm_0\ \loc}
     }{w-e-ectx-ret}
     %
     \judgbox{\rho_{\tiny ret}(\src{\comm})=\src{\comm_0}}{,,Given the last comm. and we are returning, yield the current.''}
@@ -1382,7 +1404,7 @@ As before, we need a way to translate one set of actions to another:
 
 \myfig{
   \begin{center}
-    \judgbox{\delta_{MS}(\src{\ell})=\specificev{\ell}}{,,Map $\mmlAs$ locations $\src{\ell}$ to abstract locations $\specificev{\ell}$.''}
+    \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,Map $\mmlAs$ locations $\src{\loc}$ to abstract locations $\specificev{\loc}$.''}
     \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta}}}{,,Abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
     \typerule{Empty-Agree}{
     }{
@@ -2883,6 +2905,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 Compiling components requires a wrapper to ensure that target contexts invoke the compiled component with the right runtime terms.
 For example, by adding the dynamic type check we prevent contexts from binding $\trg{\langle 42,1729 \rangle}$ to $\trg{x}$, which is never valid for $\mmlAs$ components.
 
+.\MK{patch the following}
 \myfig{
   \begin{center}
     \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,Map from $\mmlAs$ locations $\src{\loc}$ to $\mmlAt$ locations $\trg{\loc}$.''} \\
@@ -2946,6 +2969,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{internal-event-eq}
   \end{center}
 }{tms-pres-trace-relation}{Trace Relation from $\mmlAs$ to $\mmlAt$.}
+.\MK{patch the following}
 \myfig{
   \begin{center}
     \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
@@ -3685,33 +3709,6 @@ $\;$\MK{fix lolly and the other one}
 
 \myfig{
   \begin{center}
-    $$
-    \src{\trace}=\src{Call\ ?main\ 0\cdot Call\ ?foo\ 42\cdot Alloc\ \ell_{0}\ 42\cdot Get\ \ell_{0}\ 1337\cdot\ Dealloc\ \ell_{0}\cdot\ Ret\ !1729\cdot\ Ret\ !1729}
-    $$
-
-    $$
-    \src{\trace}=\src{Call\ ?main\ 0\cdot }\underbrace{\src{Call\ ?foo\ 42\cdot Alloc\ \ell_{0}\ 42\cdot Get\ \ell_{0}\ 1337\cdot\ Dealloc\ \ell_{0}\cdot\ Ret\ !1729}}_{\src{foo}}\src{\cdot\ Ret\ !1729}
-    $$
-
-    Let $\xi$ be the set of component names we care about security-wise.
-
-    \typerule{nowrap}{
-      \trg{foo}\in\xi
-    }{
-      \mmlAmmlAtback[\xi]{Call\ ?foo\ f} = \src{call\ foo}
-    }{x}
-    \typerule{wrap}{
-      \trg{foo}\notin\xi &
-      \vdash\trg{\ell}\operatorname{fresh} &
-      \mmlAmmlAtback[\xi]{Alloc\ \ell\ 42} = \src{e}
-    }{
-      \mmlAmmlAtback[\xi]{Call\ ?foo\ f} = \src{e;call\ foo}
-    }{y}
-  \end{center}
-}{x}{x}
-
-\myfig{
-  \begin{center}
     \judgbox{\Game(\trg{\loc}) = \src{x}}{,,Map from $\mmlAt$ locations to $\mmlAs$ variable names.''}
     \judgbox{\Game[\trg{\loc}] = \Game'}{,,Extend $\Game$ with $\trg{\loc}$ and call the extension $\Game'$.''}
     \typerule{backtrans-create-symb}{
@@ -3736,96 +3733,111 @@ $\;$\MK{fix lolly and the other one}
 
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}}{,,Map an $\mmlAt$ value to an $\mmlAs$ value.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackv{\interfacevalue} = \src{\interfacevalue}}{,,Map an $\mmlAt$ interface value to an $\mmlAs$ interface value.''}$\;$\\
     \typerule{backtrans-value}{
     }{
-      \mmlAmmlAtbackv{\valueexpr} = \src{\valueexpr}
+      \mmlAmmlAtbackv{n} = \src{n}
+    }{backtrans-value}
+    \typerule{backtrans-location}{
+    }{
+      \mmlAmmlAtbackv{\loc} = \Game(\trg{\loc})
     }{backtrans-value}
   \end{center}
-}{backtrans-values}{Backtranslation of $\mmlAt$ values to $\mmlAs$ values.}
+}{backtrans-values}{Backtranslation of $\mmlAt$ interface values to $\mmlAs$ interface values.}
+
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtbackdetail[\Game,\src{(x:\type_1)\to\type_2}]{\mstrace} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from memory-specific $\mmlAt$ trace $\trg{\mstrace}$.''}$\;$\\
-    \judgbox{\mmlAmmlAtbackdetail[\Game,\src{(x:\type_1)\to\type_2}]{\specificev{Call\ ?\finalexprnoerr}} = \Game',\trg{\ell},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\src{(x:\type_{1})\to\type_{2}}$,\\construct a \varmapbacktransds $\Game'$, $\trg{\ell}$,\\and an $\mmlAs$ expression from memory-specific $\mmlAt$\\event $\trg{\specificev{Call\ !\finalexprnoerr}}$.''}$\;$\\
-    \judgbox{\mmlAmmlAtbackdetail[\Game,\trg{\ell},\src{e_0}]{\specificev{Ret\ !\finalexprnoerr}} = \Game',\src{e}}{,,Given a \varmapbacktransds $\Game$, $\trg{\ell}$, and $\src{e_{0}}$,\\construct a \varmapbacktransds $\Game'$ and an $\mmlAs$ expression from\\memory-specific $\mmlAt$ event $\trg{\specificev{Ret\ !\finalexprnoerr}}$.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trace}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and stack of locations $\trg{\overline{\loc}}$,\\construct a \varmapbacktransds $\Game'$, another stack of locations $\trg{\overline{\loc'}}$, and\\an $\mmlAs$ expression from target-trace $\trg{\mstrace}$.''}
     %
+    \typerule{backtrans-empty}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\hole{\cdot}}=\Game,\trg{\overline{\loc}},\src{42}
+    }{backtrans-empty}
     \typerule{backtrans-alloc}{
-      \Game'=\Game[\trg{\loc}] &
-      \Game'\left(\trg{\loc}\right) = \src{z} &
-      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Alloc\ \loc\ n}\cdot\mstrace} = \Game'', \src{let\ z = new\ }\mmlAmmlAtbackv{n}\src{\ in\ e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Alloc\ \loc\ s}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-alloc}
-    %
     \typerule{backtrans-dealloc}{
-      \Game'=\Game[\trg{\loc}] &
-      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Dealloc\ \loc}\cdot\mstrace} = \Game'', \src{delete\ }\Game'(\trg{\loc})\src{; e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Dealloc\ \loc}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-dealloc}
+    \typerule{backtrans-set}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Set\ \loc\ n}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-set}
+    \typerule{backtrans-get}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Get\ \loc\ n}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-get}
+    \typerule{backtrans-abort}{
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\lightning}=\Game,\trg{\overline{\loc'}},\src{abort()}
+    }{backtrans-abort}
+    \typerule{backtrans-call-internal}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \nocomm\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-call-internal}
+    \typerule{backtrans-ret-internal}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \nocomm\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-ret-internal}
     %
-    \typerule{backtrans-use}{
-      \Game'=\Game[\trg{\loc}] &
-      \src{z}=\Game'(\trg{\loc}) &
-      \mmlAmmlAtbackdetail[\Game',B]{\mstrace} = \Game'',\src{e} &
+    \typerule{backtrans-call-ctxtocomp}{
+      \fresh{\Game}{\trg{\loc}}&
+      \src{z}=\Game[\trg{\loc}]&
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} \\
+      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{foo}\ \mmlAmmlAtbackv{\interfacevalue}\src{;e'}
     }{
-      \mmlAmmlAtbackdetail[\Game',B]{\specificev{Use\ \loc\ n}\cdot\mstrace} = \Game'',\src{z[}\mmlAmmlAtbackv{n}\src{];e}
-    }{backtrans-use}
-    \typerule{backtrans-empty-hole}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-call-ctxtocomp}
+    \typerule{backtrans-ret-ctxtocomp}{
+      \fresh{\Game}{\trg{\loc}}&
+      \src{z}=\Game[\trg{\loc}]&
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} \\
+      \src{e}=\src{let\ z = new\ 42\ in\ return\ }\mmlAmmlAtbackv{\interfacevalue}\src{;e'}
     }{
-      \mmlAmmlAtbackdetail[\Game,\src{x:\type_1\to\type_2}]{\hole{\cdot}} = \Game, \src{hole : (x:\type_1)\to\type_2}
-    }{backtrans-empty-hole}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-ret-ctxtocomp}
     %
-    \typerule{backtrans-call-hole}{
-      \fresh{\Game}{\trg{\loc}} &
-      \Game'=\Game[\trg{\loc}] &
-      \mmlAmmlAtbackdetail[\Game',\src{x:\type_0\to\type_p}]{\specificev{Alloc\ \loc\ 42}} = \Game'', \src{e}
+    \typerule{backtrans-call-comptoctx}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} &
+      \src{e}=\src{call\ }\mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{foo}\ \mmlAmmlAtbackv{\interfacevalue}\src{; delete\ }\Game(\trg{\loc})\src{;e'}
     }{
-      \mmlAmmlAtbackdetail[\Game,\src{x:\type_0\to\type_p}]{\specificev{Call\ ?\finalexprnoerr}} = \Game'', \trg{\loc}, \src{let\ x = }\mmlAmmlAtbackv{\finalexprnoerr}\src{\ in\ e}
-    }{backtrans-call-hole}
-    %
-    \typerule{backtrans-ret-wrap}{
-      \src{z} = \Game(\trg{\loc}) &
-      \src{e'} = \plugs[N]{delete\ z}{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-call-comptoctx}
+    \typerule{backtrans-ret-comptoctx}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e} &
+      \src{e}=\src{return\ }\mmlAmmlAtbackv{\interfacevalue}\src{; delete\ }\Game(\trg{\loc})\src{;e'}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\loc},\src{e}]{\specificev{Ret\ !\finalexprnoerr}} = \Game', \src{e';}\mmlAmmlAtbackv{\finalexprnoerr}
-    }{backtrans-ret-wrap}
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-ret-comptoctx}
   \end{center}
-}{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific, $\mmlAt$ events to $\mmlAs$ terms.}
+}{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
+
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtback[\Game,\src{(x:\type_1)\to\type_2},\src{e_{0}},\trg{\ell}]{\mstrace} = \Game',\src{e_{wrap}},\src{e},\trg{\ell'}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$\\and two $\mmlAs$ expressions from\\memory-specific $\mmlAt$ ,,interfacing''-trace $\trg{\mstrace}$.''}$\;$\\
-    \judgbox{\mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\mstrace} = \Game',\src{context\ e_{0}\ e_{1}}}{,,Given a \varmapbacktransds $\Game$, construct a \varmapbacktransds $\Game'$\\and an $\mmlAs$ expression from memory-specific\\$\mmlAt$ ,,top-level'' trace $\trg{\mstrace}$.''}$\;$\\
-    \typerule{backtrans-subtop-level}{\vspace{0.33cm}
-      \trg{\mstrace}=\trg{\specificev{Ret\ !\finalexprnoerr_0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\\vspace{0.33cm}
-      \mmlAmmlAtbackdetail[\Game,\trg{\ell_0},\src{e_{INIT}}]{\specificev{Ret\ !\finalexprnoerr_{0}}} = \Game',\src{e_{wrapend}} &
-      \mmlAmmlAtbackdetail[\Game',\src{(\_:\nat)\to\nat}]{\mstrace[_0]} = \Game'', \src{e_0^{(1)}} \\
-      \mmlAmmlAtbackdetail[\Game'',\src{(x:\type_1)\to\type_2}]{\specificev{Call\ ?\finalexprnoerr_1}} = \Game''',\trg{\loc},\src{e_0^{(2)}} &
-      \src{e_0^{(1p)}} = \plugs{0}{e_0^{(1)}} &
-      \src{e} = \src{e_0^{(1p)};e_0^{(2)}}
-    }{
-      \mmlAmmlAtback[\Game,\src{(x:\type_1)\to\type_2},\src{e_{INIT}},\trg{\ell_0}]{\mstrace} = \Game''', \src{e_{wrapend}}, \src{e}, \trg{\ell}
-    }{backtrans-subtop-level}
+    \judgbox{\mmlAmmlAtback[\Game]{\mstrace} = \Game',\src{e}}{,,Top-Level backtranslation of $\trg{\trace}$ to $\mmlAs$ expression $\src{e}$.''}
     %
-    \typerule{backtrans-top-level}{\vspace{0.33cm}
-      \trg{\mstrace}=\trg{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}\cdot\mstrace[_p]\cdot\specificev{Ret\ !\finalexprnoerr_p}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}}\\\vspace{0.33cm}
-      \mmlAmmlAtbackdetail[\Game,\src{(\_:\nat)\to\nat}]{\specificev{Call\ ?0}}=\Game_{INIT},\trg{\ell_{INIT}},\src{e_{INIT}}\\\vspace{0.33cm}
-      \mmlAmmlAtbackdetail[\Game_{INIT},\src{(x:\type_{1})\to\type_{2}},\src{e_{INIT}},\trg{\ell_{INIT}}]{\specificev{Ret\ !0}\cdot\mstrace[_0]\cdot\specificev{Call\ ?\finalexprnoerr_0}} = \Game',\src{e_{wrapend}^{(0)}},\src{e_{0}'},\trg{\ell}\\\vspace{0.33cm}
-      \mmlAmmlAtbackdetail[\Game',\src{(\_:\nat)\to\nat},\src{e_{0}'},\trg{\ell}]{\specificev{Ret\ !\finalexprnoerr_{p}}\cdot\mstrace[_1]\cdot\specificev{Call\ ?\finalexprnoerr_1}} = \Game'',\src{e_{wrapend}^{(1)}},\src{e_{1}'},\trg{\ell_{END}}\\
-      \mmlAmmlAtbackdetail[\Game'',\trg{\ell_{END}},\src{e_1'}]{\specificev{Ret\ !0}} = \Game''', \src{e_1^{(H)}}\\
-      \src{e_0^{(0)}} = \plugs{0}{e_{wrapend}^{(0)}} &
-      \src{e_0} = \src{e_0^{(0)};e_{wrapend}^{(1)}} \\
-      \src{e_1} = \plugs{0}{e_1'} \\
+    \typerule{backtrans-top-level}{
+      \trg{\trace}=\trg{\trace[_0]\cdot\trace[^{comp}]\cdot\trace[_1]}\\
+      \trg{\trace[_0]}=\trg{Call\ \comptoctx\ main\ 0 \cdot \trace[_0^{ctx}] \cdot Call\ \ctxtocomp\ foo\ \interfacevalue_0}\\
+      \trg{\trace[_1]}=\trg{Ret\ \comptoctx\ \interfacevalue_1 \cdot \trace[_1^{ctx}] \cdot Ret\ \ctxtocomp\ n}\\
+      \mmlAmmlAtbackdetail[\Game,\trg{\hole{\cdot}}]{\trace[_0]\cdot\trace[_1]} = \Game', \src{e}
     }{
-      \mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\mstrace} = \Game''', \src{context\ e_{0}\ e_{1}}
+      \mmlAmmlAtback[\Game]{\trace} = \Game', \src{let\ main\ x : \nat\to\nat := e}
     }{backtrans-top-level}
   \end{center}
-}{tms-pres-top-level-backtrans}{,,Top-Level'' trace-based Backtranslation from memory specific, $\mmlAt$ events to $\mmlAs$ terms.}
-We use the syntactic sugar $\src{e_1;e_2}$ for $\src{let\ \_ = e_1\ in\ e_2}$.
-Note that \Cref{tr:backtrans-top-level} introduces a {\em wrapper} that performs a memory effect, in case the trace is not stuck.
-It wraps around the program component and the allocated location introduced by it is intuitively tagged by $\trg{\diamond}$.
-However, this is not done in the definition here, since the grammar of traces does not capture importance.
-Instead, the tag of unimportance ($\trg{\diamond}$) is already captured in the rules depicted in \Cref{fig:twprog-run}.
+}{tms-pres-top-level-backtrans}{Top-Level trace-based Backtranslation from $\mmlAt$ trace $\trg{\trace}$ to $\mmlAs$ context $\src{\library}$.}
+
+.\MK{can we generalize above definition to yield $\library$? likely not... bc: \texttt{if 1337 < x then abort() else delete x}}
+
+.\MK{take care of $\trg{\lightning}$}
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 

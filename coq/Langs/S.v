@@ -726,10 +726,10 @@ Definition string_of_event (e : event) :=
                                (String.append (" "%string) (string_of_nat n)))
                              (String.append (" "%string) (string_of_nat m))
   | (Scrash) => "↯"%string
-  | (Scall foo (Fval(Vnat n))) => String.append (String.append (String.append ("Call ?"%string) foo) " "%string) (string_of_nat n)
-  | (Scall foo (Fvar x)) => String.append (String.append (String.append ("Call ?"%string) foo) " "%string) x
-  | (Sret (Fval(Vnat n))) => String.append ("Ret !"%string) (string_of_nat n)
-  | (Sret (Fvar x)) => String.append ("Ret !"%string) x
+  | (Scall foo (Fval(Vnat n))) => String.append (String.append (String.append ("Call "%string) foo) " "%string) (string_of_nat n)
+  | (Scall foo (Fvar x)) => String.append (String.append (String.append ("Call "%string) foo) " "%string) x
+  | (Sret (Fval(Vnat n))) => String.append ("Ret "%string) (string_of_nat n)
+  | (Sret (Fvar x)) => String.append ("Ret "%string) x
   end
 .
 
@@ -1520,7 +1520,6 @@ End ModAux.
 Module SMod := CSC.Langs.Util.Mod(ModAux).
 Import SMod.
 
-
 Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
   Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
   nodupinv Ω ->
@@ -1535,6 +1534,48 @@ Proof.
   - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x;
     eapply estep_is_nodupinv_invariant in H; eauto.
 Qed.
+
+(** Qualification to mark whether we go from context to component or vice versa *)
+Variant Qcall : Type :=
+| ctx_to_comp : Qcall
+| comp_to_ctx : Qcall
+.
+Definition Qcalleq (q1 q2 : Qcall) : bool :=
+  match q1, q2 with
+  | ctx_to_comp, ctx_to_comp => true
+  | comp_to_ctx, comp_to_ctx => true
+  | _, _ => false
+  end
+.
+(** Types of events that may occur in a trace. *)
+Variant fevent : Type :=
+| Sfalloc (ℓ : loc) (n : nat) : fevent
+| Sfdealloc (ℓ : loc) : fevent
+| Sfget (ℓ : loc) (n : nat) : fevent
+| Sfset (ℓ : loc) (n : nat) (v : value) : fevent
+| Sfcrash : fevent
+| Sfcall (q : Qcall) (foo : vart) (arg : fnoerr) : fevent
+| Sfret (q : Qcall) (f : fnoerr) : fevent
+.
+Definition feventeq (e1 e2 : fevent) : bool :=
+  match e1, e2 with
+  | Sfalloc(addr ℓ0) n0, Sfalloc(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | Sfdealloc(addr ℓ0), Sfdealloc(addr ℓ1) => Nat.eqb ℓ0 ℓ1
+  | Sfget(addr ℓ0) n0, Sfget(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
+  | Sfset(addr ℓ0) n0 (Vnat v0), Sfset(addr ℓ1) n1 (Vnat v1) => andb (andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1))
+                                                                  (Nat.eqb v0 v1)
+  | Sfcrash, Sfcrash => true
+  | Sfcall q1 foo (Fval(Vnat v0)), Sfcall q2 bar (Fval(Vnat v1)) => andb (andb (String.eqb foo bar) (Nat.eqb v0 v1)) (Qcalleq q1 q2)
+  | Sfcall q1 foo (Fvar x), Sfcall q2 bar (Fvar y) => andb (andb (String.eqb foo bar) (String.eqb x y)) (Qcalleq q1 q2)
+  | Sfret q1 (Fval(Vnat v0)), Sfret q2 (Fval(Vnat v1)) => andb (Nat.eqb v0 v1) (Qcalleq q1 q2)
+  | Sfret q1 (Fvar x), Sfret q2 (Fvar y) => andb (String.eqb x y) (Qcalleq q1 q2)
+  | _, _ => false
+  end
+.
+#[local]
+Instance FEvent__Instance : TraceEvent fevent := {}.
+(** Pretty-printing function for better debuggability *)
+Definition string_of_fevent (e : fevent) := ""%string.
 
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
 Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=

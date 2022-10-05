@@ -579,7 +579,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{May\ be\ a\ Result}\ \src{\finalexpr} \bnfdef\ \src{\finalexprnoerr} \mid \src{stuck} \\
   %
   \mi{Expressions}~\src{e} \bnfdef&\ \src{\finalexpr} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
-  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{return\ e} \mid \src{call\ x\ e} \\
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{return\ e} \mid \src{call\ foo\ e} \\
   & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
   %
   \mi{Functions}~\src{\asymbol} \bnfdef&\ \src{let\ foo\ x : \type}_{\lambda}\src{:= e} \\
@@ -595,22 +595,26 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{References}~\src{\loc}\in\src{\nat} \\
   \mi{Eval. Ctx.}~\src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus K}\mid \src{x[K]}\mid \src{let\ x=K\ in\ e}\\
                      &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e} \\
-                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2} \mid \src{call\ x\ K}\mid \src{return\ K} \\
+                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2} \mid \src{call\ foo\ K}\mid \src{return\ K} \\
   %
-  \mi{Variables}~\ &\src{x} \mid \src{y} \mid \dots \hspace{0.5cm}
+  \mi{Variables}~\ &\src{x} \mid \src{y} \mid \src{foo} \mid \dots \hspace{0.5cm}
   %
   \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
   %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\type}\hspace{0.5cm}
   \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison},\Deltas\\
   %
-  \mi{Heaps}~\src{H} \bnfdef&\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \\
+  \mi{Communication}~\src{\comm} \bnfdef&\ \src{\ctxtocomp} \mid \src{\comptoctx} \mid \src{\nocomm} \hspace{0.5cm}
+  \mi{Heaps}~\src{H} \bnfdef\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \\
   %
-  \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid \src{K},\src{\kontstack} \hspace{0.5cm}
-  \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{\asymbol},\src{\library}\\
-  \mi{State}~\configs\ \bnfdef&\ \src{\library;\kontstack;H;\Delta} \hspace{0.5cm}
+  \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid \src{K}^{\src{foo}}_{\src{\comm}},\src{\kontstack} \hspace{0.5cm}
+  \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{\asymbol},\src{\library} \\
+  \mi{Relevant}\ \src{\commlib} \bnfdef& \src{\hole{\cdot}} \mid \src{foo},\src{\commlib}\hspace{0.5cm}
+  \mi{State}~\configs\ \bnfdef\ \src{\cfstate;\memstate}\\
+  \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\kontstack}\hspace{0.5cm}
+  \mi{Memory\ State}~\src{\memstate}\bnfdef\ \src{H;\Delta} \\
   %
-  \mi{Programs}\ \src{prog\ \library} \\
+  \mi{Programs}\ &\src{prog\ \commlib\ \library} \\
   \end{aligned}
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlAs$}
@@ -623,6 +627,12 @@ We chose to distinguish between successful final results ($\src{\finalexprnoerr}
 Note that a final result may also be an identifier, which we keep around as abstract representation for locations of pointers.
 However, we still distinct them from ordinary values ($\src{\valueexpr}$), since they don't behave like normal values.
 For example, we cannot make canonical typing lemmas for them without the additional information contained in a non-empty typing-context.
+When discussing secure compilation, there is a notion of ,,context'' and ,,component'', where the latter is usually the part one cares about.
+We use the term ,,context-switching'' with its usual meaning, i.e. change in control flow to some other procedure.
+For $\src{\comm}$, the representation $\src{\ctxtocomp}$ signalizes a context switch from context to component, $\src{\comptoctx}$ from component to context, and $\src{\nocomm}$ signals an internal change, either inside the context or inside the component.
+The state $\configs$ carries information on what the current context is and the continuation stack $\src{\kontstack}$ is used in the semantics to mark events with above policy accordingly.
+Continuations $\src{K}$ in the stack are annotated with the symbol of communication $\src{\comm}$ that was used when the continuation was being pushed on the stack and with the name of the function $\src{foo}$ the continuation originates from.
+Programs $\src{prog\ \commlib\ \library}$ contain a list of relevant names $\src{\commlib}$ that we assume the attacker cannot manipulate and a corresponding list of top-level definitions $\src{\library}$.
 
 \subsubsection{Static Semantics}
 \begin{definition}[NoOwnedPtr]
@@ -891,7 +901,6 @@ This is inspired by linear logic.
 \myfig{
   \begin{center}
     \judgbox{\src{\Gamma}\vdash\src{\library}\ \operatorname{ok}}{,,$\mmlAs$ library typechecks.''}
-
     %
     \typerule{t-$\src{\library}$-empty}{
     }{
@@ -905,26 +914,39 @@ This is inspired by linear logic.
       \typechecks{x:\type_e^{(1)},\Gamma}{e}{\type_e^{(2)}}
     }{
       \src{\Gamma}\vdash(\src{let\ foo\ x : \type_e^{(1)}}\to\src{\type_e^{(2)}:= e}),\src{\library}\ \operatorname{ok}
-    }{w-t-lib-cons}
-
+    }{w-t-lib-cons}\\[0.33cm]
+    %
+    \judgbox{\src{\Gamma}\vdash\src{\commlib}\ \operatorname{ok}}{,,$\mmlAs$ library typechecks.''}$\;$\\
+    %
+    \typerule{t-$\src{\commlib}$-empty}{
+    }{
+      \src{\Gamma}\vdash\src{\hole{\cdot}}\ \operatorname{ok}
+    }{w-t-relevant-empty}
+    %
+    \typerule{t-$\src{\commlib}$-cons}{
+      \typecheck{\src{\Gamma}}{\src{foo}}{\src{\type}_\lambda}
+    }{
+      \src{\Gamma}\vdash\src{foo,\commlib}\ \operatorname{ok}
+    }{w-t-relevant-cons}\\[0.33cm]
+    %
     \judgbox{\vdash\src{prog\ \library}\operatorname{ok}}{,,$\mmlAs$ program $\src{prog\ \library}$ typechecks.''}$\;$\\
-  %
-  \typerule{$t-\text{prog}$}{
-    \src{\library}\downarrow = \src{\Gamma_0} &
-    \src{main}\in\operatorname{dom} \src{\Gamma_0} &
-    \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok}
-	}{
-    \vdash\src{prog\ \library}\operatorname{ok}
-	}{w-t-wprog}
-
-  %
-  \judgbox{\typechecks{}{\configs\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\configs\triangleright e}$ typechecks.''}$\;$\\
-  \typerule{$t-\text{prog}$}{
-    \typechecks{\library}{\Delta}{\Gamma}&
-    \typechecks{\Gamma}{e}{\type}
-	}{
-  \typechecks{}{\library;\kontstack;H;\Delta\triangleright e}{\type}
-	}{w-t-prog}
+    %
+    \typerule{$t-\text{prog}$}{
+      \src{\library}\downarrow = \src{\Gamma_0} &
+      \src{main}\in\operatorname{dom} \src{\Gamma_0} &
+      \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok}&
+      \src{\Gamma_0}\vdash\src{\commlib}\ \operatorname{ok}
+    }{
+      \vdash\src{prog\ \commlib\ \library}\operatorname{ok}
+    }{w-t-wprog}
+    %
+    \judgbox{\typechecks{}{\configs\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\configs\triangleright e}$ typechecks.''}$\;$\\
+    \typerule{$t-\text{prog}$}{
+      \typechecks{\library}{\Delta}{\Gamma}&
+      \typechecks{\Gamma}{e}{\type}
+    }{
+      \typechecks{}{\commlib;\library;\kontstack;H;\Delta\triangleright e}{\type}
+    }{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
 Perhaps most interesting is \Cref{tr:w-t-prog} which generates a suitable typing context from the execution context.
@@ -985,8 +1007,8 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\src{\event} \bnfdef& \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \\
-                             & \mid \src{\lightning} \mid \src{Call\ ?foo\ n} \mid \src{Ret\ !n} \\
+  \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \mid \src{\lightning} \\
+                                  & \mid \src{Call\ \comm\ foo\ n} \mid \src{Ret\ \comm\ n} \\
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
@@ -1004,19 +1026,19 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \typerule{$e-\src{get}-\in$}{
     \src{\loc}+\src{n}\in\text{dom }\src{H}
   }{
-    \exprevals{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
+    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
   }{w-e-get-in}
   %
   \typerule{$e-\src{get}-\notin$}{
     \src{\loc}\notin\text{dom }\src{H}
   }{
-    \exprevals{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
+    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
   }{w-e-get-notin}
   %
   \typerule{$e-\src{set}$}{
     \src{H'} = \src{H}(\src{\loc+n}\mapsto \src{v})
   }{
-    \exprevals{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow v}{\library;\kontstack;H';\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n\ v}
+    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow v}{\cfstate;H';\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n\ v}
   }{w-e-set}
   %
   \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
@@ -1026,7 +1048,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   %
   \typerule{$e-\src{delete}$}{
   }{
-    \exprevals{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}
+    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{\cfstate;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}
   }{w-e-delete}
   %
   \typerule{$e-\src{new}$}{
@@ -1034,7 +1056,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \fresh{\src{\Delta}}{\src{z}} &
     \src{H'} = \src{H} \ll \src{n} &
   }{
-  \exprevals{\library;\kontstack;H;\Delta}{let\ x=new\ n\ in\ e}{\library;\kontstack;H';z\mapsto \loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevals{\cfstate;H;\Delta}{let\ x=new\ n\ in\ e}{\cfstate;H';z\mapsto \loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}
   }{w-e-let-new}
   %
   \typerule{$e-\src{ifz}-$true}{
@@ -1052,6 +1074,13 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \exprevals{\Omega}{abort()}{\Omega}{stuck}{\lightning}
   }{w-e-abort}
 }{w-expr-prim-eval}{Primitive Evaluation of $\mmlAs$ expressions.}
+Evaluation is mostly straightforward, the only interesting cases involve the pointers.
+Specifically, \Cref{tr:w-e-delete} demonstrates why we need the poison-tag on the locations: Regardless of the current tag, emit a $\src{Dealloc\ \loc}$ event and mark $\src{\loc}$ as poisoned ($\src{\poisoned}$).
+The intuitive solution, removing the mapping on deletion, doesn't allow to run programs that delete twice.
+However, we want to model memory effects and show that such situations never happen, even though they {\em could}.
+Given a poisoned location, we can still do everything with it: reading, writing, or deletion.
+When generating the static context from the execution context, \Cref{tr:t-poison-store} allows us to disregard deleted locations which will help us reason that the given execution could not have been happening if the program was well-typed to begin with.
+
 \myfig{
   \begin{center}
     \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
@@ -1069,26 +1098,88 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     }{w-e-ectx-stuck}
     %
     \typerule{$e-\text{ctx}-\src{call}$}{
-      \src{\Omega}=\src{\library;\kontstack;H;\Delta} &
+      \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
-      \src{\Omega'}=\src{\library;K,\kontstack;H;\Delta}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack}) = \src{\comm} &
+      \src{\Omega'}=\src{\commlib;\library;K_{\comm}^{foo},\kontstack;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{return\ e[x/\finalexprnoerr]}{Call\ ?foo\ f}
+      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{return\ e[x/\finalexprnoerr]}{Call\ \comm\ foo\ f}
     }{w-e-ectx-call}
     %
     \typerule{$e-\text{ctx}-\src{return}$}{
+      \rho_{\tiny ret}\left(\src{\comm}\right)=\src{\comm_0}\\
     }{
-      \execs[]{\library;K,\kontstack;H;\Delta}{K'[return\ \finalexprnoerr]}{\library;\kontstack;H;\Delta}{K[f]}{Ret\ !\finalexprnoerr}
+      \execs[]{\commlib;foo;\library;K_{\comm},\kontstack;\memstate}{K'[return\ \finalexprnoerr]}{\commlib;\library;\kontstack;\memstate}{K[f]}{Ret\ \comm_0\ \finalexprnoerr}
     }{w-e-ectx-ret}
+    %
+    \judgbox{\rho_{\tiny ret}(\src{\comm})=\src{\comm_0}}{,,Given the last comm. and we are returning, yield the current.''}
+    %
+    \typerule{comm-ret-ctxtocomp}{
+    }{
+      \rho_{\tiny ret}(\src{\ctxtocomp})=\src{\comptoctx}
+    }{w-comm-ret-ctxtocomp}
+    %
+    \typerule{comm-ret-internal}{
+    }{
+      \rho_{\tiny ret}(\src{\nocomm})=\src{\nocomm}
+    }{w-comm-ret-internal}
+    %
+    \typerule{comm-ret-comptoctx}{
+    }{
+      \rho_{\tiny ret}(\src{\comptoctx})=\src{\ctxtocomp}
+    }{w-comm-ret-comptoctx}\\[0.33cm]
+    %
+    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack})=\src{\comm_0}}{,,Given the relevance and current ctx. info, yield comm.''}
+    %
+    \typerule{comm-call-empty-stack-comp}{
+      \src{foo}\notin\src{\commlib}
+    }{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}})=\src{\ctxtocomp}
+    }{w-comm-call-empty-stack-comp}
+    %
+    \typerule{comm-call-empty-stack-ctx}{
+      \src{foo}\notin\src{\commlib}
+    }{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}})=\src{\comptoctx}
+    }{w-comm-call-empty-stack-ctx}
+    %
+    \typerule{comm-call-nonempty-stack}{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar})=\src{\comm_0}
+    }{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{K^{bar}_{\comm},\kontstack})=\src{\comm_0}
+    }{w-comm-call-nonempty-stack}
+    %
+    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\comm_0}}{,,Given the relevance and current ctx. info, yield comm.''}
+    %
+    \typerule{comm-call-ctxtocomp}{
+      \src{foo}\notin\src{\commlib} &
+      \src{\commlib}=\src{\commlib_1},\src{bar_{cur}},\src{\commlib_2}
+    }{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\comptoctx}
+    }{w-comm-call-ctxtocomp}
+    %
+    \typerule{comm-call-internal-both-irrrelevant}{
+      \src{foo}\notin\src{\commlib} &
+      \src{bar_{cur}}\notin\src{\commlib}
+    }{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\nocomm}
+    }{w-comm-call-internal-both-irrrelevant}
+    %
+    \typerule{comm-call-internal-both-relevant}{
+      \src{\commlib} = \src{\commlib_1},\src{foo},\src{\commlib_2} &
+      \src{\commlib} = \src{\commlib_3},\src{bar_{cur}},\src{\commlib_4}
+    }{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\nocomm}
+    }{w-comm-call-internal-both-relevant}
+    %
+    \typerule{comm-call-comptoctx}{
+      \src{\commlib}=\src{\commlib_1},\src{foo},\src{\commlib_2} &
+      \src{bar_{cur}}\notin\src{\commlib}
+    }{
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\ctxtocomp}
+    }{w-comm-call-comptoctx}
   \end{center}
 }{w-expr-ctx-eval}{Contextual Evaluaton of $\mmlAs$ expressions.}
-Evaluation is mostly straightforward, the only interesting cases involve the pointers.
-Specifically, \Cref{tr:w-e-delete} demonstrates why we need the poison-tag on the locations: Regardless of the current tag, emit a $\src{Dealloc\ \loc}$ event and mark $\src{\loc}$ as poisoned ($\src{\poisoned}$).
-The intuitive solution, removing the mapping on deletion, doesn't allow to run programs that delete twice.
-However, we want to model memory effects and show that such situations never happen, even though they {\em could}.
-Given a poisoned location, we can still do everything with it: reading, writing, or deletion.
-When generating the static context from the execution context, \Cref{tr:t-poison-store} allows us to disregard deleted locations which will help us reason that the given execution could not have been happening if the program was well-typed to begin with.
-
 \myfig{
   \begin{center}
     \judgbox{\execs{\configs}{e}{\configs'}{e'}{\trace}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
@@ -1120,12 +1211,12 @@ When generating the static context from the execution context, \Cref{tr:t-poison
 
 \myfig{
   \begin{center}
-    \judgbox{\wexecs{prog\ \library}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
+    \judgbox{\wexecs{prog\ \commlib\ \library}{\configs}{\finalexpr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
-    \vdash\src{prog\ \library}\operatorname{ok} &
-    \execs{\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+    \vdash\src{prog\ \commlib\ \library}\operatorname{ok} &
+    \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexecs{prog\ \library}{\configs}{\finalexpr}{\trace}
+    \wexecs{prog\ \commlib\ \library}{\configs}{\finalexpr}{\trace}
   }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -1157,8 +1248,8 @@ We also use it to project the call/return events onto it.
       \tospecificevs[_{\delta_{MS}}]{Dealloc\ \loc} &\ = & \specificev{Dealloc\ \loc} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc}) \\
       \tospecificevs[_{\delta_{MS}}]{Get\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
       \tospecificevs[_{\delta_{MS}}]{Set\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
-      \tospecificevs[_{\delta_{MS}}]{Call\ ?n} &\ = & \specificev{\varepsilon} &\\
-      \tospecificevs[_{\delta_{MS}}]{Ret\ !n} &\ = & \specificev{\varepsilon} &\\
+      \tospecificevs[_{\delta_{MS}}]{Call\ \comm\ foo\ n} &\ = & \specificev{\varepsilon} &\\
+      \tospecificevs[_{\delta_{MS}}]{Ret\ \comm\ n} &\ = & \specificev{\varepsilon} &\\
       \tospecificevs[_{\delta_{MS}}]{\lightning} &\ = & \specificev{\lightning} &\\
     \end{array}
     $$
@@ -2257,7 +2348,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \mi{Final\ Result}\ \trg{\finalexprnoerr} \bnfdef&\ \trg{\valueexpr} \mid \trg{x}\hspace{0.5cm}
   \mi{May\ be\ a\ Result}\ \trg{\finalexpr} \bnfdef\ \trg{\finalexprnoerr} \mid \trg{stuck} \\
   \mi{Expressions}~\trg{e} \bnfdef&\ \trg{\finalexpr} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
-    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \mid \trg{return\ e} \mid \trg{call\ x\ e} \\
+    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \mid \trg{return\ e} \mid \trg{call\ foo\ e} \\
     & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \\
     & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}\mid \trg{e\ has\ \type}
   \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times},\trg{<}\}\\

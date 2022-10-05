@@ -2349,7 +2349,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \mi{May\ be\ a\ Result}\ \trg{\finalexpr} \bnfdef\ \trg{\finalexprnoerr} \mid \trg{stuck} \\
   \mi{Expressions}~\trg{e} \bnfdef&\ \trg{\finalexpr} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
     & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \mid \trg{return\ e} \mid \trg{call\ foo\ e} \\
-    & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \\
+    & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \mid \trg{x\ is\ \poisoned} \\
     & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}\mid \trg{e\ has\ \type}
   \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times},\trg{<}\}\\
   \mi{Functions}~\trg{\asymbol} \bnfdef&\ \trg{let\ foo\ x:=e}\hspace{0.5cm}
@@ -2489,6 +2489,20 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{
     \exprevalt{\configt}{\pi_2\langle n_1;n_2\rangle}{\configt}{n_2}{\emptyevent}
   }{tw-e-proj2}
+  %
+  \typerule{$e-\trg{x\ is\ \poisoned}-$yes}{
+    \configt=\trg{\library;\kontstack;H;\Delta} &
+    \trg{\Delta}=\trg{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}
+  }{
+    \exprevalt{\configt}{x\ is\ \poisoned}{\configt}{0}{\emptyevent}
+  }{tw-e-x-is-poisoned-yes}
+  %
+  \typerule{$e-\trg{x\ is\ \poisoned}-$no}{
+    \configt=\trg{\library;\kontstack;H;\Delta} &
+    \trg{\Delta}=\trg{\Delta_1,x\mapsto\loc_\poisonless,\Delta_2}
+  }{
+    \exprevalt{\configt}{x\ is\ \poisoned}{\configt}{1}{\emptyevent}
+  }{tw-e-x-is-poisoned-yes}
   %
   \typerule{$e-\trg{n\ has\ \nat}$}{
   }{

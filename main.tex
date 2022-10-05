@@ -1408,13 +1408,18 @@ As before, we need a way to translate one set of actions to another:
 
 We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
+\begin{definition}[Once]
+  Given an event $\msevent$ and a trace $\mstrace$, we say $\msevent$ appears exactly once in the trace, written $\msevent\in_{!}\mstrace$, iff
+
+  If $n\in\nat$ such that $\trace{[n]}=\msevent$, then for any $m\in\nat$ such that $\trace{[m]}=\msevent$ we have $n = m$.
+\end{definition}
+
 \begin{definition}[Before]
   Given two events $\msevent[_0],\msevent[_1]$ and a trace $\mstrace$, event $\msevent[_0]$ occurs before $\msevent[_1]$ in $\mstrace$, written
   $\event{_0}\le_{\trace}\event{_1}$, iff
 
-  If $n\in\nat$ such that $\trace{[n]} = \event[_{0}]$, then $\exists m\in\nat, \trace{[m]} = \event[_1] \wedge n< m$
+  If $n\in\nat$ such that $\mstrace{[n]} = \msevent[_{0}]$, then $\exists m\in\nat, \mstrace{[m]} = \msevent[_1] \wedge n< m$
 \end{definition}
-
 
 \begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
   We define the property $tmsafe(\mstrace)$ as a conjunction of the following conditions:
@@ -1422,6 +1427,8 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item $\specificev{Alloc\ \loc\ s}\le_{{\mstrace}}\specificev{Dealloc\ \loc}$
     \item $\neg(\specificev{Use\ \loc\ n}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s})$
     \item $\neg(\specificev{Dealloc\ \loc}\le_{{\mstrace}}\specificev{Use\ \loc\ n})$
+    \item $\specificev{Alloc\ \loc\ s}\in_{!}\mstrace$
+    \item $\specificev{Dealloc\ \loc}\in_{!}\mstrace$
   \end{itemize}
 \end{definition}
 
@@ -1443,7 +1450,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:mmlatmsviamonitor:run} $\wexecs{prog\ e_0\ e_p\ e_1}{\configs}{v}{\trace}$
+  \item\label[ass]{asm:mmlatmsviamonitor:run} $\wexecs{prog\ \commlib\ \library}{\configs}{v}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -2224,7 +2231,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
 \realthm{thm:mmlAs:tmssafe}{1}{$\mmlAs$ is \gls{tms} via Monitor}
 \begin{proof}
-  Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get 
+  Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get \MK{rework}
   \begin{passumptions}{H}
     \item\label[ass]{asm:mmlatmsviamonitor:progtyps} $\typechecks{}{prog\ e_{0}\ e_{p}\ e_{1}}{\nat}$
     \item\label[ass]{asm:mmlatmsviamonitor:fill} $\plugs{e_{p}}{e_{0}}=\src{e_{0}'}$

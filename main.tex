@@ -1103,10 +1103,10 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \typerule{$e-\text{ctx}-\src{call}-\src{\valueexpr}$}{
       \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack}) = \src{\comm} &
-      \src{\Omega'}=\src{\commlib;\library;K_{\comm}^{foo},\kontstack;\memstate} \\
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
+      \src{\Omega'}=\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{return\ e[x/\valueexpr]}{Call\ \comm\ foo\ \valueexpr}
+      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
     }{w-e-ectx-call-value}
     %
     \typerule{$e-\text{ctx}-\src{call}-\src{\loc}$}{
@@ -1114,16 +1114,15 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{\memstate}=\src{H;\Delta}&
       \src{\Delta}=\src{\Delta_1},\src{x\mapsto\loc_\poison},\src{\Delta_2}\\
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack}) = \src{\comm} &
-      \src{\Omega'}=\src{\commlib;\library;K_{\comm}^{foo},\kontstack;\memstate} \\
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{\loc}) = \src{\event},\src{\comm} &
+      \src{\Omega'}=\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \loc]}{\Omega'}{return\ e[x/\valueexpr]}{Call\ \comm\ foo\ \loc}
+      \execs[]{\Omega}{K[call\ foo\ x]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
     }{w-e-ectx-call-value}
     %
     \typerule{$e-\text{ctx}-\src{return}-\src{\valueexpr}$}{
-      \rho_{\tiny ret}\left(\src{\comm}\right)=\src{\comm_0}\\
     }{
-      \execs[]{\commlib;\library;K_{\comm},\kontstack;\memstate}{K'[return\ \valueexpr]}{\commlib;\library;\kontstack;\memstate}{K[\valueexpr]}{Ret\ \comm_0\ \valueexpr}
+      \exec[]{\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\memstate}}{\src{K[\valueexpr]}}{\rho_{\tiny ret}\left(\src{\comm},\src{\valueexpr}\right)}
     }{w-e-ectx-ret}
     %
     \typerule{$e-\text{ctx}-\src{return}-\src{\loc}$}{
@@ -1131,74 +1130,74 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{\memstate}=\src{H;\Delta}&
       \src{\Delta}=\src{\Delta_1},\src{x\mapsto\loc_\poison},\src{\Delta_2}
     }{
-      \execs[]{\commlib;\library;K_{\comm},\kontstack;\memstate}{K'[return\ x]}{\commlib;\library;\kontstack;\memstate}{K[x]}{Ret\ \comm_0\ \loc}
+      \exec[]{\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\src{K'[return\ x]}}{\src{\commlib;\library;\kontstack;\memstate}}{\src{K[x]}}{\rho_{\tiny ret}\left(\src{\comm},\src{\loc}\right)}
     }{w-e-ectx-ret}
     %
-    \judgbox{\rho_{\tiny ret}(\src{\comm})=\src{\comm_0}}{,,Given the last comm. and we are returning, yield the current.''}
+    \judgbox{\rho_{\tiny ret}(\src{\comm},\src{\interfacevalue})=\src{\event}}{,,Given the last comm. and we are returning, yield event.''}
     %
     \typerule{comm-ret-ctxtocomp}{
     }{
-      \rho_{\tiny ret}(\src{\ctxtocomp})=\src{\comptoctx}
+      \rho_{\tiny ret}(\src{\ctxtocomp},\src{\interfacevalue})=\src{Ret\ \ctxtocomp\ \interfacevalue}
     }{w-comm-ret-ctxtocomp}
     %
     \typerule{comm-ret-internal}{
     }{
-      \rho_{\tiny ret}(\src{\nocomm})=\src{\nocomm}
+      \rho_{\tiny ret}(\src{\nocomm},\src{\interfacevalue})=\src{\varepsilon}
     }{w-comm-ret-internal}
     %
     \typerule{comm-ret-comptoctx}{
     }{
-      \rho_{\tiny ret}(\src{\comptoctx})=\src{\ctxtocomp}
+      \rho_{\tiny ret}(\src{\comptoctx},\src{\interfacevalue})=\src{Ret\ \comptoctx\ \interfacevalue}
     }{w-comm-ret-comptoctx}\\[0.33cm]
     %
-    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack})=\src{\comm_0}}{,,Given the relevance and current ctx. info, yield comm.''}
+    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{\interfacevalue})=\src{\event},\src{\comm}}{,,Given the ctx. info, yield event.''}
     %
     \typerule{comm-call-empty-stack-comp}{
       \src{foo}\notin\src{\commlib}
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}})=\src{\ctxtocomp}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}},\src{\interfacevalue})=\src{Call\ \ctxtocomp\ foo\ \interfacevalue},\src{\comptoctx}
     }{w-comm-call-empty-stack-comp}
     %
     \typerule{comm-call-empty-stack-ctx}{
       \src{foo}\in\src{\commlib}
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}})=\src{\comptoctx}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}},\src{\interfacevalue})=\src{Call\ \comptoctx\ foo\ \interfacevalue},\src{\ctxtocomp}
     }{w-comm-call-empty-stack-ctx}
     %
     \typerule{comm-call-nonempty-stack}{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar})=\src{\comm_0}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar},\src{\interfacevalue})=\src{\event},\src{\comm}
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{K^{bar}_{\comm},\kontstack})=\src{\comm_0}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{K^{bar},\kontstack},\src{\interfacevalue})=\src{\event},\src{\comm}
     }{w-comm-call-nonempty-stack}
     %
-    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\comm_0}}{,,Given the relevance and current ctx. info, yield comm.''}
+    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{\event},\src{\comm}}{,,Given the current ctx. info, yield comm.''}
     %
     \typerule{comm-call-ctxtocomp}{
       \src{foo}\notin\src{\commlib} &
       \src{\commlib}=\src{\commlib_1},\src{bar_{cur}},\src{\commlib_2}
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\comptoctx}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{Call\ \comptoctx\ foo\ \interfacevalue},\src{\ctxtocomp}
     }{w-comm-call-ctxtocomp}
     %
     \typerule{comm-call-internal-both-irrelevant}{
       \src{foo}\notin\src{\commlib} &
       \src{bar_{cur}}\notin\src{\commlib}
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\nocomm}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{\emptyevent},\src{\nocomm}
     }{w-comm-call-internal-both-irrelevant}
     %
     \typerule{comm-call-internal-both-relevant}{
       \src{\commlib} = \src{\commlib_1},\src{foo},\src{\commlib_2} &
       \src{\commlib} = \src{\commlib_3},\src{bar_{cur}},\src{\commlib_4}
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\nocomm}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{\emptyevent},\src{\nocomm}
     }{w-comm-call-internal-both-relevant}
     %
     \typerule{comm-call-comptoctx}{
       \src{\commlib}=\src{\commlib_1},\src{foo},\src{\commlib_2} &
       \src{bar_{cur}}\notin\src{\commlib}
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}})=\src{\ctxtocomp}
+      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{Call\ \ctxtocomp\ foo\ \interfacevalue},\src{\comptoctx}
     }{w-comm-call-comptoctx}
   \end{center}
 }{w-expr-ctx-eval}{Contextual Evaluaton of $\mmlAs$ expressions.}

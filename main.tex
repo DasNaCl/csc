@@ -3777,46 +3777,48 @@ $\;$\MK{fix lolly and the other one}
     }{
       \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\lightning}=\Game,\trg{\overline{\loc'}},\src{abort()}
     }{backtrans-abort}
-    \typerule{backtrans-call-internal}{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \nocomm\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{backtrans-call-internal}
-    \typerule{backtrans-ret-internal}{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \nocomm\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{backtrans-ret-internal}
-    %
-    \typerule{backtrans-call-ctxtocomp}{
-      \fresh{\Game}{\trg{\loc}}&
-      \src{z}=\Game[\trg{\loc}]&
-      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} \\
-      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{foo}\ \mmlAmmlAtbackv{\interfacevalue}\src{;e'}
-    }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{backtrans-call-ctxtocomp}
-    \typerule{backtrans-ret-ctxtocomp}{
-      \fresh{\Game}{\trg{\loc}}&
-      \src{z}=\Game[\trg{\loc}]&
-      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} \\
-      \src{e}=\src{let\ z = new\ 42\ in\ return\ }\mmlAmmlAtbackv{\interfacevalue}\src{;e'}
-    }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{backtrans-ret-ctxtocomp}
+%   \typerule{backtrans-call-internal}{
+%     \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+%   }{
+%     \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \nocomm\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+%   }{backtrans-call-internal}
+%   \typerule{backtrans-ret-internal}{
+%     \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+%   }{
+%     \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \nocomm\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+%   }{backtrans-ret-internal}
     %
     \typerule{backtrans-call-comptoctx}{
+      \fresh{\Game}{\trg{\loc}}&
+      \Game_z=\Game[\trg{\loc}] &
+      \src{z}=\Game_z(\trg{\loc})&
+      \mmlAmmlAtbackdetail[\Game_z,\trg{\loc,\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} \\
+      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game_z,\trg{\overline{\loc}}]{foo}\ \mmlAmmlAtbackv[\Game_z]{\interfacevalue}\src{;e'}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-call-comptoctx}
+    \typerule{backtrans-ret-comptoctx}{
+      \fresh{\Game}{\trg{\loc}}&
+      \Game_z=\Game[\trg{\loc}] &
+      \src{z}=\Game_z(\trg{\loc})&
+      \mmlAmmlAtbackdetail[\Game_z,\trg{\loc,\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} \\
+      \src{e}=\src{let\ z = new\ 42\ in\ return\ }\mmlAmmlAtbackv[\Game_z]{\interfacevalue}\src{;e'}
+    }{
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-ret-comptoctx}
+    %
+    \typerule{backtrans-call-ctxtocomp}{
       \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} &
       \src{e}=\src{call\ }\mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{foo}\ \mmlAmmlAtbackv{\interfacevalue}\src{; delete\ }\Game(\trg{\loc})\src{;e'}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{backtrans-call-comptoctx}
-    \typerule{backtrans-ret-comptoctx}{
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-call-ctxtocomp}
+    \typerule{backtrans-ret-ctxtocomp}{
       \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e} &
       \src{e}=\src{return\ }\mmlAmmlAtbackv{\interfacevalue}\src{; delete\ }\Game(\trg{\loc})\src{;e'}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
-    }{backtrans-ret-comptoctx}
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+    }{backtrans-ret-ctxtocomp}
   \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
 

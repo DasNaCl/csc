@@ -1260,38 +1260,47 @@ We also use it to project the call/return events onto it.
 \myfig{
   \begin{center}
     \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
-    \judgbox{\tospecificevs{\event} = \msevent}{,,Project an $\mmlAs$ event $\src{\event}$ to $\msevent$.''}
+    \judgbox{\tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\event} = \msevent}{,,Project an $\mmlAs$ event $\src{\event}$ to $\msevent$.''}
 %    \judgbox{\tospecificevcomps{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring context.''}
 %    \judgbox{\tospecificevctxs{\trace} = \src{\mstrace}}{,,Project an $\mmlAs$ trace $\src{\trace}$ to $\src{\mstrace}$, ignoring component.''}
     $$
     \begin{array}{rcll}
-      \tospecificevs[_{\delta_{MS}}]{Alloc\ \loc\ n} &\ = & \specificev{Alloc\ \loc\ n},&\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
-      \tospecificevs[_{\delta_{MS}}]{Dealloc\ \loc} &\ = & \specificev{Dealloc\ \loc} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc}) \\
-      \tospecificevs[_{\delta_{MS}}]{Get\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
-      \tospecificevs[_{\delta_{MS}}]{Set\ \loc\ n} &\ = & \specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
-      \tospecificevs[_{\delta_{MS}}]{Call\ \comm\ foo\ n} &\ = & \specificev{\varepsilon} &\\
-      \tospecificevs[_{\delta_{MS}}]{Ret\ \comm\ n} &\ = & \specificev{\varepsilon} &\\
-      \tospecificevs[_{\delta_{MS}}]{\lightning} &\ = & \specificev{\lightning} &\\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Alloc\ \loc\ n} &\ = & \src{\comm},\specificev{Alloc\ \loc\ n}&\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Dealloc\ \loc} &\ = & \src{\comm},\specificev{Dealloc\ \loc} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc}) \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Get\ \loc\ n} &\ = & \src{\comm},\specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Set\ \loc\ n} &\ = & \src{\comm},\specificev{Use\ \loc\ n} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\ctxtocomp}}]{Alloc\ \loc\ n} &\ = & \src{\comm},\specificev{\emptyevent}&\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\ctxtocomp}}]{Dealloc\ \loc} &\ = & \src{\comm},\specificev{\emptyevent} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc}) \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\ctxtocomp}}]{Get\ \loc\ n} &\ = & \src{\comm},\specificev{\emptyevent} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\ctxtocomp}}]{Set\ \loc\ n} &\ = & \src{\comm},\specificev{\emptyevent} &\text{where }\specificev{\loc}=\delta_{MS}(\src{\loc})\text{ and }\specificev{n}=\src{n} \\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm'}}]{Call\ \comm\ foo\ n} &\ = & \src{\comm},\specificev{\varepsilon} &\text{where }\src{\comm}\not=\src{\nocomm}\\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm'}}]{Ret\ \comm\ n} &\ = & \src{\comm},\specificev{\varepsilon} &\text{where }\src{\comm}\not=\src{\nocomm}\\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Call\ \nocomm\ foo\ n} &\ = & \src{\comm},\specificev{\varepsilon} &\\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Ret\ \nocomm\ n} &\ = & \src{\comm},\specificev{\varepsilon} &\\
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\lightning} &\ = & \src{\comm},\specificev{\lightning} &\\
     \end{array}
     $$
     \typerule{$\src{\mstrace}$-empty-$\theta$}{
     }{
-    \tospecificevs{\hole{\cdot}}=\hole{\cdot}
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\hole{\cdot}}=\hole{\cdot}
     }{src-mstrace-empty-map}
     \typerule{$\src{\mstrace}$-cons-$\theta$}{
-      \tospecificevs[_{\delta_{MS}}]{\msevent}=\msevent[_0]&
-      \tospecificevs[_{\delta_{MS}}]{\mstrace}=\mstrace[_0]&
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent}=\src{\comm},\msevent[_0]&
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\mstrace}=\mstrace[_0]&
     }{
-      \tospecificevs[_{\delta_{MS}}]{\msevent\cdot\mstrace}=\msevent[_0]\cdot\mstrace[_0]
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent\cdot\mstrace}=\msevent[_0]\cdot\mstrace[_0]
     }{src-cons-empty-map}
+    %
     \typerule{$\src{\mstrace}$-cons-$\theta$-ignore}{
-      \tospecificevs[_{\delta_{MS}}]{\msevent}=\specificev{\varepsilon}&
-      \tospecificevs[_{\delta_{MS}}]{\mstrace}=\mstrace[_0]&
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent}=\src{\comm'},\specificev{\emptyevent}&
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm'}}]{\mstrace}=\mstrace[_0]&
     }{
-      \tospecificevs[_{\delta_{MS}}]{\msevent\cdot\mstrace}=\mstrace[_0]
+      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent\cdot\mstrace}=\mstrace[_0]
     }{src-cons-empty-map}
   \end{center}
 }{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
+
+We write just $\tospecificevs[_{\delta_{MS}}]{\bullet}$ for $\tospecificevs[_{\delta_{MS}}^{\nocomm}]{\bullet}$.
 
 \subsubsection{\gls*{tms} Monitor}
 In order to just talk about temporal memory safety, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.

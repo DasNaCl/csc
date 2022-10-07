@@ -580,7 +580,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   %
   \mi{Expressions}~\src{e} \bnfdef&\ \src{\finalexpr} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
   & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{return\ e} \mid \src{call\ foo\ e} \\
-  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \src{abort()} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
+  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
   %
   \mi{Functions}~\src{\asymbol} \bnfdef&\ \src{let\ foo\ x : \type}_{\lambda}\src{:= e} \\
   %
@@ -1072,10 +1072,10 @@ They do not have any other relevance.
   \exprevals{\Omega}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\emptyevent}
   }{w-e-if-false}
   %
-  \typerule{$e-\src{abort}$}{
-  }{
-    \exprevals{\Omega}{abort()}{\Omega}{stuck}{\lightning}
-  }{w-e-abort}
+%  \typerule{$e-\src{abort}$}{
+%  }{
+%    \exprevals{\Omega}{abort()}{\Omega}{stuck}{\lightning}
+%  }{w-e-abort}
 }{w-expr-prim-eval}{Primitive Evaluation of $\mmlAs$ expressions.}
 Evaluation is mostly straightforward, the only interesting cases involve the pointers.
 Specifically, \Cref{tr:w-e-delete} demonstrates why we need the poison-tag on the locations: Regardless of the current tag, emit a $\src{Dealloc\ \loc}$ event and mark $\src{\loc}$ as poisoned ($\src{\poisoned}$).
@@ -1506,6 +1506,133 @@ As before, we need a way to translate one set of actions to another:
     }{store-poison-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
+
+\subsubsection{\gls*{sms} Monitor}
+
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
+    \end{aligned}
+  \end{gather*}
+}{sms-monitor}{\gls{sms} Monitor.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    %
+    \typerule{sms-Use}{
+      (\specificev{\loc},m) \in \smsmonitor&
+      n < m
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ \bm{n}}
+    }{sms-use}
+    %
+    \typerule{sms-Alloc}{
+      \specificev{\loc} \notin \text{dom }\smsmonitor&
+      \smsmonitor[']=\smsmonitor \cup \left\{(\specificev{\loc},n)\right\}
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
+    }{sms-alloc}
+    %
+    \typerule{sms-Dealloc}{
+      (\specificev{\loc},m) \in \smsmonitor &
+      \smsmonitor[']=\smsmonitor\setminus\left\{(\specificev{\loc},m)\right\}
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
+    }{sms-dealloc}
+    %
+    \typerule{sms-Refl}{
+    }{
+      \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
+    }{sms-refl}
+    %
+    \typerule{sms-Trans}{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}&
+      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\abstrace}
+    }{
+      \monitorcheck{\smsmonitor}{\smsmonitor['']}{\absevent\cdot\abstrace}
+    }{sms-trans}
+  \end{center}
+}{sms-step}{Steps of \gls{sms} Monitor.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\smstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
+    \judgbox{\smstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    %
+    \typerule{SMS-Alloc-Authentic}{
+    }{
+      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
+    }{sms-alloc-auth}
+    %
+    \typerule{SMS-Dealloc-Authentic}{
+    }{
+      \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
+    }{sms-dealloc-auth}
+    %
+    \typerule{SMS-Use-Authentic}{
+    }{
+      \smstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
+    }{sms-use-auth}
+    %
+    \typerule{SMS-Refl-Authentic}{
+    }{
+      \smstraceagree{\hole{\cdot}}{\hole{\cdot}}
+    }{sms-refl-auth}
+    %
+    \typerule{SMS-Trans-Authentic}{
+      \smstraceagree{\msevent}{\absevent} &
+      \smstraceagree{\mstrace}{\abstrace}
+    }{
+      \smstraceagree{\msevent \cdot \mstrace}{\absevent \cdot \abstrace}
+    }{sms-trans-auth}
+  \end{center}
+}{sms-trace-agreement}{Trace Agreement.}
+
+
+\myfig{
+  \begin{center}
+    \typerule{abstract-agree-dealloc}{
+    }{
+    \textbf{Dealloc}\ \specificev{\loc} \prec \textbf{Dealloc}\ \specificev{\loc}
+    }{aagree-dealloc}
+    %
+    \typerule{abstract-agree-alloc}{
+    }{
+    \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \prec \textbf{Alloc}\ \specificev{\loc}
+    }{aagree-alloc}
+    %
+    \typerule{abstract-agree-use}{
+    }{
+    \textbf{Use}\ \specificev{\loc}\ \bm{n} \prec \textbf{Use}\ \specificev{\loc}
+    }{use-dealloc}
+    %
+    \typerule{tms-sms-E}{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absevent} &
+      \absevent\prec \absevent['] &
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absevent[']} &
+    T = \tmsmonitor\times\smsmonitor
+    }{
+      \monitorcheck[]{T}{T}{\absevent}
+    }{tms-sms-empty}
+    %
+    \typerule{tms-sms-Refl}{
+    }{
+      \monitorcheck{T}{T}{\hole{\cdot}}
+    }{tms-sms-refl}
+    %
+    \typerule{tms-sms-Trans}{
+      \monitorcheck[]{T}{T'}{\absevent}&
+      \monitorcheck{T'}{T''}{\abstrace}&
+    }{
+      \monitorcheck{T}{T''}{\absevent\cdot\abstrace}
+    }{tms-sms-trans}
+  \end{center}
+}{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
+
 
 We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
@@ -2752,132 +2879,6 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\subsubsection{\gls*{sms} Monitor}
-
-\myfig{
-  \begin{gather*}
-    \begin{aligned}
-      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
-    \end{aligned}
-  \end{gather*}
-}{sms-monitor}{\gls{sms} Monitor.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\absevent$.''}
-    \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
-    %
-    \typerule{sms-Use}{
-      (\specificev{\loc},m) \in \smsmonitor&
-      n < m
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ \bm{n}}
-    }{sms-use}
-    %
-    \typerule{sms-Alloc}{
-      \specificev{\loc} \notin \text{dom }\smsmonitor&
-      \smsmonitor[']=\smsmonitor \cup \left\{(\specificev{\loc},n)\right\}
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
-    }{sms-alloc}
-    %
-    \typerule{sms-Dealloc}{
-      (\specificev{\loc},m) \in \smsmonitor &
-      \smsmonitor[']=\smsmonitor\setminus\left\{(\specificev{\loc},m)\right\}
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
-    }{sms-dealloc}
-    %
-    \typerule{sms-Refl}{
-    }{
-      \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
-    }{sms-refl}
-    %
-    \typerule{sms-Trans}{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}&
-      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\abstrace}
-    }{
-      \monitorcheck{\smsmonitor}{\smsmonitor['']}{\absevent\cdot\abstrace}
-    }{sms-trans}
-  \end{center}
-}{sms-step}{Steps of \gls{sms} Monitor.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\smstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\smstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
-    %
-    \typerule{SMS-Alloc-Authentic}{
-    }{
-      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
-    }{sms-alloc-auth}
-    %
-    \typerule{SMS-Dealloc-Authentic}{
-    }{
-      \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
-    }{sms-dealloc-auth}
-    %
-    \typerule{SMS-Use-Authentic}{
-    }{
-      \smstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
-    }{sms-use-auth}
-    %
-    \typerule{SMS-Refl-Authentic}{
-    }{
-      \smstraceagree{\hole{\cdot}}{\hole{\cdot}}
-    }{sms-refl-auth}
-    %
-    \typerule{SMS-Trans-Authentic}{
-      \smstraceagree{\msevent}{\absevent} &
-      \smstraceagree{\mstrace}{\abstrace}
-    }{
-      \smstraceagree{\msevent \cdot \mstrace}{\absevent \cdot \abstrace}
-    }{sms-trans-auth}
-  \end{center}
-}{sms-trace-agreement}{Trace Agreement.}
-
-
-\myfig{
-  \begin{center}
-    \typerule{abstract-agree-dealloc}{
-    }{
-    \textbf{Dealloc}\ \specificev{\loc} \prec \textbf{Dealloc}\ \specificev{\loc}
-    }{aagree-dealloc}
-    %
-    \typerule{abstract-agree-alloc}{
-    }{
-    \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \prec \textbf{Alloc}\ \specificev{\loc}
-    }{aagree-alloc}
-    %
-    \typerule{abstract-agree-use}{
-    }{
-    \textbf{Use}\ \specificev{\loc}\ \bm{n} \prec \textbf{Use}\ \specificev{\loc}
-    }{use-dealloc}
-    %
-    \typerule{tms-sms-E}{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absevent} &
-      \absevent\prec \absevent['] &
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absevent[']} &
-    T = \tmsmonitor\times\smsmonitor
-    }{
-      \monitorcheck[]{T}{T}{\absevent}
-    }{tms-sms-empty}
-    %
-    \typerule{tms-sms-Refl}{
-    }{
-      \monitorcheck{T}{T}{\hole{\cdot}}
-    }{tms-sms-refl}
-    %
-    \typerule{tms-sms-Trans}{
-      \monitorcheck[]{T}{T'}{\absevent}&
-      \monitorcheck{T'}{T''}{\abstrace}&
-    }{
-      \monitorcheck{T}{T''}{\absevent\cdot\abstrace}
-    }{tms-sms-trans}
-  \end{center}
-}{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
-
 \subsection{Robust \gls*{tms} Preserving Compiler}
 
 \subsubsection{Compiler}
@@ -2893,7 +2894,6 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
     \mmlAmmlAtcomp{\finalexpr} &\ = & \trg{\finalexpr} \\
     \mmlAmmlAtcomp{call\ foo\ e} &\ = & \trg{call\ }\mmlAmmlAtcomp{foo}\ \mmlAmmlAtcomp{e}\\
     \mmlAmmlAtcomp{return\ e} &\ = & \trg{return\ }\mmlAmmlAtcomp{e}\\
-    \mmlAmmlAtcomp{abort()} &\ = & \trg{abort()}\\
     \mmlAmmlAtcomp{e_1\oplus e_2} &\ = & \mmlAmmlAtcomp{e_1} \trg{\oplus} \mmlAmmlAtcomp{e_2} \\
     \mmlAmmlAtcomp{x[e]} &\ = & \mmlAmmlAtcomp{x}\trg{[}\mmlAmmlAtcomp{e}\trg{]} \\
     \mmlAmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ }\mmlAmmlAtcomp{x}\trg{=} \mmlAmmlAtcomp{e_1}\trg{\ in\ }\mmlAmmlAtcomp{e_2} \\

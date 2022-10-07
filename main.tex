@@ -2470,24 +2470,28 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   %
   \mi{Values}~\trg{v} \bnfdef&\ \trg{\langle n_{1}, n_{2}\rangle} \mid \trg{n}\in\trg{\nat} \hspace{0.5cm}
   \mi{References}~\trg{\loc}\in\trg{\nat} \\
-  \trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid \trg{let\ x=K\ in\ e} \\
+  \mi{Eval.Ctx.}~\trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid \trg{let\ x=K\ in\ e} \\
                  &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \\
                  &\mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle} \mid \trg{ifz\ K\ then\ e_1\ else\ e_2} \mid \trg{\pi_{1}\ K} \mid \trg{\pi_{2}\ K} \\
                  &\mid \trg{K\ has\ \type}\mid\trg{call\ foo\ K}\mid\trg{return\ K} \\
   %
-  \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \dots \hspace{0.35cm}
+  \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \trg{foo} \mid \dots \hspace{0.35cm}
   %
-  \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\hspace{0.35cm}
+  \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
   %
-  \mi{Store}~\trg{\Delta} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\\
-  \mi{Cont.\ Stack}~\trg{\kontstack} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{K},\trg{\kontstack} \hspace{0.5cm}
+  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto\loc_\poison},\Deltat\hspace{0.35cm}
+  \mi{Communication}~\trg{\comm} \bnfdef\ \trg{\ctxtocomp} \mid \trg{\comptoctx} \mid \trg{\nocomm}\\
+  \mi{Cont.\ Stack}~\trg{\kontstack} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{K_{\comm}^{foo}},\trg{\kontstack} \hspace{0.5cm}
   \mi{Library}~\trg{\library} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{\asymbol},\trg{\library}\\
   %
-  \mi{Heaps}~\trg{H} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.5cm}
+  \mi{Relevant}~\trg{\commlib} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{foo},\trg{\commlib}\hspace{0.35cm}
+  \mi{Heaps}~\trg{H} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.35cm}
+  \mi{State}\ \configt \bnfdef\ \trg{\cfstate;\memstate} \\
   %
-  \mi{State}\ \configt \bnfdef\ \trg{\library;\kontstack;H;\Delta}\hspace{0.5cm}
+  \mi{Flow\ State}\ \trg{\cfstate} \bnfdef&\ \trg{\commlib;\library;\kontstack}\hspace{0.35cm}
+  \mi{Memory\ State}\ \trg{\memstate} \bnfdef \trg{H;\Delta}\hspace{0.35cm}
   %
-  \mi{Programs}\ \trg{prog\ \library} \\
+  \mi{Programs}\ \trg{prog\ \commlib\ \library} \\
   \end{aligned}
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
@@ -2526,8 +2530,9 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Events}~\trg{\event} \bnfdef& \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n}\\
-                             & \mid \trg{\lightning} \mid \trg{Call\ ?foo\ \finalexprnoerr} \mid \trg{Ret\ !\finalexprnoerr}
+  \mi{Interface\ Value}~\trg{\interfacevalue} \bnfdef&\ \trg{\valueexpr} \mid \trg{\loc} \\
+  \mi{Events}~\trg{\event} \bnfdef&\ \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}\\
+                             & \mid \trg{Call\ \comm\ foo\ \interfacevalue} \mid \trg{Ret\ \comm\ \interfacevalue}
   \end{aligned}
   \end{gather*}
 }{tw-events}{Events of $\mmlAt$.}
@@ -2544,19 +2549,19 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \typerule{$e-\trg{get}-\in$}{
     \trg{\loc}+\trg{n}\in\text{dom }\trg{H}
   }{
-    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
+    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
   }{tw-e-get-in}
   %
   \typerule{$e-\trg{get}-\notin$}{
     \trg{\loc}+\trg{n}\notin\text{dom }\trg{H}
   }{
-    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
+    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
   }{tw-e-get-notin}
   %
   \typerule{$e-\trg{set}$}{
     \trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})
   }{
-    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow \valueexpr}{\library;\kontstack;H';\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n\ \valueexpr}
+    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow \valueexpr}{\cfstate;H';\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n\ \valueexpr}
   }{tw-e-set}
   %
   \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
@@ -2566,7 +2571,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   %
   \typerule{$e-\trg{delete}$}{
   }{
-    \exprevalt{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{\library;\kontstack;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}
+    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{\cfstate;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}
   }{tw-e-delete}
   %
   \typerule{$e-\trg{new}$}{
@@ -2574,7 +2579,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
     \fresh{\trg{\Delta}}{\trg{z}} &
     \trg{H'} = \trg{H} \ll \trg{n} &
   }{
-  \exprevalt{\library;\kontstack;H;\Delta}{let\ x=new\ n\ in\ e}{\library;\kontstack;H';z\mapsto \loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}
+  \exprevalt{\cfstate;H;\Delta}{let\ x=new\ n\ in\ e}{\cfstate;H';z\mapsto \loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}
   }{tw-e-let-new}
   %
   \typerule{$e-\trg{ifz}-$true}{
@@ -2589,7 +2594,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   %
   \typerule{$e-\trg{abort}$}{
   }{
-    \exprevalt{\configt}{abort()}{\lightning}{stuck}{\lightning}
+    \exprevalt{\configt}{abort()}{\configt}{stuck}{\lightning}
   }{tw-e-abort}
   %
   %
@@ -2604,17 +2609,17 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{tw-e-proj2}
   %
   \typerule{$e-\trg{x\ is\ \poisoned}-$yes}{
-    \configt=\trg{\library;\kontstack;H;\Delta} &
+    \trg{\memstate}=\trg{H;\Delta} &
     \trg{\Delta}=\trg{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}
   }{
-    \exprevalt{\configt}{x\ is\ \poisoned}{\configt}{0}{\emptyevent}
+    \exprevalt{\cfstate;\memstate}{x\ is\ \poisoned}{\cfstate;\memstate}{0}{\emptyevent}
   }{tw-e-x-is-poisoned-yes}
   %
   \typerule{$e-\trg{x\ is\ \poisoned}-$no}{
-    \configt=\trg{\library;\kontstack;H;\Delta} &
+    \trg{\memstate}=\trg{H;\Delta} &
     \trg{\Delta}=\trg{\Delta_1,x\mapsto\loc_\poisonless,\Delta_2}
   }{
-    \exprevalt{\configt}{x\ is\ \poisoned}{\configt}{1}{\emptyevent}
+    \exprevalt{\cfstate;\memstate}{x\ is\ \poisoned}{\cfstate;\memstate}{1}{\emptyevent}
   }{tw-e-x-is-poisoned-yes}
   %
   \typerule{$e-\trg{n\ has\ \nat}$}{
@@ -2649,33 +2654,122 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 }{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
 
 \myfig{
-  \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
-  %
-  \typerule{$e-\text{ctx}$}{
-    \exprevalt{\configt}{e}{\configt'}{e'}{\event}
-  }{
-    \exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}
-  }{tw-e-ectx}
-  %
-  \typerule{$e-\text{ctx}-\trg{stuck}$}{
-    \exprevalt{\configt}{e}{\configt'}{stuck}{\lightning}
-  }{
-    \exect[]{\configt}{K[e]}{\configt'}{stuck}{\lightning}
-  }{tw-e-ectx}
-  %
-  \typerule{$e-\text{ctx}-\trg{return}$}{
-  }{
-    \exprevalt{\library;K,\kontstack;H;\Delta}{K'[return\ \finalexprnoerr]}{\library;\kontstack;H;\Delta}{K[\finalexprnoerr]}{Ret\ !\finalexprnoerr}
-  }{tw-e-returning}
-  %
-  \typerule{$e-\text{ctx}-\trg{call}$}{
-    \trg{\Omega}=\trg{\library;\kontstack;H;\Delta}&
-    \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x := e})\trg{,\library_2} \\
-    \trg{\Omega'}=\trg{\library;K,\kontstack;H;\Delta}
-  }{
-    \exprevalt{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{return\ e[x/\finalexprnoerr]}{Call\ ?foo\ \finalexprnoerr}
-  }{tw-e-calling}
-}{tw-expr-ctx-eval}{Contextual Evaluation of $\mmlAt$ expressions.}
+  \begin{center}
+    \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and new\\configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
+    %
+    \typerule{$et-\text{ctx}$}{
+      \exprevalt{\Omega}{e}{\Omega'}{e'}{\event}
+    }{
+      \exect[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
+    }{w-t-e-ectx}
+    %
+    \typerule{$et-\text{ctx}-\trg{stuck}$}{
+      \exprevalt{\Omega}{e}{\Omega'}{stuck}{\lightning}
+    }{
+      \exect[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
+    }{w-t-e-ectx-stuck}
+    %
+    \typerule{$et-\text{ctx}-\trg{call}-\trg{\valueexpr}$}{
+      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate} &
+      \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x:\type}_\lambda\trg{:=e})\trg{,\library_2} \\
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{v}) = \trg{\event},\trg{\comm} &
+      \trg{\Omega'}=\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
+    }{
+      \exect[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
+    }{w-t-e-ectx-call-value}
+    %
+    \typerule{$et-\text{ctx}-\trg{call}-\trg{\loc}$}{
+      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate} &
+      \trg{\memstate}=\trg{H;\Delta}&
+      \trg{\Delta}=\trg{\Delta_1},\trg{x\mapsto\loc_\poison},\trg{\Delta_2}\\
+      \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x:\type}_\lambda\trg{:=e})\trg{,\library_2} \\
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{\loc}) = \trg{\event},\trg{\comm} &
+      \trg{\Omega'}=\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
+    }{
+      \exect[]{\Omega}{K[call\ foo\ x]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
+    }{w-t-e-ectx-call-value}
+    %
+    \typerule{$et-\text{ctx}-\trg{return}-\trg{\valueexpr}$}{
+    }{
+      \exec[]{\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\kontstack;\memstate}}{\trg{K[\valueexpr]}}{\rho_{\tiny ret}\left(\trg{\comm},\trg{\valueexpr}\right)}
+    }{w-t-e-ectx-ret}
+    %
+    \typerule{$e-\text{ctx}-\trg{return}-\trg{\loc}$}{
+      \rho_{\tiny ret}\left(\trg{\comm}\right)=\trg{\comm_0} &
+      \trg{\memstate}=\trg{H;\Delta}&
+      \trg{\Delta}=\trg{\Delta_1},\trg{x\mapsto\loc_\poison},\trg{\Delta_2}
+    }{
+      \exec[]{\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\trg{K'[return\ x]}}{\trg{\commlib;\library;\kontstack;\memstate}}{\trg{K[x]}}{\rho_{\tiny ret}\left(\trg{\comm},\trg{\loc}\right)}
+    }{w-e-ectx-ret}
+    %
+    \judgbox{\rho_{\tiny ret}(\trg{\comm},\trg{\interfacevalue})=\trg{\event}}{,,Given the last comm. and we are returning, yield event.''}
+    %
+    \typerule{t-comm-ret-ctxtocomp}{
+    }{
+      \rho_{\tiny ret}(\trg{\ctxtocomp},\trg{\interfacevalue})=\trg{Ret\ \ctxtocomp\ \interfacevalue}
+    }{w-t-comm-ret-ctxtocomp}
+    %
+    \typerule{t-comm-ret-internal}{
+    }{
+      \rho_{\tiny ret}(\trg{\nocomm},\trg{\interfacevalue})=\trg{\varepsilon}
+    }{w-t-comm-ret-internal}
+    %
+    \typerule{t-comm-ret-comptoctx}{
+    }{
+      \rho_{\tiny ret}(\trg{\comptoctx},\trg{\interfacevalue})=\trg{Ret\ \comptoctx\ \interfacevalue}
+    }{w-t-comm-ret-comptoctx}\\[0.33cm]
+    %
+    \judgbox{\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{\interfacevalue})=\trg{\event},\trg{\comm}}{,,Given the ctx. info, yield event.''}
+    %
+    \typerule{t-comm-call-empty-stack-comp}{
+      \trg{foo}\notin\trg{\commlib}
+    }{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\hole{\cdot}},\trg{\interfacevalue})=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue},\trg{\comptoctx}
+    }{w-t-comm-call-empty-stack-comp}
+    %
+    \typerule{t-comm-call-empty-stack-ctx}{
+      \trg{foo}\in\trg{\commlib}
+    }{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\hole{\cdot}},\trg{\interfacevalue})=\trg{Call\ \comptoctx\ foo\ \interfacevalue},\trg{\ctxtocomp}
+    }{w-t-comm-call-empty-stack-ctx}
+    %
+    \typerule{t-comm-call-nonempty-stack}{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar},\trg{\interfacevalue})=\trg{\event},\trg{\comm}
+    }{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{K^{bar},\kontstack},\trg{\interfacevalue})=\trg{\event},\trg{\comm}
+    }{w-t-comm-call-nonempty-stack}
+    %
+    \judgbox{\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{\event},\trg{\comm}}{,,Given the current ctx. info, yield comm.''}
+    %
+    \typerule{t-comm-call-ctxtocomp}{
+      \trg{foo}\notin\trg{\commlib} &
+      \trg{\commlib}=\trg{\commlib_1},\trg{bar_{cur}},\trg{\commlib_2}
+    }{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{Call\ \comptoctx\ foo\ \interfacevalue},\trg{\ctxtocomp}
+    }{w-t-comm-call-ctxtocomp}
+    %
+    \typerule{t-comm-call-internal-both-irrelevant}{
+      \trg{foo}\notin\trg{\commlib} &
+      \trg{bar_{cur}}\notin\trg{\commlib}
+    }{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{\emptyevent},\trg{\nocomm}
+    }{w-t-comm-call-internal-both-irrelevant}
+    %
+    \typerule{t-comm-call-internal-both-relevant}{
+      \trg{\commlib} = \trg{\commlib_1},\trg{foo},\trg{\commlib_2} &
+      \trg{\commlib} = \trg{\commlib_3},\trg{bar_{cur}},\trg{\commlib_4}
+    }{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{\emptyevent},\trg{\nocomm}
+    }{w-t-comm-call-internal-both-relevant}
+    %
+    \typerule{t-comm-call-comptoctx}{
+      \trg{\commlib}=\trg{\commlib_1},\trg{foo},\trg{\commlib_2} &
+      \trg{bar_{cur}}\notin\trg{\commlib}
+    }{
+      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue},\trg{\comptoctx}
+    }{w-t-comm-call-comptoctx}
+  \end{center}
+}{w-t-expr-ctx-eval}{Contextual Evaluaton of $\mmlAt$ expressions.}
 
 \myfig{
   \begin{center}
@@ -2703,11 +2797,11 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 
 \myfig{
   \begin{center}
-    \judgbox{\wexect{prog\ \library}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \library}$, giving dynamic\\state $\configt$ and emitting trace $\trg{\trace}$.''}
+    \judgbox{\wexect{prog\ \commlib\ \library}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \commlib\ \library}$, giving dynamic\\state $\configt$ and emitting trace $\trg{\trace}$.''}
   \typerule{$te-\text{wprog}$}{
-    \exect{\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+    \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexect{prog\ \library}{\Omega}{\finalexpr}{\trace}
+    \wexect{prog\ \commlib\ \library}{\Omega}{\finalexpr}{\trace}
   }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -3866,11 +3960,11 @@ $\;$\MK{fix lolly and the other one}
       \fresh{\Game}{\trg{\loc}}&
       \Game_z=\Game[\trg{\loc}] &
       \src{z}=\Game_z(\trg{\loc})&
-      \mmlAmmlAtbackdetail[\Game_z,\trg{\loc,\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} \\
       \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game_z,\trg{\overline{\loc}}]{foo}\ \mmlAmmlAtbackv[\Game_z]{\interfacevalue}\src{;e'}
     }{
       \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-call-comptoctx}
+    %
     \typerule{backtrans-ret-comptoctx}{
       \fresh{\Game}{\trg{\loc}}&
       \Game_z=\Game[\trg{\loc}] &

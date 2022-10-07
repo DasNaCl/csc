@@ -154,19 +154,19 @@ Lemma append_nil { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) :
 .
 Proof. induction m; eauto; rewrite <- IHm at 2; now cbn. Qed.
 
-Definition splitat { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) (x : A)
+Fixpoint splitat_aux { A : Type } {H : HasEquality A} {B : Type} (accM m : mapind H B) (x : A)
   : option((mapind H B) * A * B * (mapind H B)) :=
-  let fix doo (accM : mapind H B) (m : mapind H B) :=
-    match m with
-    | mapNil _ _ => None
-    | mapCons a b m' => if eq a x then
-                         Some(accM, a, b, m')
-                       else
-                         let* aM := a ↦ b ◘ accM in
-                         doo aM m'
-    end
-  in doo (mapNil H B) m
+  match m with
+  | mapNil _ _ => None
+  | mapCons a b m' => if eq a x then
+                        Some(accM, a, b, m')
+                      else
+                        let* aM := a ↦ b ◘ accM in
+                        splitat_aux aM m' x
+  end
 .
+Definition splitat { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) (x : A)
+  : option((mapind H B) * A * B * (mapind H B)) := splitat_aux (mapNil H B) m x.
 
 Definition mget { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) : option B :=
   let fix doo (m : mapind H B) :=
@@ -200,9 +200,8 @@ Lemma nodupinv_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapi
   nodupinv m'
 .
 Proof.
-  remember (mset m x v) as om; revert om Heqom; induction m'; intros.
-  - constructor.
 Admitted.
+
 Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
   mget m x = Some v
 .
@@ -325,7 +324,7 @@ Proof.
         destruct (IHm0) as [IHm0a IHm0b]; split; try easy.
         intros []; subst; easy.
 Qed.
-Lemma nodupinv_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
+Lemma nodupinv_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) :
   nodupinv (m1 ◘ m2) ->
   nodupinv m1 /\ nodupinv m2
 .
@@ -338,15 +337,32 @@ Proof.
       split; trivial; constructor; trivial.
       apply dom_split in H2 as [H2__a H2__b]; trivial.
 Qed.
+Lemma nodupinv_swap { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) :
+  nodupinv (m1 ◘ m2) <-> nodupinv (m2 ◘ m1)
+.
+Proof. Admitted.
+Lemma append_assoc { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m3 : mapind H B) :
+  ((m1 ◘ m2) ◘ m3) = (m1 ◘ (m2 ◘ m3))
+.
+Proof. Admitted.
 
 Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :
   nodupinv (x ↦ v ◘ m2) ->
   splitat (x ↦ v ◘ m2) x = Some (mapNil _ _, x, v, m2).
 Proof. cbn; now rewrite eq_refl. Qed.
-Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) (x : A) (v : B) :
-  nodupinv (m1 ◘ x ↦ v ◘ m2) ->
-  splitat (m1 ◘ x ↦ v ◘ m2) x = Some (m1, x, v, m2).
+Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (accM m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (accM ◘ m1 ◘ x ↦ v ◘ m2) ->
+  splitat_aux accM (m1 ◘ x ↦ v ◘ m2) x = Some (accM ◘ m1, x, v, m2).
 Proof.
+  revert accM; induction m1; intros.
+  - cbn; subst; now rewrite eq_refl, append_nil.
+  - cbn. remember (eq a x) as eqax; destruct eqax; symmetry in Heqeqax.
+    apply eqb_eq in Heqeqax; subst.
+    rewrite append_assoc in H0. apply nodupinv_split in H0 as [H0a H0b].
+    inv H0b. exfalso; apply H2.
+    clear. induction m1; cbn; eauto.
+    rewrite append_assoc in H0.
+    apply nodupinv_swap in H0. inv H0. apply nodupinv_swap in H5.
 Admitted.
 
 Module Type MOD.

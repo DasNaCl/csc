@@ -2109,12 +2109,12 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item\label[ass]{asm:ctxtmsmonitor:ctxstep} $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
     \item\label[ass]{asm:ctxtmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists \absevent\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+  Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
   \begin{goals}
-    \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\absevent}$
+    \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+    \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{\event}}{\absevent}$
     \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-    \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}
@@ -2143,20 +2143,20 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item\label[ass]{asm:stepstmsmonitor:exec} $\execs{\configs}{e}{\configs'}{e'}{\trace}$
     \item\label[ass]{asm:stepstmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
-  Then $\exists \abstrace\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+  Then $\exists \abstrace\ \delta_{\text{MS}}'\ \tmsmonitor['],$
   \begin{goals}
-    \item\label[goal]{goal:stepstmsmonitor:delta} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-    \item\label[goal]{goal:stepstmsmonitor:traceagree} $\tmstraceagree[\delta']{\tospecificevs{\trace}}{\abstrace}$
+    \item\label[goal]{goal:stepstmsmonitor:delta} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+    \item\label[goal]{goal:stepstmsmonitor:traceagree} $\tmstraceagree[^{*}]{\tospecificevs[_{\delta_{\text{MS}}'}]{\trace}}{\abstrace}$
     \item\label[goal]{goal:stepstmsmonitor:monitorstep} $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
-    \item\label[goal]{goal:stepstmsmonitor:storeagree} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \item\label[goal]{goal:stepstmsmonitor:storeagree} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
   Induction on \Cref{asm:stepstmsmonitor:exec}.
   \begin{description}
     \item[$\src{\configs'}=\configs$, $\src{e'}=\src{e}$, and $\src{\trace}=\src{\hole{\cdot}}$:]
-          This case is easy, since nothing did change and we can solve the goals with our assumptions immediately.
-          Instantiate $\abstrace=\hole{\cdot}$, $\delta_{\text{tms}}'=\delta_{\text{tms}}$, and $\tmsmonitor[']=\tmsmonitor$.
+          This case is easy, since nothing did change.
+          Instantiate $\abstrace=\hole{\cdot}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
           Then, \Cref{goal:stepstmsmonitor:delta,goal:stepstmsmonitor:traceagree,goal:stepstmsmonitor:monitorstep} follow immediately by reflexivity and \Cref{goal:stepstmsmonitor:storeagree} by \Cref{asm:stepstmsmonitor:storeagree}.
 
     \item[Induction step:]
@@ -2164,14 +2164,14 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
           If
           \begin{passumptions}{A}
             \item $\typechecks{}{\src{\Omega_{\IH}}\triangleright e_{\IH}}{\src{\type}}$
-            \item $\storeagreetms[\delta^{0}]{\tmsmonitor[^{\IH}]}{\src{\Omega_{\IH}}.\src{\Delta}}$
+            \item $\storeagreetms[\delta^{0}_{\text{MS}}]{\tmsmonitor[_{\IH}]}{\src{\Omega_{\IH}}.\src{\Delta}}$
           \end{passumptions}
-          then $\exists \abstrace_{\IH}\ \delta_{\text{tms}}^{\IH}\ \tmsmonitor[_{\IH}'],$
+          then $\exists \abstrace_{\IH}\ \delta_{\text{MS}}^{\IH}\ \tmsmonitor[_{\IH}'],$
           \begin{passumptions}{\IH}
-            \item $\delta_{\text{tms}}^{0}\subseteq\delta_{\text{tms}}^{\IH}$
-            \item $\tmstraceagree[\delta^{\IH}]{\tospecificevs{\trace}}{\abstrace_{\IH}}$
-            \item $\monitorcheck{\tmsmonitor^{\IH}}{\tmsmonitor[_{\IH}']}{\abstrace_{\IH}}$
-            \item $\storeagreetms[\delta^{\IH}]{\tmsmonitor[_{\IH}']}{\src{\Omega'}.\src{\Delta}}$
+            \item $\delta_{\text{MS}}^{0}\subseteq\delta_{\text{MS}}^{\IH}$
+            \item $\tmstraceagree{\tospecificevs[_{\delta^{\IH}_{\text{MS}}}]{\trace}}{\abstrace_{\IH}}$
+            \item $\monitorcheck{\tmsmonitor_{\IH}}{\tmsmonitor[_{\IH}']}{\abstrace_{\IH}}$
+            \item $\storeagreetms[\delta^{\IH}_{\text{MS}}]{\tmsmonitor[_{\IH}']}{\src{\Omega'}.\src{\Delta}}$
           \end{passumptions}
           Note that above, anything not bound by $\exists$ is universally quantified, besides $\src{\type}$ and $\src{\Omega'}$.
           While our remaining context (excluding the inductive hypothesis) is:
@@ -2182,32 +2182,32 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
             \item\label[ass]{asm:stepstmsmonitor:case0:checks} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
             \item\label[ass]{asm:stepstmsmonitor:case0:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
           \end{passumptions}
-          Then $\exists \abstrace\ \delta_{\text{tms}}'\ \tmsmonitor['],$
+          Then $\exists \abstrace\ \delta_{\text{MS}}'\ \tmsmonitor['],$
           \begin{goals}
-            \item\label[goal]{goal:stepstmsmonitor:final:delta} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-            \item\label[goal]{goal:stepstmsmonitor:final:traceagree} $\tmstraceagree[\delta']{\tospecificevs{\event[_{0}]\cdot\trace}}{\abstrace}$
+            \item\label[goal]{goal:stepstmsmonitor:final:delta} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+            \item\label[goal]{goal:stepstmsmonitor:final:traceagree} $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{\event[_{0}]\cdot\trace}}{\abstrace}$
             \item\label[goal]{goal:stepstmsmonitor:final:monitorstep} $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
-            \item\label[goal]{goal:stepstmsmonitor:final:storeagree} $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
-          \end{goals}.
+            \item\label[goal]{goal:stepstmsmonitor:final:storeagree} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+          \end{goals}
           Use \Thmref{lem:ctxsteptmsmonitor} with \Cref{asm:stepstmsmonitor:case0:step,asm:stepstmsmonitor:case0:checks,asm:stepstmsmonitor:case0:storeagree}, obtaining:
           \begin{passumptions}{F}
-            \item\label[ass]{asm:stepstmsmonitor:deltasubset0} $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}^{0}$
-            \item\label[ass]{asm:stepstmsmonitor:traceagree0} $\tmstraceagree[\delta^{0}]{\tospecificevs{\event[_{0}]}}{\absevent_{0}}$
+            \item\label[ass]{asm:stepstmsmonitor:deltasubset0} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}^{0}$
+            \item\label[ass]{asm:stepstmsmonitor:traceagree0} $\tmstraceagree{\tospecificevs[_{\delta^{0}_{\text{MS}}}]{\event[_{0}]}}{\absevent_{0}}$
             \item\label[ass]{asm:stepstmsmonitor:monitorcheck0} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[_{0}]}{\absevent_{0}}$
-            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree1} $\storeagreetms[\delta^{0}]{\tmsmonitor[_{0}]}{\src{\Omega_{0}}.\src{\Delta}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree1} $\storeagreetms[\delta^{0}_{\text{MS}}]{\tmsmonitor[_{0}]}{\src{\Omega_{0}}.\src{\Delta}}$
           \end{passumptions}
           Discharge the inductive hypothesis with \Cref{asm:stepstmsmonitor:case0:storeagree1} and the result of applying \Thmref{lem:ctx-preservation} using \Cref{asm:stepstmsmonitor:case0:step,asm:stepstmsmonitor:case0:checks}:
           \begin{passumptions}{G}
-            \item\label[ass]{asm:stepstmsmonitor:deltasubset1} $\delta_{\text{tms}}^{0}\subseteq\delta_{\text{tms}}^{\IH}$
-            \item\label[ass]{asm:stepstmsmonitor:traceagree1} $\tmstraceagree[\delta^{\IH}]{\tospecificevs{\trace}}{\abstrace_{\IH}}$
+            \item\label[ass]{asm:stepstmsmonitor:deltasubset1} $\delta_{\text{MS}}^{0}\subseteq\delta_{\text{MS}}^{\IH}$
+            \item\label[ass]{asm:stepstmsmonitor:traceagree1} $\tmstraceagree{\tospecificevs[_{\delta^{\IH}_{\text{MS}}}]{\trace}}{\abstrace_{\IH}}$
             \item\label[ass]{asm:stepstmsmonitor:monitorcheck1} $\monitorcheck{\tmsmonitor_{0}}{\tmsmonitor[^{\IH}]}{\abstrace_{\IH}}$
-            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree2} $\storeagreetms[\delta^{\IH}]{\tmsmonitor[^{\IH}]}{\src{\Omega'}.\src{\Delta}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree2} $\storeagreetms[\delta^{\IH}]{\tmsmonitor[_{\IH}]}{\src{\Omega'}.\src{\Delta}}$
           \end{passumptions}
 
-          We solve our goals by instantiating $\abstrace=\absevent\cdot\abstrace_{\IH}$, $\delta_{\text{tms}}'=\delta_{\text{tms}}^{\IH}$, and $\tmsmonitor[']=\tmsmonitor[^{\IH}]$.
+          We solve our goals by instantiating $\abstrace=\absevent\cdot\abstrace_{\IH}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}^{\IH}$, and $\tmsmonitor[']=\tmsmonitor[_{\IH}]$.
           \Cref{goal:stepstmsmonitor:final:delta} follows by transitivity using \Cref{asm:stepstmsmonitor:deltasubset0,asm:stepstmsmonitor:deltasubset1}.
 
-          Similarily for \Cref{goal:stepstmsmonitor:final:traceagree} using \Cref{asm:stepstmsmonitor:traceagree0,asm:stepstmsmonitor:traceagree1}, making use of \Thmref{lem:trace-agree-weaken}.
+          Similarily for \Cref{goal:stepstmsmonitor:final:traceagree} using \Cref{asm:stepstmsmonitor:traceagree0,asm:stepstmsmonitor:traceagree1}.\MK{$\theta$ subsets lemma}
 
           \Cref{goal:stepstmsmonitor:final:monitorstep} also by transitivity using \Cref{asm:stepstmsmonitor:monitorcheck0,asm:stepstmsmonitor:monitorcheck1}.
 
@@ -2679,9 +2679,9 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \begin{center}
     \judgbox{\wexect{prog\ \commlib\ \library}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \commlib\ \library}$, giving dynamic\\state $\configt$ and emitting trace $\trg{\trace}$.''}
   \typerule{$te-\text{wprog}$}{
-    \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+    \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexprnoerr}{\trace}
   }{
-    \wexect{prog\ \commlib\ \library}{\Omega}{\finalexpr}{\trace}
+    \wexect{prog\ \commlib\ \library}{\Omega}{\finalexprnoerr}{\trace}
   }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}

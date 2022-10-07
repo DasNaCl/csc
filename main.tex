@@ -1153,13 +1153,13 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{\interfacevalue})=\src{\event},\src{\comm}}{,,Given the ctx. info, yield event.''}
     %
     \typerule{comm-call-empty-stack-comp}{
-      \src{foo}\notin\src{\commlib}
+      \src{foo}\in\src{\commlib}
     }{
       \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}},\src{\interfacevalue})=\src{Call\ \ctxtocomp\ foo\ \interfacevalue},\src{\comptoctx}
     }{w-comm-call-empty-stack-comp}
     %
     \typerule{comm-call-empty-stack-ctx}{
-      \src{foo}\in\src{\commlib}
+      \src{foo}\notin\src{\commlib}
     }{
       \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}},\src{\interfacevalue})=\src{Call\ \comptoctx\ foo\ \interfacevalue},\src{\ctxtocomp}
     }{w-comm-call-empty-stack-ctx}
@@ -1570,14 +1570,23 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   $\rsat{\src{p}}{smsafe}$
 \end{scontents}
 
-{\color{red}\large TODO}
 \realthm{thm:mmlAs:not:smssafe}{2}{$\mmlAs$ is not spatially memory safe}
 \begin{proof}
-  Pick $\src{e_p}=\src{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$.\\[0.3cm]
+  We pick $\src{\library}$ with the following elements:
+  \begin{enumerate}
+    \item $\src{let\ foo\ x:\nat\to\nat:=let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$
+    \item $\src{let\ main\ z:\nat\to\nat:=call\ foo\ 42}$
+  \end{enumerate}
+  Furthermore, we pick $\src{\commlib}=\left\{\src{foo}\right\}$ and show $\vdash\src{prog\ \commlib\ \library}\ \operatorname{ok}$.
+  First, note that $\src{\Gamma_{0}}=\src{\library}\downarrow=\src{foo\mapsto\nat\to\nat,main\mapsto\nat\to\nat}$ by \Cref{tr:w-lib-proj-empty,tr:w-lib-proj-cons}.
+  Consequently, $\src{main}\in\operatorname{dom}\src{\Gamma_{0}}=\left\{\src{foo},\src{main}\right\}$ and $\src{\Gamma_{0}}\vdash\src{\commlib}\ \operatorname{ok}$ by \Cref{tr:w-t-relevant-empty,tr:w-t-relevant-cons,tr:t-var} noting that $\src{\nat\to\nat}\not=\src{\ptr}$.
+  Note that \Cref{tr:src-int-type-nat} gives $\src{\nat}\ \operatorname{int}$.
+  Using \Cref{tr:w-t-lib-empty,tr:w-t-lib-cons} what is left to show are the following:
+  \begin{enumerate}
+    \item $\typechecks{x:\nat,\Gamma_{0}}{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ delete\ z; w}{\nat}$
+    \item $\typechecks{z:\nat,\Gamma_{0}}{call\ foo\ 42}{\nat}$
+  \end{enumerate}
 
-  We show that $\typechecks{}{component\ e_p}{\nat\to\nat}$.
-  First note that $\src{\nat}\ \operatorname{int}$ by \Cref{tr:src-int-type-nat}.
-  We now need to show that $\typechecks{x:\nat}{e_p}{\nat}$.
   Let $\src{e_w}=\src{let\ w=z[1337]\ in\ delete\ z; w}$, $\Gammas=\src{z:\ptr,x:\nat,\hole{\cdot}}$, and $\src{\Gamma'}=\src{z:\wptr,x:\nat,\hole{\cdot}}$ due to space constraints.
 
   \bigskip
@@ -1595,7 +1604,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \typechecks{\Gamma'\circ\Gamma}{e_w}{\nat}
       }
     }{
-      \typechecks{x:\nat,\hole{\cdot}\circ x:\nat,\hole{\cdot}}{e_p}{\nat}
+      \typechecks{x:\nat,\hole{\cdot}\circ x:\nat,\hole{\cdot}}{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ delete\ z; w}{\nat}
     }}
   \bigskip
 
@@ -1644,29 +1653,24 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \bigskip
 
   Thus, it typechecks.\\[0.3cm]
-  Now pick $\src{context\ }(\src{let\ x=42\ in\ hole:(x:\nat)\to\nat})\ (\src{y})$.\\[0.3cm]
-  We verify $\typecheck{}{\src{context\ }(\src{let\ x=42\ in\ hole:(x:\nat)\to\nat})\ (\src{y})}{\src{(\nat\to\nat)\to\nat}}$.
-  Let $\src{e_1}=\src{let\ x=42\ in\ hole:(x:\nat)\to\nat}$.
+  Now consider the other case:
 
   \bigskip
   \noindent\makebox[\textwidth]{%
-    \typerulederiv{$\text{\Cref{tr:w-t-ctx}}$}{
-      \hasholes{x:\nat}{e_1}{\nat}&
-      \typechecks{}{let\ y=e_1\ in\ y}{\nat}&
-      \src{\nat}\ \operatorname{int}&
-      \src{\nat}\ \operatorname{int}
+    \typerulederiv{$\text{\Cref{tr:t-call}}$}{
+      \typerulederiv{$\text{\Cref{tr:t-var}}$}{}{\typechecks{z:\nat,\Gamma_0}{foo}{\nat}}&
+      \typerulederiv{$\text{\Cref{tr:t-nat}}$}{}{\typechecks{z:\nat,\Gamma_0}{42}{\nat}}&
+      \typerulederiv{$\text{\Cref{tr:src-int-type-nat}}$}{}{\src{\nat}\ \operatorname{int}}
     }{
-      \typecheck{}{\src{context\ }(\src{e_1})\ (\src{y})}{\src{(\nat\to\nat)\to\nat}}
+      \typecheck{\src{z:\nat,\Gamma_0}}{\src{call\ foo\ 42}}{\src{\nat}}
     }}
   \bigskip
 
-  We omit subsequent derivations, but note that they can be found using \Cref{tr:hashole-Llet,tr:hashole-hole} and \Cref{tr:t-let,tr:t-nat,tr:t-var,tr:t-hole}.
-  So, both context and component typecheck.
+  Note that $\src{NoOwnedPtr\ z:\nat,\Gamma_{0}}$ holds by $\src{\nat}\not=\src{\ptr}$ and $\src{\nat\to\nat}\not=\src{\ptr}$
 
-  Therefore, we can plug using \Cref{tr:src-plugging} which yields \\$\src{prog}\ (\src{let\ x=42\ in\ hole:(x:\nat)\to\nat})\ (\src{e_p})\ (\src{y})$.\\[0.3cm]
-  Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Ret\ !0}\cdot\src{Call\ ?42}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Get\ \loc\ 1337}\cdot\src{Dealloc\ \loc}\cdot\src{Ret\ !1729}\cdot\src{Call\ ?1729}$.
+  Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Call\ ?main\ 0}\cdot\src{Call\ !foo\ 42}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Get\ \loc\ 1337}\cdot\src{Dealloc\ \loc}\cdot\src{Ret\ ?1729}\cdot\src{Call\ !1729}$.
   We omit the precise derivation for brevity.\\[0.3cm]
-  By \Cref{fig:w-events-project-to-specific}, $\tospecificevs{\trace}=\specificev{Ret\ !0}\cdot\specificev{Call\ ?42}\cdot\cdot\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}\cdot\specificev{Ret\ !1729}\cdot\specificev{Call\ ?1729}$.\\[0.3cm]
+  By \Cref{fig:w-events-project-to-specific}, $\tospecificevs{\trace}=\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}$.\\[0.3cm]
   \Cref{def:spatmemsafe} requires $\specificev{Alloc\ \loc\ 42}\in\tospecificevs{\trace}$ and $\specificev{Use\ \loc\ 1337}\in\tospecificevs{\trace}$, which hold.\\[0.3cm]
   But, ${1337}\not<{42}$, hence $\nrsat{\src{p}}{{smsafe}}$.
 \end{proof}

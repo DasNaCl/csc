@@ -1680,7 +1680,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:mmlatmsviamonitor:run} $\wexecs{prog\ \commlib\ \library}{\configs}{v}{\trace}$
+  \item\label[ass]{asm:mmlatmsviamonitor:run} $\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{v}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1690,22 +1690,25 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \mockthm{thm:mmlAs:tmssafe}{1}
 
 \begin{scontents}[store-env=buffer]
-  There is a well-typed $\mmlAs$ component which does not robustly satisfy \Cref{def:spatmemsafe}:
-  $\rsat{\src{p}}{smsafe}$
+  There is a well-typed $\mmlAs$ component that does not robustly satisfy \Cref{def:spatmemsafe}:
+  $\rsat{\src{\library}}{smsafe}$
 \end{scontents}
 
 \realthm{thm:mmlAs:not:smssafe}{2}{$\mmlAs$ is not spatially memory safe}
 \begin{proof}
-  We pick $\src{\library}$ with the following elements:
-  \begin{enumerate}
-    \item $\src{let\ foo\ x:\nat\to\nat:=let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w}$
-    \item $\src{let\ main\ z:\nat\to\nat:=call\ foo\ 42}$
-  \end{enumerate}
-  Furthermore, we pick $\src{\commlib}=\left\{\src{foo}\right\}$ and show $\vdash\src{prog\ \commlib\ \library}\ \operatorname{ok}$.
-  First, note that $\src{\Gamma_{0}}=\src{\library}\downarrow=\src{foo\mapsto\nat\to\nat,main\mapsto\nat\to\nat}$ by \Cref{tr:w-lib-proj-empty,tr:w-lib-proj-cons}.
-  Consequently, $\src{main}\in\operatorname{dom}\src{\Gamma_{0}}=\left\{\src{foo},\src{main}\right\}$ and $\src{\Gamma_{0}}\vdash\src{\commlib}\ \operatorname{ok}$ by \Cref{tr:w-t-relevant-empty,tr:w-t-relevant-cons,tr:t-var} noting that $\src{\nat\to\nat}\not=\src{\ptr}$.
+  We pick:
+  $$\src{\library_{comp}} = \src{let\ foo\ x:\nat\to\nat:=let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w},\src{\hole{\cdot}}$$
+  and
+  $
+  \src{\library_{ctx}} = \src{let\ main\ z:\nat\to\nat:=call\ foo\ 42},\src{\hole{\cdot}}
+  $.
+  Let $\src{\library} \equiv \src{\library_{comp}}\cup\src{\library_{ctx}}$.
+  We show $\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\left\{\src{foo}\right\}$.
+  First note that $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$, since $\operatorname{dom}\ \src{\library_{ctx}}\cap\operatorname{dom\ \src{\library_{comp}}}=\emptyset$ and $\src{\library}\equiv\src{\library_{ctx}\cup\library_{comp}}$ by definition.
+  Now, $\operatorname{dom}\ \src{\library_{comp}}=\left\{\src{foo}\right\}$ and $\src{\library}\downarrow=\src{foo\mapsto\nat\to\nat,main\mapsto\nat\to\nat,\hole{\cdot}}=\src{\Gamma_{0}}$ by \Cref{tr:w-lib-proj-empty,tr:w-lib-proj-cons}.
+  Consequently, $\src{main}\in\operatorname{dom}\src{\Gamma_{0}}=\left\{\src{foo},\src{main}\right\}$.
   Note that \Cref{tr:src-int-type-nat} gives $\src{\nat}\ \operatorname{int}$.
-  Using \Cref{tr:w-t-lib-empty,tr:w-t-lib-cons} what is left to show are the following:
+  Using \Cref{tr:w-t-lib-empty,tr:w-t-lib-cons}, what is left to show are the following:
   \begin{enumerate}
     \item $\typechecks{x:\nat,\Gamma_{0}}{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ delete\ z; w}{\nat}$
     \item $\typechecks{z:\nat,\Gamma_{0}}{call\ foo\ 42}{\nat}$
@@ -1793,10 +1796,10 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   Note that $\src{NoOwnedPtr\ z:\nat,\Gamma_{0}}$ holds by $\src{\nat}\not=\src{\ptr}$ and $\src{\nat\to\nat}\not=\src{\ptr}$
 
   Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Call\ ?main\ 0}\cdot\src{Call\ !foo\ 42}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Get\ \loc\ 1337}\cdot\src{Dealloc\ \loc}\cdot\src{Ret\ ?1729}\cdot\src{Call\ !1729}$.
-  We omit the precise derivation for brevity.\\[0.3cm]
+  We omit the precise derivation for brevity, but note that \thmref{lem:toplevel:progress} gives us the necessary execution.\\[0.3cm]
   By \Cref{fig:w-events-project-to-specific}, $\tospecificevs{\trace}=\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}$.\\[0.3cm]
   \Cref{def:spatmemsafe} requires $\specificev{Alloc\ \loc\ 42}\in\tospecificevs{\trace}$ and $\specificev{Use\ \loc\ 1337}\in\tospecificevs{\trace}$, which hold.\\[0.3cm]
-  But, ${1337}\not<{42}$, hence $\nrsat{\src{p}}{{smsafe}}$.
+  But, ${1337}\not<{42}$, hence $\nrsat{\src{\library_{comp}}}{{smsafe}}$.
 \end{proof}
 
 \subsubsection{Auxiliary Definitions and Lemmas}\label{sec:mmla:aux}
@@ -1972,11 +1975,11 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[Top-Level Progress]\label{lem:toplevel:progress}
   If
   \begin{assumptions}
-    \item $\vdash\src{prog\ \commlib\ \library}\ \operatorname{ok}$
+    \item $\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\src{\commlib}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\exists \configs\ \src{\finalexprnoerr}\ \src{\trace}, \wexecs{prog\ \commlib\ \library}{\Omega}{\finalexprnoerr}{\trace}$
+  \item $\exists \configs\ \src{\finalexprnoerr}\ \src{\trace}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexprnoerr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{incompleteproof}

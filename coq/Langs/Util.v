@@ -79,11 +79,11 @@ Proof.
     rewrite Hy in H0.
     destruct (option_dec (undup m)) as [Hx | Hy']; try rewrite Hy' in H0; inv H0.
     apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H2; inv H2.
-    constructor; try apply IHm; eauto. Search (List.find).
+    constructor; try apply IHm; eauto.
     intros Ha. eapply List.find_none in Hy; eauto. rewrite eq_refl in Hy. inv Hy.
   - intros H0; inv H0; destruct (option_dec (List.find (fun x : A => eq a x) (dom m))) as [Hx | Hy].
     apply not_eq_None_Some in Hx as [a' Hx].
-    Search (List.find). apply List.find_some in Hx as [Hx1 Hx2].
+    apply List.find_some in Hx as [Hx1 Hx2].
     rewrite eqb_eq in Hx2; subst; contradiction.
     rewrite Hy. destruct (option_dec (undup m)) as [Hx | Hy'].
     apply not_eq_None_Some in Hx as [m'' Hx]. rewrite Hx. f_equal. f_equal. apply undup_refl in Hx; easy.
@@ -161,8 +161,7 @@ Fixpoint splitat_aux { A : Type } {H : HasEquality A} {B : Type} (accM m : mapin
   | mapCons a b m' => if eq a x then
                         Some(accM, a, b, m')
                       else
-                        let* aM := a ↦ b ◘ accM in
-                        splitat_aux aM m' x
+                        splitat_aux (mapCons a b accM) m' x
   end
 .
 Definition splitat { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) (x : A)
@@ -357,19 +356,37 @@ Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind
   splitat (x ↦ v ◘ m2) x = Some (mapNil _ _, x, v, m2).
 Proof. cbn; now rewrite eq_refl. Qed.
 
-Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (accM m1 m2 : mapind H B) (x : A) (v : B) :
-  nodupinv (accM ◘ m1 ◘ x ↦ v ◘ m2) ->
-  splitat_aux accM (m1 ◘ x ↦ v ◘ m2) x = Some (accM ◘ m1, x, v, m2).
+Lemma splitat_aux_elim_cons { A : Type } {H : HasEquality A} {B : Type} (accM m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (accM ◘ x ↦ v ◘ m2) ->
+  splitat_aux accM (x ↦ v ◘ m2) x = Some (accM, x, v, m2).
+Proof. intros H0; cbn; now rewrite eq_refl. Qed.
+Lemma splitat_aux_prop_cons { A : Type } {H : HasEquality A} {B : Type} (accM m2 : mapind H B) (x y : A) (v : B) :
+  y <> x ->
+  splitat_aux accM (y ↦ v ◘ m2) x = splitat_aux (y ↦ v ◘ accM) m2 x
+.
+Proof. cbn. intros H0. now apply neqb_neq in H0 as ->. Qed.
+Lemma splitat_aux_prop { A : Type } {H : HasEquality A} {B : Type} (accM m1 m2 : mapind H B) (x y : A) (v : B) :
+  ~ In x (dom m1) ->
+  splitat_aux accM (m1 ◘ m2) x = splitat_aux (accM ◘ m1) m2 x
+.
 Proof.
-  rewrite append_assoc; remember (m1 ◘ x ↦ v ◘ m2) as m__x.
-  revert m1 x v m2 Heqm__x accM; induction m__x; intros.
-  - destruct m1; inv Heqm__x.
-  - destruct m1; cbn in Heqm__x.
-    + cbn. inv Heqm__x. rewrite eq_refl. now rewrite append_nil.
-    + cbn. destruct (eq_dec a x). admit.
-      apply <- neqb_neq in H1. rewrite H1.
-      inv Heqm__x.
+  revert m1 accM; induction m1; intros.
+  - cbn. now rewrite append_nil.
+  - destruct (eq_dec a x); subst.
+    + exfalso. apply H0. now left.
+    + cbn; apply neqb_neq in H1 as ->. fold (m1 ◘ m2). fold (m1 ◘ accM).
+      enough (~ In x (dom m1)).
+      specialize (IHm1 (a ↦ b ◘ accM) H1). rewrite IHm1.
 Admitted.
+Lemma splitat_aux_elim { A : Type } {H : HasEquality A} {B : Type} (accM m1 m1' m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (m1 ◘ x ↦ v ◘ m2) ->
+  splitat_aux accM (m1' ◘ x ↦ v ◘ m2) x = Some (m1, x, v, m2).
+Proof.
+Admitted.
+Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (m1 ◘ x ↦ v ◘ m2) ->
+  splitat (m1 ◘ x ↦ v ◘ m2) x = Some (m1, x, v, m2).
+Proof. intros H0; destruct m1; try now apply splitat_aux_elim. Qed.
 
 Module Type MOD.
   Parameter State : Type.

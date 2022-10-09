@@ -614,7 +614,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\kontstack}\hspace{0.5cm}
   \mi{Memory\ State}~\src{\memstate}\bnfdef\ \src{H;\Delta} \\
   %
-  \mi{Programs}\ &\src{prog\ \commlib\ \library} \\
+  \mi{Programs}\ &\src{prog\ \library_{ctx}\ \library_{comp}} \\
   \end{aligned}
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlAs$}
@@ -632,7 +632,8 @@ We use the term ,,context-switching'' with its usual meaning, i.e. change in con
 For $\src{\comm}$, the representation $\src{\ctxtocomp}$ signalizes a context switch from context to component, $\src{\comptoctx}$ from component to context, and $\src{\nocomm}$ signals an internal change, either inside the context or inside the component.
 The state $\configs$ carries information on what the current context is and the continuation stack $\src{\kontstack}$ is used in the semantics to mark events with above policy accordingly.
 Continuations $\src{K}$ in the stack are annotated with the symbol of communication $\src{\comm}$ that was used when the continuation was being pushed on the stack and with the name of the function $\src{foo}$ the continuation originates from.
-Programs $\src{prog\ \commlib\ \library}$ contain a list of relevant names $\src{\commlib}$ that we assume the attacker cannot manipulate and a corresponding list of top-level definitions $\src{\library}$.
+Programs $\src{prog\ \library_{ctx}\ \library_{comp}}$ contain two lists of top-level definitions $\src{\library_{ctx}}$ and $\src{\library_{comp}}$.
+$\src{\library_{ctx}}$ takes the role as attacker code.
 
 \subsubsection{Static Semantics}
 \begin{definition}[NoOwnedPtr]
@@ -890,17 +891,56 @@ This is inspired by linear logic.
       \src{\hole{\cdot}}\downarrow = \src{\hole{\cdot}}
     }{w-lib-proj-empty}
     %
-    \typerule{$\src{\library}$-cons}{
+    \typerule{$\src{\library}$-proj-cons}{
       \src{\library}\downarrow = \src{\Gamma}
     }{
       (\src{let\ foo\ x : \type}_\lambda\src{:= e})\src{,\library}\downarrow = (\src{foo \mapsto \type}_\lambda),\src{\Gamma}
     }{w-lib-proj-cons}
   \end{center}
-}{w-gamma-of-symbols}{Extracting type annotations.}
+  %
+  \judgbox{\operatorname{dom}\ \src{\library}=\src{foo},\dots,\src{bar}}{,,Collect function names.''}$\;$\\
+  \begin{center}
+    \typerule{$\src{\library}$-dom-$\src{\hole{\cdot}}$}{
+    }{
+      \operatorname{dom}\ \src{\hole{\cdot}} = \src{\hole{\cdot}}
+    }{w-lib-dom-empty}
+    %
+    \typerule{$\src{\library}$-dom-cons}{
+      \operatorname{dom}\ \src{\library} = \src{D}
+    }{
+      \operatorname{dom}\ (\src{let\ foo\ x : \type}_\lambda\src{:= e})\src{,\library} = \src{foo},\src{D}
+    }{w-lib-dom-cons}
+  \end{center}
+}{w-gamma-of-symbols}{Extracting type annotations and function names.}
 
 \myfig{
   \begin{center}
-    \judgbox{\src{\Gamma}\vdash\src{\library}\ \operatorname{ok}}{,,$\mmlAs$ library typechecks.''}
+    \judgbox{\src{\library}\equiv\src{\library_1}\cup\src{\library_2}}{,,Merging $\mmlAs$ libraries.''}$\;$\\
+    \typerule{lib-merge-empty}{
+      \src{\library}=\src{\library_1}
+    }{
+      \src{\library}\equiv\src{\library_1}\cup\src{\hole{\cdot}}
+    }{src-lib-merge-empty}
+    %
+    \typerule{lib-merge-cons}{
+      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
+    }{
+      \src{\asymbol,\library}\equiv\src{\library_1}\cup\src{\asymbol,\library_2}
+    }{src-lib-merge-cons}
+
+    \judgbox{\src{\library_1\linker\library_2}=\src{\library}}{,,Syntactically linking $\mmlAs$ libraries.''}$\;$\\
+    \typerule{syntactic-plugging}{
+      \operatorname{dom}\src{\library_1}\cap\operatorname{dom}\src{\library_2} = \emptyset &
+      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
+    }{
+      \src{\library_1\linker\library_2} = \src{\library}
+    }{src-plugging}
+  \end{center}
+}{w-plugging-s}{$\mmlAs$ plugging of libraries.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\src{\Gamma}\vdash\src{\library}\ \operatorname{ok}}{,,$\mmlAs$ library typechecks.''}$\;$\\
     %
     \typerule{t-$\src{\library}$-empty}{
     }{
@@ -916,28 +956,15 @@ This is inspired by linear logic.
       \src{\Gamma}\vdash(\src{let\ foo\ x : \type_e^{(1)}}\to\src{\type_e^{(2)}:= e}),\src{\library}\ \operatorname{ok}
     }{w-t-lib-cons}\\[0.33cm]
     %
-    \judgbox{\src{\Gamma}\vdash\src{\commlib}\ \operatorname{ok}}{,,$\mmlAs$ library typechecks.''}$\;$\\
-    %
-    \typerule{t-$\src{\commlib}$-empty}{
-    }{
-      \src{\Gamma}\vdash\src{\hole{\cdot}}\ \operatorname{ok}
-    }{w-t-relevant-empty}
-    %
-    \typerule{t-$\src{\commlib}$-cons}{
-      \typecheck{\src{\Gamma}}{\src{foo}}{\src{\type}_\lambda}
-    }{
-      \src{\Gamma}\vdash\src{foo,\commlib}\ \operatorname{ok}
-    }{w-t-relevant-cons}\\[0.33cm]
-    %
-    \judgbox{\vdash\src{prog\ \library}\operatorname{ok}}{,,$\mmlAs$ program $\src{prog\ \library}$ typechecks.''}$\;$\\
+    \judgbox{\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\src{\commlib}}{,,$\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$ typechecks. $\src{\library}$ is the\\result of linking $\src{\library_{ctx}}$ and $\src{\library_{comp}}$. $\src{\commlib}$ is $\operatorname{dom}\ \src{\library_{comp}}$.''}$\;$\\
     %
     \typerule{$t-\text{prog}$}{
+      \src{\library}=\src{\library_{ctx}\linker\library_{comp}} &
       \src{\library}\downarrow = \src{\Gamma_0} &
       \src{main}\in\operatorname{dom} \src{\Gamma_0} &
-      \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok}&
-      \src{\Gamma_0}\vdash\src{\commlib}\ \operatorname{ok}
+      \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok}
     }{
-      \vdash\src{prog\ \commlib\ \library}\operatorname{ok}
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\library},\operatorname{dom}\ \src{\library_{comp}}
     }{w-t-wprog}
     %
     \judgbox{\typechecks{}{\configs\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\configs\triangleright e}$ typechecks.''}$\;$\\
@@ -976,31 +1003,6 @@ Perhaps most interesting is \Cref{tr:w-t-prog} which generates a suitable typing
 }{store-ty}{$\mmlAs$ store typing.}
 Here, we want to populate the typing context with all {\em valid} pointers, which are those that are not poisoned.
 Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see \Cref{fig:w-ctx-split}.
-
-\myfig{
-  \begin{center}
-    \judgbox{\src{\library}\equiv\src{\library_1}\cup\src{\library_2}}{,,Merging $\mmlAs$ libraries.''}$\;$\\
-    \typerule{lib-merge-empty}{
-      \src{\library}=\src{\library_1}
-    }{
-      \src{\library}\equiv\src{\library_1}\cup\src{\hole{\cdot}}
-    }{src-lib-merge-empty}
-    %
-    \typerule{lib-merge-cons}{
-      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
-    }{
-      \src{\asymbol,\library}\equiv\src{\library_1}\cup\src{\asymbol,\library_2}
-    }{src-lib-merge-cons}
-
-    \judgbox{\src{\library_1\linker\library_2}=\src{\library}}{,,Syntactically linking $\mmlAs$ libraries.''}$\;$\\
-    \typerule{syntactic-plugging}{
-      \operatorname{dom}\src{\library_1}\downarrow\cap\operatorname{dom}\src{\library_2}\downarrow = \emptyset &
-      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
-    }{
-      \src{\library_1\linker\library_2} = \src{\library}
-    }{src-plugging}
-  \end{center}
-}{w-plugging-s}{$\mmlAs$ plugging of libraries.}
 
 \subsubsection{Dynamic Semantics}
 
@@ -1227,12 +1229,12 @@ When generating the static context from the execution context, \Cref{tr:t-poison
 
 \myfig{
   \begin{center}
-    \judgbox{\wexecs{prog\ \commlib\ \library}{\configs}{\finalexprnoerr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library}$, giving dynamic state $\configs$\\ and emitting trace $\src{\trace}$.''}
+    \judgbox{\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$, giving dynamic state\\$\configs$ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
-    \vdash\src{prog\ \commlib\ \library}\operatorname{ok} &
+    \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
     \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexprnoerr}{\trace}
   }{
-    \wexecs{prog\ \commlib\ \library}{\configs}{\finalexprnoerr}{\trace}
+    \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}
   }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -2496,9 +2498,9 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \mi{State}\ \configt \bnfdef\ \trg{\cfstate;\memstate} \\
   %
   \mi{Flow\ State}\ \trg{\cfstate} \bnfdef&\ \trg{\commlib;\library;\kontstack}\hspace{0.35cm}
-  \mi{Memory\ State}\ \trg{\memstate} \bnfdef \trg{H;\Delta}\hspace{0.35cm}
+  \mi{Memory\ State}\ \trg{\memstate} \bnfdef \trg{H;\Delta}\\
   %
-  \mi{Programs}\ \trg{prog\ \commlib\ \library} \\
+  \mi{Programs}\ &\trg{prog\ \library_{ctx}\ \library_{comp}} \\
   \end{aligned}
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
@@ -2509,6 +2511,19 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \subsubsection{Dynamic Semantics}
 
 \myfig{
+  \judgbox{\operatorname{dom}\ \trg{\library}=\trg{foo},\dots,\trg{bar}}{,,Collect function names.''}$\;$\\
+  \begin{center}
+    \typerule{$\trg{\library}$-dom-$\trg{\hole{\cdot}}$}{
+    }{
+      \operatorname{dom}\ \trg{\hole{\cdot}} = \trg{\hole{\cdot}}
+    }{wt-lib-dom-empty}
+    %
+    \typerule{$\trg{\library}$-dom-cons}{
+      \operatorname{dom}\ \trg{\library} = \trg{D}
+    }{
+      \operatorname{dom}\ (\trg{let\ foo\ x : \type}_\lambda\trg{:= e})\trg{,\library} = \trg{foo},\trg{D}
+    }{wt-lib-dom-cons}
+  \end{center}
   \begin{center}
     \judgbox{\trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}}{,,Merging $\mmlAt$ libraries.''}$\;$\\
     \typerule{lib-merge-empty}{
@@ -2525,13 +2540,13 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 
     \judgbox{\trg{\library_1\linker\library_2}=\trg{\library}}{,,Syntactically linking $\mmlAt$ libraries.''}$\;$\\
     \typerule{syntactic-plugging}{
-      \operatorname{dom}\trg{\library_1}\downarrow\cap\operatorname{dom}\trg{\library_2}\downarrow = \emptyset &
+      \operatorname{dom}\trg{\library_1}\cap\operatorname{dom}\trg{\library_2} = \emptyset &
       \trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}
     }{
       \trg{\library_1\linker\library_2} = \trg{\library}
     }{trg-plugging}
   \end{center}
-}{w-plugging-t}{$\mmlAt$ plugging of libraries.}
+}{w-plugging-t}{$\mmlAt$ plugging of libraries and collecting of function names.}
 
 
 \myfig{
@@ -2804,11 +2819,13 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 
 \myfig{
   \begin{center}
-    \judgbox{\wexect{prog\ \commlib\ \library}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \commlib\ \library}$, giving dynamic\\state $\configt$ and emitting trace $\trg{\trace}$.''}
+    \judgbox{\wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \library_{ctx}\ \library_{comp}}$, giving\\dynamic state $\configt$ and emitting trace $\trg{\trace}$.''}
   \typerule{$te-\text{wprog}$}{
+    \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
+    \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
     \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexprnoerr}{\trace}
   }{
-    \wexect{prog\ \commlib\ \library}{\Omega}{\finalexprnoerr}{\trace}
+    \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexprnoerr}{\trace}
   }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -4272,94 +4289,32 @@ $\;$\MK{fix lolly and the other one}
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:rtmsp:srctms} $\forall \src{e_1}\ \src{e_2}\ \src{\trace}\ \src{\Omega}\ \src{v},\wexecs{prog\ e_1\ e_p\ e_2}{\configs}{v}{\trace}\rightarrow\texttt{TMS}(\tospecificevcomps{\trace})$
-  \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ e_1}\ \mmlAmmlAtcomp{e_p}\ \trg{e_2}}{\trg{\configt}}{\trg{v}}{\trg{\trace}}$
+  \item\label[ass]{asm:rtmsp:srctms} $\forall \src{\library_1}\ \src{\library_2}\ \src{\library}\ \src{\commlib}\ \src{\trace}\ \src{\Omega}\ \src{v}, \src{\library_1\linker\library_2}=\src{\library} \rightarrow \wexecs{prog\ \commlib\ \library}{\configs}{v}{\trace}\rightarrow\texttt{TMS}(\tospecificevs[_{\emptyset}]{\trace})$
+  \item $\trg{\library_1\linker}\mmlAmmlAtcomp{\library_2}=\trg{\library}$
+  \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ }\mmlAmmlAtcomp{\commlib}\ \trg{\library}}{\trg{\configt}}{\trg{v}}{\trg{\trace}}$
   \end{assumptions}
   then
   \begin{goals}
-  \item $\texttt{TMS}(\tospecificevcompt{\trace})$
+  \item $\texttt{TMS}(\tospecificevt[_{\emptyset}]{\trace})$
   \end{goals}
 \end{scontents}
 
 \realthm{thm:rtmsp}{4}{Robust \gls{tms} Preservation}
 \begin{incompleteproof}
-  \MK{rework}Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so we immediately disregard the failure cases:
+  \MK{rework}Invert \Cref{asm:rtmsp:trgexec} and note that we assume it terminates in a value, so the trace $\trg{\trace}$ cannot be stuck:
   \begin{passumptions}{H}
-  \item\label[ass]{rtmsp:runt:e1} $\exect{\emptyset;\emptyset}{e_1}{\Omega_1}{\valueexpr_1}{\trace[_1]}$
-  \item\label[ass]{rtmsp:runt:ep} $\exec{\trg{\Omega_1^\diamond}}{\mmlAmmlAtcomp{e_p}\trg{[\valueexpr_1/x]}}{\trg{\Omega_p}}{\trg{\valueexpr_p}}{\trg{\trace[_p]}}$
-  \item\label[ass]{rtmsp:runt:e2} $\exect{\Omega_p}{e_2[\valueexpr_p/y]}{\Omega_2}{\valueexpr_2}{\trace[_2]}$
-  \item $\trg{\trace}=\trg{Ret\ !0 \cdot \trace[_1] \cdot Call\ ?v_1 \cdot \trace[_p] \cdot Ret\ !v_p \cdot \trace[_2] \cdot Call\ ?v_2}$
+    \item\label[ass]{rtmsp:runt} $\exec{\mmlAmmlAtcomp{\commlib}\trg{;\library;\emptyset;\emptyset;\emptyset}}{\trg{call\ main\ 0}}{\trg{\Omega}}{\trg{\valueexpr}}{\trg{\trace}}$
   \end{passumptions}
 
-  \noindent
-  We backtranslate $\mmlAmmlAtbackdetail[\emptyset]{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}=\Game,\src{e_1}$.
+  We backtranslate $\mmlAmmlAtbackdetail[\emptyset]{\trace}=\Game,\src{let\ foo\ z\ := e}$.
   Analogousy, $\xlangbackstateeq[\emptyset]{\emptyset}{\emptyset}$ by \Cref{tr:back-compile-empty-heap-or-map-eq}.
   Using these facts, we apply \Thmref{lem:backtranslation:correct} on \Cref{rtmsp:runt:e1}:
 
-  \begin{passumptions}{H^{\tiny 1}}
-  \item $\emptyset\subseteq\delta_1$, where $\delta_1:\src{L}\to\trg{L}$
-  \item\label[ass]{rtmsp:runt:execs1} $\exec{\src{\emptyset}}{\src{e_1}}{\src{\Omega_1}}{\mmlAmmlAtbackv{\valueexpr_1}}{\src{\trace[_1]}}$
-  \item\label[ass]{rtmsp:runt:statebackeq} $\xlangbackstateeq[\delta_1]{\Omega_1^\diamond}{\Omega_1}$\MK{this is not what we get from backtrans-corr, but this is what we need here}
-  \item ${\src{Ret\ !}\mmlAmmlAtbackv{0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{v_1}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !0\cdot\trace[_1]\cdot Call\ ?v_1}}$
-  \end{passumptions}
-
-  Using \Thmref{lem:compvals:insertion}, we rewrite \Cref{rtmsp:runt:ep}:
-  \begin{passumptions}{H'}
-    \setcounter{enumi}{1}
-\item\label[ass]{rtmsp:runt:ep:compv0} $\exec{\trg{\Omega_1^\diamond}}{\mmlAmmlAtcomp{e_p}\trg{[}\mmlAmmlAtcomp{\valueexpr_1}\trg{/x]}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
-  \end{passumptions}
-  By another technical lemma\MK{state it somewhere}, we rewrite again to push the substitution inwards:
-  \begin{passumptions}{H'}
-    \setcounter{enumi}{1}
-  \item\label[ass]{rtmsp:runt:ep:compv} $\exec{\trg{\Omega_1^\diamond}}{\mmlAmmlAtcomp{e_p[\valueexpr_1/x]}}{\trg{\Omega_p}}{\mmlAmmlAtcomp{\valueexpr_p}}{\trg{\trace[_p]}}$
-  \end{passumptions}
-
-  Invert \Cref{asm:rtmsp:component} and observe that $\src{\valueexpr_1}$ is a value, so:
-  \begin{passumptions}{H'}
-    \setcounter{enumi}{1}
-  \item\label[ass]{rtmsp:runt:typechecks} $\typechecks{x:\nat}{e_p}{\nat}$
-  \item\label[ass]{rtmsp:runt:vtypechecks} $\typechecks{}{\valueexpr_1}{\nat}$
-  \end{passumptions}
-  Now use \Thmref{lem:substitution} and note that $\src{\hole{\cdot}}=\src{\hole{\cdot}}\circ\src{\hole{\cdot}}$ holds by \Cref{tr:t-empty-split}:
-  \begin{passumptions}{H'}
-    \setcounter{enumi}{3}
-  \item\label[ass]{rtmsp:runt:substtypechecks} $\typechecks{}{e_p[\valueexpr_1/x]}{\nat}$
-  \end{passumptions}
-  Using yet another technical lemma\MK{state it somewhere} on \Cref{rtmsp:runt:substtypechecks,rtmsp:runt:statebackeq}, we conclude:
-  \begin{passumptions}{H'}
-    \setcounter{enumi}{4}
-  \item\label[ass]{rtmsp:runt:optypechecks} $\typechecks{}{\Omega_1\triangleright e_p[\valueexpr_1/x]}{\nat}$
-  \end{passumptions}
-  Finally, use \Thmref{lem:stateinsertion} on \Cref{rtmsp:runt:statebackeq}:
-  \begin{passumptions}{H'}
-    \setcounter{enumi}{5}
-    \item\label[ass]{rtmsp:runt:stateeq} $\xlangstateeq[\delta_1]{\Omega_1}{\Omega_1^\diamond}$
-  \end{passumptions}
+  blabla.\MK{continue}
 
   Apply \Thmref{lem:expression:correctness}\MK{expression correctness should be polymorphic over the importance of $\trg{\Omega}$} on \Cref{rtmsp:runt:ep:compv} using \Cref{rtmsp:runt:stateeq,rtmsp:runt:optypechecks}:
-  \begin{passumptions}{F}
-  \item $\delta_1\subseteq\delta_p$
-  \item\label[ass]{rtmsp:runt:execs2} $\exec{\src{\Omega_1}}{\src{e_p}}{\src{\Omega_p}}{\src{\valueexpr_p}}{\src{\trace[_p]}}$
-  \item\label[ass]{rtmsp:runt:stateeq2} $\xlangstateeq[\delta_p]{\Omega_p}{\Omega_p}$
-  \item $\xlangtraceeq[\delta_p]{\trace[_p]}{\trace[_p]}$
-  \end{passumptions}
 
-  We backtranslate $\mmlAmmlAtbackdetail[\Game]{Ret\ !v_p \cdot \trace[_2] \cdot Call\ ?v_2}=\Game',\src{e_2}$
-  Using \Thmref{lem:stateinsertion} on \Cref{rtmsp:runt:stateeq2}, we get:
-  \begin{passumptions}{F}
-    \setcounter{enumi}{4}
-  \item\label[ass]{rtmsp:runt:statebackeq2} $\xlangbackstateeq[\delta_p]{\Omega_p}{\Omega_p}$
-  \end{passumptions}
-
-  Using these facts, we apply \Thmref{lem:backtranslation:correct}\MK{backtranslation needs to be generalized over substitutions} on \Cref{rtmsp:runt:e2}:
-  \begin{passumptions}{H^{\tiny 2}}
-  \item $\delta_p\subseteq\delta_2$, where $\delta_2:\src{L}\to\trg{L}$
-  \item\label[ass]{rtmsp:runt:execs3} $\exec{\src{\Omega_p}}{\src{e_2[v_p/y]}}{\src{\Omega_2}}{\mmlAmmlAtbackv{v_2}}{\src{\trace[_2]}}$
-  \item $\xlangbackstateeq[\delta_2]{\Omega_2^\diamond}{\Omega_2}$
-  \item ${\src{Ret\ !}\mmlAmmlAtbackv{v_p}\src{\cdot\trace[_2]\cdot Call\ ?}\mmlAmmlAtbackv{v_2}}\thexlangtraceeq[\delta_1]{\trg{Ret\ !v_p\cdot\trace[_2]\cdot Call\ ?v_2}}$
-  \end{passumptions}
-
-  Combine \Cref{rtmsp:runt:execs1,rtmsp:runt:execs2,rtmsp:runt:execs3} using \Cref{tr:ws-e-prog} then apply\MK{can't apply, the goal is on $\theta(\trg{\trace})$} \Cref{asm:rtmsp:srctms} and we are done.
+  blabla.\MK{continue}
 
 \end{incompleteproof}
 

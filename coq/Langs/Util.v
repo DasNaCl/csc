@@ -340,29 +340,35 @@ Qed.
 Lemma nodupinv_swap { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) :
   nodupinv (m1 ◘ m2) <-> nodupinv (m2 ◘ m1)
 .
-Proof. Admitted.
+Proof.
+Admitted.
 Lemma append_assoc { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m3 : mapind H B) :
   ((m1 ◘ m2) ◘ m3) = (m1 ◘ (m2 ◘ m3))
 .
-Proof. Admitted.
+Proof.
+  revert m2 m3; induction m1; intros.
+  - now cbn.
+  - change (((a ↦ b ◘ m1 ◘ m2) ◘ m3) = (a ↦ b ◘ (m1 ◘ (m2 ◘ m3)))).
+    now rewrite <- IHm1.
+Qed.
 
 Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :
   nodupinv (x ↦ v ◘ m2) ->
   splitat (x ↦ v ◘ m2) x = Some (mapNil _ _, x, v, m2).
 Proof. cbn; now rewrite eq_refl. Qed.
+
 Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (accM m1 m2 : mapind H B) (x : A) (v : B) :
   nodupinv (accM ◘ m1 ◘ x ↦ v ◘ m2) ->
   splitat_aux accM (m1 ◘ x ↦ v ◘ m2) x = Some (accM ◘ m1, x, v, m2).
 Proof.
-  revert accM; induction m1; intros.
-  - cbn; subst; now rewrite eq_refl, append_nil.
-  - cbn. remember (eq a x) as eqax; destruct eqax; symmetry in Heqeqax.
-    apply eqb_eq in Heqeqax; subst.
-    rewrite append_assoc in H0. apply nodupinv_split in H0 as [H0a H0b].
-    inv H0b. exfalso; apply H2.
-    clear. induction m1; cbn; eauto.
-    rewrite append_assoc in H0.
-    apply nodupinv_swap in H0. inv H0. apply nodupinv_swap in H5.
+  rewrite append_assoc; remember (m1 ◘ x ↦ v ◘ m2) as m__x.
+  revert m1 x v m2 Heqm__x accM; induction m__x; intros.
+  - destruct m1; inv Heqm__x.
+  - destruct m1; cbn in Heqm__x.
+    + cbn. inv Heqm__x. rewrite eq_refl. now rewrite append_nil.
+    + cbn. destruct (eq_dec a x). admit.
+      apply <- neqb_neq in H1. rewrite H1.
+      inv Heqm__x.
 Admitted.
 
 Module Type MOD.

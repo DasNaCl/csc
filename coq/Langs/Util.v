@@ -336,11 +336,6 @@ Proof.
       split; trivial; constructor; trivial.
       apply dom_split in H2 as [H2__a H2__b]; trivial.
 Qed.
-Lemma nodupinv_swap { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) :
-  nodupinv (m1 ◘ m2) <-> nodupinv (m2 ◘ m1)
-.
-Proof.
-Admitted.
 Lemma append_assoc { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m3 : mapind H B) :
   ((m1 ◘ m2) ◘ m3) = (m1 ◘ (m2 ◘ m3))
 .
@@ -349,6 +344,48 @@ Proof.
   - now cbn.
   - change (((a ↦ b ◘ m1 ◘ m2) ◘ m3) = (a ↦ b ◘ (m1 ◘ (m2 ◘ m3)))).
     now rewrite <- IHm1.
+Qed.
+
+Lemma nodupinv_cons_snoc { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :
+  nodupinv (a ↦ b ◘ m) <-> nodupinv (m ◘ a ↦ b ◘ mapNil H B)
+.
+Proof.
+  revert a b; induction m; intros; cbn; try easy.
+  fold (append m (a0 ↦ b0 ◘ mapNil H B)).
+  split; intros H0.
+  - inv H0. constructor.
+    + intros H1. inv H5. apply H4. revert H3 H1; clear; intros.
+      destruct (eq_dec a0 a); subst.
+      * exfalso; apply H3; now left.
+      * clear H3. induction m; cbn in *.
+        -- destruct H1; eauto.
+        -- fold (dom m) in *. fold (m ◘ (a0 ↦ b0 ◘ mapNil H B)) in *.
+           fold (dom (m ◘ a0 ↦ b0 ◘ mapNil H B)) in *.
+           destruct H1; eauto.
+    + apply IHm. inv H5. constructor; try easy. revert H3; clear; intros H0 H1; apply H0; now right.
+  - inv H0. apply IHm in H5. inv H5. constructor.
+    + intros H1. destruct (eq_dec a0 a); subst.
+      * apply H3; clear; induction m; cbn; eauto.
+      * destruct H1; congruence.
+    + constructor; eauto. intros H1. apply H3; revert H1; clear; intros.
+      induction m; cbn in *; eauto. fold (dom m) in *.
+      fold (m ◘ (a0 ↦ b0 ◘ mapNil H B)). fold (dom (m ◘ (a0 ↦ b0 ◘ mapNil H B))).
+      destruct H1; subst; eauto.
+Qed.
+
+Lemma nodupinv_swap { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) :
+  nodupinv (m1 ◘ m2) <-> nodupinv (m2 ◘ m1)
+.
+Proof.
+  revert m2; induction m1; cbn; intros.
+  - now rewrite append_nil.
+  - fold (append m1 m2).
+    change ((nodupinv ((a ↦ b ◘ m1) ◘ m2)) <-> (nodupinv (m2 ◘ a ↦ b ◘ m1))).
+    split; intros H0.
+    + change (nodupinv (m2 ◘ ((a ↦ b ◘ (mapNil H B)) ◘ m1))).
+      rewrite <- append_assoc. apply IHm1. rewrite <- append_assoc. now apply nodupinv_cons_snoc.
+    + change (nodupinv (m2 ◘ ((a ↦ b ◘ (mapNil H B)) ◘ m1))) in H0.
+      rewrite <- append_assoc in H0. apply IHm1 in H0. rewrite <- append_assoc in H0. now apply nodupinv_cons_snoc.
 Qed.
 
 Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :

@@ -2996,11 +2996,9 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 Compiling components requires a wrapper to ensure that target contexts invoke the compiled component with the right runtime terms.
 For example, by adding the dynamic type check we prevent contexts from binding $\trg{\langle 42,1729 \rangle}$ to $\trg{x}$, which is never valid for $\mmlAs$ components.
 
-.\MK{patch the following}
 \myfig{
   \begin{center}
     \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,Map from $\mmlAs$ locations $\src{\loc}$ to $\mmlAt$ locations $\trg{\loc}$.''} \\
-    \judgbox{\xlangeventeq{\event}{\event}}{,,The $\mmlAs$ event $\src{\event}$ describes the same action as $\mmlAt$ event $\trg{\event}$.''} \\
     \judgbox{\xlangtraceeq{\trace}{\trace}}{,,The $\mmlAs$ trace $\src{\trace}$ describes the same actions as $\mmlAt$ trace $\trg{\trace}$.''} \\
     \typerule{empty-trace-eq}{
     }{
@@ -3013,6 +3011,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \xlangtraceeq{\event\cdot\trace}{\event\cdot\trace}
     }{cons-trace-eq}
+    %
+    \judgbox{\xlangeventeq{\event}{\event}}{,,The $\mmlAs$ event $\src{\event}$ describes the same action as $\mmlAt$ event $\trg{\event}$.''} \\
     %
     \typerule{alloc-event-eq}{
       \mmlAmmlAtcomp{n}=\trg{n} &
@@ -3043,124 +3043,192 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{call-event-eq}{
       \mmlAmmlAtcomp{n} = \trg{n} &
-      \mmlAmmlAtcomp{foo} = \trg{foo}
+      \mmlAmmlAtcomp{foo} = \trg{foo} &
+      \src{\comm} = \trg{\comm}
     }{
-      \xlangeventeq{Call\ ?foo\ n}{Call\ ?foo\ n}
+      \xlangeventeq{Call\ \comm\ foo\ n}{Call\ \comm\ foo\ n}
     }{call-event-eq}
     %
     \typerule{ret-event-eq}{
       \mmlAmmlAtcomp{n} = \trg{n} &
+      \src{\comm} = \trg{\comm}
     }{
-      \xlangeventeq{Ret\ !n}{Ret\ !n}
+      \xlangeventeq{Ret\ \comm\ n}{Ret\ \comm\ n}
     }{ret-event-eq}
+    $\;$\\
     %
-    \typerule{internal-event-eq}{
+    \judgbox{\src{\comm} = \trg{\comm}}{,,Communications are equal.''} \\
+    %
+    \typerule{$\src{\ctxtocomp}=\trg{\ctxtocomp}$}{
     }{
-      \xlangeventeq{\varepsilon}{\varepsilon}
-    }{internal-event-eq}
+      \src{\ctxtocomp}=\trg{\ctxtocomp}
+    }{sctxtocomp-eq-tctxtocomp}
+    %
+    \typerule{$\src{\comptoctx}=\trg{\comptoctx}$}{
+    }{
+      \src{\comptoctx}=\trg{\comptoctx}
+    }{scomptoctx-eq-tcomptoctx}
+    %
+    \typerule{$\src{\nocomm}=\trg{\nocomm}$}{
+    }{
+      \src{\nocomm}=\trg{\nocomm}
+    }{snocomm-eq-tnocomm}
   \end{center}
 }{tms-pres-trace-relation}{Trace Relation from $\mmlAs$ to $\mmlAt$.}
-.\MK{patch the following}
+
 \myfig{
   \begin{center}
     \judgbox{\delta(\src{\loc})=\trg{\loc}}{,,The $\mmlAs$ memory location $\src{\loc}$ corresponds to\\the $\mmlAt$ memory location $\trg{\loc}$.''} \\
-    \judgbox{\xlangstateeq{\Omega}{\Omega}}{,,The $\mmlAs$ state $\configs$ agrees with the $\mmlAt$ state $\configt$.''} \\
-    %
-    \typerule{state-$\lightning$-eq}{
-    }{
-      \xlangstateeq{\lightning}{\lightning}
-    }{state-fail-eq}
+    \judgbox{\xlangstateeq{\Omega}{\Omega}}{,,The $\mmlAs$ state $\configs$ agrees with $\mmlAt$ state $\configt$.''} \\
     %
     \typerule{state-eq}{
-      \src{\Omega}=\src{\Delta;H} &
-      \trg{\Omega}=\trg{\Delta;H} \\
-      \xlangstateeq{\Delta}{\Delta} &
-      \xlangstateeq{H}{H}
+      \src{\Omega}=\src{\cfstate;\memstate} &
+      \trg{\Omega}=\trg{\cfstate;\memstate} \\
+      \xlangstateeq{\cfstate}{\cfstate} &
+      \xlangstateeq{\memstate}{\memstate}
     }{
       \xlangstateeq{\Omega}{\Omega}
     }{state-eq}
     %
-    \typerule{empty-heap-or-map-eq}{
+    \judgbox{\xlangstateeq{\memstate}{\memstate}}{,,The $\mmlAs$ memory-state $\src{\memstate}$ agrees with $\mmlAt$ one $\trg{\memstate}$.''} \\
+    %
+    \typerule{memstate-eq}{
+      \src{\memstate}=\src{\Delta;H} &
+      \trg{\memstate}=\trg{\Delta;H} \\
+      \xlangstateeq{\Delta}{\Delta} &
+      \xlangstateeq{H}{H}
+    }{
+      \xlangstateeq{\memstate}{\memstate}
+    }{memstate-eq}
+    %
+    \judgbox{\xlangstateeq{\cfstate}{\cfstate}}{,,The $\mmlAs$ control-flow-state $\src{\cfstate}$ agrees with $\mmlAt$ one $\trg{\cfstate}$.''} \\
+    %
+    \typerule{cfstate-eq}{
+      \src{\cfstate}=\src{\commlib;\library;\kontstack} &
+      \trg{\cfstate}=\trg{\commlib;\library;\kontstack} \\
+      \xlangstateeq{\commlib}{\commlib} &
+      \xlangstateeq{\library}{\library} &
+      \xlangstateeq{\kontstack}{\kontstack}
+    }{
+      \xlangstateeq{\cfstate}{\cfstate}
+    }{cfstate-eq}
+  \end{center}
+}{tms-pres-state-relations}{State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
+
+\myfig{
+  \begin{center}
+    %
+    \judgbox{\xlangstateeq{H}{H}}{,,The $\mmlAs$ heap $\src{H}$ agrees with $\mmlAt$ one $\trg{H}$.''} \\
+    %
+    \typerule{empty-heap-eq}{
     }{
       \xlangstateeq{\hole{\cdot}}{\hole{\cdot}}
-    }{compile-empty-heap-or-map-eq}
+    }{compile-empty-heap-eq}
     %
     \typerule{cons-heap-eq}{
       \mmlAmmlAtcomp{n}=\trg{n} &
       \xlangstateeq{H}{H}
     }{
       \xlangstateeq{n,H}{n,H}
-    }{compile-cons-heap}
+    }{compile-cons-heap-eq}
+    %
+    \judgbox{\xlangstateeq{\Delta}{\Delta}}{,,The $\mmlAs$ location-map $\src{\Delta}$ agrees with the $\mmlAt$ one $\trg{\Delta}$.''} \\
+    %
+    \typerule{empty-locmap-eq}{
+    }{
+      \xlangstateeq{\hole{\cdot}}{\hole{\cdot}}
+    }{compile-empty-locmap-eq}
     %
     \typerule{cons-locmap-eq}{
       \mmlAmmlAtcomp{x} = \trg{x} &
       \delta(\src{\loc}) = \trg{\loc} &
+      \src{\poison} = \trg{\poison} &
       \xlangstateeq{\Delta}{\Delta}
     }{
       \xlangstateeq{x\mapsto\loc_\poison,\Delta}{x\mapsto\loc_\poison,\Delta}
     }{cons-locmap-eq}
     %
-    \typerule{cons-locmap-eq-unimportant}{
-      \xlangstateeq{\Delta}{\Delta}
-    }{
-      \xlangstateeq{\Delta}{x\mapsto\loc_\poison^\diamond,\Delta}
-    }{cons-locmap-eq-unimportant}
-    \vspace{0.5cm}
-    $\;$
+    \judgbox{\src{\poison}=\trg{\poison}}{,,$\mmlAs$ poison equals $\mmlAt$ one $\trg{\poison}$.''} \\
     %
-    \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ agrees with the $\mmlAs$ state $\configs$.''} \\
-    %
-    \typerule{back-$\lightning$-eq}{
+    \typerule{$\poisoned$-equal}{
     }{
-      \xlangbackstateeq{\lightning}{\lightning}
-    }{back-state-fail-eq}
+      \src{\poisoned}=\trg{\poisoned}
+    }{poisoned-equal}
     %
-    \typerule{back-state-eq}{
-      \trg{\Omega}=\trg{\Delta;H} &
-      \src{\Omega}=\src{\Delta;H} \\
-      \xlangbackstateeq{\Delta}{\Delta} &
-      \xlangbackstateeq{H}{H}
+    \typerule{$\poisonless$-equal}{
     }{
-      \xlangbackstateeq{\Omega}{\Omega}
-    }{back-state-eq}
+      \src{\poisonless}=\trg{\poisonless}
+    }{poisonless-equal}
     %
-    \typerule{back-empty-heap-or-map-eq}{
-    }{
-      \xlangbackstateeq{\hole{\cdot}}{\hole{\cdot}}
-    }{back-compile-empty-heap-or-map-eq}
-    %
-    \typerule{back-cons-heap-eq}{
-      \mmlAmmlAtbackv{n}=\src{n} &
-      \xlangbackstateeq{H}{H}
-    }{
-      \xlangbackstateeq{n,H}{n,H}
-    }{back-compile-cons-heap}
-    %
-    \typerule{back-cons-locmap-eq}{
-      \mmlAmmlAtcomp{x}=\trg{x} &
-      \delta(\src{\loc}) = \trg{\loc} &
-      \xlangbackstateeq{\Delta}{\Delta}
-    }{
-      \xlangbackstateeq{x\mapsto\loc_\poison,\Delta}{x\mapsto\loc_\poison,\Delta}
-    }{back-cons-locmap-eq}
-    %
-    \typerule{back-cons-locmap-eq-unimportant}{
-      \xlangbackstateeq{\Delta}{\Delta}
-    }{
-      \xlangbackstateeq{x\mapsto\loc_\poison^\diamond,\Delta}{\Delta}
-    }{back-cons-locmap-eq-unimportant}
+%   \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ agrees with the $\mmlAs$ state $\configs$.''} \\
+%   %
+%   \typerule{back-$\lightning$-eq}{
+%   }{
+%     \xlangbackstateeq{\lightning}{\lightning}
+%   }{back-state-fail-eq}
+%   %
+%   \typerule{back-state-eq}{
+%     \trg{\Omega}=\trg{\Delta;H} &
+%     \src{\Omega}=\src{\Delta;H} \\
+%     \xlangbackstateeq{\Delta}{\Delta} &
+%     \xlangbackstateeq{H}{H}
+%   }{
+%     \xlangbackstateeq{\Omega}{\Omega}
+%   }{back-state-eq}
+%   %
+%   \typerule{back-empty-heap-or-map-eq}{
+%   }{
+%     \xlangbackstateeq{\hole{\cdot}}{\hole{\cdot}}
+%   }{back-compile-empty-heap-or-map-eq}
+%   %
+%   \typerule{back-cons-heap-eq}{
+%     \mmlAmmlAtbackv{n}=\src{n} &
+%     \xlangbackstateeq{H}{H}
+%   }{
+%     \xlangbackstateeq{n,H}{n,H}
+%   }{back-compile-cons-heap}
+%   %
+%   \typerule{back-cons-locmap-eq}{
+%     \mmlAmmlAtcomp{x}=\trg{x} &
+%     \delta(\src{\loc}) = \trg{\loc} &
+%     \xlangbackstateeq{\Delta}{\Delta}
+%   }{
+%     \xlangbackstateeq{x\mapsto\loc_\poison,\Delta}{x\mapsto\loc_\poison,\Delta}
+%   }{back-cons-locmap-eq}
+%   %
+%   \typerule{back-cons-locmap-eq-unimportant}{
+%     \xlangbackstateeq{\Delta}{\Delta}
+%   }{
+%     \xlangbackstateeq{x\mapsto\loc_\poison^\diamond,\Delta}{\Delta}
+%   }{back-cons-locmap-eq-unimportant}
   \end{center}
-}{tms-pres-state-relations}{State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
+}{tms-pres-memstate-relations}{Memory-State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
 $\;$\MK{fix lolly and the other one}
 
-\begin{lemma}[Determinism of Compiler]\label{lem:determcomp}
-  If and only if
+
+\begin{lemma}[Trace Agreement with Filter]
+  If
   \begin{assumptions}
-  \item\label[ass]{asm:compdeterm:unequal} $\mmlAmmlAtcomp{e_1}\not=\mmlAmmlAtcomp{e_2}$
+    \item $\xlangtraceeq{\trace}{\trace}$
+    \item $\src{\comm}=\trg{\comm}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\src{e_1}\not=\src{e_2}$
+    \item $\tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\trace}=\tospecificevt[_{\delta_{MS}}^{\trg{\comm}}]{\trace}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Compiler Injective]\label{lem:injective:comp}
+  If
+  \begin{assumptions}
+    \item $\mmlAmmlAtcomp{e}=\trg{e}$
+    \item $\mmlAmmlAtcomp{e}=\trg{e'}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\trg{e}=\trg{e'}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -3771,7 +3839,7 @@ $\;$\MK{fix lolly and the other one}
 
         \item \textbf{Case }$\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$\textbf{:}
           Using \Cref{asm:exprcorr:ereduce} and the assumption $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$, we conclude $\src{\valueexpr}\not=\src{f}$ using \Thmref{lem:differentreduction}.
-          Apply \Thmref{lem:determcomp} on \Cref{asm:exprcorrect:compiledvalueseq}, so $\src{\valueexpr}=\src{f}$, contradicting the above.
+          Apply \Thmref{lem:injective:comp} on \Cref{asm:exprcorrect:compiledvalueseq}, so $\src{\valueexpr}=\src{f}$, contradicting the above.
 
         \item \textbf{Case }$\xlangstateneq[\delta_{v}]{\Omega'}{\Omega'}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:stateeq3}.
         \item \textbf{Case }$\xlangtraceneq[\delta_{v}]{\trace}{\trace}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:traceeq3}.

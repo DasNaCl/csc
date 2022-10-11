@@ -3106,8 +3106,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \typerule{cfstate-eq}{
       \src{\cfstate}=\src{\commlib;\library;\kontstack} &
       \trg{\cfstate}=\trg{\commlib;\library;\kontstack} \\
-      \xlangstateeq{\commlib}{\commlib} &
-      \xlangstateeq{\library}{\library} &
+      \src{\commlib;\library}\rightharpoondown\src{\commlib'};\trg{\commlib'}&
+      \xlangstateeq{\commlib{\color{black}\cup}\commlib';\library}{\commlib{\color{black}\cup}\commlib';\library} &
       \xlangstateeq{\kontstack}{\kontstack}
     }{
       \xlangstateeq{\cfstate}{\cfstate}
@@ -3159,6 +3159,124 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \src{\poisonless}=\trg{\poisonless}
     }{poisonless-equal}
+  \end{center}
+}{tms-pres-memstate-relations}{Memory-State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
+\myfig{
+  \begin{center}
+    %
+    \judgbox{\xlangstateeq{\commlib;\library}{\commlib;\library}}{,,The relevant procedures of $\mmlAs$ agree with $\mmlAt$ ones $\trg{\commlib}$.''} \\
+    %
+    \typerule{empty-commlib-lib-eq}{
+    }{
+      \xlangstateeq{\hole{\cdot};\library}{\hole{\cdot};\library}
+    }{compile-empty-commlib-lib-eq}
+    %
+    \typerule{cons-commlib-eq}{
+      \mmlAmmlAtcomp{let\ foo\ x:\type_{\color{black}\lambda} := e} = \trg{let\ foo\ x := e} &
+      \xlangstateeq{\commlib_1,\commlib_2;\library_1,\library_2}{\commlib_1,\commlib_2;\library_1,\library_2}
+    }{
+      \xlangstateeq{\commlib_1,foo,\commlib_2;\library_1,(let\ foo\ x:\type_{\color{black}\lambda} := e),\library_2}{\commlib_1,foo,\commlib_2;\library_1,(let\ foo\ x := e),\library_2}
+    }{cons-commlib-eq}
+    %
+    %
+    \judgbox{\src{\commlib;\library}\rightharpoondown\src{\commlib};\trg{\commlib}}{,,Collect all call-sites in relevant $\mmlAs$ procedures as $\mmlAs$ and $\mmlAt$ identifiers.''} \\
+    %
+    \typerule{empty-collect}{
+    }{
+      \src{\hole{\cdot};\hole{\cdot}}\rightharpoondown\src{\hole{\cdot}};\trg{\hole{\cdot}}
+    }{empty-collect}
+    %
+    \typerule{cons-collect}{
+      \src{e}\rightharpoondown\src{\commlib_1};\trg{\commlib_1} &
+      \src{\commlib_1,\commlib_2;\library_1,\library_2}\rightharpoondown\src{\commlib_2};\trg{\commlib_2}
+    }{
+      \src{\commlib_1,foo,\commlib_2;\library_1,(let\ foo\ x:\type_{\color{black}\lambda}:=e),\library_2}\rightharpoondown\src{\commlib_1}\cup\src{\commlib_2};\trg{\commlib_1}\cup\trg{\commlib_2}
+    }{cons-collect}
+    %
+    \judgbox{\src{e}\rightharpoondown\src{\commlib}}{,,Collect all call-sites in $\src{e}$ as $\mmlAs$ and $\mmlAt$ identifiers.''} \\
+    %
+    \typerule{$\src{\finalexpr}$-collect}{
+    }{
+      \src{\finalexpr}\rightharpoondown\src{\hole{\cdot}};\trg{\hole{\cdot}}
+    }{finalexpr-collect}
+    %
+    \typerule{$\src{\oplus}$-collect}{
+      \src{e_1}\rightharpoondown\src{\commlib_1};\trg{\commlib_1} &
+      \src{e_2}\rightharpoondown\src{\commlib_2};\trg{\commlib_2}
+    }{
+      \src{e_1\oplus e_2}\rightharpoondown\src{\commlib_1}\cup\src{\commlib_2};\trg{\commlib_1}\cup\trg{\commlib_2}
+    }{binop-collect}
+    %
+    \typerule{$\src{x[e]}$-collect}{
+      \src{e}\rightharpoondown\src{\commlib};\trg{\commlib}
+    }{
+      \src{x[e]}\rightharpoondown\src{\commlib};\trg{\commlib}
+    }{get-collect}
+    %
+    \typerule{$\src{let}$-collect}{
+      \src{e_1}\rightharpoondown\src{\commlib_1};\trg{\commlib_1} &
+      \src{e_2}\rightharpoondown\src{\commlib_2};\trg{\commlib_2}
+    }{
+      \src{let\ x=e_1\ in\ e_2}\rightharpoondown\src{\commlib_1}\cup\src{\commlib_2};\trg{\commlib_1}\cup\trg{\commlib_2}
+    }{let-collect}
+    %
+    \typerule{$\src{new}$-collect}{
+      \src{e_1}\rightharpoondown\src{\commlib_1};\trg{\commlib_1} &
+      \src{e_2}\rightharpoondown\src{\commlib_2};\trg{\commlib_2}
+    }{
+      \src{let\ x=new\ e_1\ in\ e_2}\rightharpoondown\src{\commlib_1}\cup\src{\commlib_2};\trg{\commlib_1}\cup\trg{\commlib_2}
+    }{new-collect}
+    %
+    \typerule{$\src{x[e_{1}]\leftarrow e_{2}}$-collect}{
+      \src{e_1}\rightharpoondown\src{\commlib_1};\trg{\commlib_1} &
+      \src{e_2}\rightharpoondown\src{\commlib_2};\trg{\commlib_2}
+    }{
+      \src{x[e_1]\leftarrow e_2}\rightharpoondown\src{\commlib_1}\cup\src{\commlib_2};\trg{\commlib_1}\cup\trg{\commlib_2}
+    }{set-collect}
+    %
+    \typerule{$\src{delete\ x}$-collect}{
+    }{
+      \src{delete\ x}\rightharpoondown\src{\hole{\cdot}};\trg{\hole{\cdot}}
+    }{delete-collect}
+    %
+    \typerule{$\src{return\ e}$-collect}{
+      \src{e}\rightharpoondown\src{\commlib};\trg{\commlib}
+    }{
+      \src{return\ e}\rightharpoondown\src{\commlib};\trg{\commlib}
+    }{delete-collect}
+    %
+    \typerule{$\src{call}$-collect}{
+      \src{e}\rightharpoondown\src{\commlib};\trg{\commlib} &
+    }{
+      \src{call\ foo\ e}\rightharpoondown\src{foo,\hole{\cdot}}\cup\src{\commlib};\trg{foo,\hole{\cdot}}\cup\trg{\commlib}
+    }{call-collect}
+    %
+    \typerule{$\src{ifz}$-collect}{
+      \src{e_1}\rightharpoondown\src{\commlib_1};\trg{\commlib_1} &
+      \src{e_2}\rightharpoondown\src{\commlib_2};\trg{\commlib_2} &
+      \src{e_3}\rightharpoondown\src{\commlib_3};\trg{\commlib_3}
+    }{
+      \src{ifz\ e_1\ then\ e_2\ else\ e_3}\rightharpoondown\src{\commlib_1}\cup\src{\commlib_2}\cup\src{\commlib_3};\trg{\commlib_1}\cup\trg{\commlib_2}\cup\trg{\commlib_3}
+    }{binop-collect}
+    %
+    \judgbox{\xlangstateeq{\kontstack}{\kontstack}}{,,The stack of $\mmlAs$ continuations $\src{\kontstack}$ agrees with $\mmlAt$ one $\trg{\kontstack}$.''} \\
+    %
+    \typerule{empty-kontstack-eq}{
+    }{
+      \xlangstateeq{\hole{\cdot}}{\hole{\cdot}}
+    }{empty-kontstack-eq}
+    %
+    \typerule{cons-kontstack-eq}{
+      \src{\comm}=\trg{\comm} &
+      \trg{\comm}\not=\trg{\nocomm} &
+      \xlangstateeq{\kontstack}{\kontstack}
+    }{
+      \xlangstateeq{K^{foo}_{\comm},\kontstack}{K^{foo}_{\comm},\kontstack}
+    }{cons-kontstack-eq}
+  \end{center}
+}{tms-pres-memstate-relations}{Memory-State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
+$\;$\MK{fix kontstack relation. intuitively, one $\src{\kontstack}$ may be related to multiple $\trg{\kontstack}$, but each $trg{K}$ should have $\trg{\nocomm}$}
+$\;$\MK{do more or less the same for lolly}
     %
 %   \judgbox{\xlangbackstateeq{\Omega}{\Omega}}{,,The $\mmlAt$ state $\configt$ agrees with the $\mmlAs$ state $\configs$.''} \\
 %   %
@@ -3201,9 +3319,6 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 %   }{
 %     \xlangbackstateeq{x\mapsto\loc_\poison^\diamond,\Delta}{\Delta}
 %   }{back-cons-locmap-eq-unimportant}
-  \end{center}
-}{tms-pres-memstate-relations}{Memory-State Relations from $\mmlAs$ to $\mmlAt$ and vice versa.}
-$\;$\MK{fix lolly and the other one}
 
 
 \begin{lemma}[Trace Agreement with Filter]

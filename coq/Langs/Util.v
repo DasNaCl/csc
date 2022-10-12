@@ -359,32 +359,25 @@ Qed.
 Lemma dom_split { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
   nodupinv m ->
   In x (dom m) ->
-  exists m1 m2 v, splitat m x = Some(m1, x, v, m2)
+  exists m1 m2 v, splitat m x = Some(m1, x, v, m2) /\ m = (m1 ◘ (mapCons x v m2))
 .
 Proof.
   intros H0 H1; apply dom_in_ex in H1 as H1'; deex.
   subst; cbn. exists m1. exists m2. exists v0.
   apply dom_in_notin_split in H1 as [H2a H2b]; eauto.
-  now apply splitat_elim.
+  split; try now apply splitat_elim. easy.
 Qed.
-
-Lemma splitat_aux_eq { A : Type } { H : HasEquality A } { B : Type } (accM m m1 m2 : mapind H B) (x : A) (v : B) :
-  nodupinv m ->
-  splitat_aux accM m x = splitat_aux accM (m1 ◘ mapCons x v m2) x ->
-  m = (m1 ◘ (mapCons x v m2))
-.
-Proof.
-  induction m; cbn; intros. exfalso. revert accM H1; induction m1; intros accM H1; inv H1.
-  rewrite eq_refl in H3. inv H3. destruct (eq a x); inv H3. eapply IHm1; eauto.
-  destruct (eq_dec a x); subst.
-Admitted.
-Lemma splitat_eq { A : Type } { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (v : B) :
+Lemma splitat_refl { A : Type } { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (v : B) :
   nodupinv m ->
   splitat m x = Some(m1, x, v, m2) ->
-  m = (m1 ◘ (mapCons x v m2))
+  m = (m1 ◘ mapCons x v m2)
 .
 Proof.
-Admitted.
+  destruct (in_dom_dec m x); try (apply splitat_notin in H0; intros; congruence); intros.
+  apply dom_split in H0; eauto; deex. destruct H0 as [H0__a H0__b].
+  subst. rewrite H0__a in H2. inv H2. easy.
+Qed.
+
 Lemma mset_splitat { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m : mapind H B) (x : A) (v b : B) :
   nodupinv(m1 ◘ (mapCons x v m2)) ->
   Some m = mset (m1 ◘ (mapCons x v m2)) x b ->
@@ -402,6 +395,7 @@ Proof.
       apply not_eq_None_Some in Hy as [y__y Hy]. rewrite Hy in H1. symmetry in Hy.
       specialize (IHm1 y__y m2 H6 Hy). subst. inv H1. easy.
 Qed.
+
 Lemma dom_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
   nodupinv m ->
   Some m' = mset m x v ->
@@ -409,9 +403,9 @@ Lemma dom_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H 
 .
 Proof.
   destruct (in_dom_dec m x); intros.
-  - apply dom_split in H0 as H3; deex; eauto.
-    apply splitat_eq in H3; eauto. rewrite H3 in H2. apply mset_splitat in H2.
-    inv H3. clear. induction m1; cbn; try easy; eauto using f_equal. rewrite H3 in H1; easy.
+  - apply dom_split in H0 as H3; deex; eauto; destruct H3 as [H3__a H3__b].
+    subst. eapply mset_splitat in H1; eauto. rewrite H1.
+    clear. induction m1; cbn; try easy; f_equal; easy.
   - eapply mset_notin in H0. rewrite H0 in H2. inv H2.
 Qed.
 

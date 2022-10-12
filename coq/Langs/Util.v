@@ -39,6 +39,16 @@ Definition dom { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) : li
     end
   in dom_aux m
 .
+Lemma in_dom_dec { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
+  In x (dom m) \/ ~ In x (dom m)
+.
+Proof.
+  induction m; cbn.
+  - now right.
+  - fold (dom m). destruct IHm as [IHm|IHm]; eauto.
+    destruct (eq_dec a x); subst.
+    repeat left; easy. right. intros [H1|H1]; contradiction.
+Qed.
 Inductive nodupinv {A : Type} {H : HasEquality A} {B : Type} : mapind H B -> Prop :=
 | nodupmapNil : nodupinv (mapNil H B)
 | nodupmapCons : forall (a : A) (b : B) (m : mapind H B),
@@ -153,6 +163,15 @@ Lemma append_nil { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) :
   append m (mapNil H B) = m
 .
 Proof. induction m; eauto; rewrite <- IHm at 2; now cbn. Qed.
+Lemma append_assoc { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m3 : mapind H B) :
+  ((m1 ◘ m2) ◘ m3) = (m1 ◘ (m2 ◘ m3))
+.
+Proof.
+  revert m2 m3; induction m1; intros.
+  - now cbn.
+  - change ((((mapCons a b m1) ◘ m2) ◘ m3) = (mapCons a b (m1 ◘ (m2 ◘ m3)))).
+    now rewrite <- IHm1.
+Qed.
 
 Fixpoint splitat_aux { A : Type } {H : HasEquality A} {B : Type} (accM m : mapind H B) (x : A)
   : option((mapind H B) * A * B * (mapind H B)) :=
@@ -188,18 +207,234 @@ Definition mset { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B)
                         else
                           match doo m' with
                           | None => None
-                          | Some m'' => a ↦ b ◘ m''
+                          | Some m'' => Some(mapCons a b m'')
                           end
     end
   in doo m
 .
+
+Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (mapCons x v m2) ->
+  splitat (mapCons x v m2) x = Some (mapNil _ _, x, v, m2).
+Proof. cbn; now rewrite eq_refl. Qed.
+
+Lemma splitat_aux_elim_cons { A : Type } {H : HasEquality A} {B : Type} (accM m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (accM ◘ mapCons x v m2) ->
+  splitat_aux accM (mapCons x v m2) x = Some (accM, x, v, m2).
+Proof. intros H0; cbn; now rewrite eq_refl. Qed.
+Lemma splitat_aux_prop_cons { A : Type } {H : HasEquality A} {B : Type} (accM m2 : mapind H B) (x y : A) (v : B) :
+  y <> x ->
+  splitat_aux accM (mapCons y v m2) x = splitat_aux (accM ◘ mapCons y v (mapNil H B)) m2 x
+.
+Proof. cbn; intros H0; now apply neqb_neq in H0 as ->. Qed.
+Lemma splitat_aux_prop { A : Type } {H : HasEquality A} {B : Type} (accM m1 m2 : mapind H B) (x y : A) (v : B) :
+  ~ In x (dom m1) ->
+  splitat_aux accM (m1 ◘ m2) x = splitat_aux (accM ◘ m1) m2 x
+.
+Proof.
+  revert m1 accM; induction m1; intros.
+  - cbn; now rewrite append_nil.
+  - destruct (eq_dec a x); subst.
+    + exfalso. apply H0. now left.
+    + cbn; apply neqb_neq in H1 as ->. fold (m1 ◘ m2). fold (m1 ◘ accM).
+      enough (~ In x (dom m1)).
+      specialize (IHm1 (accM ◘ mapCons a b (mapNil H B)) H1) as ->.
+      rewrite append_assoc; now cbn.
+      revert H0; clear; intros H0 H1; apply H0; now right.
+Qed.
+Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (m1 ◘ mapCons x v m2) ->
+  splitat (m1 ◘ mapCons x v m2) x = Some (m1, x, v, m2).
+Proof.
+  unfold splitat; intros H0. rewrite splitat_aux_prop; eauto. cbn; now rewrite eq_refl.
+  induction m1; try now cbn.
+  intros H1. inv H0. apply IHm1; eauto.
+  destruct H1; try easy; subst. exfalso; apply H4; clear.
+  induction m1; cbn; eauto.
+Qed.
+Lemma mset_notin { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  ~ In x (dom m) ->
+  mset m x v = None
+.
+Proof.
+  induction m; cbn; intros; trivial.
+  destruct (eq_dec a x); fold (dom m) in H0.
+  - exfalso; exact (H0 (or_introl H1)).
+  - apply neqb_neq in H1; rewrite H1.
+    fold (mset m x v); rewrite IHm; try easy.
+    intros H2; exact (H0 (or_intror H2)).
+Qed.
+Lemma splitat_aux_notin { A : Type } { H : HasEquality A } { B : Type } (accM m : mapind H B) (x : A) :
+  ~ In x (dom m) ->
+  splitat_aux accM m x = None
+.
+Proof.
+  revert accM; induction m; cbn; intros; trivial.
+  destruct (eq_dec a x); fold (dom m) in H0.
+  - exfalso; exact (H0 (or_introl H1)).
+  - apply neqb_neq in H1; rewrite H1.
+    fold (splitat m x); rewrite IHm; try easy.
+    intros H2; exact (H0 (or_intror H2)).
+Qed.
+Lemma splitat_notin { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
+  ~ In x (dom m) ->
+  splitat m x = None
+.
+Proof. now eapply splitat_aux_notin. Qed.
+Lemma splitat_aux_in { A : Type } { H : HasEquality A } { B : Type } (accM m : mapind H B) (x : A) :
+  In x (dom m) ->
+  exists m1 v m2, splitat_aux accM m x = splitat_aux accM (m1 ◘ mapCons x v m2) x
+.
+Proof.
+  revert accM; induction m; cbn; intros; try easy.
+  destruct (eq_dec a x) as [H1 | H1].
+  - subst; rewrite eq_refl. exists (mapNil H B). exists b. exists m. cbn. now rewrite eq_refl.
+  - apply neqb_neq in H1 as H1'; rewrite H1'.
+    fold (dom m) in H0; assert (In x (dom m)) by (destruct H0; congruence).
+    specialize (IHm (accM ◘ mapCons a b (mapNil H B)) H2); deex.
+    exists (mapCons a b m1). exists v. exists m2.
+    rewrite IHm. cbn. rewrite H1'. now fold (append m1 (mapCons x v m2)).
+Qed.
+Lemma in_dom_split { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
+  nodupinv m ->
+  In x (dom m) ->
+  exists m1 m2 v, m = (m1 ◘ mapCons x v m2)
+.
+Proof.
+  induction m; cbn; intros; try easy.
+  destruct H1 as [H1 | H1]; fold (dom m) in H1; subst.
+  - exists (mapNil H B). exists m. exists b. now cbn.
+  - inv H0. specialize (IHm H6 H1); deex.
+    exists (mapCons a b m1). exists m2. exists v. now rewrite IHm.
+Qed.
+Lemma splitat_not_none { A : Type } { H : HasEquality A } { B : Type } (accM m1 m2 : mapind H B) (x : A) (v : B) :
+  splitat_aux accM (m1 ◘ mapCons x v m2) x <> None
+.
+Proof.
+  revert accM; induction m1; cbn. now rewrite eq_refl.
+  destruct (eq a x); easy.
+Qed.
+
+Lemma mset_in { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  In x (dom m) ->
+  exists m__x, mset m x v = Some m__x
+.
+Proof.
+  induction m; cbn; intros; try easy.
+  destruct (eq_dec a x) as [H1 | H1].
+  - subst; rewrite eq_refl; exists (mapCons x v m); easy.
+  - fold (dom m) in H0; fold (mset m x v).
+    apply neqb_neq in H1 as H1'; rewrite H1'.
+    assert (In x (dom m)) by (destruct H0; congruence).
+    specialize (IHm H2); deex. exists (mapCons a b m__x); now rewrite IHm.
+Qed.
+Lemma dom_in_ex { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
+  In x (dom m) ->
+  exists m1 m2 v, m = (m1 ◘ (mapCons x v m2))
+.
+Proof.
+  induction m; cbn; try easy.
+  intros [H1|H1].
+  - subst. exists (mapNil H B). do 2 eexists; cbn; eauto.
+  - fold (dom m) in H1. specialize (IHm H1); deex; subst.
+    exists (mapCons a b m1). exists m2. exists v. easy.
+Qed.
+Lemma dom_in_notin_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv (m1 ◘ (mapCons x v m2)) ->
+  In x (dom (m1 ◘ mapCons x v m2)) ->
+  ~ In x (dom m1) /\ ~ In x (dom m2)
+.
+Proof.
+  induction m1; cbn; intros.
+  - split; try easy. now inv H0.
+  - fold (append m1 (mapCons x v m2)) in *. fold (dom m1). fold (dom (m1 ◘ mapCons x v m2)) in *.
+    inv H0. destruct H1 as [H1|H1]; subst.
+    exfalso. apply H4; clear. induction m1; cbn; eauto.
+    specialize (IHm1 H6 H1) as [IHm1__a IHm1__b].
+    split; try easy. intros H2. destruct H2; subst.
+    exfalso. apply H4; clear. induction m1; cbn; eauto.
+    easy.
+Qed.
+
+Lemma dom_split { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  In x (dom m) ->
+  exists m1 m2 v, splitat m x = Some(m1, x, v, m2)
+.
+Proof.
+  intros H0 H1; apply dom_in_ex in H1 as H1'; deex.
+  subst; cbn. exists m1. exists m2. exists v0.
+  apply dom_in_notin_split in H1 as [H2a H2b]; eauto.
+  now apply splitat_elim.
+Qed.
+
+Lemma splitat_aux_eq { A : Type } { H : HasEquality A } { B : Type } (accM m m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  splitat_aux accM m x = splitat_aux accM (m1 ◘ mapCons x v m2) x ->
+  m = (m1 ◘ (mapCons x v m2))
+.
+Proof.
+  induction m; cbn; intros. exfalso. revert accM H1; induction m1; intros accM H1; inv H1.
+  rewrite eq_refl in H3. inv H3. destruct (eq a x); inv H3. eapply IHm1; eauto.
+  destruct (eq_dec a x); subst.
+Admitted.
+Lemma splitat_eq { A : Type } { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  splitat m x = Some(m1, x, v, m2) ->
+  m = (m1 ◘ (mapCons x v m2))
+.
+Proof.
+Admitted.
+Lemma mset_splitat { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m : mapind H B) (x : A) (v b : B) :
+  nodupinv(m1 ◘ (mapCons x v m2)) ->
+  Some m = mset (m1 ◘ (mapCons x v m2)) x b ->
+  m = (m1 ◘ (mapCons x b m2))
+.
+Proof.
+  revert m m2; induction m1; cbn; intros.
+  - rewrite eq_refl in H1. now inv H1.
+  - fold (append m1 (mapCons x v m2)) in *; fold (append m1 (mapCons x b m2)) in *.
+    fold (mset (m1 ◘ mapCons x v m2) x b) in H1.
+    destruct (eq_dec a x) as [Hx | Hx]; subst.
+    + rewrite eq_refl in H1. inv H1. inv H0. exfalso; apply H3; clear; induction m1; cbn; eauto.
+    + apply neqb_neq in Hx as Hx'; rewrite Hx' in H1. inv H0.
+      destruct (option_dec (mset (m1 ◘ mapCons x v m2) x b)) as [Hy | Hy]; try (rewrite Hy in H1; inv H1).
+      apply not_eq_None_Some in Hy as [y__y Hy]. rewrite Hy in H1. symmetry in Hy.
+      specialize (IHm1 y__y m2 H6 Hy). subst. inv H1. easy.
+Qed.
+Lemma dom_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  Some m' = mset m x v ->
+  dom m = dom m'
+.
+Proof.
+  destruct (in_dom_dec m x); intros.
+  - apply dom_split in H0 as H3; deex; eauto.
+    apply splitat_eq in H3; eauto. rewrite H3 in H2. apply mset_splitat in H2.
+    inv H3. clear. induction m1; cbn; try easy; eauto using f_equal. rewrite H3 in H1; easy.
+  - eapply mset_notin in H0. rewrite H0 in H2. inv H2.
+Qed.
+
+Lemma dom_nodupinv { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) :
+  nodupinv m ->
+  dom m = dom m' ->
+  nodupinv m'
+.
+Proof.
+  revert m'; induction m; cbn; intros.
+  - destruct m'; inv H1; constructor.
+  - fold (dom m) in H1. assert (H1':=H1); destruct m'; inv H1; cbn in H1'.
+    fold (dom m') in H1'. inv H0.
+    specialize (IHm m' H6 H4).
+    constructor; try easy. now rewrite <- H4.
+Qed.
+
 Lemma nodupinv_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
   nodupinv m ->
   Some m' = mset m x v ->
   nodupinv m'
 .
-Proof.
-Admitted.
+Proof. intros H0 H1; eauto using dom_mset, dom_nodupinv. Qed.
 
 Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
   mget m x = Some v
@@ -300,7 +535,7 @@ Notation "G '⊦' e ':' t" := (vDash__Class G e t) (at level 82, e at next level
 #[global]
 Notation "'[⋅]'" := (Gnil).
 
-Lemma dom_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
+Lemma notin_dom_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
   ~ In x (dom(m1 ◘ m2)) ->
   ~ In x (dom m1) /\ ~ In x (dom m2)
 .
@@ -334,18 +569,8 @@ Proof.
     + split; cbn in H0; inv H0; now constructor.
     + destruct (IHm0 m m' Logic.eq_refl H4) as [IHm0__a IHm0__b].
       split; trivial; constructor; trivial.
-      apply dom_split in H2 as [H2__a H2__b]; trivial.
+      apply notin_dom_split in H2 as [H2__a H2__b]; trivial.
 Qed.
-Lemma append_assoc { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m3 : mapind H B) :
-  ((m1 ◘ m2) ◘ m3) = (m1 ◘ (m2 ◘ m3))
-.
-Proof.
-  revert m2 m3; induction m1; intros.
-  - now cbn.
-  - change (((a ↦ b ◘ m1 ◘ m2) ◘ m3) = (a ↦ b ◘ (m1 ◘ (m2 ◘ m3)))).
-    now rewrite <- IHm1.
-Qed.
-
 Lemma nodupinv_cons_snoc { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :
   nodupinv (a ↦ b ◘ m) <-> nodupinv (m ◘ a ↦ b ◘ mapNil H B)
 .
@@ -386,46 +611,6 @@ Proof.
       rewrite <- append_assoc. apply IHm1. rewrite <- append_assoc. now apply nodupinv_cons_snoc.
     + change (nodupinv (m2 ◘ ((a ↦ b ◘ (mapNil H B)) ◘ m1))) in H0.
       rewrite <- append_assoc in H0. apply IHm1 in H0. rewrite <- append_assoc in H0. now apply nodupinv_cons_snoc.
-Qed.
-
-Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :
-  nodupinv (x ↦ v ◘ m2) ->
-  splitat (x ↦ v ◘ m2) x = Some (mapNil _ _, x, v, m2).
-Proof. cbn; now rewrite eq_refl. Qed.
-
-Lemma splitat_aux_elim_cons { A : Type } {H : HasEquality A} {B : Type} (accM m2 : mapind H B) (x : A) (v : B) :
-  nodupinv (accM ◘ x ↦ v ◘ m2) ->
-  splitat_aux accM (x ↦ v ◘ m2) x = Some (accM, x, v, m2).
-Proof. intros H0; cbn; now rewrite eq_refl. Qed.
-Lemma splitat_aux_prop_cons { A : Type } {H : HasEquality A} {B : Type} (accM m2 : mapind H B) (x y : A) (v : B) :
-  y <> x ->
-  splitat_aux accM (y ↦ v ◘ m2) x = splitat_aux (accM ◘ y ↦ v ◘ (mapNil H B)) m2 x
-.
-Proof. cbn; intros H0; now apply neqb_neq in H0 as ->. Qed.
-Lemma splitat_aux_prop { A : Type } {H : HasEquality A} {B : Type} (accM m1 m2 : mapind H B) (x y : A) (v : B) :
-  ~ In x (dom m1) ->
-  splitat_aux accM (m1 ◘ m2) x = splitat_aux (accM ◘ m1) m2 x
-.
-Proof.
-  revert m1 accM; induction m1; intros.
-  - cbn; now rewrite append_nil.
-  - destruct (eq_dec a x); subst.
-    + exfalso. apply H0. now left.
-    + cbn; apply neqb_neq in H1 as ->. fold (m1 ◘ m2). fold (m1 ◘ accM).
-      enough (~ In x (dom m1)).
-      specialize (IHm1 (accM ◘ a ↦ b ◘ mapNil H B) H1) as ->.
-      rewrite append_assoc; now cbn.
-      revert H0; clear; intros H0 H1; apply H0; now right.
-Qed.
-Lemma splitat_elim { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) (x : A) (v : B) :
-  nodupinv (m1 ◘ x ↦ v ◘ m2) ->
-  splitat (m1 ◘ x ↦ v ◘ m2) x = Some (m1, x, v, m2).
-Proof.
-  unfold splitat; intros H0. rewrite splitat_aux_prop; eauto. cbn; now rewrite eq_refl.
-  induction m1; try now cbn.
-  intros H1. inv H0. apply IHm1; eauto.
-  destruct H1; try easy; subst. exfalso; apply H4; clear.
-  induction m1; cbn; eauto.
 Qed.
 
 Module Type MOD.

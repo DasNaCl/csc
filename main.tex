@@ -1232,9 +1232,9 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \judgbox{\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$, giving dynamic state\\$\configs$ and emitting trace $\src{\trace}$.''}
   \typerule{$e-\text{wprog}$}{
     \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
-    \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexprnoerr}{\trace}
+    \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}
+    \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}
   }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -2826,9 +2826,9 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \typerule{$te-\text{wprog}$}{
     \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
     \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
-    \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexprnoerr}{\trace}
+    \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
   }{
-    \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexprnoerr}{\trace}
+    \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}
   }{wt-e-prog}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
@@ -4079,18 +4079,12 @@ $\;$\MK{do more or less the same for $\multimap$}
   Induction on $\trg{\trace}$
 \end{proof}
 
-\begin{lemma}[Value Insertion]\label{lem:compvals:insertion}\ \\
-  Given $\src{\valueexpr}=\mmlAmmlAtbackv{\valueexpr}$, then $\mmlAmmlAtcomp{\valueexpr}=\trg{\valueexpr}$.
+\begin{lemma}[Final Expression Insertion]\label{lem:compvals:insertion}\ \\
+  Given $\src{\finalexprnoerr}=\mmlAmmlAtbackv{\finalexprnoerr}$, then $\mmlAmmlAtcomp{\finalexprnoerr}=\trg{\finalexprnoerr}$.
 \end{lemma}
 \begin{proof}
   Immediate.
 \end{proof}
-
-\begin{lemma}[Invertible Operational State]\label{lem:invertible:opstate}\ \\
-  Given $\delta$ and $\trg{\Omega}$ non-stuck, $\exists\src{\Omega}, \xlangstateeq{\Omega}{\Omega}$.
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
 
 \begin{lemma}[Backtranslation is Well-Typed]\label{lem:backtranslation:welltyped}
   If
@@ -4099,105 +4093,30 @@ $\;$\MK{do more or less the same for $\multimap$}
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\typecheck{}{\mmlAmmlAtback{\trace}}{\src{\nat}}$
+  \item $\typecheck{}{\mmlAmmlAtbackdetail{\trace}}{\src{\nat}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
   induction on $\trg{\overline{a}}$
 \end{incompleteproof}
 
-\begin{lemma}[State Agreement Insertion]\label{lem:backtranslation:stateagreement:insertion}
-  If
-  \begin{assumptions}
-  \item\label[ass]{ass:stateagreeinsertion:agree} $\xlangstateeq{\Omega}{\Omega}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Induction on $\xlangstateeq{\Omega}{\Omega}$ (\Cref{ass:stateagreeinsertion:agree}).
-  The only maybe interesting case is for \Cref{tr:cons-locmap-eq}.
-
-  We have
-  \begin{passumptions}{H}
-  \item $\mmlAmmlAtcomp{x}=\trg{x}$
-  \item\label[ass]{asm:stateagreeinsertion:delta} $\delta\left(\src{\loc}\right) = \trg{\loc}$
-  \item $\xlangstateeq{\Delta}{\Delta}$
-  \end{passumptions}
-  and
-  \begin{passumptions}{\IH}
-  \item\label[ass]{asm:stateagreeinsertion:ih} $\xlangbackstateeq{\Delta}{\Delta}$
-  \end{passumptions}
-  and what we need to show is
-  \begin{goals}
-  \item $\xlangbackstateeq{x\mapsto\loc,\Delta}{x\mapsto\loc,\Delta}$
-  \end{goals}
-
-  By \Cref{tr:back-cons-locmap-eq}, our goals change to:
-  \begin{goals}
-  \item $\delta\left(\src{\loc}\right) = \trg{\loc}$
-  \item $\xlangbackstateeq{\Delta}{\Delta}$
-  \end{goals}
-
-  Claims follow using \Cref{asm:stateagreeinsertion:delta,asm:stateagreeinsertion:ih}.
-\end{proof}
-
-\begin{lemma}[Agreement Propagation]\label{lem:trace:agreement:propagation}
-  If
-  \begin{assumptions}
-  \item $\delta$ injective
-  \item\label[ass]{asm:trace:agreement:propagation:xagree} $\xlangtraceeq{\trace}{\trace}$, where $\delta:\src{L}\to\trg{L}$
-  \item $\tmstraceagree[\delta^{\src{\bullet}}]{\tospecificevs{\trace}}{\abstrace}$, where $\delta^{\src{\bullet}}_{tms}:\src{L}\to L$
-  \end{assumptions}
-  Then $\exists \delta^{\trg{\bullet}}_{\text{tms}}$,
-  \begin{goals}
-  \item $\tmstraceagree[\delta^{\trg{\bullet}}]{\tospecificevt{\trace}}{\abstrace}$, where $\delta^{\trg{\bullet}}_{tms}:\trg{L}\to L$
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Induction on $\xlangtraceeq{\trace}{\trace}$ (\Cref{asm:trace:agreement:propagation:xagree}).
-  The witness of the existential satisfies $\delta^{\trg{\bullet}}_{tms}(\delta(\src{\loc}))=\delta^{\src{\bullet}}_{tms}(\src{\loc})$.
-\end{proof}
-
-\begin{lemma}[Backtranslation of Stuck Traces]\label{lem:backtranslation:stuck:correct}
-  If
-  \begin{assumptions}
-  \item $\exect{\Omega}{e}{\lightning}{stuck}{\trace\cdot\lightning}$
-\item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)\cdot\specificev{\lightning}$
-  \item $\mmlAmmlAtbackdetail{\specificev{Ret\ !n_0}\cdot\mstrace}=\Game',\src{e}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
-  \end{assumptions}
-  then $\exists \delta'\ \src{\trace}$,
-  \begin{goals}
-  \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\lightning}}{\src{stuck}}{\src{\trace\cdot\lightning}}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace\cdot\lightning}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot\trace\cdot \lightning}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
-
-\begin{lemma}[Expression-based Backtranslation Correctness without Wrapper]\label{lem:exprbacktranslation:wowrapper:correct}
+\begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:wrapper:correct}
   If
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
-  \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\mstrace}=\Game',\src{e_{H}}$
+  \item $\mmlAmmlAtbackdetail[\Game]{\trace}=\Game',\src{e}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{e}=\plugs{\finalexprnoerr_{INIT}}{e_{H}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv[\Game']{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{\trace[_1]}\thexlangtraceeq[\delta']\trg{\trace}$
+  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
-  Induction on $\trg{\trace}$.
+  Induction on $\trg{\trace}$.\MK{update the proof}
 
   \begin{description}
   \item \textbf{Case $\trg{\trace}=\trg{\hole{\cdot}}$}
@@ -4348,17 +4267,16 @@ $\;$\MK{do more or less the same for $\multimap$}
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
-  \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-  \item $\mmlAmmlAtback{\specificev{Ret\ !n_0}\cdot\mstrace\cdot\specificev{Call\ ?n_1}}=\Game',\src{e}$
+  \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
+  \item $\mmlAmmlAtback[\Game]{\trace}=\Game',\src{e}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\valueexpr}$,
+  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\valueexpr}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv[\Game']{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{Ret\ !}\mmlAmmlAtbackv{n_0}\src{\cdot\trace[_1]\cdot Call\ ?}\mmlAmmlAtbackv{n_1}\thexlangtraceeq[\delta']\trg{Ret\ !n_0\cdot\trace\cdot Call\ ?n_1}$
+  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -4367,8 +4285,8 @@ $\;$\MK{do more or less the same for $\multimap$}
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:rtmsp:srctms} $\forall \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{v}{\trace}\rightarrow\texttt{TMS}(\tospecificevs[_{\emptyset}]{\trace})$
-  \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ \library_{ctx}\ }\mmlAmmlAtcomp{\library_{comp}}}{\trg{\configt}}{\trg{v}}{\trg{\trace}}$
+  \item\label[ass]{asm:rtmsp:srctms} $\forall \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}\rightarrow\texttt{TMS}(\tospecificevs[_{\emptyset}]{\trace})$
+  \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ \library_{ctx}\ }\mmlAmmlAtcomp{\library_{comp}}}{\trg{\configt}}{\trg{\finalexpr}}{\trg{\trace}}$
   \end{assumptions}
   then
   \begin{goals}

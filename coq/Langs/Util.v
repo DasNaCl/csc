@@ -647,28 +647,30 @@ Module Mod (X : MOD).
     end
   .
   Definition string_of_tracepref (t : tracepref) : string := string_of_tracepref_aux t (""%string).
-  Fixpoint wherein_aux (As : tracepref) (a : Ev) (n : nat) : option nat :=
-    match As with
-    | Tnil => None
-    | Tcons e As' => if ev_eq a e then Some n else wherein_aux As' a (S n)
-    end
+
+  Inductive wherein (a : Ev) : tracepref -> nat -> Prop :=
+  | whereinZ : forall (As : tracepref), wherein a (Tcons a As) 0
+  | whereinS : forall (a0 : Ev) (As : tracepref) (n : nat),
+               a <> a0 ->
+               wherein a As n ->
+               wherein a (Tcons a0 As) (S n)
   .
-  Lemma wherein_aux_impossible As a n :
-    ~(wherein_aux As a (S n) = Some 0).
-  Proof. revert n; induction As; try easy; cbn; destruct (ev_eq a e); try easy. Qed.
-  Definition wherein (As : tracepref) (a : Ev) : option nat :=
-    wherein_aux As a 0
+  Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
+    exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
   .
-  Definition before (a0 a1 : Ev) (As : tracepref) :=
-    forall n, (wherein As a0) = Some n -> exists m, (wherein As a1) = Some m /\ n < m
+  Lemma before_nothing a0 a1 :
+    before a0 a1 Tnil -> False.
+  Proof. unfold before; intros H; deex; destruct H as [H0 [H1 H2]]; inv H0. Qed.
+
+  Lemma before_split a As a0 a1 n :
+    before a0 a1 As \/ (a0 = a /\ wherein a1 As n) ->
+    before a0 a1 (Tcons a As)
   .
-  Lemma before_split a As a0 a1 :
-    before a0 a1 As \/ (a0 = a /\ wherein As a1 <> None) ->
-    before a0 a1 (Tcons a As).
   Proof.
   Admitted.
+
   Definition once (a : Ev) (As : tracepref) :=
-    forall n, (wherein As a) = Some n -> ~exists m, (wherein As a) = Some m /\ n <> m
+    forall n m, wherein a As n -> wherein a As m -> n = m
   .
   (* Use this to define a coercion *)
   Definition ev_to_tracepref (e : Ev) : tracepref := Tcons e Tnil.

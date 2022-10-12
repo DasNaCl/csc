@@ -788,13 +788,16 @@ Inductive pstep : PrimStep :=
     Ω ▷ Xabort --[ (Scrash) ]--> ↯ ▷ stuck
 | e_get : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some v = mget H (ℓ + n))
-      (H0b : ℓ + n >= length H -> v = 1729),
+      (H0b : ℓ + n >= length H -> v = 1729)
+      (H0c : Util.nodupinv (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)),
     (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ (Sget (addr ℓ) n) ]--> (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
 | e_set : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some H' = mset H (ℓ + n) v)
-      (H0b : ℓ + n >= length H -> H' = H),
+      (H0b : ℓ + n >= length H -> H' = H)
+      (H0c : Util.nodupinv (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)),
     (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ (Sset (addr ℓ) n v) ]--> (F ; Ξ ; ξ ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
-| e_delete : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison),
+| e_delete : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison)
+      (H0c : Util.nodupinv (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)),
     (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ (Sdealloc (addr ℓ)) ]--> (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
 | e_let : forall (Ω : state) (x : vart) (f : fnoerr) (e e' : expr),
     e' = subst x e f ->
@@ -859,7 +862,8 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
     match en with
     | Xres(Fres(Fval(Vnat n))) =>
       let '(F, Ξ, ξ, H, Δ) := Ω in
-      let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
+      let* Δ__x := undup Δ in
+      let* (Δ1, x, (L, ρ), Δ2) := splitat Δ__x x in
       let '(addr ℓ) := L in
       let v := match mget H (ℓ + n) with
               | None => 1729
@@ -873,7 +877,8 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
     match en, ev with
     | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
       let '(F, Ξ, ξ, H, Δ) := Ω in
-      let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
+      let* Δ__x := undup Δ in
+      let* (Δ1, x, (L, ρ), Δ2) := splitat Δ__x x in
       let '(addr ℓ) := L in
       match mset H (ℓ + n) v with
       | Some H' =>
@@ -885,7 +890,8 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
     end
   | Xdel x => (* e-delete *)
     let '(F, Ξ, ξ, H, Δ) := Ω in
-    let* (Δ1, x, (L, ρ), Δ2) := splitat Δ x in
+    let* Δ__x := undup Δ in
+    let* (Δ1, x, (L, ρ), Δ2) := splitat Δ__x x in
     let '(addr ℓ) := L in
     Some(Some(Sdealloc (addr ℓ)), F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
   | Xlet x ef e' => (* e-let *)
@@ -957,17 +963,17 @@ Proof.
     + (* e-ifz-true *) now cbn.
     + (* e-ifz-false *) now cbn.
     + (* e-abort *) now cbn.
-    + (* e-get *) cbn.
-      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (length H)) as [H1a | H1b]; rewrite splitat_elim.
+    + (* e-get *) cbn; apply nodupinv_equiv_undup in H0c as H0c'; rewrite H0c'.
+      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (length H)) as [H1a | H1b]; rewrite splitat_elim; eauto.
       * now specialize (H0a H1a) as H0a'; inv H0a'.
       * apply Arith.Compare_dec.not_lt in H1b; specialize (H0b H1b) as H1b'.
         now rewrite (@Hget_none H (ℓ + n) H1b); subst.
-    + (* e-set *) cbn.
-      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (length H)) as [H1a | H1b]; rewrite splitat_elim.
+    + (* e-set *) cbn; apply nodupinv_equiv_undup in H0c as H0c'; rewrite H0c'.
+      destruct (Arith.Compare_dec.lt_dec (ℓ + n) (length H)) as [H1a | H1b]; rewrite splitat_elim; eauto.
       * now rewrite <- (H0a H1a).
       * apply Arith.Compare_dec.not_lt in H1b; specialize (H0b H1b) as H1b'; subst.
         now rewrite (@Hset_none H (ℓ + n) v H1b).
-    + (* e-delete *) now cbn; rewrite splitat_elim.
+    + (* e-delete *) cbn; apply nodupinv_equiv_undup in H0c as H0c'; rewrite H0c'; rewrite splitat_elim; eauto.
     + (* e-let *) now subst; cbn.
     + (* e-new *) subst; unfold pstepf.
       now rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)), <- H5, (get_rid_of_letstar H'), H4, (get_rid_of_letstar Δ').
@@ -976,22 +982,28 @@ Proof.
       now grab_value2 e1 e2; inv H1; eapply e_binop.
     + (* e = x[e] *)
       grab_value e. destruct s as [[[[F Ξ] ξ] H] Δ].
-      destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H1; congruence).
+      destruct (option_dec (undup Δ)) as [Hx | Hx]; try (rewrite Hx in H1; congruence).
+      apply not_eq_None_Some in Hx as [x__x Hx]; rewrite <- (undup_refl _ Hx) in Hx; rewrite Hx in H1;
+      apply nodupinv_equiv_undup in Hx.
+      destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H1; congruence); eauto.
       apply splitat_base in H0 as [Δ1 [[ℓ] [ρ [Δ2 H0]]]]. rewrite H0 in H1.
-      rewrite splitat_elim in H1. inv H1. eapply e_get; intros H0.
+      rewrite splitat_elim in H1; try (now rewrite H0 in Hx). inv H1. eapply e_get; try intros H0; eauto.
       * now apply Hget_some in H0 as [v ->].
       * now apply Hget_none in H0 as ->.
     + (* e = x[e1] <- e2 *)
       grab_value2 e1 e2. destruct s as [[[[F Ξ] ξ] H] Δ].
+      destruct (option_dec (undup Δ)) as [Hx | Hx]; try (rewrite Hx in H1; congruence).
+      apply not_eq_None_Some in Hx as [x__x Hx]; rewrite <- (undup_refl _ Hx) in Hx; rewrite Hx in H1;
+      apply nodupinv_equiv_undup in Hx.
       destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H1; congruence).
       apply splitat_base in H0 as [Δ1 [[ℓ] [ρ [Δ2 H0]]]]. rewrite H0 in H1.
-      rewrite splitat_elim in H1.
+      rewrite splitat_elim in H1; try (now rewrite H0 in Hx).
       destruct (Arith.Compare_dec.lt_dec (ℓ + e1) (length H)) as [H2|H2].
       * apply (@Hset_some H (ℓ + e1) e2) in H2 as [H' H2]. rewrite H2 in H1.
-        inv H1. eapply e_set; intros H0; subst; try easy.
+        inv H1. eapply e_set; eauto; intros H0; subst; try easy.
         eapply (@Hset_none H (ℓ + e1) e2) in H0; congruence.
       * apply Arith.Compare_dec.not_lt in H2. apply (@Hset_none H (ℓ + e1) e2) in H2; subst; rewrite H2 in H1.
-        inv H1. eapply e_set; intros H0; try easy. apply (@Hset_some H (ℓ + e1) e2) in H0 as [H' H0]; congruence.
+        inv H1. eapply e_set; eauto; intros H0; try easy. apply (@Hset_some H (ℓ + e1) e2) in H0 as [H' H0]; congruence.
     + (* e = let x = e1 in e2 *)
       grab_final e1; inv H1; now eapply e_let.
     + (* e = let x = new e1 in e2 *)
@@ -1005,9 +1017,12 @@ Proof.
       rewrite (get_rid_of_letstar Δ') in H1; inv H1. eapply e_alloc; eauto.
     + (* e = delete x *)
       destruct s as [[[[F Ξ] ξ] H] Δ]; inv H1.
+      destruct (option_dec (undup Δ)) as [Hx | Hx]; try (rewrite Hx in H2; congruence).
+      apply not_eq_None_Some in Hx as [x__x Hx]; rewrite <- (undup_refl _ Hx) in Hx; rewrite Hx in H2;
+      apply nodupinv_equiv_undup in Hx.
       destruct (splitat_none_or_not_none Δ x) as [H0|H0]; try (rewrite H0 in H2; congruence).
       apply splitat_base in H0 as [Δ1 [[ℓ] [ρ [Δ2 H0]]]]. rewrite H0 in H2.
-      rewrite splitat_elim in H2; subst. inv H2. apply e_delete.
+      rewrite splitat_elim in H2; subst; auto. inv H2. apply e_delete; eauto.
     + (* e = ifz c e0 e1 *)
       grab_value e1. destruct e1; inv H1; apply e_ifz_true || apply e_ifz_false.
     + (* e = abort *)

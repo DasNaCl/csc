@@ -132,20 +132,17 @@ Definition TMS (As : tracepref) :=
 .
 
 Definition simptmssafe (As : tracepref) :=
-  forall ℓ, before (Salloc ℓ) (Sdealloc ℓ) As.
-
+  forall ℓ n, wherein (Salloc ℓ) As n -> before (Salloc ℓ) (Sdealloc ℓ) As
+.
 (* Show the above are equally strong...? *)
 Theorem TMS_refines_tmssafe As :
   TMS As -> simptmssafe As.
 Proof.
   intros [T__TMS H]; induction H; try easy.
-  destruct a as [[ℓ] | [ℓ] | [ℓ] | ].
-  - intros [ℓ0] x Ha.
-    destruct (PeanoNat.Nat.eq_dec ℓ ℓ0); subst.
-    destruct x.
-    + cbn in Ha. clear Ha.
+  intros ℓ n H2.
+  destruct a as [[ℓ0] | [ℓ0] | [ℓ0] | ].
+  - inv H2. exists 0.
 Admitted.
-
 
 Module TMMonNotation.
 Notation "T1 '⊆__F' T2" := (entails T1 T2) (at level 82, T2 at next level).

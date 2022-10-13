@@ -590,7 +590,7 @@ Then, swapping the behaviors from the previous example, the interpreter does not
   \mi{Values}~\src{\valueexpr} \bnfdef\ \src{n}\in\src{\nat} \\
   %
   \mi{Ectx\ Types}~\types_{\lambda}\ \bnfdef& \types_{\src{e}}\to\types_{\src{e}} \hspace{0.25cm}
-  \mi{Types}~\types \bnfdef \types_{\src{e}}\mid\types_{\lambda} \hspace{0.25cm}
+  \mi{Types}~\types \bnfdef \types_{\src{e}}\mid\types_{\lambda}\mid\types_{\src{e}}\src{\to\bot} \hspace{0.25cm}
   %
   \mi{References}~\src{\loc}\in\src{\nat} \\
   \mi{Eval. Ctx.}~\src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus K}\mid \src{x[K]}\mid \src{let\ x=K\ in\ e}\\
@@ -755,9 +755,9 @@ Note that non-owned pointers and values may be freely duplicated and that we can
   %
   \typerule{$t-\src{let}$}{
     \typechecks{\Gamma_1}{e_1}{\type_{e}^{(1)}} &
-    \typechecks{x:\type_{e}^{(1)},\Gamma_2}{e_2}{\type_{e}^{(2)}}
+    \typechecks{x:\type_{e}^{(1)},\Gamma_2}{e_2}{\type^{(2)}}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\type_{e}^{(2)}}
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\type^{(2)}}
   }{t-let}
   %
   \typerule{$t-\src{new}$}{
@@ -786,15 +786,15 @@ Note that non-owned pointers and values may be freely duplicated and that we can
     \src{\type_e}\ \operatorname{int} &
     \typechecks{\Gamma}{e}{\type_e}
   }{
-    \typechecks{\Gamma}{return\ e}{\type_e}
+    \typechecks{\Gamma}{return\ e}{\type_e\to\bot}
   }{t-return}
   %
   \typerule{$t-\src{ifz}$}{
     \typechecks{\Gamma_1}{e_1}{\nat} &
-    \typechecks{\Gamma_2}{e_2}{\type_e} &
-    \typechecks{\Gamma_2}{e_3}{\type_e}
+    \typechecks{\Gamma_2}{e_2}{\type} &
+    \typechecks{\Gamma_2}{e_3}{\type}
   }{
-    \typechecks{\Gamma_1\circ\Gamma_2}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type_e}
+    \typechecks{\Gamma_1\circ\Gamma_2}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type}
   }{w-t-if}
   \end{center}
 }{w-expr-ty}{Checking of $\mmlAs$ expressions.}
@@ -847,8 +847,8 @@ This is inspired by linear logic.
     }{w-te-setL}
     %
     \typerule{et-let}{
-      \typechecks{\Gamma}{K}{\type^{(1)}\to\type'} &
-      \typechecks{x:\type',\Gamma}{e}{\type^{(2)}}
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type_{e}'} &
+      \typechecks{x:\type_{e}',\Gamma}{e}{\type^{(2)}}
     }{
       \typechecks{\Gamma}{let\ x=K\ in\ e}{\type^{(1)}\to\type^{(2)}}
     }{w-te-let}
@@ -878,7 +878,7 @@ This is inspired by linear logic.
     \typerule{et-ret}{
       \typechecks{\Gamma}{K}{\type^{(1)}\to\type^{(2)}}
     }{
-      \typechecks{\Gamma}{return\ K}{\type^{(1)}\to\type^{(2)}}
+      \typechecks{\Gamma}{return\ K}{\type^{(1)}\to(\type^{(2)}\to\bot)}
     }{w-te-ret}
   \end{center}
 }{w-ectx-ty}{Checking of $\mmlAs$ evaluation contexts.}
@@ -951,7 +951,7 @@ This is inspired by linear logic.
       \src{\type_e^{(1)}}\ \operatorname{int} &
       \src{\type_e^{(2)}}\ \operatorname{int} &
       \src{\Gamma}\vdash\src{\library}\ \operatorname{ok} &
-      \typechecks{x:\type_e^{(1)},\Gamma}{e}{\type_e^{(2)}}
+      \typechecks{x:\type_e^{(1)},\Gamma}{e}{\type_{e}^{(2)}\to\bot}
     }{
       \src{\Gamma}\vdash(\src{let\ foo\ x : \type_e^{(1)}}\to\src{\type_e^{(2)}:= e}),\src{\library}\ \operatorname{ok}
     }{w-t-lib-cons}\\[0.33cm]
@@ -1108,7 +1108,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
       \src{\Omega'}=\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
+      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{\event}
     }{w-e-ectx-call-value}
     %
     \typerule{$e-\text{ctx}-\src{call}-\src{\loc}$}{
@@ -1119,7 +1119,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{\loc}) = \src{\event},\src{\comm} &
       \src{\Omega'}=\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ x]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
+      \execs[]{\Omega}{K[call\ foo\ x]}{\Omega'}{e[x/\valueexpr]}{\event}
     }{w-e-ectx-call-value}
     %
     \typerule{$e-\text{ctx}-\src{return}-\src{\valueexpr}$}{

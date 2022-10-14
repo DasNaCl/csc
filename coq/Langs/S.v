@@ -193,6 +193,7 @@ Inductive ety : Type :=
 Inductive Ty : Type :=
 | Texpr : ty -> Ty
 | Tectx : ety -> Ty
+| Treturn : ty -> Ty (* τ → ⊥ *)
 .
 #[local]
 Instance TheTy__Instance : TyClass Ty := {}.
@@ -204,6 +205,40 @@ Inductive int : ty -> Prop :=
 | intℕ : int Tℕ
 | intwptr : int Twptr
 .
+Definition intf (τ : ty) : option ty :=
+  match τ with
+  | Tℕ => Some Tℕ
+  | Twptr => Some Twptr
+  | _ => None
+  end
+.
+Lemma intf_refl τ τ' :
+  intf τ = Some τ' -> τ = τ'.
+Proof. induction τ; cbn; intros; inv H; try easy. destruct q; try easy. now inv H1. Qed.
+Lemma int_equiv_intf τ :
+  int τ <-> intf τ = Some τ
+.
+Proof.
+  induction τ; cbn.
+  - split; try easy; constructor.
+  - destruct q; split; intros H; inv H; try easy; constructor.
+Qed.
+Ltac crush_intf τ :=
+  let Hx' := fresh "Hx'" in
+  let Hx := fresh "Hx" in
+  let x := fresh "x" in
+  destruct (option_dec (intf τ)) as [Hx | Hx];
+  try (rewrite Hx in *; congruence);
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply intf_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
+.
+Lemma int_equiv_intf_none τ :
+  (~ int τ) <-> intf τ = None
+.
+Proof.
+  split; intros H.
+  - crush_intf τ; apply int_equiv_intf in Hx; contradiction.
+  - intros H0%int_equiv_intf; congruence.
+Qed.
 (** Context splitting *)
 Reserved Notation "Γ '≡' Γ1 '∘' Γ2" (at level 81, Γ1 at next level, Γ2 at next level).
 Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
@@ -230,7 +265,26 @@ where "Γ '≡' Γ1 '∘' Γ2" := (splitting Γ Γ1 Γ2)
 .
 
 (** Typechecking *)
-Definition NoOwnedPtr (Γ : Gamma) := forall (x : vart) (τ : ty), mget Γ x = Some(Texpr τ) -> τ <> Tptr.
+Fixpoint NoOwnedPtr (Γ : Gamma) :=
+  match Γ with
+  | mapNil _ _ => True
+  | mapCons x τ Γ' => τ <> Tptr /\ NoOwnedPtr Γ'
+  end
+.
+Lemma noownedptr_cons Γ x τ :
+  NoOwnedPtr (x ↦ τ ◘ Γ) ->
+  NoOwnedPtr (x ↦ τ ◘ (mapNil _ _)) /\ NoOwnedPtr Γ
+.
+Proof. intros H; inv H; now repeat split. Qed.
+Lemma noownedptr_split Γ1 Γ2 :
+  NoOwnedPtr (Γ1 ◘ Γ2) ->
+  NoOwnedPtr Γ1 /\ NoOwnedPtr Γ2
+.
+Proof.
+  induction Γ1; cbn; intros H; try easy.
+  destruct H as [Ha Hb]; fold (append Γ1 Γ2) in Hb. destruct (IHΓ1 Hb) as [IH__a IH__b]; now repeat split.
+Qed.
+
 Inductive check : VDash :=
 | CTvar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
     NoOwnedPtr Γ1 ->
@@ -277,7 +331,7 @@ Inductive check : VDash :=
 | CTret : forall (Γ : Gamma) (e : expr) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
     int τ ->
     (Γ ⊦ e : (Texpr τ)) ->
-    (Γ ⊦ Xreturn e : (Texpr τ))
+    (Γ ⊦ Xreturn e : (Treturn τ))
 | CTifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
     Γ3 ≡ Γ1 ∘ Γ2 ->
     (Γ1 ⊦ c : (Texpr Tℕ)) ->
@@ -287,6 +341,106 @@ Inductive check : VDash :=
 .
 #[local]
 Hint Constructors check : core.
+Fixpoint noownedptrf (Γ : Gamma) : option Gamma :=
+  match Γ with
+  | mapNil _ _ => Some Γ
+  | mapCons x (Texpr τ) Γ' =>
+    let* _ := intf τ in
+    let* Γ'' := noownedptrf Γ' in
+    Some Γ
+  | mapCons x _ Γ' =>
+    let* Γ'' := noownedptrf Γ' in
+    Some Γ
+  end
+.
+Lemma noownedptrf_refl Γ Γ' :
+  noownedptrf Γ = Some Γ' -> Γ = Γ'
+.
+Proof.
+  revert Γ'; induction Γ; intros; inv H; try easy.
+  destruct b; inv H1.
+  - destruct (intf t); inv H0.
+    destruct (option_dec (noownedptrf Γ)) as [Hx | Hx]; try (rewrite Hx in H1; inv H1).
+    apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in H1.
+    now inv H1.
+  - destruct (option_dec (noownedptrf Γ)) as [Hx | Hx]; try (rewrite Hx in H0; inv H0).
+    apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in H0. now inv H0.
+  - destruct (option_dec (noownedptrf Γ)) as [Hx | Hx]; try (rewrite Hx in H0; inv H0).
+    apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in H0. now inv H0.
+Qed.
+Ltac crush_noownedptrf Γ :=
+  let Hx' := fresh "Hx'" in
+  let Hx := fresh "Hx" in
+  let x := fresh "x" in
+  destruct (option_dec (noownedptrf Γ)) as [Hx | Hx];
+  try (rewrite Hx in *; congruence);
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply noownedptrf_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
+.
+Lemma noownedptr_equiv_noownedptrf Γ :
+  NoOwnedPtr Γ <-> noownedptrf Γ = Some Γ
+.
+Proof.
+  induction Γ; cbn; split; intros H; try easy.
+  - destruct b; destruct H as [Ha Hb].
+    + crush_intf t.
+      * apply IHΓ in Hb. now rewrite Hb.
+      * apply int_equiv_intf_none in Hx.
+        exfalso; apply Hx. destruct t; try congruence; try constructor. destruct q; try constructor; contradiction.
+    + now apply IHΓ in Hb as ->.
+    + now apply IHΓ in Hb as ->.
+  - destruct b; crush_noownedptrf Γ.
+    + crush_intf t. destruct t; inv Hx; split; try apply IHΓ; try easy; destruct q; easy.
+    + crush_intf t. rewrite Hx in H. inv H.
+    + destruct e; split; try apply IHΓ; easy.
+    + split; try apply IHΓ; easy.
+Qed.
+
+(* TODO: somehow split Γ *)
+Fixpoint inferf (Γ : Gamma) (e : expr) : option Ty :=
+  match e with
+  | Xres(Fres(Fvar x)) =>
+    let* _ := undup Γ in
+    let* (Γ1, y, τ, Γ2) := splitat Γ x in
+    let* _ := noownedptrf Γ in
+    Some τ
+  | Xres(Fres(Fval(Vnat n))) =>
+    let* _ := noownedptrf Γ in
+    Some(Texpr Tℕ)
+  | Xbinop _ e1 e2 =>
+    (* Γ3 ≡ Γ1 ∘ Γ2 *)
+    let* τ1 := inferf Γ e1 in
+    let* τ2 := inferf Γ e2 in
+    match τ1, τ2 with
+    | Texpr Tℕ, Texpr Tℕ => Some(Texpr Tℕ)
+    | _, _ => None
+    end
+  | _ => None
+  end
+.
+Ltac crush_option X :=
+  let Hx := fresh "Hx" in
+  destruct (option_dec X) as [Hx | Hx];
+  try (rewrite Hx in *; congruence);
+  try (let x := fresh "x" in apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in *)
+.
+Lemma checkf_equiv_check (Γ : Gamma) (e : expr) (τ : Ty) :
+  inferf Γ e = Some τ <-> (check Γ e τ)
+.
+Proof.
+  split; intros H.
+  - revert Γ H; induction e; intros Γ H; cbn in H.
+    + destruct f as [[]|].
+      * destruct v. crush_noownedptrf Γ. inv H. constructor. now apply noownedptr_equiv_noownedptrf.
+      * crush_undup Γ; apply nodupinv_equiv_undup in Hx.
+        recognize_split; elim_split.
+        crush_noownedptrf (m1 ◘ v ↦ v0 ◘ m2). inv H. apply noownedptr_equiv_noownedptrf in Hx0.
+        apply noownedptr_split in Hx0 as [Hx0__a Hx0__b]. apply noownedptr_cons in Hx0__b as [Hx0__b Hx0__c].
+        constructor; auto.
+      * inv H.
+    + crush_option (inferf Γ e1). crush_option (inferf Γ e2).
+      destruct x as [[]| |]; try congruence; destruct x0; try congruence; destruct t; try congruence.
+      inv H. eapply CToplus; try (eapply IHe2 + eapply IHe1); eauto. admit.
+Admitted.
 
 (** Symbols are pairs consisting of the function and its type. *)
 Definition symbol : Type := evalctx * Ty.

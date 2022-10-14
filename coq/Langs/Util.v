@@ -754,6 +754,7 @@ Proof.
     apply not_eq_None_Some in Hx as [m'' Hx]. rewrite Hx. f_equal. f_equal. apply undup_refl in Hx; easy.
     apply IHxs in H4. congruence.
 Qed.
+
 Definition push { A : Type } { H : HasEquality A } (x : A) (xs : list A) : option (list A) :=
   match undup (List.cons x xs) with
   | Some xs' => Some xs'
@@ -789,3 +790,40 @@ Proof.
 Qed.
 
 End NoDupList.
+
+#[global]
+Ltac crush_undup M :=
+  let Hx' := fresh "Hx'" in
+  let Hx := fresh "Hx" in
+  let x := fresh "x" in
+  destruct (option_dec (undup M)) as [Hx | Hx];
+  try (rewrite Hx in *; congruence);
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply undup_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
+.
+#[global]
+Ltac recognize_split :=
+  match goal with
+  | [H: match splitat ?M ?x with
+        | Some _ => _
+        | None => _
+        end = _ |- _] =>
+    let Hy := fresh "Hy" in
+    let H0 := fresh "H" in
+    destruct (in_dom_dec M x) as [Hy | Hy];
+    try (apply splitat_notin in Hy; rewrite Hy in H; inv H);
+    try (apply in_dom_split in Hy as H0; eauto; deex; rewrite H0 in H)
+  end.
+#[global]
+Ltac elim_split :=
+  match goal with
+  | [H0: match splitat ?M ?x with
+        | Some _ => _
+        | None => _
+        end = _,
+     H1: ?M' = ?M,
+     H2: nodupinv ?M'
+     |- _] =>
+     let H2' := fresh "H'" in
+     assert (H2':=H2); rewrite H1 in H2'; apply splitat_elim in H2'; auto; rewrite H2' in H0
+  end
+.

@@ -132,6 +132,13 @@ Proof. rewrite is_Some_alt; destruct mx; try easy; congruence. Qed.
 Lemma option_dec {A : Type} (mx : option A) : { mx <> None } + { mx = None }.
 Proof. destruct mx; now (left + right). Qed.
 
+Ltac crush_option X :=
+  let Hx := fresh "Hx" in
+  destruct (option_dec X) as [Hx | Hx];
+  try (rewrite Hx in *; congruence);
+  try (let x := fresh "x" in apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in *)
+.
+
 Class Monad (m : Type -> Type) : Type := {
   ret : forall {t : Type}, t -> m t ;
   bind : forall {t u : Type}, m t -> (t -> m u) -> m u

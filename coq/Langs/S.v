@@ -396,51 +396,87 @@ Proof.
 Qed.
 
 (* TODO: somehow split Γ *)
-Fixpoint inferf (Γ : Gamma) (e : expr) : option Ty :=
+Fixpoint inferf (Γ : Gamma) (e : expr) : option (Gamma * Ty) :=
   match e with
   | Xres(Fres(Fvar x)) =>
     let* _ := undup Γ in
     let* (Γ1, y, τ, Γ2) := splitat Γ x in
     let* _ := noownedptrf Γ in
-    Some τ
+    Some (Γ, τ)
   | Xres(Fres(Fval(Vnat n))) =>
     let* _ := noownedptrf Γ in
-    Some(Texpr Tℕ)
+    Some(Γ, Texpr Tℕ)
   | Xbinop _ e1 e2 =>
     (* Γ3 ≡ Γ1 ∘ Γ2 *)
-    let* τ1 := inferf Γ e1 in
-    let* τ2 := inferf Γ e2 in
+    let* (Γ1, τ1) := inferf Γ e1 in
+    let* (Γ2, τ2) := inferf Γ1 e2 in
     match τ1, τ2 with
-    | Texpr Tℕ, Texpr Tℕ => Some(Texpr Tℕ)
+    | Texpr Tℕ, Texpr Tℕ => Some(Γ2, Texpr Tℕ)
     | _, _ => None
+    end
+  | Xdel x =>
+    let* _ := undup Γ in
+    let* (Γ1, y, τ, Γ2) := splitat Γ x in
+    match τ with
+    | Texpr Tptr => Some(Γ1 ◘ Γ2, Texpr Tℕ)
+    | _ => None
     end
   | _ => None
   end
 .
-Ltac crush_option X :=
-  let Hx := fresh "Hx" in
-  destruct (option_dec X) as [Hx | Hx];
-  try (rewrite Hx in *; congruence);
-  try (let x := fresh "x" in apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in *)
+(** Returns list of linear variable names *)
+Fixpoint Lin (Γ : Gamma) :=
+  match Γ with
+  | mapNil _ _ => List.nil
+  | mapCons x τ Γ' =>
+    match τ with
+    | Texpr Tptr => List.cons x (Lin Γ')
+    | _ => Lin Γ'
+    end
+  end
 .
-Lemma checkf_equiv_check (Γ : Gamma) (e : expr) (τ : Ty) :
-  inferf Γ e = Some τ <-> (check Γ e τ)
+Lemma checkf_soundness (Γ__a Γ__b : Gamma) (e : expr) (τ : Ty) :
+  Lin Γ__b = List.nil ->
+  inferf Γ__a e = Some(Γ__b, τ) ->
+  check Γ__a e τ
 .
 Proof.
-  split; intros H.
-  - revert Γ H; induction e; intros Γ H; cbn in H.
-    + destruct f as [[]|].
-      * destruct v. crush_noownedptrf Γ. inv H. constructor. now apply noownedptr_equiv_noownedptrf.
-      * crush_undup Γ; apply nodupinv_equiv_undup in Hx.
-        recognize_split; elim_split.
-        crush_noownedptrf (m1 ◘ v ↦ v0 ◘ m2). inv H. apply noownedptr_equiv_noownedptrf in Hx0.
-        apply noownedptr_split in Hx0 as [Hx0__a Hx0__b]. apply noownedptr_cons in Hx0__b as [Hx0__b Hx0__c].
-        constructor; auto.
-      * inv H.
-    + crush_option (inferf Γ e1). crush_option (inferf Γ e2).
-      destruct x as [[]| |]; try congruence; destruct x0; try congruence; destruct t; try congruence.
-      inv H. eapply CToplus; try (eapply IHe2 + eapply IHe1); eauto. admit.
+  revert Γ__a Γ__b; induction e; intros Γ__a Γ__b H0 H1; cbn in H1.
+  - destruct f as [[]|].
+    + (* value *) destruct v. crush_noownedptrf Γ__a. inv H1. constructor. now apply noownedptr_equiv_noownedptrf.
+    + (* variable *) crush_undup Γ__a; apply nodupinv_equiv_undup in Hx.
+      recognize_split; elim_split.
+      crush_noownedptrf (m1 ◘ v ↦ v0 ◘ m2). inv H1. apply noownedptr_equiv_noownedptrf in Hx0.
+      apply noownedptr_split in Hx0 as [Hx0__a Hx0__b]. apply noownedptr_cons in Hx0__b as [Hx0__b Hx0__c].
+      constructor; auto.
+    + (* abort *) congruence.
+  - (* binop *) crush_option (inferf Γ__a e1); destruct x as [Γ__a' τ1].
+    crush_option (inferf Γ__a' e2); destruct x as [Γ__a'' τ2].
+    destruct τ1; try congruence; destruct t; try congruence; destruct τ2; try congruence; destruct t; try congruence.
+    inv H1. eapply CToplus. admit. eapply IHe1; admit. (* trouble in paradise! *) admit.
+  - (* get *) congruence.
+  - (* set *) congruence.
+  - (* let *) congruence.
+  - (* new *) congruence.
+  - (* del *) crush_undup Γ__a; apply nodupinv_equiv_undup in Hx.
+    recognize_split; elim_split. inv H. destruct v; inv H1. destruct t; inv H3. destruct q; inv H1.
+    constructor.
+  - (* ret *) congruence.
+  - (* call *) congruence.
+  - (* ifz *) congruence.
 Admitted.
+
+Lemma checkf_completeness (Γ1 Γ2 : Gamma) (e : expr) (τ : Ty) :
+  check Γ1 e τ ->
+  inferf Γ1 e = Some(Γ2, τ) /\ Lin Γ2 = List.nil
+.
+Proof. Admitted.
+
+Lemma checkf_equiv_check (Γ__a Γ__b : Gamma) (e : expr) (τ : Ty) :
+  Lin Γ__b = List.nil ->
+  inferf Γ__a e = Some(Γ__b, τ) <-> (check Γ__a e τ)
+.
+Proof. split; (eapply checkf_soundness + eapply checkf_completeness); easy. Qed.
 
 (** Symbols are pairs consisting of the function and its type. *)
 Definition symbol : Type := evalctx * Ty.

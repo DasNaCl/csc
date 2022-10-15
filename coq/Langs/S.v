@@ -528,7 +528,7 @@ Fixpoint splitf (Γ : Gamma) (e1 e2 : expr) : option (Gamma * Gamma) :=
         | PosL => (* ptrLsplit *)
           Some(mapCons x τ Γ1, Γ2)
         | PosR => (* ptrRsplit *)
-          Some(Γ1, mapCons x τ Γ2)
+          Some(mapCons x (Texpr Twptr) Γ1, mapCons x τ Γ2)
         end
       end
     | Tarrow τ1 τ2 => (* ArrowSplit *)
@@ -540,13 +540,49 @@ Fixpoint splitf (Γ : Gamma) (e1 e2 : expr) : option (Gamma * Gamma) :=
     end
   end
 .
-Lemma splitf_equiv_splitting (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ : Ty) :
-  check Γ1 e1 τ ->
-  check Γ2 e2 τ ->
-  splitf Γ e1 e2 = Some(Γ1, Γ2) <-> (Γ ≡ Γ1 ∘ Γ2)
+Lemma splitf_sound (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ : Ty) :
+  splitf Γ e1 e2 = Some(Γ1, Γ2) -> (Γ ≡ Γ1 ∘ Γ2)
 .
 Proof.
+  revert Γ1 Γ2; induction Γ; intros Γ1 Γ2 H2; cbn in H2.
+  - someinv; constructor.
+  - destruct b; try congruence.
+    + destruct t; crush_option (splitf Γ e1 e2); try destruct x as [Γ1' Γ2']; someinv.
+      * constructor; now apply IHΓ.
+      * destruct q; crush_option (determine_pos a e1 e2); someinv; try (constructor; now apply IHΓ).
+        destruct x; someinv; constructor; now apply IHΓ.
+      * destruct q; now rewrite Hx in H2.
+    + destruct e; crush_intf t; crush_intf t0; crush_option (splitf Γ e1 e2);
+      destruct x1 as [Γ1' Γ2']; someinv.
+      constructor; try now apply int_equiv_intf. now apply IHΓ.
+Qed.
+Lemma splitf_complete (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ : Ty) :
+  (Γ ≡ Γ1 ∘ Γ2) ->
+  splitf Γ e1 e2 = Some(Γ1, Γ2)
+.
+Proof.
+  revert Γ1 Γ2; induction Γ; intros Γ1 Γ2 H2.
+  - inv H2. now cbn.
+  - inv H2; cbn; try (apply IHΓ in H5; crush_option (splitf Γ e1 e2); destruct x as [Γ1 Γ2]; someinv; easy).
+    + apply IHΓ in H5. crush_option (splitf Γ e1 e2); try destruct x as [Γ1' Γ2']; someinv.
+      crush_option (determine_pos a e1 e2).
+      * destruct x. easy. admit. (* need contradiction here *)
+      * admit. (*need contradiction here*)
+    + apply IHΓ in H5. crush_option (splitf Γ e1 e2); try destruct x as [Γ1' Γ2']; someinv.
+      crush_option (determine_pos a e1 e2).
+      * destruct x. admit. (* need contradiction here *) easy.
+      * admit. (*need contradiction here*)
+    + apply int_equiv_intf in H3, H6; crush_intf τ0; crush_intf τ1; clear H3 H6.
+      crush_option (splitf Γ e1 e2); try destruct x1 as [Γ1 Γ2].
+      apply IHΓ in H7; someinv; easy.
+      (*need contradiction here*) admit.
 Admitted.
+Lemma splitf_equiv_splitting (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ : Ty) :
+  (*check Γ1 e1 τ ->
+  check Γ2 e2 τ ->*)
+  splitf Γ e1 e2 = Some(Γ1, Γ2) <-> (Γ ≡ Γ1 ∘ Γ2)
+.
+Proof. split; eauto using splitf_complete, splitf_sound. Qed.
 
 Fixpoint noownedptrf (Γ : Gamma) : option Gamma :=
   match Γ with

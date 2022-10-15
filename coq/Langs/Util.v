@@ -845,10 +845,7 @@ Ltac crush_undup M :=
 #[global]
 Ltac recognize_split :=
   match goal with
-  | [H: match splitat ?M ?x with
-        | Some _ => _
-        | None => _
-        end = _ |- _] =>
+  | [H: context C[splitat ?M ?x] |- _] =>
     let Hy := fresh "Hy" in
     let H0 := fresh "H" in
     destruct (in_dom_dec M x) as [Hy | Hy];
@@ -858,10 +855,7 @@ Ltac recognize_split :=
 #[global]
 Ltac elim_split :=
   match goal with
-  | [H0: match splitat ?M ?x with
-        | Some _ => _
-        | None => _
-        end = _,
+  | [H0: context C[splitat ?M ?x],
      H1: ?M' = ?M,
      H2: nodupinv ?M'
      |- _] =>

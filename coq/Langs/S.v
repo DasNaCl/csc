@@ -662,9 +662,9 @@ Fixpoint inferf (Γ : Gamma) (e : expr) : option Ty :=
     let* (Γ1, Γ2) := splitf Γ (Fvar x) e' in
     let* τ__x := inferf_var Γ2 x in
     let* τ__e := inferf Γ1 e' in
-    match τ__x with
-    | Texpr Tℕ => Some τ__e
-    | _ => None
+    match τ__x, τ__e with
+    | Texpr Twptr, Texpr Tℕ => Some(Texpr Tℕ)
+    | _, _ => None
     end
   | Xset x e1 e2 =>
     let* (Γ12, Γ3) := splitf Γ (Fvar x) (Xbinop Badd e1 e2) in
@@ -715,7 +715,15 @@ Proof.
     specialize (IHe1 Γ1 Hx0) as IHe1'; specialize (IHe2 Γ2 Hx1).
     erewrite splitf_equiv_splitting in Hx; eauto.
     eapply CToplus; eauto.
-  - (* get *) congruence.
+  - (* get *) crush_option (splitf Γ (Fvar x) e); destruct x0 as [Γ1 Γ2].
+    crush_undup Γ2. apply nodupinv_equiv_undup in Hx0.
+    recognize_split; elim_split; crush_noownedptrf (m1 ◘ x ↦ v ◘ m2).
+    crush_option (inferf Γ1 e); destruct v as [[]| |]; try congruence; destruct q; try congruence.
+    destruct x2 as [[]| |]; try congruence; someinv.
+    eapply splitf_equiv_splitting in Hx; eauto.
+    eapply CTget; eauto. constructor; apply noownedptr_equiv_noownedptrf in Hx1;
+    apply noownedptr_split in Hx1 as [Hx1__a Hx1__b]; apply noownedptr_cons in Hx1__b as [Hx1__b Hx1__c]; auto.
+    eapply IHe; eauto. admit. admit.
   - (* set *) congruence.
   - (* let *) congruence.
   - (* new *) congruence.

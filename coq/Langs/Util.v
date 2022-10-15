@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Lists.List Strings.String CSC.Util RelationClasses.
+Require Import Lists.List Strings.String CSC.Util RelationClasses Setoid Morphisms.
 
 Section Util.
 
@@ -430,23 +430,65 @@ Lemma nodupinv_mset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapi
 .
 Proof. intros H0 H1; eauto using dom_mset, dom_nodupinv. Qed.
 
-Definition MIn { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) : Prop :=
-  mget m x = Some v
-.
-Definition MSubset { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) : Prop :=
-  forall (x : A) (v : B), MIn m1 x v -> MIn m2 x v
+Ltac crush_undup M :=
+  let Hx' := fresh "Hx'" in
+  let Hx := fresh "Hx" in
+  let x := fresh "x" in
+  destruct (option_dec (undup M)) as [Hx | Hx];
+  try (rewrite Hx in *; congruence);
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply undup_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
 .
 
-Lemma MIn_in { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
-  MIn m x v -> In x (dom m) /\ In v (img m)
+Fixpoint Min { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :=
+  match m with
+  | mapNil _ _ => False
+  | mapCons a0 b0 m' => a = a0 /\ b = b0 \/ (a <> a0 /\ Min m' a b)
+  end
+.
+Lemma cons_Min { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :
+  Min (mapCons a b m) a b
+.
+Proof. now left. Qed.
+
+Definition MSubset { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) : Prop :=
+  forall (x : A) (v : B), Min m1 x v -> Min m2 x v
+.
+Definition meq { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) :=
+  MSubset m1 m2 /\ MSubset m2 m1
+.
+Lemma meq_correct { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) :
+  m1 = m2 -> meq m1 m2
+.
+Proof. intros H0; subst; easy. Qed.
+
+#[global]
+Instance refl_meq { A : Type } { H : HasEquality A } { B : Type } : Reflexive (@meq A H B).
+Proof. intros m; split; intros Hx; auto. Qed.
+#[global]
+Instance trans_meq { A : Type } { H : HasEquality A } { B : Type } : Transitive (@meq A H B).
+Proof. intros m1 m2 m3 [H0__a H0__b] [H1__a H1__b]; split; intros H2; auto. Qed.
+#[global]
+Instance symm_meq { A : Type } { H : HasEquality A } { B : Type } : Symmetric (@meq A H B).
+Proof. intros m0 m1 [H0__a H0__b]; split; intros Hx; auto. Qed.
+#[global]
+Instance equiv_meq { A : Type } { H : HasEquality A } { B : Type } : Equivalence (@meq A H B).
+Proof. split; try exact refl_meq; try exact trans_meq; exact symm_meq. Qed.
+
+#[global]
+Instance trans_msubset { A : Type } { H : HasEquality A } { B : Type } : Transitive (@MSubset A H B).
+Proof. intros m1 m2 m3 H0 H1 x v F0; auto. Qed.
+#[global]
+Instance refl_msubset { A : Type } { H : HasEquality A } { B : Type } : Reflexive (@MSubset A H B).
+Proof. intros m x v H0; auto. Qed.
+
+Lemma Min_in { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  Min m x v -> In x (dom m) /\ In v (img m)
 .
 Proof.
-  induction m; cbn; intros.
-  - inv H0.
-  - inv H0. remember (eq a x) as b__x; destruct b__x; symmetry in Heqb__x.
-    + inv H2. apply eqb_eq in Heqb__x; subst; split; now left.
-    + destruct (IHm H2) as [IHm1 IHm2].
-      split; now right.
+  induction m; cbn; intros; try easy.
+  destruct H0 as [[H0__a H0__b] | [H0__a H0__b]]; subst; fold (img m); fold (dom m).
+  - split; now left.
+  - split; right; apply IHm; auto.
 Qed.
 Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
   Some m' = (x ↦ v ◘ m) ->
@@ -454,34 +496,34 @@ Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapin
 Proof.
   intros H0 a b H1. symmetry in H0. apply push_ok in H0 as H0'.
   unfold "_ ↦ _ ◘ _" in H0.
-  unfold MIn in *.
-  destruct (option_dec (undup (mapCons x v m))) as [Hx | Hy].
-  apply not_eq_None_Some in Hx as [m'' Hx].
-  rewrite Hx in H0; inv H0.
-  apply undup_refl in Hx. inv Hx. cbn. inv H0'.
-  destruct (Bool.bool_dec (eq x a) true) as [Hv | Hv].
-  exfalso. apply H4. apply eqb_eq in Hv. apply MIn_in in H1 as [H1a H1b].
-  subst; contradiction.
-  apply Bool.not_true_is_false in Hv; now rewrite Hv.
-  now rewrite Hy in H0.
+  crush_undup (mapCons x v m); inv H0. right; split; try easy.
+  destruct (eq_dec a x); subst; try easy.
+  inv H0'. apply Min_in in H1 as [H1__a H1__b]; contradiction.
 Qed.
 
-#[global]
-Instance MSubset__Transitivity { A : Type } { H : HasEquality A } { B : Type } :
-  Transitive (fun (a b : mapind H B) => MSubset a b).
-Proof. intros x y z Ha Hb f w Hc; now apply Hb, Ha. Qed.
-
 Lemma mget_min {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
-  mget m x = Some v <-> MIn m x v
+  mget m x = Some v <-> Min m x v
 .
-Proof. split; induction m; cbn; eauto. Qed.
+Proof.
+  split.
+  - induction m; cbn; try easy.
+    fold (mget m x). intros H0.
+    destruct (eq_dec a x); subst.
+    + rewrite eq_refl in H0; inv H0; now left.
+    + apply neqb_neq in H1; rewrite H1 in H0. right; split; auto. apply neqb_neq in H1. intros H2.
+      subst; contradiction.
+  - induction m; cbn; intros; try easy. destruct (eq_dec a x); subst.
+    + rewrite eq_refl. destruct H0 as [[H0__a H0__b]|[H0__a H0__b]]; subst; easy.
+    + apply neqb_neq in H1 as H1'; rewrite H1'. fold (mget m x).
+      destruct H0 as [[H0__a H0__b]|[H0__a H0__b]]; subst; try easy; auto.
+Qed.
 
 Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
   mget m x = Some v ->
   MSubset m m' ->
   mget m' x = Some v
 .
-Proof. intros Ha Hb; specialize (Hb x v); apply mget_min; apply mget_min in Ha; eauto. Qed.
+Proof. intros Ha Hb; specialize (Hb x v); apply mget_min in Ha; apply mget_min; auto. Qed.
 
 (** These are synthetic. They simply allow us to write e.g. `PrimStep` instead of supplying it with parameters *)
 Class ExprClass (Expr : Type) := {}.

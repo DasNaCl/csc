@@ -85,6 +85,30 @@ Inductive qual : Type :=
 | Qfull : qual
 | Qhalf : qual
 .
+Definition qual_eqb (q1 q2 : qual) : bool :=
+  match q1, q2 with
+  | Qfull, Qfull | Qhalf, Qhalf => true
+  | _, _ => false
+  end
+.
+Lemma qual_eqb_refl q :
+  qual_eqb q q = true.
+Proof. destruct q; now cbn. Qed.
+Lemma qual_eqb_eq q0 q1 :
+  qual_eqb q0 q1 = true <-> q0 = q1.
+Proof. destruct q0, q1; split; intros H; easy. Qed.
+Lemma qual_eqb_neq q0 q1 :
+  qual_eqb q0 q1 = false <-> q0 <> q1.
+Proof. destruct q0, q1; split; intros H; easy. Qed.
+#[local]
+Instance qualeq__Instance : HasEquality qual := {
+  eq := qual_eqb ;
+  eq_refl := qual_eqb_refl ;
+  eqb_eq := qual_eqb_eq ;
+  neqb_neq := qual_eqb_neq
+}.
+#[local]
+Existing Instance varteq__Instance.
 (** Types of S *)
 Inductive ty : Type :=
 | Tnat : ty
@@ -93,6 +117,37 @@ Inductive ty : Type :=
 Notation "'Tℕ'" := (Tnat).
 Notation "'Tptr'" := (Tnatptr Qfull).
 Notation "'Twptr'" := (Tnatptr Qhalf).
+Definition ty_eqb (t1 t2 : ty) : bool :=
+  match t1, t2 with
+  | Tnat, Tnat => true
+  | Tnatptr q1, Tnatptr q2 => eq q1 q2
+  | _, _ => false
+  end
+.
+Lemma ty_eqb_refl t :
+  ty_eqb t t = true.
+Proof. destruct t; cbn; trivial; apply qual_eqb_refl. Qed.
+Lemma ty_eqb_eq t0 t1 :
+  ty_eqb t0 t1 = true <-> t0 = t1.
+Proof.
+  destruct t0, t1; split; intros H; trivial; destruct q; cbn in *; try easy.
+  all: destruct q0; easy.
+Qed.
+Lemma ty_eqb_neq t0 t1 :
+  ty_eqb t0 t1 = false <-> t0 <> t1.
+Proof.
+  destruct t0, t1; split; intros h; try easy; destruct q, q0; cbn in *; try easy.
+Qed.
+#[local]
+Instance tyeq__Instance : HasEquality ty := {
+  eq := ty_eqb ;
+  eq_refl := ty_eqb_refl ;
+  eqb_eq := ty_eqb_eq ;
+  neqb_neq := ty_eqb_neq
+}.
+#[local]
+Existing Instance varteq__Instance.
+
 Inductive expr : Type :=
 | Xres (f : ferr) : expr
 | Xbinop (symb : binopsymb) (lhs rhs : expr) : expr
@@ -109,6 +164,57 @@ Inductive expr : Type :=
 Coercion Xres : ferr >-> expr.
 #[local]
 Instance expr__Instance : ExprClass expr := {}.
+
+(** Checks wether a given expression contains a delete of the given var *)
+Fixpoint find_del (x : vart) (e : expr) : option True :=
+  match e with
+  | Xdel y => if eq x y then Some I else None
+  | Xreturn e' => find_del x e'
+  | Xcall _ e' => find_del x e'
+  | Xget _ e' => find_del x e'
+  | Xset _ e1 e2 =>
+    match find_del x e1, find_del x e2 with
+    | Some _, Some _ => None (* won't typecheck *)
+    | Some _, None => Some I
+    | None, Some _ => Some I
+    | None, None => None (* won't typecheck *)
+    end
+  | Xbinop _ e1 e2 =>
+    match find_del x e1, find_del x e2 with
+    | Some _, Some _ => None (* won't typecheck *)
+    | Some _, None => Some I
+    | None, Some _ => Some I
+    | None, None => None (* won't typecheck *)
+    end
+  | Xlet y e1 e2 =>
+    if eq x y then
+      find_del x e1
+    else
+      match find_del x e1, find_del x e2 with
+      | Some _, Some _ => None (* won't typecheck *)
+      | Some _, None => Some I
+      | None, Some _ => Some I
+      | None, None => None (* won't typecheck *)
+      end
+  | Xnew y e1 e2 =>
+    if eq x y then
+      find_del x e1
+    else
+      match find_del x e1, find_del x e2 with
+      | Some _, Some _ => None (* won't typecheck *)
+      | Some _, None => Some I
+      | None, Some _ => Some I
+      | None, None => None (* won't typecheck *)
+      end
+  | Xifz c e1 e2 =>
+    match find_del x c, find_del x e1, find_del x e2 with
+    | Some _, Some _, Some _ | Some _, Some _, None | Some _, None, Some _ | None, Some _, Some _ => None (* won't typecheck *)
+    | Some _, None, None | None, Some _, None | None, None, Some _ => Some I
+    | None, None, None => None (* won't typeheck*)
+    end
+  | _ => None
+  end
+.
 
 Fixpoint string_of_expr (e : expr) :=
   match e with
@@ -199,6 +305,55 @@ Inductive Ty : Type :=
 Instance TheTy__Instance : TyClass Ty := {}.
 Coercion Texpr : ty >-> Ty.
 Coercion Tectx : ety >-> Ty.
+Definition Ty_eqb (t1 t2 : Ty) : bool :=
+  match t1, t2 with
+  | Treturn t1', Treturn t2' => eq t1' t2'
+  | Tectx(Tarrow ta tb), Tectx(Tarrow ta' tb') => andb (eq ta ta') (eq tb tb')
+  | Texpr ta, Texpr tb => eq ta tb
+  | _, _ => false
+  end
+.
+Lemma Ty_eqb_refl t :
+  Ty_eqb t t = true.
+Proof.
+  destruct t; cbn; trivial; try apply ty_eqb_refl; destruct e; now repeat rewrite ty_eqb_refl.
+Qed.
+Lemma Ty_eqb_eq t0 t1 :
+  Ty_eqb t0 t1 = true <-> t0 = t1.
+Proof.
+  destruct t0, t1; split; intros H; try easy.
+  cbn in H; apply ty_eqb_eq in H; subst; easy.
+  rewrite H; apply Ty_eqb_refl; easy.
+  cbn in H. destruct e; congruence.
+  destruct e, e0; cbn in H. remember (ty_eqb t t1) as b0; remember (ty_eqb t0 t2) as b1.
+  symmetry in Heqb0, Heqb1. destruct b0, b1; cbn in H; try congruence; clear H.
+  now apply ty_eqb_eq in Heqb0, Heqb1; subst.
+  rewrite H. now apply Ty_eqb_refl.
+  destruct e; now cbn in H.
+  cbn in H. apply ty_eqb_eq in H; rewrite H; easy.
+  inv H. apply Ty_eqb_refl.
+Qed.
+Lemma Ty_eqb_neq t0 t1 :
+  Ty_eqb t0 t1 = false <-> t0 <> t1.
+Proof.
+  split; intros H.
+  - intros H1; subst. now rewrite Ty_eqb_refl in H.
+  - destruct t0, t1; cbn; try easy;
+    try (apply ty_eqb_neq; congruence);
+    try (destruct e; try congruence).
+    destruct e0. remember (ty_eqb t t1) as b0; remember (ty_eqb t0 t2) as b1.
+    symmetry in Heqb0, Heqb1; destruct b0, b1; try now cbn.
+    apply ty_eqb_eq in Heqb0, Heqb1; subst. contradiction.
+Qed.
+#[local]
+Instance Tyeq__Instance : HasEquality Ty := {
+  eq := Ty_eqb ;
+  eq_refl := Ty_eqb_refl ;
+  eqb_eq := Ty_eqb_eq ;
+  neqb_neq := Ty_eqb_neq
+}.
+#[local]
+Existing Instance varteq__Instance.
 
 (** Interface types *)
 Inductive int : ty -> Prop :=
@@ -243,8 +398,6 @@ Qed.
 Reserved Notation "Γ '≡' Γ1 '∘' Γ2" (at level 81, Γ1 at next level, Γ2 at next level).
 Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
 | splitEmpty : [⋅] ≡ [⋅] ∘ [⋅]
-| splitEmptyL : forall (Γ : Gamma), [⋅] ≡ [⋅] ∘ Γ
-| splitEmptyR : forall (Γ : Gamma), [⋅] ≡ Γ ∘ [⋅]
 | ℕsplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
     Γ ≡ Γ1 ∘ Γ2 ->
     x ↦ (Texpr Tℕ) ◘ Γ ≡ x ↦ (Texpr Tℕ) ◘ Γ1 ∘ (x ↦ (Texpr Tℕ) ◘ Γ2)
@@ -341,6 +494,60 @@ Inductive check : VDash :=
 .
 #[local]
 Hint Constructors check : core.
+
+(** marker for which gamma the owned pointer should be moved to *)
+Variant Pos : Type :=
+| PosL : Pos
+| PosR : Pos
+.
+(** returns Pos by looking which expression uses a given var in a delete *)
+Definition determine_pos (x : vart) (e1 e2 : expr) : option Pos :=
+  match find_del x e1, find_del x e2 with
+  | Some _, Some _ => None (* this won't typecheck *)
+  | Some _, None => Some PosL
+  | None, Some _ => Some PosR
+  | None, None => None (* this won't typecheck *)
+  end
+.
+
+(** splits Γ backtracking style. We do this, because input/output contexts have proven more difficult to reason about *)
+Fixpoint splitf (Γ : Gamma) (e1 e2 : expr) : option (Gamma * Gamma) :=
+  match Γ with
+  | mapNil _ _ => (* splitEmpty *) Some([⋅], [⋅])
+  | mapCons x τ Γ' =>
+    match τ with
+    | Texpr τ__e =>
+      match τ__e with
+      | (Tℕ | Twptr) => (* ℕsplit, weakPtrSplit *)
+        let* (Γ1, Γ2) := splitf Γ' e1 e2 in
+        Some(mapCons x τ Γ1, mapCons x τ Γ2)
+      | Tptr =>
+        let* (Γ1, Γ2) := splitf Γ' e1 e2 in
+        let* pos := determine_pos x e1 e2 in
+        match pos with
+        | PosL => (* ptrLsplit *)
+          Some(mapCons x τ Γ1, Γ2)
+        | PosR => (* ptrRsplit *)
+          Some(Γ1, mapCons x τ Γ2)
+        end
+      end
+    | Tarrow τ1 τ2 => (* ArrowSplit *)
+      let* _ := intf τ1 in
+      let* _ := intf τ2 in
+      let* (Γ1, Γ2) := splitf Γ' e1 e2 in
+      Some(mapCons x τ Γ1, mapCons x τ Γ2)
+    | Treturn _ => None
+    end
+  end
+.
+Lemma splitf_equiv_splitting (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ : Ty) :
+  check Γ1 e1 τ ->
+  check Γ2 e2 τ ->
+  splitf Γ e1 e2 = Some(Γ1, Γ2) <-> (Γ ≡ Γ1 ∘ Γ2)
+.
+Proof.
+Admitted.
+
 Fixpoint noownedptrf (Γ : Gamma) : option Gamma :=
   match Γ with
   | mapNil _ _ => Some Γ
@@ -395,75 +602,130 @@ Proof.
     + split; try apply IHΓ; easy.
 Qed.
 
-(* TODO: somehow split Γ *)
-Fixpoint inferf (Γ : Gamma) (e : expr) : option (Gamma * Ty) :=
+Definition inferf_var (Γ : Gamma) (x : vart) : option Ty :=
+  let* _ := undup Γ in
+  let* (Γ__a, _, τ, Γ__b) := splitat Γ x in
+  let* _ := noownedptrf Γ in
+  Some τ
+.
+
+Fixpoint inferf (Γ : Gamma) (e : expr) : option Ty :=
   match e with
-  | Xres(Fres(Fvar x)) =>
-    let* _ := undup Γ in
-    let* (Γ1, y, τ, Γ2) := splitat Γ x in
-    let* _ := noownedptrf Γ in
-    Some (Γ, τ)
+  | Xres(Fres(Fvar x)) => inferf_var Γ x
   | Xres(Fres(Fval(Vnat n))) =>
     let* _ := noownedptrf Γ in
-    Some(Γ, Texpr Tℕ)
+    Some(Texpr Tℕ)
   | Xbinop _ e1 e2 =>
-    (* Γ3 ≡ Γ1 ∘ Γ2 *)
-    let* (Γ1, τ1) := inferf Γ e1 in
-    let* (Γ2, τ2) := inferf Γ1 e2 in
+    let* (Γ1, Γ2) := splitf Γ e1 e2 in
+    let* τ1 := inferf Γ1 e1 in
+    let* τ2 := inferf Γ2 e2 in
     match τ1, τ2 with
-    | Texpr Tℕ, Texpr Tℕ => Some(Γ2, Texpr Tℕ)
+    | Texpr Tℕ, Texpr Tℕ => Some(Texpr Tℕ)
     | _, _ => None
     end
   | Xdel x =>
     let* _ := undup Γ in
     let* (Γ1, y, τ, Γ2) := splitat Γ x in
     match τ with
-    | Texpr Tptr => Some(Γ1 ◘ Γ2, Texpr Tℕ)
+    | Texpr Tptr => Some(Texpr Tℕ)
     | _ => None
+    end
+  | Xcall foo arg =>
+    let* (Γ1, Γ2) := splitf Γ (Fvar foo) arg in
+    let* τ__f := inferf_var Γ1 foo in
+    let* τ0' := inferf Γ2 arg in
+    match τ0', τ__f with
+    | Texpr τ0__e', Tectx(Tarrow τ0 τ1) =>
+      if ty_eqb τ0 τ0__e' then
+        Some(Texpr τ0)
+      else
+        None
+    | _, _ => None
+    end
+  | Xreturn e' =>
+    let* τ := inferf Γ e' in
+    match τ with
+    | Texpr τ' =>
+      Some(Treturn τ')
+    | _ => None
+    end
+  | Xifz c e1 e2 =>
+    let* (Γ1, Γ2) := splitf Γ c e1 in
+    let* τ__c := inferf Γ1 c in
+    let* τ1 := inferf Γ2 e1 in
+    let* τ2 := inferf Γ2 e2 in
+    match τ__c with
+    | Texpr Tℕ => if eq τ1 τ2 then Some τ1 else None
+    | _ => None
+    end
+  | Xget x e' =>
+    let* (Γ1, Γ2) := splitf Γ (Fvar x) e' in
+    let* τ__x := inferf_var Γ2 x in
+    let* τ__e := inferf Γ1 e' in
+    match τ__x with
+    | Texpr Tℕ => Some τ__e
+    | _ => None
+    end
+  | Xset x e1 e2 =>
+    let* (Γ12, Γ3) := splitf Γ (Fvar x) (Xbinop Badd e1 e2) in
+    let* (Γ1, Γ2) := splitf Γ12 e1 e2 in
+    let* τ1 := inferf Γ1 e1 in
+    let* τ2 := inferf Γ2 e2 in
+    let* τ3 := inferf_var Γ3 x in
+    match τ1, τ2, τ3 with
+    | Texpr Tℕ, Texpr Tℕ, Texpr Twptr => Some(Texpr Tℕ)
+    | _, _, _ => None
+    end
+  | Xlet x e1 e2 =>
+    let* (Γ1, Γ2) := splitf Γ e1 e2 in
+    let* τ1 := inferf Γ1 e1 in
+    let* τ2 := inferf (x ↦ τ1 ◘ Γ2) e2 in
+    match τ1, τ2 with
+    | Texpr _, Texpr _ => Some τ2
+    | _, _ => None
+    end
+  | Xnew x e1 e2 =>
+    let* (Γ1, Γ2) := splitf Γ e1 e2 in
+    let* τ1 := inferf Γ1 e1 in
+    let* τ2 := inferf (x ↦ (Texpr Tptr) ◘ Γ2) e2 in
+    match τ1, τ2 with
+    | Texpr Tℕ, Texpr _ => Some τ2
+    | _, _ => None
     end
   | _ => None
   end
 .
-(** Returns list of linear variable names *)
-Fixpoint Lin (Γ : Gamma) :=
-  match Γ with
-  | mapNil _ _ => List.nil
-  | mapCons x τ Γ' =>
-    match τ with
-    | Texpr Tptr => List.cons x (Lin Γ')
-    | _ => Lin Γ'
-    end
-  end
-.
-Lemma checkf_soundness (Γ__a Γ__b : Gamma) (e : expr) (τ : Ty) :
-  Lin Γ__b = List.nil ->
-  inferf Γ__a e = Some(Γ__b, τ) ->
-  check Γ__a e τ
+Lemma checkf_soundness (Γ : Gamma) (e : expr) (τ : Ty) :
+  inferf Γ e = Some τ ->
+  check Γ e τ
 .
 Proof.
-  revert Γ__a Γ__b; induction e; intros Γ__a Γ__b H0 H1; cbn in H1.
+  revert Γ; induction e; intros Γ H0; cbn in H0.
   - destruct f as [[]|].
-    + (* value *) destruct v. crush_noownedptrf Γ__a. inv H1. constructor. now apply noownedptr_equiv_noownedptrf.
-    + (* variable *) crush_undup Γ__a; apply nodupinv_equiv_undup in Hx.
+    + (* value *) destruct v. crush_noownedptrf Γ. someinv. constructor. now apply noownedptr_equiv_noownedptrf.
+    + (* variable *) crush_undup Γ; apply nodupinv_equiv_undup in Hx.
       recognize_split; elim_split.
-      crush_noownedptrf (m1 ◘ v ↦ v0 ◘ m2). inv H1. apply noownedptr_equiv_noownedptrf in Hx0.
+      crush_noownedptrf (m1 ◘ v ↦ v0 ◘ m2). someinv. apply noownedptr_equiv_noownedptrf in Hx0.
       apply noownedptr_split in Hx0 as [Hx0__a Hx0__b]. apply noownedptr_cons in Hx0__b as [Hx0__b Hx0__c].
       constructor; auto.
     + (* abort *) congruence.
-  - (* binop *) crush_option (inferf Γ__a e1); destruct x as [Γ__a' τ1].
-    crush_option (inferf Γ__a' e2); destruct x as [Γ__a'' τ2].
-    destruct τ1; try congruence; destruct t; try congruence; destruct τ2; try congruence; destruct t; try congruence.
-    inv H1. eapply CToplus. admit. eapply IHe1; admit. (* trouble in paradise! *) admit.
+  - (* binop *) crush_option (splitf Γ e1 e2); destruct x as [Γ1 Γ2].
+    crush_option (inferf Γ1 e1); crush_option (inferf Γ2 e2).
+    destruct x as [[]| |]; try congruence; destruct x0 as [[]| |]; try congruence; someinv.
+    specialize (IHe1 Γ1 Hx0) as IHe1'; specialize (IHe2 Γ2 Hx1).
+    erewrite splitf_equiv_splitting in Hx; eauto.
+    eapply CToplus; eauto.
   - (* get *) congruence.
   - (* set *) congruence.
   - (* let *) congruence.
   - (* new *) congruence.
-  - (* del *) crush_undup Γ__a; apply nodupinv_equiv_undup in Hx.
-    recognize_split; elim_split. inv H. destruct v; inv H1. destruct t; inv H3. destruct q; inv H1.
-    constructor.
+  - (* del *) crush_undup Γ; apply nodupinv_equiv_undup in Hx.
+    recognize_split; elim_split. subst. destruct v as [[]| |]; try congruence. destruct q; try congruence.
+    someinv; constructor.
   - (* ret *) congruence.
   - (* call *) congruence.
   - (* ifz *) congruence.
+  - (* abort *) congruence.
 Admitted.
 
 Lemma checkf_completeness (Γ1 Γ2 : Gamma) (e : expr) (τ : Ty) :

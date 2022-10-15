@@ -2,13 +2,19 @@ Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano List Coq.Logic.Decidable.
 
 #[global]
+Ltac inv H := (inversion H; subst; clear H).
+#[global]
 Ltac deex :=
   repeat match goal with
          | [ H: exists (name:_), _ |- _ ] =>
            let name' := fresh name in
            destruct H as [name' H]
          end.
-
+#[global]
+Ltac someinv :=
+  repeat match goal with
+         | [ H: Some _ = Some _ |- _ ] => inversion H; subst; clear H
+         end.
 Definition ascii_of_nat (n : nat) : ascii :=
   match n with
   | 0 => "0"
@@ -36,8 +42,6 @@ Definition string_of_nat (n : nat) : string :=
     end
   in string_of_nat_aux n n ""%string
 .
-
-Ltac inv H := (inversion H; subst; clear H).
 
 Definition delete {A : Type} (x : string) (Δ : list (string * A)) :=
   match Δ with

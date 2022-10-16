@@ -436,7 +436,12 @@ Ltac crush_undup M :=
   let x := fresh "x" in
   destruct (option_dec (undup M)) as [Hx | Hx];
   try (rewrite Hx in *; congruence);
-  try (apply not_eq_None_Some in Hx as [x Hx]; eapply undup_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply undup_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *);
+  match goal with
+  | [H0: nodupinv ?M, H1: undup ?M = None |- context C[undup ?M]] =>
+    apply nodupinv_equiv_undup in H0; congruence
+  | _ => trivial
+  end
 .
 
 Fixpoint Min { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :=
@@ -840,7 +845,12 @@ Ltac crush_undup M :=
   let x := fresh "x" in
   destruct (option_dec (undup M)) as [Hx | Hx];
   try (rewrite Hx in *; congruence);
-  try (apply not_eq_None_Some in Hx as [x Hx]; eapply undup_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply undup_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *);
+  match goal with
+  | [H0: nodupinv ?M, H1: undup ?M = None |- context C[undup ?M]] =>
+    apply nodupinv_equiv_undup in H0; congruence
+  | _ => trivial
+  end
 .
 #[global]
 Ltac recognize_split :=
@@ -851,6 +861,12 @@ Ltac recognize_split :=
     destruct (in_dom_dec M x) as [Hy | Hy];
     try (apply splitat_notin in Hy; rewrite Hy in H; inv H);
     try (apply in_dom_split in Hy as H0; eauto; deex; rewrite H0 in H)
+  | [H: nodupinv ?Γ |- context C[splitat ?M ?x]] =>
+    let Hy := fresh "Hy" in
+    let H0 := fresh "H" in
+    destruct (in_dom_dec M x) as [Hy | Hy];
+    try (apply splitat_notin in Hy; apply splitat_elim in H; congruence);
+    try (apply in_dom_split in Hy as H0; eauto; deex; rewrite H0)
   end.
 #[global]
 Ltac elim_split :=
@@ -861,5 +877,8 @@ Ltac elim_split :=
      |- _] =>
      let H2' := fresh "H'" in
      assert (H2':=H2); rewrite H1 in H2'; apply splitat_elim in H2'; auto; rewrite H2' in H0
+  | [H1: ?M' = ?M, H2: nodupinv ?M' |- context C[splitat ?M]] =>
+     let H2' := fresh "H'" in
+     assert (H2':=H2); rewrite H1 in H2'; apply splitat_elim in H2'; auto; rewrite H2'
   end
 .

@@ -430,16 +430,18 @@ Lemma noownedptr_cons Γ x τ :
 .
 Proof. intros H; inv H; now repeat split. Qed.
 Lemma noownedptr_split Γ1 Γ2 :
-  NoOwnedPtr (Γ1 ◘ Γ2) ->
+  NoOwnedPtr (Γ1 ◘ Γ2) <->
   NoOwnedPtr Γ1 /\ NoOwnedPtr Γ2
 .
 Proof.
-  induction Γ1; cbn; intros H; try easy.
-  destruct H as [Ha Hb]; fold (append Γ1 Γ2) in Hb. destruct (IHΓ1 Hb) as [IH__a IH__b]; now repeat split.
+  induction Γ1; cbn; split; intros H; try easy; fold (append Γ1 Γ2) in *.
+  - destruct H as [Ha Hb]. apply IHΓ1 in Hb as [Hb1 Hb2]; repeat split; auto.
+  - destruct H as [[Ha Hb] Hc]; split; trivial; apply IHΓ1; auto.
 Qed.
 
 Inductive check : VDash :=
 | CTvar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
+    nodupinv (Γ1 ◘ x ↦ τ ◘ Γ2) ->
     NoOwnedPtr Γ1 ->
     NoOwnedPtr (x ↦ τ ◘ [⋅]) ->
     NoOwnedPtr Γ2 ->
@@ -475,6 +477,7 @@ Inductive check : VDash :=
     (x ↦ (Texpr Tptr) ◘ Γ2 ⊦ e2 : (Texpr τ)) ->
     (Γ3 ⊦ Xnew x e1 e2 : (Texpr τ))
 | CTdel : forall (Γ1 Γ2 : Gamma) (x : vart),
+    nodupinv (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2) ->
     (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2 ⊦ Xdel x : (Texpr Tℕ))
 | CTcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
     int τ0 -> int τ1 ->
@@ -611,7 +614,7 @@ Proof.
   - destruct (option_dec (noownedptrf Γ)) as [Hx | Hx]; try (rewrite Hx in H0; inv H0).
     apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in H0. now inv H0.
 Qed.
-Ltac crush_noownedptrf Γ :=
+Ltac crush_noownedptrf_aux Γ :=
   let Hx' := fresh "Hx'" in
   let Hx := fresh "Hx" in
   let x := fresh "x" in
@@ -631,13 +634,31 @@ Proof.
         exfalso; apply Hx. destruct t; try congruence; try constructor. destruct q; try constructor; contradiction.
     + now apply IHΓ in Hb as ->.
     + now apply IHΓ in Hb as ->.
-  - destruct b; crush_noownedptrf Γ.
+  - destruct b; crush_noownedptrf_aux Γ.
     + crush_intf t. destruct t; inv Hx; split; try apply IHΓ; try easy; destruct q; easy.
     + crush_intf t. rewrite Hx in H. inv H.
     + destruct e; split; try apply IHΓ; easy.
     + split; try apply IHΓ; easy.
 Qed.
-
+Ltac crush_noownedptrf Γ :=
+  crush_noownedptrf_aux Γ;
+  try (match goal with
+  | [H0: NoOwnedPtr ?Γ1, H1: NoOwnedPtr (?x ↦ ?τ ◘ [⋅]), H2: NoOwnedPtr ?Γ2 |- _] =>
+    let H01 := fresh "H01" in
+    let H012 := fresh "H012" in
+    assert (NoOwnedPtr Γ1 /\ NoOwnedPtr (x ↦ τ ◘ [⋅])) as H01%noownedptr_split by now split
+  end;
+  match goal with
+  | [H0: NoOwnedPtr (?Γ1 ◘ ?x ↦ ?τ ◘ [⋅]), H2: NoOwnedPtr ?Γ2 |- _] =>
+    let H012 := fresh "H012" in
+    assert (NoOwnedPtr (Γ1 ◘ x ↦ τ ◘ [⋅]) /\ NoOwnedPtr Γ2) as H012%noownedptr_split by now split
+  end;
+  match goal with
+  | [ H0: NoOwnedPtr ?Γ1, H1: NoOwnedPtr (?x ↦ ?τ ◘ [⋅]), H2: NoOwnedPtr ?Γ2,
+      H01: NoOwnedPtr (?Γ1 ◘ ?x ↦ ?τ ◘ [⋅]), H012: NoOwnedPtr ((?Γ1 ◘ ?x ↦ ?τ ◘ [⋅]) ◘ ?Γ2) |- _] =>
+    clear H0 H1 H2 H01; repeat rewrite append_assoc in H012; cbn in H012; apply noownedptr_equiv_noownedptrf in H012; congruence
+  end)
+.
 Definition inferf_var (Γ : Gamma) (x : vart) : option Ty :=
   let* _ := undup Γ in
   let* (Γ__a, _, τ, Γ__b) := splitat Γ x in
@@ -782,7 +803,7 @@ Proof.
     econstructor; eauto. eapply IHe1; eassumption. eapply IHe2; eassumption.
   - (* del *) crush_undup Γ; apply nodupinv_equiv_undup in Hx.
     recognize_split; elim_split. subst. destruct v as [[]| |]; try congruence. destruct q; try congruence.
-    someinv; constructor.
+    someinv; constructor; easy.
   - (* ret *) crush_option (inferf Γ e); destruct x; try congruence; someinv.
     crush_intf t; someinv. constructor. now apply int_equiv_intf. now eapply IHe.
   - (* call *) crush_undup Γ; eapply nodupinv_equiv_undup in Hx.
@@ -804,11 +825,48 @@ Proof.
   - (* abort *) congruence.
 Qed.
 
-Lemma checkf_completeness (Γ1 Γ2 : Gamma) (e : expr) (τ : Ty) :
-  check Γ1 e τ ->
-  inferf Γ1 e = Some(Γ2, τ) /\ Lin Γ2 = List.nil
+Lemma checkf_completeness (Γ : Gamma) (e : expr) (τ : Ty) :
+  check Γ e τ ->
+  inferf Γ e = Some τ
 .
-Proof. Admitted.
+Proof.
+  induction 1; cbn.
+  - (* CTvar *) crush_undup (Γ1 ◘ x ↦ τ ◘ Γ2); try (apply nodupinv_equiv_undup in H; congruence).
+    crush_option (splitat (Γ1 ◘ x ↦ τ ◘ Γ2) x); try (apply splitat_elim in H; congruence).
+    destruct x1 as [[[]]]; crush_noownedptrf (Γ1 ◘ x ↦ τ ◘ Γ2).
+    apply nodupinv_equiv_undup in Hx; apply splitat_elim in Hx; rewrite Hx in Hx0; someinv; reflexivity.
+  - (* CTℕ *) crush_noownedptrf Γ; auto; apply noownedptr_equiv_noownedptrf in H; congruence.
+  - (* CToplus *) crush_option (splitf Γ3 e1 e2); apply (splitf_equiv_splitting _ _ _ e1 e2) in H; try congruence.
+    destruct x as [Γ1' Γ2']; rewrite H in Hx; someinv.
+    now rewrite IHcheck, IHcheck0.
+  - (* CTget *) crush_option (splitf Γ3 (Fvar x) e); apply (splitf_equiv_splitting _ _ _ (Fvar x) e) in H; try congruence.
+    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv.
+    inv H0; crush_undup (Γ1 ◘ x ↦ (Texpr Twptr) ◘ Γ2).
+    apply nodupinv_equiv_undup in Hx; recognize_split; elim_split.
+    crush_noownedptrf (m1 ◘ x ↦ v ◘ m2); rewrite <- H0 in *; clear H0.
+    rewrite IHcheck0. apply splitat_elim in H3; rewrite H3 in H'; someinv; reflexivity.
+  - (* CTset *) crush_option (splitf Γ4 (Fvar x) (Xbinop Badd e1 e2)); apply (splitf_equiv_splitting _ _ _ (Fvar x) (Xbinop Badd e1 e2)) in H0; try congruence.
+    destruct x0 as [Γ12' Γ3']; rewrite H0 in Hx; someinv.
+    crush_option (splitf Γ12' e1 e2); apply (splitf_equiv_splitting _ _ _ e1 e2) in H; try congruence.
+    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv.
+    rewrite IHcheck0, IHcheck1. inv H1; crush_undup (Γ1 ◘ x ↦ (Texpr Twptr) ◘ Γ2).
+    apply nodupinv_equiv_undup in Hx; recognize_split; elim_split.
+    crush_noownedptrf (m1 ◘ x ↦ v ◘ m2); rewrite <- H1 in *; clear H1.
+    apply splitat_elim in H5; rewrite H5 in H'; someinv; reflexivity.
+  - (* CTlet *) crush_option (splitf Γ3 e1 e2); apply (splitf_equiv_splitting _ _ _ e1 e2) in H; try congruence.
+    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv. rewrite IHcheck, IHcheck0; reflexivity.
+  - (* CTnew *) crush_option (splitf Γ3 e1 e2); apply (splitf_equiv_splitting _ _ _ e1 e2) in H; try congruence.
+    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv. rewrite IHcheck, IHcheck0; reflexivity.
+  - (* CTdel *) crush_undup (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2); now apply splitat_elim in H as ->.
+  - (* CTcall *) inv H1; crush_undup (Γ1 ◘ foo ↦ (Tectx (Tarrow τ0 τ1)) ◘ Γ2).
+    recognize_split; elim_split. crush_noownedptrf (m1 ◘ foo ↦ v ◘ m2); rewrite <- H1 in *.
+    apply splitat_elim in H4; rewrite H4 in H'; rewrite IHcheck0; someinv.
+    apply int_equiv_intf in H as ->; apply int_equiv_intf in H0 as ->. now rewrite ty_eqb_refl.
+  - (* CTret *) rewrite IHcheck. now apply int_equiv_intf in H as ->.
+  - (* CTifz *) crush_option (splitf Γ3 c e1); apply (splitf_equiv_splitting _ _ _ c e1) in H; try congruence.
+    destruct x as [Γ1' Γ2']; rewrite H in Hx; someinv. rewrite IHcheck, IHcheck1, IHcheck0.
+    now rewrite ty_eqb_refl.
+Qed.
 
 Lemma checkf_equiv_check (Γ__a Γ__b : Gamma) (e : expr) (τ : Ty) :
   Lin Γ__b = List.nil ->

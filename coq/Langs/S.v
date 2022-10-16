@@ -667,15 +667,14 @@ Fixpoint inferf (Γ : Gamma) (e : expr) : option Ty :=
     | _ => None
     end
   | Xcall foo arg =>
-    let* (Γ1, Γ2) := splitf Γ (Fvar foo) arg in
-    let* τ__f := inferf_var Γ1 foo in
-    let* τ0' := inferf Γ2 arg in
+    let* τ__f := inferf_var Γ foo in
+    let* τ0' := inferf Γ arg in
     match τ0', τ__f with
     | Texpr τ0__e', Tectx(Tarrow τ0 τ1) =>
       let* _ := intf τ0 in
       let* _ := intf τ1 in
       if ty_eqb τ0 τ0__e' then
-        Some(Texpr τ0)
+        Some(Texpr τ1)
       else
         None
     | _, _ => None
@@ -693,9 +692,9 @@ Fixpoint inferf (Γ : Gamma) (e : expr) : option Ty :=
     let* τ__c := inferf Γ1 c in
     let* τ1 := inferf Γ2 e1 in
     let* τ2 := inferf Γ2 e2 in
-    match τ__c with
-    | Texpr Tℕ => if eq τ1 τ2 then Some τ1 else None
-    | _ => None
+    match τ__c, τ1, τ2 with
+    | Texpr Tℕ, Texpr τ1', Texpr τ2' => if eq τ1' τ2' then Some(Texpr τ1') else None
+    | _, _, _ => None
     end
   | Xget x e' =>
     let* (Γ1, Γ2) := splitf Γ (Fvar x) e' in
@@ -786,16 +785,24 @@ Proof.
     someinv; constructor.
   - (* ret *) crush_option (inferf Γ e); destruct x; try congruence; someinv.
     crush_intf t; someinv. constructor. now apply int_equiv_intf. now eapply IHe.
-  - (* call *) crush_option (splitf Γ (Fvar foo) e); destruct x as [Γ1 Γ2].
-    crush_undup Γ1. eapply nodupinv_equiv_undup in Hx0.
+  - (* call *) crush_undup Γ; eapply nodupinv_equiv_undup in Hx.
     recognize_split; elim_split; crush_noownedptrf (m1 ◘ foo ↦ v ◘ m2).
-    crush_option (inferf Γ2 e). destruct x1; try congruence. destruct v; try congruence. destruct e0; try congruence.
-    crush_intf t0; crush_intf t1. destruct (eq_dec t0 t); subst.
-    rewrite ty_eqb_refl in H0; someinv. constructor.
-    congruence.
-  - (* ifz *) congruence.
+    crush_option (inferf (m1 ◘ foo ↦ v ◘ m2) e).
+    destruct x1; try congruence. destruct v; try congruence. destruct e0; try congruence.
+    crush_intf t0; crush_intf t1. destruct (eq_dec t0 t); subst; try (apply ty_eqb_neq in H1; rewrite H1 in H0; congruence).
+    rewrite ty_eqb_refl in H0; someinv. apply int_equiv_intf in Hx2, Hx3.
+    eapply CTcall. exact Hx2. exact Hx3.
+    apply noownedptr_equiv_noownedptrf in Hx0; apply noownedptr_split in Hx0 as [Hx0__a Hx0__b];
+    apply noownedptr_cons in Hx0__b as [Hx0__b Hx0__c]; eauto.
+    eapply IHe; eauto.
+  - (* ifz *) crush_option (splitf Γ e1 e2); destruct x as [Γ1 Γ2].
+    crush_option (inferf Γ1 e1); crush_option (inferf Γ2 e2); crush_option (inferf Γ2 e3).
+    destruct x; try congruence. destruct t; try congruence. destruct x0, x1; try congruence.
+    destruct (eq_dec t t0); subst; try (apply ty_eqb_neq in H; rewrite H in H0; congruence).
+    rewrite ty_eqb_refl in H0; someinv. apply splitf_equiv_splitting in Hx; eapply CTifz; eauto;
+    try ((apply IHe1 + apply IHe2 + apply IHe3); eauto).
   - (* abort *) congruence.
-Admitted.
+Qed.
 
 Lemma checkf_completeness (Γ1 Γ2 : Gamma) (e : expr) (τ : Ty) :
   check Γ1 e τ ->

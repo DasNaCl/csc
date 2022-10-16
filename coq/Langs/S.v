@@ -861,7 +861,7 @@ Qed.
 Theorem checkf_equiv_check (Γ : Gamma) (e : expr) (τ : Ty) :
   inferf Γ e = Some τ <-> (check Γ e τ)
 .
-Proof. split; (eapply checkf_refinement + eapply checkf_correctness); easy. Qed.
+Proof. split; now (eapply checkf_refinement + eapply checkf_correctness). Qed.
 
 (** Symbols are pairs consisting of the function and its type. *)
 Definition symbol : Type := evalctx * Ty.

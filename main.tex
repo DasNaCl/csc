@@ -4100,6 +4100,23 @@ $\;$\MK{do more or less the same for $\multimap$}
   induction on $\trg{\overline{a}}$
 \end{incompleteproof}
 
+\begin{lemma}[$\mmlAt$ call decomposition]\label{lem:trg:calldecompose}
+  If
+  \begin{assumptions}
+    \item $\exect{\commlib;\library;\kontstack;\memstate}{K[e]}{\Omega'}{\finalexpr}{Call\ \comm\ foo\ \interfacevalue\cdot\trace}$
+  \end{assumptions}
+  Then $\exists \trg{\trace[_{1}]}\ \trg{\trace[_{2}]}\ n$,
+  \begin{goals}
+    \item $\exect[]{\commlib;\library;\kontstack;\memstate}{K[e]}{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{Call\ \comm\ foo\ \interfacevalue}$
+    \item $\exect[^{n}]{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\trace[_{1}]\cdot Ret\ \hat{\comm}\ \interfacevalue'}$
+    \item $\exect{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\Omega'}{\finalexpr}{\trace[_{2}]}$
+    \item $\trg{\memstate}\ogreaterthan\trg{\memstate'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+  .\MK{$\ogreaterthan$ is supposed to say ,,all state outside of the other thing stays untouched''. we may as well just have a stack of memory states? NO, this will lose information about dealloc'd pointers. BUT! we can make a dict}
+\end{incompleteproof}
+
 \begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:wrapper:correct}
   If
   \begin{assumptions}
@@ -4124,9 +4141,8 @@ $\;$\MK{do more or less the same for $\multimap$}
   If
   \begin{assumptions}
   \item\label[ass]{asm:backtranscorr:case0:exect} $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\hole{\cdot}}$
-  \item\label[ass]{asm:backtranscorr:case0:thebacktrans} $\mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\hole{\cdot}}=\Game,\src{e_{H}}$
+  \item\label[ass]{asm:backtranscorr:case0:thebacktrans} $\mmlAmmlAtback[\Game]{\hole{\cdot}}=\Game,\src{e_{H}}$
   \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{e}=\plugs{\finalexprnoerr_{INIT}}{e_{H}}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
@@ -4140,25 +4156,23 @@ $\;$\MK{do more or less the same for $\multimap$}
   If
   \begin{assumptions}
   \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\hole{\cdot}}$
-  \item $\mmlAmmlAtback[\Game,\src{(x:\type_{1})\to\type_{2}}]{\hole{\cdot}}=\Game,\src{hole:(x:\type_{1})\to\type_{2}}$
+  \item $\mmlAmmlAtback[\Game]{\hole{\cdot}}=\Game,\src{42}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
-  \item\label[ass]{asm:backtranscorr:case0:plugs} $\src{e}=\plugs{\finalexprnoerr_{INIT}}{hole:(x:\type_{1})\to\type_{2}}$
   \end{assumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
+  \item $\exec{\configs}{\src{42}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
   \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{\hole{\cdot}}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
+  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
   \end{goals}
 
-  Invert \Cref{asm:backtranscorr:case0:plugs} to obtain $\left[\typechecks{x:\type_{1}}{\finalexprnoerr_{INIT}}{\type_{2}}\right]$ and instantiate our goal with $\delta' = \delta, \src{\Omega'}=\src{\Omega}, \src{\trace}=\src{\hole{\cdot}}, \src{\finalexprnoerr}=\src{\finalexprnoerr_{INIT}}$, the first two goals and the fourth follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.\MK{lemma: step with no events doesn't change $\trg{\Omega}$}
+  Instantiate our goal with $\delta' = \delta, \src{\Omega'}=\src{\Omega}, \src{\trace}=\src{\hole{\cdot}}, \src{\finalexprnoerr}=\src{42}$, the first two goals and the fourth follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.\MK{lemma: step with no events doesn't change $\trg{\Omega}$}
 
   \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
   If
   \begin{assumptions}
   \item\label{asm:backtranscorr:indu:step} $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\event\cdot\trace}$
-  \item\label{asm:backtranscorr:indu:spectrace} $\trg{\msevent\cdot\mstrace}=\tospecificevt{\event}\cdot\thetospecificfilter\left(\trg{\trace}\right)$
   \item $\mmlAmmlAtback{\msevent\cdot\mstrace}=\Game',\src{e}$
   \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \end{assumptions}
@@ -4174,7 +4188,6 @@ $\;$\MK{do more or less the same for $\multimap$}
   If $\forall \trg{\Omega_{\IH}}\ \trg{\Omega'_{\IH}}\ \trg{e_{\IH}}\ \trg{\finalexprnoerr_{\IH}}\ \src{\Omega_{\IH}}\ \src{e_{\IH}}\ \delta_{\IH}\ \Game_{\IH}\ \Game_{\IH}',$
   \begin{assumptions}
   \item $\exect{\Omega_{\IH}}{e_{\IH}}{\Omega'_{\IH}}{\finalexprnoerr_{\IH}}{\trace}$
-  \item $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
   \item $\mmlAmmlAtback[\Game_{\IH}]{\mstrace}=\Game_{\IH}',\src{e_{\IH}}$
   \item $\xlangbackstateeq[\delta_{\IH}]{\Omega_{\IH}}{\Omega_{\IH}}$
   \end{assumptions}
@@ -4188,25 +4201,36 @@ $\;$\MK{do more or less the same for $\multimap$}
 
   We proceed by case-analysis on $\trg{\msevent}$.
   \begin{description}
-    \item \textbf{Case $\trg{\msevent}=\specificevt{Alloc\ \loc\ n}$:}
+    \item \textbf{Case $\trg{\msevent}=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}$:}
       Note that:
       \begin{passumptions}{H}
-    \item $\mmlAmmlAtback[\Game,()]{\specificev{Alloc\ \loc\ n}\cdot\mstrace}=\Game',\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e_a}$
-    \item $\Game_x=\Game[\trg{\loc}]$
-    \item $\Game_x(\trg{\loc})=\src{x}$
-    \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_{x},()]{\mstrace}=\Game',\src{e_a}$
+    \item\label[ass]{asm:backtranscorr:freshl} $\fresh{\Game}{\trg{\loc}}$
+    \item\label[ass]{asm:backtranscorr:freshz} $\Game_z=\Game[\trg{\loc}]$
+    \item $\src{z}=\Game_z(\trg{\loc})$
+    \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_{z}]{\trace}=\Game',\src{e_a}$
+    \item $\src{e} = \src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtback[\Game_{z}]{foo}\ \mmlAmmlAtbackv[\Game_{z}]{\interfacevalue}\src{;delete\ z;e_{a}}$
+    \item $\mmlAmmlAtback[\Game]{Call\ \ctxtocomp\ foo\ \interfacevalue\cdot\mstrace}=\Game',\src{e}$
+    \item\label[ass]{asm:backtranscorr:call:origexect} $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{Call\ \ctxtocomp\ foo\ \interfacevalue\cdot\trace}$
       \end{passumptions}
 
-      Inversion on \Cref{asm:backtranscorr:indu:spectrace} to get $\specificevt{Alloc\ \loc\ n}=\thetospecificfilter\left(\trg{Alloc\ \loc\ n}\right)$, subsequently inverting \Cref{asm:backtranscorr:indu:step}\todo{not inversion,technical lemma} yields:
-      \begin{passumptions}{H}
-      \setcounter{enumi}{4}
-    \item $\trg{\Omega}=\trg{H;\Delta}$
-    \item $\trg{H'}=\grow{\trg{H}}{\trg{n}}$
-    \item\label[ass]{asm:backtranscorr:indu:allocstep} $\exect[]{H;\Delta}{let\ x = new\ n\ in\ e'}{H';z\mapsto\loc_{\poisonless},\Delta}{e'[z/x]}{Alloc\ \loc\ n}$
-    \item\label[ass]{asm:backtranscorr:indu:steps} $\exect{H';z\mapsto\loc_{\poisonless},\Delta}{e'}{\Omega''}{\finalexprnoerr}{\trace}$
-      \end{passumptions}
+      Let $\delta_z=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$, obviously $\delta\subseteq\delta_z$.
 
-      Let $\delta_x=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$, obviously $\delta\subseteq\delta_x$.
+%     Let $\src{\Omega}=\src{\commlib;\library;\kontstack;H;\Delta}$ and $\src{H'}=\src{H}\ll\src{42}$.
+%     Note that $\fresh{\src{\Delta}}{\src{\loc}}$ and $\fresh{\src{\Delta}}{\src{z}}$ using \Cref{asm:backtranscorr:freshl,asm:backtranscorr:freshz}.\MK{technical lemma. Maybe also $\multimap$ needs to know about $\Game$}
+%     Using that, by \Cref{tr:w-e-let-new}, we know $\execs[]{\Omega}{e}{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}{e_{b}}{Alloc\ \loc\ 42}$, where $\src{e_{b}}=\src{call\ }\mmlAmmlAtback[\Game_{z}]{foo}\ \mmlAmmlAtbackv[\Game_{z}]{\interfacevalue}\ \src{; delete\ z;e_{a}}$.
+
+
+      With \Cref{lem:trg:calldecompose}, we can decompose \Cref{asm:backtranscorr:call:origexect} into three parts:
+      \begin{passumptions}{\trg{E}}
+    \item $\exect[]{\commlib;\library;\kontstack;\memstate}{K[e]}{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{Call\ \comm\ foo\ \interfacevalue}$
+    \item $\exect[^{n}]{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\trace[_{1}]\cdot Ret\ \hat{\comm}\ \interfacevalue'}$
+    \item $\exect{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\Omega'}{\finalexpr}{\trace[_{2}]}$
+    \item $\trg{\memstate}\ogreaterthan\trg{\memstate'}$
+    \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+      \end{passumptions}
+      We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{\commlib;\library;\kontstack;\memstate'}$, $\trg{\Omega_{\IH}'}=\trg{\Omega'}$, $\trg{e_{\IH}}=\trg{K[\interfacevalue']}$, $\trg{\finalexprnoerr_{\IH}}=\trg{\finalexprnoerr}$, $\src{\Omega_{\IH}}=\src{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}$\MK{$\src{Delta}$ may be different}, $\src{e_{\IH}}=\src{delete\ z; e_a}$, $\delta_{\IH}=\delta_z$, $\Game_{\IH}=\Game_z$, and $\Game_{\IH}'=\Game'$.
+      {\color{red} ok, this probably breaks because we need the execution in the induction hypothesis to not terminate with an $\src{f}$ but step as we want}
+
       Using \Cref{asm:backtranscorr:case1:stateeq}, we apply \Cref{tr:back-cons-locmap-eq}\MK{we technically need a lemma that says we can apply it under monotone $\delta$, i.e. for "bigger" $\delta$} to get
       \begin{passumptions}{H}
         \setcounter{enumi}{8}

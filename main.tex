@@ -3672,6 +3672,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{description}
 \end{proof}
 
+
 \begin{lemma}[Ctx Step Forward Simulation]\label{lem:ctxstep:forwardsim}
   If
   \begin{assumptions}
@@ -4085,6 +4086,36 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 
+\begin{lemma}[$\thexlangstateeq$ of $\thexlangbackstateeq$ with $\trg{Call\ \ctxtocomp}$]\label{lem:relations:call:approxoflolly}
+  If
+  \begin{assumptions}
+    \item $\execs[]{\Omega}{e}{\Omega'}{e'}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
+    \item $\xlangbackstateeq{\Omega}{\Omega}$
+    \item $\exec[]{\trg{\Omega}}{\trg{e}}{\trg{\Omega'}}{\trg{e'}}{\trg{Call\ \ctxtocomp\ }\mmlAmmlAtcomp{foo}\ \trg{\interfacevalue}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\xlangstateeq{\Omega'}{\Omega'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[$\thexlangbackstateeq$ of $\thexlangstateeq$ with $\trg{Ret\ \comptoctx}$]\label{lem:relations:ret:lollyofapprox}
+  If
+  \begin{assumptions}
+    \item $\execs[]{\Omega}{e}{\Omega'}{e'}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
+    \item $\xlangstateeq{\Omega'}{\Omega'}$
+    \item $\exec[]{\trg{\Omega}}{\trg{e}}{\trg{\Omega'}}{\trg{e'}}{\trg{Call\ \ctxtocomp\ }\mmlAmmlAtcomp{foo}\ \trg{\interfacevalue}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 \begin{lemma}[Non-Stuck Target Traces have Source Traces]\label{lem:comptrace:invertible}\ \\
   Given $\delta$ and $\trg{\trace}$ non-stuck, $\exists\src{\trace}, \xlangtraceeq{\trace}{\trace}$
 \end{lemma}
@@ -4199,7 +4230,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
   \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
   If
-  \begin{assumptions}
+  \begin{passumptions}{H^{(0)}}
   \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
@@ -4208,7 +4239,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
-  \end{assumptions}
+  \end{passumptions}
   then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
@@ -4254,24 +4285,41 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \end{passumptions}
 
       Let $\delta_z=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$, obviously $\delta\subseteq\delta_z$.
-      Since the call event is $\ctxtocomp$, we can conclude\MK{technical lemma} that $\trg{foo}\in\mmlAmmlAtcomp{\commlib}$ an, thus, $\trg{foo}\in\mmlAmmlAtcomp{\library_{comp}}$.
-      Consequently, $\mmlAmmlAtback[\Game_{z}]{foo}\in\src{\library_{comp}}$\MK{technical lemma}.
-
-          {\color{red}use fact that the call is in the component. somehow go from approx to lolli. do expr. correctness}
-
-%     Let $\src{\Omega}=\src{\commlib;\library;\kontstack;H;\Delta}$ and $\src{H'}=\src{H}\ll\src{42}$.
-%     Note that $\fresh{\src{\Delta}}{\src{\loc}}$ and $\fresh{\src{\Delta}}{\src{z}}$ using \Cref{asm:backtranscorr:freshl,asm:backtranscorr:freshz}.\MK{technical lemma. Maybe also $\multimap$ needs to know about $\Game$}
-%     Using that, by \Cref{tr:w-e-let-new}, we know $\execs[]{\Omega}{e}{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}{e_{b}}{Alloc\ \loc\ 42}$, where $\src{e_{b}}=\src{call\ }\mmlAmmlAtback[\Game_{z}]{foo}\ \mmlAmmlAtbackv[\Game_{z}]{\interfacevalue}\ \src{; delete\ z;e_{a}}$.
-
-
-      With \Cref{lem:trg:calldecompose}, we can decompose \Cref{asm:backtranscorr:call:origexect} into three parts:
-      \begin{passumptions}{\trg{E}}
-    \item $\exect[]{\commlib;\library;\kontstack;\memstate}{K[e]}{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{Call\ \comm\ foo\ \interfacevalue}$
-    \item $\exect[^{n}]{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\trace[_{1}]\cdot Ret\ \hat{\comm}\ \interfacevalue'}$
-    \item $\exect{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\Omega'}{\finalexpr}{\trace[_{2}]}$
-    \item $\trg{\memstate}\ogreaterthan\trg{\memstate'}$
-    \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+      Since the call event is $\ctxtocomp$, we can conclude\MK{technical lemma} that $\trg{foo}\in\mmlAmmlAtcomp{\commlib}$ and, thus, $\trg{foo}\in\operatorname{dom}\mmlAmmlAtcomp{\library_{comp}}$.
+      Consequently, $\mmlAmmlAtback[\Game_{z}]{foo}\in\operatorname{dom}\src{\library_{comp}}$\MK{technical lemma}.
+      Invert \Cref{asm:backtranscorr:call:origexect}, yielding:
+      \begin{passumptions}{H}
+        \setcounter{enumi}{7}
+        \item\label[ass]{asm:backtranscorr:call:call:exect} $\exect[]{\Omega}{e}{\Omega_{0}}{e_{0}}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
+        \item\label[ass]{asm:backtranscorr:call:rest:exect} $\exect{\Omega_{0}}{e_{0}}{\Omega'}{\finalexprnoerr}{\trace}$
       \end{passumptions}
+
+      Let $\src{\Omega}=\src{\commlib;\library;\kontstack;H;\Delta}$ and $\src{H'}=\src{H}\ll\src{42}$.
+      Note that $\fresh{\src{\Delta}}{\src{\loc}}$ and $\fresh{\src{\Delta}}{\src{z}}$ using \Cref{asm:backtranscorr:freshl,asm:backtranscorr:freshz}.\MK{technical lemma. Maybe also $\multimap$ needs to know about $\Game$}
+      Using that, by \Cref{tr:w-e-let-new}, we know:
+      \begin{passumptions}{F}
+        \item $\execs[]{\Omega}{e}{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}{e_{b}}{Alloc\ \loc\ 42}$
+        \item $\src{e_{b}}=\src{call\ }\mmlAmmlAtback[\Game_{z}]{foo}\ \mmlAmmlAtbackv[\Game_{z}]{\interfacevalue}\ \src{; delete\ z;e_{a}}$
+      \end{passumptions}
+      Since $\mmlAmmlAtback{foo}=\src{foo}\in\src{\commlib}$, we know that $(\src{let\ foo\ x:\type_{{\color{black}}\lambda}:=e})\in\src{\library_{comp}}$ and, thus, also $\mmlAmmlAtcomp{let\ foo\ x:\type_{{\color{black}}\lambda}:=e}\in\mmlAmmlAtcomp{\library_{comp}}$, the function known in the target as $\trg{foo}$.
+          {\color{red}\large TODO: break up call one step for the blue stuff, thus allowing us to apply the lemma approxoflolly}
+      Given \Cref{asm:backtranscorr:case1:stateeq}, it is immediate\MK{don't be lazy} that:
+      \begin{passumptions}{F}
+        \setcounter{enumi}{2}
+        \item\label[ass]{asm:backtranscorr:call:src:stateeq:call} $\xlangbackstateeq[\delta;\src{\loc,L}]{\Omega}{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}$
+      \end{passumptions}
+      Now use \Thmref{lem:relations:call:approxoflolly} with \Cref{asm:backtranscorr:call:call:exect,asm:backtranscorr:call:src:stateeq:call} to get that $\xlangstateeq[\delta,\src{\loc,L}]{\Omega}{\Omega_{0}}$.
+
+      %Use \Thmref{lem:relations:ret:lollyofapprox} and \Thmref{lem:relations:call:approxoflolly}
+
+%     With \Cref{lem:trg:calldecompose}, we can decompose \Cref{asm:backtranscorr:call:origexect} into three parts:
+%     \begin{passumptions}{\trg{E}}
+%   \item $\exect[]{\commlib;\library;\kontstack;\memstate}{K[e]}{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{Call\ \comm\ foo\ \interfacevalue}$
+%   \item $\exect[^{n}]{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\trace[_{1}]\cdot Ret\ \hat{\comm}\ \interfacevalue'}$
+%   \item $\exect{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\Omega'}{\finalexpr}{\trace[_{2}]}$
+%   \item $\trg{\memstate}\ogreaterthan\trg{\memstate'}$
+%   \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+%     \end{passumptions}
       We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{\commlib;\library;\kontstack;\memstate'}$, $\trg{\Omega_{\IH}'}=\trg{\Omega'}$, $\trg{e_{\IH}}=\trg{K[\interfacevalue']}$, $\trg{\finalexprnoerr_{\IH}}=\trg{\finalexprnoerr}$, $\src{\Omega_{\IH}}=\src{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}$\MK{$\src{Delta}$ may be different}, $\src{e_{\IH}}=\src{delete\ z; e_a}$, $\delta_{\IH}=\delta_z$, $\Game_{\IH}=\Game_z$, and $\Game_{\IH}'=\Game'$.
       {\color{red} ok, this probably breaks because we need the execution in the induction hypothesis to not terminate with an $\src{f}$ but step as we want}
 

@@ -877,70 +877,27 @@ Definition string_of_prog (p : prog) :=
   let '(Cprog s) := p in
   "prog"%string (*TODO*)
 .
+(** Fill hole in evaluation context. *)
+Fixpoint insert (K : evalctx) (withh : expr) : expr :=
+  let R := fun k => insert k withh in
+  match K with
+  | Khole => withh
+  | KbinopL b K' e => Xbinop b (R K') e
+  | KbinopR b v K' => Xbinop b v (R K')
+  | Kget x K' => Xget x (R K')
+  | KsetL x K' e => Xset x (R K') e
+  | KsetR x v K' => Xset x v (R K')
+  | Klet x K' e => Xlet x (R K') e
+  | Knew x K' e => Xnew x (R K') e
+  | Kifz K' e0 e1 => Xifz (R K') e0 e1
+  | Kcall foo K' => Xcall foo (R K')
+  | Kreturn K' => Xreturn (R K')
+  end
+.
 
 (** Typechecking evaluation contexts, which represent functions. *)
-Inductive ectx_check (s : symbols) : @Gamma vart Ty TheTy__Instance varteq__Instance -> evalctx -> Ty -> Prop :=
-| EThole : forall (Γ : Gamma) (τ0 : ty),
-    int τ0 ->
-    NoOwnedPtr Γ ->
-    ectx_check s Γ Khole (Tectx(Tarrow τ0 τ0))
-| ETbinopL : forall (Γ1 Γ2 Γ3 : Gamma) (b : binopsymb) (K : evalctx) (e : expr) (τ0 : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
-    check Γ2 e Tℕ ->
-    ectx_check s Γ3 (KbinopL b K e) (Tectx(Tarrow τ0 Tℕ))
-| ETbinopR : forall (Γ1 Γ2 Γ3 : Gamma) (b : binopsymb) (K : evalctx) (v : value) (τ0 : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ->
-    check Γ1 v Tℕ ->
-    ectx_check s Γ2 K (Tectx(Tarrow τ0 Tℕ)) ->
-    ectx_check s Γ3 (KbinopR b v K) (Tectx(Tarrow τ0 Tℕ))
-| ETget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (τ0 : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ->
-    check Γ2 (Fvar x) Twptr ->
-    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
-    ectx_check s Γ3 (Kget x K) (Tectx(Tarrow τ0 Tℕ))
-| ETsetL : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (K : evalctx) (e2 : expr) (τ0 : ty),
-    Γ12 ≡ Γ1 ∘ Γ2 ->
-    Γ4 ≡ Γ12 ∘ Γ3 ->
-    check Γ3 (Fvar x) Twptr ->
-    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
-    check Γ2 e2 Tℕ ->
-    ectx_check s Γ4 (KsetL x K e2) (Tectx(Tarrow τ0 Tℕ))
-| ETsetR : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (K : evalctx) (v : value) (τ0 : ty),
-    Γ12 ≡ Γ1 ∘ Γ2 ->
-    Γ4 ≡ Γ12 ∘ Γ3 ->
-    check Γ3 (Fvar x) Twptr ->
-    check Γ1 v Tℕ ->
-    ectx_check s Γ2 K (Tectx(Tarrow τ0 Tℕ)) ->
-    ectx_check s Γ4 (KsetR x v K) (Tectx(Tarrow τ0 Tℕ))
-| ETlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (e : expr) (τ0 τ1 τ2 : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K (Tectx(Tarrow τ0 τ1)) ->
-    check (x ↦ (Texpr τ1) ◘ Γ2) e τ2 ->
-    ectx_check s Γ3 (Klet x K e) (Tectx(Tarrow τ0 τ2))
-| ETnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (K : evalctx) (e : expr) (τ0 : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
-    check (x ↦ (Texpr Tptr) ◘ Γ2) e Tℕ ->
-    ectx_check s Γ3 (Knew x K e) (Tectx(Tarrow τ0 Tℕ))
-| ETifz : forall (Γ1 Γ2 Γ3 : Gamma) (K : evalctx) (e1 e2 : expr) (τ0 τ1 : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ->
-    ectx_check s Γ1 K (Tectx(Tarrow τ0 Tℕ)) ->
-    check Γ2 e1 τ1 ->
-    check Γ2 e2 τ1 ->
-    ectx_check s Γ3 (Kifz K e1 e2) (Tectx(Tarrow τ0 τ1))
-| ETcall : forall (Γ : Gamma) (foo : vart) (K : evalctx) (τ0 τ1 τ2 : ty),
-    int τ1 -> int τ2 ->
-    check Γ (Xres(Fvar foo)) (Tectx(Tarrow τ1 τ2)) ->
-    ectx_check s Γ K (Tectx(Tarrow τ0 τ1)) ->
-    ectx_check s Γ (Kcall foo K) (Tectx(Tarrow τ0 τ2))
-| ETret : forall (Γ : Gamma) (K : evalctx) (τ0 τ1 : ty), (*TODO: intuitively, this should yield ⊥...?*)
-    int τ1 ->
-    ectx_check s Γ K (Tectx(Tarrow τ0 τ1)) ->
-    ectx_check s Γ (Kreturn K) (Tectx(Tarrow τ0 τ1))
-.
-#[local]
-Hint Constructors ectx_check : core.
+Definition ectx_check (symbs : symbols) (init : Gamma) (K : evalctx) (τ : Ty) : Prop :=
+  False.
 
 Fixpoint interfaces (s : symbols) : option(Gamma) :=
   match s with
@@ -972,6 +929,9 @@ Definition prog_check (p : prog) : Prop :=
 
 (** * Dynamics *)
 
+(* TODO: add ability to do n-steps *)
+(* TODO: mark locations with function, remove when returning *)
+
 (** Evaluation of binary expressions. Note that 0 means `true` in S, so `5 < 42` evals to `0`. *)
 Definition eval_binop (b : binopsymb) (v0 v1 : value) :=
   let '(Vnat n0) := v0 in
@@ -991,6 +951,7 @@ Inductive poison : Type :=
 Notation "'◻'" := (poisonless).
 Notation "'☣'" := (poisoned).
 
+(* A "dynamic" location contains the location and its poison *)
 Definition dynloc : Type := loc * poison.
 Definition dynloc_eqb :=
   fun (dℓ1 dℓ2 : dynloc) =>
@@ -1025,7 +986,6 @@ Instance dynloceq__Instance : HasEquality dynloc := {
   eqb_eq := dynloc_eqb_eq ;
   neqb_neq := dynloc_eqb_neq
 }.
-(* '⋅' is `\cdot` *)
 Notation "ℓ '⋅' ρ" := (((ℓ : loc), (ρ : poison)) : dynloc) (at level 81).
 
 (** Stores map variables to potentially poisoned locations. *)
@@ -1160,12 +1120,28 @@ Lemma snodupinv_split (Δ Δ' : store) :
   snodupinv (Δ ◘ Δ') ->
   snodupinv Δ /\ snodupinv Δ'
 .
-Proof. Admitted.
+Proof.
+  remember (Δ ◘ Δ') as Δ__c; revert Δ Δ' HeqΔ__c; induction Δ__c; cbn; intros.
+  - now destruct Δ, Δ'; inv HeqΔ__c.
+  - destruct Δ, Δ'; inv HeqΔ__c; cbn in *.
+    + split; try constructor; easy.
+    + split; try constructor; now rewrite append_nil in H.
+    + inv H. specialize (IHΔ__c Δ (v0 ↦ d0 ◘ Δ') Logic.eq_refl H5) as [IH__a IH__b].
+      split; try easy.
+      constructor; try easy.
+      * revert H3; clear; intros H0 H1; induction Δ; inv H1.
+        apply H0; now left.
+        assert (~ In v (dom (Δ ◘ v0 ↦ d0 ◘ Δ'))) as H2 by (intros H2; apply H0; now right); auto.
+      * revert H4; clear; intros H0 H1; induction Δ; try inv H1.
+        cbn in H1; destruct b, l; inv H1. apply H0; now left.
+        assert (~ In ℓ (dom(δ_of_Δ (Δ ◘ v0 ↦ d0 ◘ Δ')))) as H2 by (intros H2; apply H0; now right); auto.
+Qed.
 
 Lemma snodupinv_whocares (a : vart) (ℓ : loc) (ρ ρ' : poison) (Δ Δ' : store) :
   snodupinv (Δ ◘ a ↦ (ℓ,ρ) ◘ Δ') <-> snodupinv (Δ ◘ a ↦ (ℓ, ρ') ◘ Δ')
 .
-Proof. Admitted.
+Proof.
+Admitted.
 Lemma spush_msubset (Δ Δ' : store) (x : vart) (v : dynloc) :
   Some Δ' = spush x v Δ ->
   MSubset Δ Δ'.
@@ -1681,22 +1657,6 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     | _ => let* (K, c') := evalctx_of_expr c in
           Some(Kifz K e0 e1, c')
     end
-  end
-.
-Fixpoint insert (K : evalctx) (withh : expr) : expr :=
-  let R := fun k => insert k withh in
-  match K with
-  | Khole => withh
-  | KbinopL b K' e => Xbinop b (R K') e
-  | KbinopR b v K' => Xbinop b v (R K')
-  | Kget x K' => Xget x (R K')
-  | KsetL x K' e => Xset x (R K') e
-  | KsetR x v K' => Xset x v (R K')
-  | Klet x K' e => Xlet x (R K') e
-  | Knew x K' e => Xnew x (R K') e
-  | Kifz K' e0 e1 => Xifz (R K') e0 e1
-  | Kcall foo K' => Xcall foo (R K')
-  | Kreturn K' => Xreturn (R K')
   end
 .
 (* Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
@@ -2536,6 +2496,7 @@ Admitted.
 
 Lemma smsunsafe_prog_checks : prog_check smsunsafe_prog.
 Proof.
+  (*
   assert (NoOwnedPtr ("foo"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ ("main"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ [⋅]))) as G.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
     destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0;
@@ -2610,7 +2571,8 @@ Proof.
     unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
     destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
     destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
-Qed.
+    *)
+Admitted.
 
 Goal exists As R,
     wstep smsunsafe_prog As R.
@@ -2893,9 +2855,9 @@ Proof.
       * cbn; now rewrite Nat.eqb_refl.
       * inv Ac. apply snodupinv_equiv_sundup in Hx. inv Hx. eauto using store_agree_notin_propagates.
       * inv Ac. cbn. eapply store_agree_subsets; try exact H3.
-        apply (cons_msubset (addr(Fresh.fresh F)) (TMMon.addr(Fresh.fresh F))).
-        symmetry. eapply snodupinv_equiv_sundup in Hx as Hx'. eapply snodupinv_implies_δnodupinv in Hx'.
-        eapply push_ko; cbn in Hx'; inv Hx'; eauto.
+        eapply cons_msubset; symmetry.
+        eapply snodupinv_equiv_sundup in Hx as Hx'; eapply snodupinv_implies_δnodupinv in Hx'.
+        eapply push_ko; cbn in Hx'; inv Hx'; auto.
 Qed.
 
 Lemma ctx_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)

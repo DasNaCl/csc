@@ -3833,6 +3833,30 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Assume $\src{v}=\src{v'}$, apply \Cref{asm:differentreduction:nored} to the goal $\bot$, rewrite in the goal using $\src{v}=\src{v'}$ and solve the goal by \Cref{asm:differentreduction:red}.
 \end{proof}
 
+
+\clearpage
+\begin{lemma}[$\mmlAs$ call at $\mmlAt$ level finishes]\label{lem:trg:callfinishes}
+  If
+  \begin{assumptions}
+  \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
+  \item $(\src{let\ foo\ x:\type_{\color{black}\lambda}:=e_{foo}})\in\src{\Omega.\library_{comp}}$
+  \item $\trg{foo}=\mmlAmmlAtcomp{foo}$
+  \item $\typechecks{}{\Omega\triangleright call\ foo\ \interfacevalue}{\type}$
+  \item $\exec[]{\trg{\commlib;\library;\kontstack;\memstate}}{\trg{K[}\mmlAmmlAtcomp{call\ foo\ \interfacevalue}\trg{]}}{\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\mmlAmmlAtcomp{e_{foo}[\interfacevalue/x]}}{\trg{Call\ \hat{\comm}\ foo\ \interfacevalue}}$
+  \item $\xlangstateeq{\Omega}{\commlib;\library;\kontstack;\memstate}$
+  \end{assumptions}
+  Then $\exists \delta'\ n\ m\ \trg{\memstate'}\ \trg{\interfacevalue'}\ \src{\Omega'}$,
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\exec[^{m}]{\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\mmlAmmlAtcomp{e_{foo}[\interfacevalue/x]}}{\trg{\commlib;\library;\kontstack;\memstate'}}{\trg{K[\interfacevalue']}}{\trg{\trace}}$
+    \item $\exec[^{n}]{\src{\Omega}}{\src{call\ foo\ \interfacevalue}}{\src{\Omega'}}{\src{K[\interfacevalue']}}{\src{\trace}}$
+    \item $\xlangstateeq[\delta',\src{L}]{\Omega'}{\commlib;\library;\kontstack;\memstate'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+  .\MK{split this lemma into two parts: one red call-decomposition and the other one is generalized (substitutions) forward-sim with step-indices}
+\end{incompleteproof}
+
 \begin{lemma}[Expression Correctness]\label{lem:expression:correctness}
   If
   \begin{assumptions}
@@ -4301,7 +4325,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
         \item $\execs[]{\Omega}{e}{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}{e_{b}}{Alloc\ \loc\ 42}$
         \item $\src{e_{b}}=\src{call\ }\mmlAmmlAtback[\Game_{z}]{foo}\ \mmlAmmlAtbackv[\Game_{z}]{\interfacevalue}\ \src{; delete\ z;e_{a}}$
       \end{passumptions}
-      Since $\mmlAmmlAtback{foo}=\src{foo}\in\src{\commlib}$, we know that $(\src{let\ foo\ x:\type_{{\color{black}}\lambda}:=e})\in\src{\library_{comp}}$ and, thus, also $\mmlAmmlAtcomp{let\ foo\ x:\type_{{\color{black}}\lambda}:=e}\in\mmlAmmlAtcomp{\library_{comp}}$, the function known in the target as $\trg{foo}$.
+      Since $\mmlAmmlAtback{foo}=\src{foo}\in\src{\commlib}$, we know that $(\src{let\ foo\ x:\type_{{\color{black}}\lambda}:=e})\in\src{\library_{comp}}$ and, thus, also $\mmlAmmlAtcomp{let\ foo\ x:\type_{{\color{black}}\lambda}:=e}\in\mmlAmmlAtcomp{\library_{comp}}$.
+      Let $\src{K}=\src{let\ \_ = \hole{\cdot}\ in\ delete\ z;e_{a}}$. It is easy to see that $\src{K\hole{call\ foo\ \color{black}\mmlAmmlAtbackv{\interfacevalue}\color{\stlccol}}}=\src{e_{b}}$.
+      By inverting \Cref{asm:backtranscorr:call:call:exect}, we know $\trg{e_{0}}=\mmlAmmlAtcomp{K\hole{call\ foo\ ...}}$.
           {\color{red}\large TODO: break up call one step for the blue stuff, thus allowing us to apply the lemma approxoflolly}
       Given \Cref{asm:backtranscorr:case1:stateeq}, it is immediate\MK{don't be lazy} that:
       \begin{passumptions}{F}

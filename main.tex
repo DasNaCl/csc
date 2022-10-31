@@ -3896,65 +3896,63 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtbackdetail[\Game]{\trace}=\Game',\src{e}}{,,Given a \varmapbacktransds $\Game$ construct a \varmapbacktransds $\Game'$ and\\an $\mmlAs$ expression from target-trace $\trg{\mstrace}$.''}
+    \judgbox{\mmlAmmlAtbackdetail[\Game, \trg{\overline{\loc}}]{\trace}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$ construct a \varmapbacktransds $\Game'$, another \\stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$ expression from target-trace $\trg{\mstrace}$.''}
     %
     \typerule{backtrans-empty}{
     }{
-      \mmlAmmlAtbackdetail[\Game]{\hole{\cdot}}=\Game,\src{42}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\hole{\cdot}}=\Game,\trg{\overline{\loc}},\src{42}
     }{backtrans-empty}
     \typerule{backtrans-alloc}{
-      \mmlAmmlAtbackdetail[\Game]{\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Alloc\ \loc\ s}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Alloc\ \loc\ s}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-alloc}
     \typerule{backtrans-dealloc}{
-      \mmlAmmlAtbackdetail[\Game]{\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Dealloc\ \loc}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Dealloc\ \loc}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-dealloc}
     \typerule{backtrans-set}{
-      \mmlAmmlAtbackdetail[\Game]{\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Set\ \loc\ n}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Set\ \loc\ n}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-set}
     \typerule{backtrans-get}{
-      \mmlAmmlAtbackdetail[\Game]{\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Get\ \loc\ n}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Get\ \loc\ n}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-get}
     \typerule{backtrans-abort}{
     }{
-      \mmlAmmlAtbackdetail[\Game]{\lightning}=\Game,\src{abort()}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\lightning}=\Game,\trg{\overline{\loc}},\src{abort()}
     }{backtrans-abort}
     %
     \typerule{backtrans-call-comptoctx}{
-      \mmlAmmlAtbackdetail[\Game]{\trg{\trace}}=\Game',\src{e'} &
-      \src{e}=\src{call\ }\mmlAmmlAtbackdetail[\Game]{foo}\ \mmlAmmlAtbackv{\interfacevalue}\src{; e'}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e} &
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-call-comptoctx}
     %
     \typerule{backtrans-ret-comptoctx}{
-      \mmlAmmlAtbackdetail[\Game]{\trg{\trace}}=\Game',\src{e'} &
-      \src{e}=\src{return\ }\mmlAmmlAtbackv[\Game]{\interfacevalue}\src{;e'}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e'} &
+      \src{z}=\Game_z(\trg{\loc}) &
+      \src{e}=\src{delete\ z; e'}
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Ret\ \comptoctx\ \interfacevalue}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-ret-comptoctx}
     %
     \typerule{backtrans-call-ctxtocomp}{
       \fresh{\Game}{\trg{\loc}}&
       \Game_z=\Game[\trg{\loc}] &
-      \src{z}=\Game_z(\trg{\loc}) &
-      \src{e'}=\mmlAmmlAtbackdetail[\Game_z]{\trace} \\
-      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game_z]{foo}\ \mmlAmmlAtbackv[\Game_z]{\interfacevalue}\src{;delete\ z;e'}
+      \mmlAmmlAtbackdetail[\Game_z,\trg{\loc,\overline{\loc}}]{\trace}=\Game',\trg{\overline{\loc'}},\src{e'} \\
+      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game_z]{foo}\ \mmlAmmlAtbackv[\Game_z]{\interfacevalue}\src{; e'}
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-call-ctxtocomp}
     \typerule{backtrans-ret-ctxtocomp}{
-      \mmlAmmlAtbackdetail[\Game]{\trg{\trace}}=\Game',\src{e} &
-      \src{e}=\src{return\ }\mmlAmmlAtbackv{\interfacevalue}\src{; e'}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game]{\trg{Ret\ \ctxtocomp\ \interfacevalue}\cdot\trg{\trace}}=\Game',\src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
     }{backtrans-ret-ctxtocomp}
   \end{center}
 }{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
@@ -4010,9 +4008,10 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \vdash \trg{\trace[_0^{ctx}]} \operatorname{non-int-\trg{\trace}} \\
       \trg{\trace[_1]}=\trg{Ret\ \comptoctx\ \interfacevalue_1 \cdot \trace[_1^{ctx}] \cdot Ret\ \ctxtocomp\ n} &
       \vdash \trg{\trace[_1^{ctx}]} \operatorname{non-int-\trg{\trace}} \\
-      \mmlAmmlAtbackdetail[\Game]{\trace[_0]\cdot\trace[_1]} = \Game', \src{e}
+      \mmlAmmlAtbackdetail[\Game,\trg{\hole{\cdot}}]{\trace[_0]} = \Game', \trg{\overline{\loc}}, \src{e_0} &
+      \mmlAmmlAtbackdetail[\Game',\trg{\overline{\loc}}]{\trace[_1]} = \Game'', \trg{\hole{\cdot}}, \src{e_1} &
     }{
-      \mmlAmmlAtback[\Game]{\trace} = \Game', \src{let\ main\ x : \nat\to\nat := e,\hole{\cdot}}
+      \mmlAmmlAtback[\Game]{\trace} = \Game', \src{let\ main\ x : \nat\to\nat := e_0;e_1,\hole{\cdot}}
     }{backtrans-top-level}
   \end{center}
 }{tms-pres-top-level-backtrans}{Top-Level trace-based Backtranslation from $\mmlAt$ trace $\trg{\trace}$ to $\mmlAs$ context $\src{\library}$.}
@@ -4093,7 +4092,6 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
-  .\MK{$\ogreaterthan$ is supposed to say ,,all state outside of the other thing stays untouched''. we may as well just have a stack of memory states? NO, this will lose information about dealloc'd pointers. BUT! we can make a dict}
 \end{incompleteproof}
 
 \begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:wrapper:correct}
@@ -4102,19 +4100,21 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item $\exect{\Omega}{e}{\Omega'}{e'}{\trace\cdot\event}$
-  \item $\mmlAmmlAtbackdetail[\Game]{\trace}=\Game',\src{e}$
-  \item $\trg{\event}=\trg{Call\ \ctxtocomp\ bar\ \interfacevalue_{0}}\vee\trg{\event}=\trg{Ret\ \ctxtocomp\ \interfacevalue_{0}}$
+  \item $\exect{\Omega}{e}{\Omega'}{e'}{\trace\cdot\event[_{end}]}$
+  \item $\mmlAmmlAtbackdetail[\Game]{\trace\cdot\event[_{end}]}=\Game',\src{e}$
+  \item $\trg{\event[_{end}]}=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\vee\trg{\event[_{end}]}=\trg{Ret\ \ctxtocomp\ \interfacevalue}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
-  \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
+  \item $\src{\library}=\left\{\src{main}\mapsto\src{e}\right\}\src{\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
+  then $\exists \delta'\ \src{\memstate'}\ \src{\trace}\ \src{e'}\ \src{L'}\ \src{X'}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv[\Game']{\finalexprnoerr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
+  \item $\src{L}\subseteq\src{L'}$
+  \item $\src{X}\subseteq\src{X'}$
+  \item $\exec{\src{\Omega'}}{\src{e}}{\src{\commlib;\library;\kontstack;\memstate'}}{\mmlAmmlAtbackv[\Game']{\finalexprnoerr}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta';\src{L}]{\Omega'}{\Omega'}$
+  \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{\trace}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}

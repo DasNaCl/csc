@@ -4094,15 +4094,15 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{incompleteproof}
 \end{incompleteproof}
 
-\begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:wrapper:correct}
+\begin{lemma}[Begin of Backtranslation Correctness]\label{lem:exprbacktranslation:beg:wrapper:correct}
   If
   \begin{assumptions}
   \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item $\exect{\Omega}{e}{\Omega'}{e'}{\trace\cdot\event[_{end}]}$
-  \item $\mmlAmmlAtbackdetail[\Game]{\trace\cdot\event[_{end}]}=\Game',\src{e}$
-  \item $\trg{\event[_{end}]}=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\vee\trg{\event[_{end}]}=\trg{Ret\ \ctxtocomp\ \interfacevalue}$
+  \item $\exect{\Omega}{e}{\Omega'}{e'}{\event[_{begin}]}$
+  \item $\mmlAmmlAtbackdetail[\Game]{\event[_{begin}]}=\Game',\src{e}$
+  \item $\trg{\event[_{begin}]}=\trg{Call\ \comptoctx\ main\ 0} \vee \trg{\event[_{begin}]}=\trg{Ret\ \comptoctx\ \interfacevalue_{p}}$
   \item $\xlangbackstateeq{\Omega}{\Omega}$
   \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
   \item $\src{\library}=\left\{\src{main}\mapsto\src{e}\right\}\src{\linker\library_{comp}}$
@@ -4112,9 +4112,87 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\delta\subseteq\delta'$
   \item $\src{L}\subseteq\src{L'}$
   \item $\src{X}\subseteq\src{X'}$
-  \item $\exec{\src{\Omega'}}{\src{e}}{\src{\commlib;\library;\kontstack;\memstate'}}{\mmlAmmlAtbackv[\Game']{\finalexprnoerr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta';\src{L}]{\Omega'}{\Omega'}$
+  \item $\exec{\src{\Omega'}}{\src{e}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{e'}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta';\src{L}]{\Omega'}{\src{\commlib;\library;\kontstack;\memstate'}}$
+  \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{\event[_{begin}]}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Middle of Backtranslation Correctness]\label{lem:exprbacktranslation:mid:wrapper:correct}
+  If
+  \begin{assumptions}
+  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+  \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
+  \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
+  \item $\exect{\Omega}{e}{\Omega'}{e'}{\trace}$
+  \item $\mmlAmmlAtbackdetail[\Game]{\trace}=\Game',\src{e}$
+  \item $\vdash\trg{\trace}\operatorname{ non-int-}\trg{\trace}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
+  \item $\src{\library}=\left\{\src{main}\mapsto\src{e}\right\}\src{\linker\library_{comp}}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\memstate'}\ \src{\trace}\ \src{e'}\ \src{L'}\ \src{X'}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\src{L}\subseteq\src{L'}$
+  \item $\src{X}\subseteq\src{X'}$
+  \item $\exec{\src{\Omega'}}{\src{e}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{e'}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta';\src{L}]{\Omega'}{\src{\commlib;\library;\kontstack;\memstate'}}$
   \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{\trace}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[End of Backtranslation Correctness]\label{lem:exprbacktranslation:end:wrapper:correct}
+  If
+  \begin{assumptions}
+  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+  \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
+  \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
+  \item $\exect{\Omega}{e}{\Omega'}{e'}{\event[_{end}]}$
+  \item $\mmlAmmlAtbackdetail[\Game]{\event[_{end}]}=\Game',\src{e}$
+  \item $\trg{\event[_{end}]}=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue} \vee \trg{\event[_{end}]}=\trg{Ret\ \comptoctx\ \interfacevalue_{c}}$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
+  \item $\src{\library}=\left\{\src{main}\mapsto\src{e}\right\}\src{\linker\library_{comp}}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\memstate'}\ \src{\trace}\ \src{e'}\ \src{L'}\ \src{X'}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\src{L}\subseteq\src{L'}$
+  \item $\src{X}\subseteq\src{X'}$
+  \item $\exec{\src{\Omega'}}{\src{e}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{e'}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta';\src{L}]{\Omega'}{\src{\commlib;\library;\kontstack;\memstate'}}$
+  \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{\event[_{end}]}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:wrapper:correct}
+  If
+  \begin{assumptions}
+  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+  \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
+  \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
+  \item $\exect{\Omega}{e}{\Omega'}{e'}{\event[_{begin}]\cdot\trace\cdot\event[_{end}]}$
+  \item $\mmlAmmlAtbackdetail[\Game]{\event[_{begin}]\cdot\trace\cdot\event[_{end}]}=\Game',\src{e}$
+  \item $\left(\trg{\event[_{begin}]}=\trg{Call\ \comptoctx\ main\ 0} \wedge \trg{\event[_{end}]}=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\right)\vee\\\left(\trg{\event[_{begin}]}=\trg{Ret\ \comptoctx\ \interfacevalue_{p}}\wedge\trg{\event[_{end}]}=\trg{Ret\ \ctxtocomp\ \interfacevalue_{c}}\right)$
+  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
+  \item $\src{\library}=\left\{\src{main}\mapsto\src{e}\right\}\src{\linker\library_{comp}}$
+  \end{assumptions}
+  then $\exists \delta'\ \src{\memstate'}\ \src{\trace}\ \src{e'}\ \src{L'}\ \src{X'}$,
+  \begin{goals}
+  \item $\delta\subseteq\delta'$
+  \item $\src{L}\subseteq\src{L'}$
+  \item $\src{X}\subseteq\src{X'}$
+  \item $\exec{\src{\Omega'}}{\src{e}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{e'}}{\src{\trace}}$
+  \item $\xlangbackstateeq[\delta';\src{L}]{\Omega'}{\src{\commlib;\library;\kontstack;\memstate'}}$
+  \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{\event[_{begin}]\cdot\trace\cdot\event[_{end}]}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}

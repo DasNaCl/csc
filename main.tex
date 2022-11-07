@@ -3927,10 +3927,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}\cdot\trace}]{\lightning}=\Game,\trg{\overline{\loc}},\src{abort();}
     }{backtrans-abort}
     %
-    \hrule
-    %
-    \judgbox{\mmlAmmlAtbackdetail[\Game, \trg{\overline{\loc}}]{\event\comptoctx}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\backtranslation contexts from target-trace $\trg{\mstrace}$.''}
-    \judgbox{\mmlAmmlAtbackdetail[\Game, \trg{\overline{\loc}}]{\event\ctxtocomp}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\backtranslation contexts from target-trace $\trg{\mstrace}$.''}
+  \end{center}
+}{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAmmlAtbackcomptoctx[\Game, \trg{\overline{\loc}}]{\event}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\comptoctx$-interaction-event $\trg{\event}$.''}
     %
     \typerule{backtrans-call-comptoctx}{
     }{
@@ -3943,6 +3944,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{e}
     }{backtrans-ret-comptoctx}
+    %
+    %
+    \judgbox{\mmlAmmlAtbackctxtocomp[\Game, \trg{\overline{\loc}}]{\event}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\ctxtocomp$-interaction-event $\trg{\event}$.''}
     %
     \typerule{backtrans-call-ctxtocomp}{
       \fresh{\Game}{\trg{\loc}}&
@@ -3957,22 +3961,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{let\ x = new\ 1\ in\ delete\ x;return\ }\mmlAmmlAtbackv{\interfacevalue}
     }{backtrans-ret-ctxtocomp}
-    %
-    \hrule
-    %
-    \judgbox{\mmlAmmlAtbackdetail[\Game, \trg{\overline{\loc}}]{\event\comptoctx\cdot\trace\cdot\event\ctxtocomp}=\Game',\trg{\overline{\loc'}},\src{e_1},\src{e_2}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\backtranslation contexts from target-trace $\trg{\mstrace}$.''}
-    %
-    \typerule{subtoplevel-backtrans}{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\event[_1\comptoctx]}}=\Game',\trg{\overline{\loc'}},\src{e_1} \\
-      \mmlAmmlAtbackdetail[\Game',\trg{\overline{\loc'}}]{\trg{\trace}}=\Game'',\trg{\overline{\loc''}}, \src{e_2}\\
-      \mmlAmmlAtbackdetail[\Game'',\trg{\overline{\loc''}}]{\trg{\event[_2\ctxtocomp]}}=\Game''',\trg{\overline{\loc'''}},\src{e_3} \\
-    }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\event[_1\comptoctx]\cdot\trace\cdot\event[_2\ctxtocomp]}}=\Game''',\trg{\overline{\loc'''}}, \src{e_1}, \src{e_2},\src{e_3}
-    }{subtoplevel-backtrans}
   \end{center}
-}{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
-.\MK{add definition of backtranslation contexts (basically eval ctxs, but with possibility to add hole in let at the other position)}
-
+}{tms-pres-backtrans-interact}{Backtranslation of interaction-events from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{
   \begin{center}
     \typerule{non-interface-$\trg{\varepsilon}$}{
@@ -4005,13 +3995,34 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \vdash \trg{\lightning} \operatorname{non-int-\trg{\event}}
     }{non-interface-abort}
     %
-    \typerule{non-interface-trace}{
-      \vdash \trg{\trace}[n] \operatorname{non-int-\trg{\event}}
+    \typerule{non-interface-trace-empty}{
     }{
+      \vdash \trg{\hole{\cdot}} \operatorname{non-int-\trg{\trace}}
+    }{non-interface-trace-empty}
+    %
+    \typerule{non-interface-trace-cons}{
+      \vdash \trg{\event} \operatorname{non-int-\trg{\trace}} &
       \vdash \trg{\trace} \operatorname{non-int-\trg{\trace}}
-    }{non-interface-trace}
+    }{
+      \vdash \trg{\event\cdot\trace} \operatorname{non-int-\trg{\trace}}
+    }{non-interface-trace-cons}
   \end{center}
 }{tms-non-interfacing-events}{Non-Interfacing events.}
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAmmlAtbacksubtop[\Game, \trg{\overline{\loc}}]{\event[_1]\cdot\trace\cdot\event[_2]}=\Game',\trg{\overline{\loc'}},\src{e_1},\src{e_2}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a\\\varmapbacktransds $\Game'$, another stack of locations $\trg{\overline{\loc'}}$, and\\an $\mmlAs$ backtranslation context from\\target-trace $\trg{\mstrace}$ which starts with a $\ctxtocomp$ event\\and ends in a $\comptoctx$.''}
+    %
+    \typerule{subtoplevel-backtrans}{
+      \left(\trg{\event[_1]}=\trg{Call\ \comptoctx\ foo\ \interfacevalue_1} \wedge \trg{\event[_2]}=\trg{Call\ \ctxtocomp\ bar\ \interfacevalue_2}\right)\vee\\\left(\trg{\event[_1]}=\trg{Ret\ \comptoctx\ \interfacevalue_1}\wedge\trg{\event[_2]}=\trg{Ret\ \ctxtocomp\ \interfacevalue_2}\right) \\
+      \vdash \trg{\trace} \operatorname{non-int-\trg{\trace}}\\
+      \mmlAmmlAtbackcomptoctx[\Game,\trg{\overline{\loc}}]{\trg{\event[_1]}}=\Game',\trg{\overline{\loc'}},\src{e_1} &
+      \mmlAmmlAtbackdetail[\Game',\trg{\overline{\loc'}}]{\trg{\trace}}=\Game'',\trg{\overline{\loc''}}, \src{e_2} &
+      \mmlAmmlAtbackctxtocomp[\Game'',\trg{\overline{\loc''}}]{\trg{\event[_2]}}=\Game''',\trg{\overline{\loc'''}},\src{e_3} \\
+    }{
+      \mmlAmmlAtbacksubtop[\Game,\trg{\overline{\loc}}]{\trg{\event[_1]\cdot\trace\cdot\event[_2]}}=\Game''',\trg{\overline{\loc'''}}, \src{e_1}, \src{e_2},\src{e_3}
+    }{subtoplevel-backtrans}
+  \end{center}
+}{tms-pres-subtop-backtrans}{Interaction-Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
 
 \myfig{
   \begin{center}
@@ -4020,12 +4031,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \typerule{backtrans-top-level}{
       \trg{\trace}=\trg{\trace[_0]\cdot\trace[^{comp}]\cdot\trace[_1]} &
       \vdash \trg{\trace[^{comp}]} \operatorname{non-int-\trg{\trace}} \\
-      \trg{\trace[_0]}=\trg{Call\ \comptoctx\ main\ 0 \cdot \trace[_0^{ctx}] \cdot Call\ \ctxtocomp\ foo\ \interfacevalue_0} &
-      \vdash \trg{\trace[_0^{ctx}]} \operatorname{non-int-\trg{\trace}} \\
-      \trg{\trace[_1]}=\trg{Ret\ \comptoctx\ \interfacevalue_1 \cdot \trace[_1^{ctx}] \cdot Ret\ \ctxtocomp\ n} &
-      \vdash \trg{\trace[_1^{ctx}]} \operatorname{non-int-\trg{\trace}} \\
-      \mmlAmmlAtbackdetail[\Game,\trg{\hole{\cdot}}]{\trace[_0]} = \Game', \trg{\overline{\loc}}, \src{e_0},\src{e_0'},\src{let\ x_0 = new\ n_0\ in\ e_0''} \\
-      \mmlAmmlAtbackdetail[\Game',\trg{\overline{\loc}}]{\trace[_1]} = \Game'', \trg{\hole{\cdot}}, \src{e_1},\src{e_1'},\src{e_1''} \\
+      \trg{\trace[_0]}=\trg{Call\ \comptoctx\ main\ 0\cdot\trace[_0']\cdot Call\ \ctxtocomp\ foo\ \interfacevalue}\\
+      \mmlAmmlAtbacksubtop[\Game,\trg{\hole{\cdot}}]{\trace[_0]} = \Game', \trg{\overline{\loc}}, \src{e_0},\src{e_0'},\src{let\ x_0 = new\ n_0\ in\ e_0''} \\
+      \mmlAmmlAtbacksubtop[\Game',\trg{\overline{\loc}}]{\trace[_1]} = \Game'', \trg{\hole{\cdot}}, \src{e_1},\src{e_1'},\src{e_1''} \\
       \src{e} = \src{e_0;e_0';let\ x_0 = new\ n_0\ in\ (e_0'';e_1);e_1';e_1''}
     }{
       \mmlAmmlAtback[\Game]{\trace} = \Game'', \src{let\ main\ x : \nat\to\nat := e, \hole{\cdot}}
@@ -4037,50 +4045,126 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 
-\begin{lemma}[Expression-based Backtranslation is Well-Typed]\label{lem:expr:backtranslation:welltyped}
+\begin{lemma}[Backtranslation for Non-Interacting Traces is Well-Typed]\label{lem:expr:backtranslation:welltyped}
   If
   \begin{assumptions}
   \item $\trg{\trace}$ not stuck
-  \item $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trace}=\Game,\trg{\overline{\loc'}},\src{K}$
-  \item $\Gammas$ from $\trg{\overline{\loc}}$ and $\Game$\MK{add another relation...}
+  \item $\vdash\trg{\trace} \operatorname{non-int-\trg{\trace}}$
+  \item $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trace}=\Game,\trg{\overline{\loc'}},\src{e}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\typechecks{\Gamma}{K}{\nat\to\nat}$
+  \item $\typechecks{}{e}{\nat}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on $\trg{\trace}$. Most cases go through immediately using the induction hypothesis, the only left cases are $\src{e}=\src{42}$ and $\src{e}=\src{abort()}$.
+  Since $\trg{\trace}$ is not stuck, it cannot be that the backtranslation yields $\src{abort()}$.
+  The term $\src{42}$ easily typechecks against an empty gamma.
+\end{proof}
+
+\begin{lemma}[Backtranslation for $\comptoctx$-Interacting Events is Well-Typed]\label{lem:expr:interact:comptoctx:backtranslation:welltyped}
+  If
+  \begin{assumptions}
+  \item $\trg{\event}$ not stuck
+  \item\label[ass]{asm:expr:interact:comptoctx:backtranslation:welltyped} $\mmlAmmlAtbackcomptoctx[\Game,\trg{\overline{\loc}}]{\event}=\Game,\trg{\overline{\loc'}},\src{e}$
+  \end{assumptions}
+  Then $\exists \src{\Gamma}$,
+  \begin{goals}
+  \item $\typechecks{\Gamma}{e}{\nat}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Inverting \Cref{asm:expr:interact:comptoctx:backtranslation:welltyped} yields two cases, so we continue with two cases.
+  \begin{description}
+    \item \textbf{Case }$\trg{\event} = \trg{Call\ \comptoctx\ foo\ \interfacevalue}$\textbf{:}
+
+    Here, $\src{e} = \src{42}$. Let $\src{\Gamma} = \src{\hole{\cdot}}$, it's easy to see that $\typechecks{}{42}{\nat}$ holds by \Cref{tr:t-nat}.
+
+    \item \textbf{Case }$\trg{\event} = \trg{Ret\ \comptoctx\ \interfacevalue}$\textbf{:}
+
+    $\src{e} = \src{delete\ z}$, where $\src{z} = \Game\left(\trg{\loc}\right)$ and $\trg{\loc}$ is at the top of the stack of locations $\trg{\overline{\loc}}$.
+    Choose $\src{\Gamma} = \src{x:\ptr,\hole{\cdot}}$, the typing follows using \Cref{tr:w-t-delete}.
+  \end{description}
+\end{proof}
+
+\begin{lemma}[Backtranslation for Call-$\ctxtocomp$ is Well-Typed]\label{lem:expr:interact:call:comptoctx:backtranslation:welltyped}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:expr:interact:call:ctxtocomp:backtranslation:welltyped} $\mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{Call\ \ctxtocomp\ foo\ \interfacevalue}=\Game',\trg{\loc,\overline{\loc'}},\src{e'}$
+  \item $\src{x} = \Game'\left(\trg{\loc}\right)$
+  \item $\src{e}=\src{e';\ delete\ x}$
+  \item\label[ass]{asm:expr:interact:call:ctxtocomp:backtranslation:gamma} $\src{\Gamma}=\src{\Gamma_{1}, foo:\nat\to\nat ,\Gamma_{2}}$\MK{$\src{\nat\to\nat}$ only holds under the assumption of non-passing pointers}
+  \end{assumptions}
+  Then,
+  \begin{goals}
+  \item $\typechecks{\Gamma}{e}{\nat}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:expr:interact:call:ctxtocomp:backtranslation:welltyped} giving\\$\src{e}=\src{let\ x=new\ 42\ in\ call\ }\mmlAmmlAtbackv[\Game']{foo}\ \mmlAmmlAtbackv[\Game']{\interfacevalue}\src{;\ delete\ x}$, where $\Game' = \Game\left[\trg{\loc}\right]$ and $\fresh{\Game}{\trg{\loc}}$.
+  The claim follows using \Cref{tr:w-t-new,tr:w-t-delete} and \Cref{tr:t-let,tr:t-call}, where the latter uses \Cref{asm:expr:interact:call:ctxtocomp:backtranslation:gamma}.
+\end{proof}
+
+\begin{lemma}[Backtranslation for Ret-$\ctxtocomp$ is Well-Typed]\label{lem:expr:interact:ret:ctxtocomp:backtranslation:welltyped}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:expr:interact:ret:ctxtocomp:backtranslation:welltyped} $\mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{Ret\ \ctxtocomp\ \interfacevalue}=\Game,\trg{\overline{\loc'}},\src{e}$
+  \end{assumptions}
+  Then,
+  \begin{goals}
+  \item $\typechecks{}{e}{\nat\to\bot}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:expr:interact:ret:ctxtocomp:backtranslation:welltyped} giving $\src{e}=\src{let\ x=new\ 1\ in\ delete\ x;\ return\ }\mmlAmmlAtbackv{\interfacevalue}$, where $\fresh{\Game}{\src{x}}$.
+  It's assumed that $\mmlAmmlAtbackv{\interfacevalue}=\src{n}$\MK{this assumption is gone if we talk about passing pointers}, so the claim follows using \Cref{tr:w-t-new,tr:w-t-delete,tr:t-return}.
+\end{proof}
 
 \begin{lemma}[Backtranslation is Well-Typed]\label{lem:backtranslation:welltyped}
   If
   \begin{assumptions}
   \item $\trg{\trace}$ not stuck
-  \item $\mmlAmmlAtback[\emptyset]{\trace}=\Game,\src{\library}$
+  \item\label[ass]{asm:backtranslation:welltyped:backtrans} $\mmlAmmlAtback[\emptyset]{\trace}=\Game,\src{\library_{ctx}}$
+  \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
+  \item $\Gammas\vdash\src{\library_{comp}}\operatorname{ok}$
   \end{assumptions}
-  Then
+  Then,
   \begin{goals}
-  \item $\vdash\src{\library}\operatorname{ok}$
+  \item $\Gammas\vdash\src{\library}\operatorname{ok}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  First up, note that $\Gammas\vdash\src{\library_{comp}}\operatorname{ok}$, so it suffices to check $\Gammas\vdash\src{\library_{ctx}}\operatorname{ok}$.\MK{technical lemma}
+  By inverting \Cref{asm:backtranslation:welltyped:backtrans} we get $\trg{\trace}=\trg{\trace[_{0}]\cdot\trace[^{comp}]\cdot\trace[_{1}]}$ and\\$\src{e}=\src{e_{0};e_{0}';let\ x_{0}=new\ n_{0}\ in\ \left(e_{0}'';e_{1}\right);e_{1}';e_{1}''}$, where:
+  \begin{passumptions}{H}
+    \item $\vdash\trg{\trace[^{comp}]}\operatorname{non-int-\trg{\trace}}$
+    \item\label[ass]{asm:backtranslation:welltyped:subtop1} $\mmlAmmlAtbackdetail[\Game,\trg{\hole{\cdot}}]{\trace[_{0}]}=\Game',\trg{\overline{\loc}},\src{e_{0}},\src{e_{0}'},\src{let\ x_{0} = new\ n_{0}\ in\ e_{0}''}$
+    \item\label[ass]{asm:backtranslation:welltyped:subtop2} $\mmlAmmlAtbackdetail[\Game',\trg{\overline{\loc}}]{\trace[_{1}]}=\Game'',\trg{\hole{\cdot}},\src{e_{1}},\src{e_{1}'},\src{e_{1}''}$.
+  \end{passumptions}
+  Inverting \Cref{asm:backtranslation:welltyped:subtop1,asm:backtranslation:welltyped:subtop2}, first take note that\\$\trg{\trace[_0]}=\trg{Call\ \comptoctx\ main\ \interfacevalue_1\cdot\trace[_0']\cdot Call\ \ctxtocomp\ foo\ \interfacevalue_2}$ and $\trg{\trace[_1]}=\trg{Ret\ \ctxtocomp\ \interfacevalue_3\cdot\trace[_1']\cdot Ret\ \comptoctx\ \interfacevalue_4}$.
+  Furthermore, $\src{e_{0}}=\src{42}$, $\mmlAmmlAtbackdetail[\Game,\trg{\hole{\cdot}}]{\trace[_{0}']}=\Game',\trg{\loc,\overline{\loc}},\src{e_{0}'}$, and $\src{e_0''}=\src{let\ z=new\ 42\ in\ call\ foo\ n}$, where $\src{z}=\Game'\left(\trg{\loc}\right)$, $\src{n}=\mmlAmmlAtbackv{\interfacevalue_{2}}$, and $\mmlAmmlAtcomp{foo}=\trg{foo}$ with $\src{foo}\in\operatorname{dom}\src{\library_{comp}}$.
+  Also, $\src{e_{1}}=\src{delete\ z}$, $\mmlAmmlAtbackdetail[\Game',\trg{\loc,\overline{\loc}}]{\trace[_{1}']}=\Game'',\trg{\hole{\cdot}},\src{e_{1}'}$, and $\src{e_{1}''}=\src{let\ x = new\ 1\ in\ delete\ x;return\ m}$, where $\src{m}=\mmlAmmlAtbackv[\Game'']{\interfacevalue_{4}}$ and $\fresh{\Game''}{\src{x}}$.
+  Therefore: $$\src{e}=\src{42;e_{0}';let\ z=new\ 42\ in\ \left(call\ foo\ n; delete\ z\right);e_{1}';let\ x=\ new\ 1\ in\ delete\ x;return\ m}$$
+
+  This typechecks easily, making use of \Cref{tr:w-t-new,tr:w-t-delete} and \Cref{tr:t-let,tr:t-return,tr:t-call}, as well as \Thmref{lem:expr:backtranslation:welltyped}\MK{...and weakening (with NonOwnedPtr stuff)}.
 \end{incompleteproof}
 
-\begin{lemma}[$\mmlAt$ call decomposition]\label{lem:trg:calldecompose}
-  If
-  \begin{assumptions}
-    \item $\exect{\commlib;\library;\kontstack;\memstate}{K[e]}{\Omega'}{\finalexpr}{Call\ \comm\ foo\ \interfacevalue\cdot\trace}$
-  \end{assumptions}
-  Then $\exists \trg{\trace[_{1}]}\ \trg{\trace[_{2}]}\ n$,
-  \begin{goals}
-    \item $\exect[]{\commlib;\library;\kontstack;\memstate}{K[e]}{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{Call\ \comm\ foo\ \interfacevalue}$
-    \item $\exect[^{n}]{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\trace[_{1}]\cdot Ret\ \hat{\comm}\ \interfacevalue'}$
-    \item $\exect{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\Omega'}{\finalexpr}{\trace[_{2}]}$
-    \item $\trg{\memstate}\ogreaterthan\trg{\memstate'}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+% \begin{lemma}[$\mmlAt$ call decomposition]\label{lem:trg:calldecompose}
+%   If
+%   \begin{assumptions}
+%     \item $\exect{\commlib;\library;\kontstack;\memstate}{K[e]}{\Omega'}{\finalexpr}{Call\ \comm\ foo\ \interfacevalue\cdot\trace}$
+%   \end{assumptions}
+%   Then $\exists \trg{\trace[_{1}]}\ \trg{\trace[_{2}]}\ n$,
+%   \begin{goals}
+%     \item $\exect[]{\commlib;\library;\kontstack;\memstate}{K[e]}{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{Call\ \comm\ foo\ \interfacevalue}$
+%     \item $\exect[^{n}]{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\trace[_{1}]\cdot Ret\ \hat{\comm}\ \interfacevalue'}$
+%     \item $\exect{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\Omega'}{\finalexpr}{\trace[_{2}]}$
+%     \item $\trg{\memstate}\ogreaterthan\trg{\memstate'}$
+%   \end{goals}
+% \end{lemma}
+% \begin{incompleteproof}
+% \end{incompleteproof}
 
 \begin{lemma}[Very Beginning of Backtranslation Correctness]\label{lem:exprbacktranslation:vbeg:wrapper:correct}
   If
@@ -4408,29 +4492,6 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{incompleteproof}
 \end{incompleteproof}
 
-% \begin{lemma}[Expression-based Backtranslation Correctness]\label{lem:exprbacktranslation:wrapper:correct}
-%   If
-%   \begin{assumptions}
-%   \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
-%   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
-%   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-%   \item $\exect{\Omega}{e}{\Omega'}{e'}{\event[_{begin}]\cdot\trace\cdot\event[_{end}]}$
-%   \item $\mmlAmmlAtbackdetail[\Game]{\event[_{begin}]\cdot\trace\cdot\event[_{end}]}=\Game',\src{e}$
-%   \item $\left(\trg{\event[_{begin}]}=\trg{Call\ \comptoctx\ main\ 0} \wedge \trg{\event[_{end}]}=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}\right)\vee\\\left(\trg{\event[_{begin}]}=\trg{Ret\ \comptoctx\ \interfacevalue_{p}}\wedge\trg{\event[_{end}]}=\trg{Ret\ \ctxtocomp\ \interfacevalue_{c}}\right)$
-%   \item $\xlangbackstateeq{\Omega}{\Omega}$
-%   \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
-%   \item $\src{\library}=\left\{\src{main}\mapsto\src{e}\right\}\src{\linker\library_{comp}}$
-%   \end{assumptions}
-%   then $\exists \delta'\ \src{\memstate'}\ \src{\trace}\ \src{e'}\ \src{L'}\ \src{X'}$,
-%   \begin{goals}
-%   \item $\delta\subseteq\delta'$
-%   \item $\src{L}\subseteq\src{L'}$
-%   \item $\src{X}\subseteq\src{X'}$
-%   \item $\exec{\src{\Omega'}}{\src{e}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{e'}}{\src{\trace}}$
-%   \item $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\kontstack;\memstate'}}{\Omega'}$
-%   \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{\event[_{begin}]\cdot\trace\cdot\event[_{end}]}$
-%   \end{goals}
-% \end{lemma}
 \begin{lemma}[Subtoplevel Backtranslation Correctness]\label{lem:subtop:backtranslation:correct}
   If
   \begin{assumptions}
@@ -4454,19 +4515,37 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
-  \item $\mmlAmmlAtback[\Game]{\trace}=\Game',\src{e}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item $\exect{\Omega}{call\ main\ 0}{\Omega'}{\finalexprnoerr}{\trace}$
+  \item\label[ass]{asm:backtrans:correct:backtrans} $\mmlAmmlAtback[\Game]{\trace}=\Game',\src{\library_{ctx}}$
+  \item $\xlangstateeq[\emptyset]{\Omega}{\Omega}$
+  \item $\trg{\Omega}=\trg{foo,\hole{\cdot};\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
+  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
+  \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
+  then $\exists \delta'\ \src{L'}\ \src{X'}\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\exec{\configs}{\src{e}}{\src{\configs'}}{\mmlAmmlAtbackv[\Game']{\finalexprnoerr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
+  \item $\exec{\configs}{\src{call\ main\ 0}}{\src{\configs'}}{\mmlAmmlAtbackv[\Game']{\finalexprnoerr}}{\src{\trace}}$
+  \item $\xlangstateeq[\delta';\src{L'}]{\Omega'}{\Omega'}$
+  \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{\trace}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  Inverting \Cref{asm:backtrans:correct:backtrans} gives\\$\trg{\trace} = \trg{Call\ \comptoctx\ main\ 0\cdot\trace[_{0}]\cdot Call\ \ctxtocomp\ foo\ \interfacevalue_{0}\cdot\trace[_{comp}]\cdot Ret\ \comptoctx\ \interfacevalue_{1}\cdot\trace[_{1}]\cdot Ret\ \ctxtocomp\ \interfacevalue_{2}}$, $\vdash\trg{\trace[^{comp}]}\operatorname{non-int-\trg{\trace}}$, $\mmlAmmlAtbackctxtocomp[\Game,\trg{\hole{\cdot}}]{\trace[_0]} = \Game',\trg{\overline{\loc}},\src{e_0},\src{e_0'},\src{let\ z\ =\ new\ n_0\ in\ e_0''}$, and $\mmlAmmlAtbackcomptoctx[\Game',\trg{\overline{\loc}}]{\trace[_1]} = \Game'',\trg{\hole{\cdot}},\src{e_1},\src{e_1'},\src{e_1''}$, such that $\src{e}=\src{e_0;e_0';let\ z\ =\ new\ n_0\ in\ \left(e_0'';e_1\right);e_1';e_1''}$ and $\src{\library_{ctx}}=\src{let\ main\ x:\nat\to\nat:=e,\hole{\cdot}}$.
+
+  By transitivity and inversion, $\exect{\Omega}{call\ main\ 0}{\Omega}{e_0}{Call\ \comptoctx\ main\ 0}$ and $\exect{\Omega}{e_0}{\Omega'}{\finalexprnoerr}{\trace[_a]}$, where $\trg{\trace}=\trg{Call\ \comptoctx\ main\ 0\cdot\trace[_a]}$.
+
+  Now use \Thmref{lem:exprbacktranslation:vbeg:wrapper:correct} to get
+  \begin{passumptions}{H}
+    \item $\emptyset\subseteq\delta_{0}$
+    \item $\src{\hole{\cdot}}\subseteq\src{L_0}$
+    \item $\src{\hole{\cdot}}\subseteq\src{X_0}$
+    \item $\execs{\Omega}{call\ main\ 0}{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}{e_{main}}{\trace}$
+    \item $\xlangbackstateeq[\delta_0;\src{L_0}]{\Omega}{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}$
+    \item $\src{\trace}\thexlangtraceeq[\delta_0;\src{X_0}]\trg{\trace}$
+  \end{passumptions}
+
+  %\Cref{lem:exprbacktranslation:beg:wrapper:correct}
 \end{incompleteproof}
 
 \begin{scontents}[store-env=buffer]

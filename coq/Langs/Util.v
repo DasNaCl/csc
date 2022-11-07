@@ -378,6 +378,13 @@ Proof.
   subst. rewrite H0__a in H2. inv H2. easy.
 Qed.
 
+Lemma splitat_var_refl { A : Type } { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x y : A) (v : B) :
+  splitat m x = Some(m1, y, v, m2) ->
+  x = y
+.
+Proof.
+Admitted.
+
 Lemma mset_splitat { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m : mapind H B) (x : A) (v b : B) :
   nodupinv(m1 ◘ (mapCons x v m2)) ->
   Some m = mset (m1 ◘ (mapCons x v m2)) x b ->

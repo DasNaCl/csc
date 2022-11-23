@@ -4500,8 +4500,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\delta\subseteq\delta'$
   \item $\src{L}\subseteq\src{L'}$
   \item $\src{X}\subseteq\src{X'}$
-  \item $\exec{\src{\Omega}}{\src{K[e]}}{\src{\commlib;\library;\hole{\cdot};\memstate}}{\mmlAmmlAtbackv{n}}{\src{\trace}}$
-  \item $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\hole{\cdot};\memstate}}{\commlib;\library;\hole{\cdot};\memstate}$
+  \item $\exec{\src{\Omega}}{\src{K[e]}}{\src{\commlib;\library;\hole{\cdot};\memstate'}}{\mmlAmmlAtbackv{n}}{\src{\trace}}$
+  \item $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\hole{\cdot};\memstate'}}{\commlib;\library;\hole{\cdot};\memstate}$
   \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{Ret\ \ctxtocomp\ n}$
   \end{goals}
 \end{lemma}
@@ -4608,10 +4608,33 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\src{X'}\subseteq\src{X''}$
     \item $\execs{foo,\hole{\cdot};\library;K'^{foo}_{\comptoctx},\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''}{K_{component}\hole{return\ \interfacevalue_1}}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''}{delete\ z;e_1';e_1''}{\trace[_{2}]}$
     \item $\xlangbackstateeq[\delta_3;\src{L''}]{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate'}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''}$
-    \item $\src{\trace[_2]}\thexlangtraceeq[\delta_3;\src{X''}]\trg{Ret\ \ctxtocomp}$ \MK{the wrapper should be eaten away in the lemmas}
+    \item $\src{\trace[_2]}\thexlangtraceeq[\delta_3;\src{X''}]\trg{Ret\ \ctxtocomp\ \interfacevalue_1}$ \MK{the wrapper should be eaten away in the lemmas}
   \end{passumptions}
 
-  ...continue...
+  And again, by transitivity and inversion,\\$\exect{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate'}{K'\hole{\interfacevalue_1}}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''}{K''\hole{return\ \interfacevalue_{2}}}{\trace[_1]}$ and\\ $\exect{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''}{K''\hole{return\ \interfacevalue_{2}}}{\Omega'}{\finalexprnoerr}{Ret\ \ctxtocomp\ \interfacevalue_2}$, where $\trg{\trace[_{d}]}=\trg{\trace[_1]\cdot Ret\ \ctxtocomp\ \interfacevalue_2}$.
+
+  This allows us to use \Thmref{lem:exprbacktranslation:mid:wrapper:correct}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{23}
+    \item $\delta_3\subseteq\delta_4$
+    \item $\execs{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''}{K''\hole{e_1'}}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate'''}{K''\hole{42}}{\trace[_{3}]}$
+    \item $\xlangbackstateeq[\delta_4;\src{L''}]{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate'''}$
+    \item $\src{\trace[_3]}\thexlangtraceeq[\delta_4;\src{X''}]\trg{\trace[_1]}$
+  \end{passumptions}
+
+  Finally, we use \Thmref{lem:exprbacktranslation:vend:wrapper:correct}:\MK{argue that $\src{K''\hole{42}}=\src{K'''\hole{return\ \interfacevalue_{2}}}$}
+  \begin{passumptions}{H}
+    \setcounter{enumi}{27}
+    \item $\delta_{4}\subseteq\delta_{5}$
+    \item $\src{L''}\subseteq\src{L'''}$
+    \item $\src{X''}\subseteq\src{X'''}$
+    \item $\execs{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate'''}{K'''\hole{return\ \interfacevalue_{2}}}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''''}{\interfacevalue_{2}}{\trace[_{4}]}$
+    \item $\xlangstateeq[\delta_{5};\src{L'''}]{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''''}{\Omega'}$
+    \item $\src{\trace[_4]}\thexlangtraceeq[\delta_{4};\src{X'''}]\trg{Ret\ \ctxtocomp\ \interfacevalue_{2}}$
+  \end{passumptions}
+
+  Stitching everything together, we can conclude by instantiating the goal with $\delta_{5},\src{L'''},\src{X'''}, \src{\trace[_{0}]\cdot\trace[_{1}]\cdot\trace[_{2}]\cdot\trace[_{3}]\cdot\trace[_{4}]}$ and for $\src{\Omega'}$ choose $\src{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate''''}$.
+  The goals follow by composition and monotonicity.\MK{flesh this out in detail}
 \end{incompleteproof}
 
 \begin{scontents}[store-env=buffer]

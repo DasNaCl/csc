@@ -1011,7 +1011,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \begin{aligned}
   \mi{Interface\ Value}~\src{\interfacevalue} \bnfdef&\ \src{\valueexpr} \mid \src{\loc} \\
   \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \mid \src{\lightning} \\
-                                  & \mid \src{Call\ \comm\ foo\ \interfacevalue} \mid \src{Ret\ \comm\ \interfacevalue} \\
+                                  & \mid \src{Call\ \comm\ foo\ \interfacevalue} \mid \src{Ret\ \comm\ \interfacevalue} \mid \src{Start} \mid \src{End\ \interfacevalue}\\
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
@@ -1230,12 +1230,19 @@ When generating the static context from the execution context, \Cref{tr:t-poison
 \myfig{
   \begin{center}
     \judgbox{\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$, giving dynamic state\\$\configs$ and emitting trace $\src{\trace}$.''}
-  \typerule{$e-\text{wprog}$}{
-    \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
-    \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
-  }{
-    \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}
-  }{ws-e-prog}
+    \typerule{$e-\text{wprog}$}{
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} \\
+      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot Ret\ \ctxtocomp\ \interfacevalue}
+    }{
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{Start\cdot\trace\cdot End\ \interfacevalue}
+    }{ws-e-prog}
+    %
+    \typerule{$e-\text{wprog}-\lightning$}{
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} \\
+      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot \lightning}
+    }{
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{Start\cdot\trace\cdot \lightning}
+    }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 
@@ -2557,7 +2564,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \begin{aligned}
   \mi{Interface\ Value}~\trg{\interfacevalue} \bnfdef&\ \trg{\valueexpr} \mid \trg{\loc} \\
   \mi{Events}~\trg{\event} \bnfdef&\ \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}\\
-                             & \mid \trg{Call\ \comm\ foo\ \interfacevalue} \mid \trg{Ret\ \comm\ \interfacevalue}
+                             & \mid \trg{Call\ \comm\ foo\ \interfacevalue} \mid \trg{Ret\ \comm\ \interfacevalue} \mid \trg{Start} \mid \trg{End\ \interfacevalue}
   \end{aligned}
   \end{gather*}
 }{tw-events}{Events of $\mmlAt$.}
@@ -2823,13 +2830,21 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \myfig{
   \begin{center}
     \judgbox{\wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \library_{ctx}\ \library_{comp}}$, giving\\dynamic state $\configt$ and emitting trace $\trg{\trace}$.''}
-  \typerule{$te-\text{wprog}$}{
-    \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
-    \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
-    \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
-  }{
-    \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}
-  }{wt-e-prog}
+    \typerule{$te-\text{wprog}$}{
+      \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
+      \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
+      \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot Ret\ \ctxtocomp\ \interfacevalue}
+    }{
+      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{Start\cdot\trace\cdot End\ \interfacevalue}
+    }{wt-e-prog}
+    %
+    \typerule{$te-\text{wprog}-\lightning$}{
+      \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
+      \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
+      \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot\lightning}
+    }{
+      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{Start\cdot\trace\cdot\lightning}
+    }{wt-e-prog-fail}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
 

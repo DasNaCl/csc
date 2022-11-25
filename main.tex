@@ -3037,6 +3037,17 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \judgbox{\xlangeventeq{\event}{\event}}{,,The $\mmlAs$ event $\src{\event}$ describes the same action as $\mmlAt$ event $\trg{\event}$.''} \\
     %
+    \typerule{start-event-eq}{
+    }{
+      \xlangeventeq{Start}{Start}
+    }{start-event-eq}
+    %
+    \typerule{end-event-eq}{
+      \src{\interfacevalue} = \trg{\interfacevalue}
+    }{
+      \xlangeventeq{End\ \interfacevalue}{End\ \interfacevalue}
+    }{end-event-eq}
+    %
     \typerule{alloc-event-eq}{
       \mmlAmmlAtcomp{n}=\trg{n} &
       \delta(\src{\loc})=\trg{\loc}
@@ -3969,15 +3980,19 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{backtrans-call-comptoctx}{
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{42}
+      \mmlAmmlAtbackcomptoctx[\Game,\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{42}
     }{backtrans-call-comptoctx}
     %
     \typerule{backtrans-ret-comptoctx}{
       \src{z}=\Game(\trg{\loc}) &
       \src{e}=\src{delete\ z}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{e}
+      \mmlAmmlAtbackcomptoctx[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{e}
     }{backtrans-ret-comptoctx}
+    \typerule{backtrans-start-ctxtocomp}{
+    }{
+      \mmlAmmlAtbackctxtocomp[\Game,\trg{\cdot}]{\trg{Start}}=\Game,\trg{\hole{\cdot}},\src{42}
+    }{backtrans-start-ctxtocomp}
     %
     %
     \judgbox{\mmlAmmlAtbackctxtocomp[\Game, \trg{\overline{\loc}}]{\event}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\ctxtocomp$-interaction-event $\trg{\event}$.''}
@@ -3988,13 +4003,17 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \src{z}=\Game_z(\trg{\loc}) \\
       \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game_z]{foo}\ \mmlAmmlAtbackv[\Game_z]{\interfacevalue}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}}=\Game_z,\trg{\loc,\overline{\loc}},\src{e}
+      \mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}}=\Game_z,\trg{\loc,\overline{\loc}},\src{e}
     }{backtrans-call-ctxtocomp}
     \typerule{backtrans-ret-ctxtocomp}{
       \fresh{\Game}{\src{x}}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{let\ x = new\ 1\ in\ delete\ x;return\ }\mmlAmmlAtbackv{\interfacevalue}
+      \mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{let\ x = new\ 1\ in\ delete\ x;return\ }\mmlAmmlAtbackv{\interfacevalue}
     }{backtrans-ret-ctxtocomp}
+    \typerule{backtrans-end-ctxtocomp}{
+    }{
+      \mmlAmmlAtbackctxtocomp[\Game,\trg{\cdot}]{\trg{End\ \interfacevalue}}=\Game,\trg{\hole{\cdot}},\mmlAmmlAtbackv{\interfacevalue}
+    }{backtrans-end-ctxtocomp}
   \end{center}
 }{tms-pres-backtrans-interact}{Backtranslation of interaction-events from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{

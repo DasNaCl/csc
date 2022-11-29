@@ -3148,15 +3148,50 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \xlangstateeq{x\mapsto\loc_{\poison},y\mapsto\loc'_{\poison'},\Delta;H}{x\mapsto\loc_{\poison},y\mapsto\loc'_{\poison'},\Delta;H}
     }{cons-memstate-eq}
     %
+    \typerule{last-cons-memstate-eq}{
+      \src{\loc}\notin\src{L}&
+      \mmlAmmlAtcomp{x}=\trg{x}&
+      \delta\left(\src{\loc}\right)=\trg{\loc}&
+      \src{\poison}=\trg{\poison}&
+      \operatorname{length}\src{H}\vdash\xlangstateeq[]{H}{H}
+    }{
+      \xlangstateeq{x\mapsto\loc_{\poison},\hole{\cdot};H}{x\mapsto\loc_{\poison},\hole{\cdot};H}
+    }{last-cons-memstate-eq}
+    %
     \typerule{cons-ignore-memstate-eq}{
       \src{\loc}\in\src{L}&
-      \src{H'}=\overbrace{\src{0,\dots,0}}^{42-times}\src{,H} &
+      \src{H'}\vdash^{42}_{\operatorname{skip}}\src{H}&
       \xlangstateeq{\Delta;H}{\Delta;H}
     }{
       \xlangstateeq{x\mapsto\loc_{\poison},\Delta;H'}{\Delta;H}
     }{cons-ignore-memstate-eq}
     %
-    \judgbox{n\vdash\xlangstateeq{H}{H}}{,,The $\mmlAs$ heap $\src{H}$ agrees with $\mmlAt$ one $\trg{H}$ over $n$ entries from the\\beginning. $\src{L}$ contains locations introduced by the backtranslation\\wrapper.''}\\
+    \judgbox{\src{H}\vdash^{n}_{\operatorname{skip}}\src{H'}}{,,Skip $n$ elements of $\mmlAs$ heap $\src{H}$, yielying $\src{H'}$.}\\
+    %
+    \typerule{$\src{H}$-skip-none}{
+    }{
+      \src{H}\vdash^{0}_{\operatorname{skip}}\src{H}
+    }{heap-skip-none}
+    %
+    \typerule{$\src{H}$-skip-one}{
+      \src{H}\vdash^{n}_{\operatorname{skip}}\src{H'}
+    }{
+      \src{m,H}\vdash^{n+1}_{\operatorname{skip}}\src{H'}
+    }{heap-skip-one}
+    %
+    \judgbox{n\vdash\xlangstateeq[]{H}{H}}{,,Heap $\src{H}$ agrees with $\trg{H}$ over $n$ entries.''}\\
+    %
+    \typerule{$\src{H}$-agree-zero}{
+    }{
+      0\vdash\xlangstateeq[]{H}{H}
+    }{heap-agree-zero}
+    %
+    \typerule{$\src{H}$-agree-cons}{
+      \src{n}=\trg{n}&
+      m\vdash\xlangstateeq[]{H}{H}
+    }{
+      m+1\vdash\xlangstateeq[]{n,H}{n,H}
+    }{heap-agree-cons}
     %
     \judgbox{\xlangstateeq[]{\cfstate}{\cfstate}}{,,The $\mmlAs$ control-flow-state $\src{\cfstate}$ agrees with $\mmlAt$ one $\trg{\cfstate}$.''} \\
     %
@@ -4239,26 +4274,34 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\trg{\Omega}=\trg{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item $\exect[]{\Omega}{K_{component}[return\ \interfacevalue]}{\Omega'}{K[\interfacevalue]}{Ret\ \comptoctx\ \interfacevalue}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:exect} $\exect[]{\Omega}{K_{component}[return\ \interfacevalue]}{\Omega'}{K[\interfacevalue]}{Ret\ \comptoctx\ \interfacevalue}$
   \item $\trg{K_{component}}=\mmlAmmlAtcomp{K_{component}}$
   \item $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{Ret\ \comptoctx\ \interfacevalue}=\Game',\trg{\overline{\loc'}},\src{delete\ z}$
   \item $\xlangstateeq{\Omega}{\Omega}$
   \item $\src{\Omega}=\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
   \item $\src{K}=\src{\hole{\cdot};delete\ z;e_{any}}$
   \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:delta} $\delta\left(\src{\loc}\right)=\trg{\loc}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\trace}\ \src{L'}\ \src{X'}$,
+  then $\exists \src{X'}\ \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
-  \item $\delta\subseteq\delta'$
-  \item $\src{L}\subseteq\src{L'}$
-  \item $\src{X}\subseteq\src{X'}$
-  \item $\exec{\src{\Omega}}{\src{K_{component}[return\ }\mmlAmmlAtbackv[\Game']{\trg{\interfacevalue}}\src{]}}{\src{\commlib;\library;\kontstack;\memstate}}{\src{e_{any}}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta';\src{L'}]{\Omega'}{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp};\memstate}}$
-  \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{Ret\ \comptoctx\ \interfacevalue}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K_{component}[return\ }\mmlAmmlAtbackv[\Game']{\trg{\interfacevalue}}\src{]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{e_{any}}}{\src{\trace}}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:stateeq} $\xlangbackstateeq[\delta;\src{L}]{\Omega'}{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp};\memstate'}}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta;\src{X'}]\trg{Ret\ \comptoctx\ \interfacevalue}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Let $\src{\memstate}=\src{H;\Delta}$.
+  Since $\src{\loc}\in\operatorname{dom}\delta$\MK{technical lemma}, we know that we can decompose $\src{\Delta}$ such that $\src{\Delta}=\src{\Delta_{1},x\mapsto\loc_{\poison},\Delta_{2}}$.
+  Choose $\src{X'}=\src{X}\cup\left\{\src{Dealloc\ \loc}\right\}, \src{\trace}=\src{Dealloc\ \loc\cdot Ret\ \comptoctx\ }\mmlAmmlAtbackv{\interfacevalue}$, and $\src{\memstate'}=\src{H;\Delta_{1},x\mapsto\loc_{\poisoned},\Delta_{2}}$.
+  \Cref{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} is easy.
+  For \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs}, first use \Cref{tr:w-e-ectx-ret-value} or \Cref{tr:w-e-ectx-ret-loc} depending on the shape of $\mmlAmmlAtbackv{\interfacevalue}$.
+  Then, continue with \Cref{tr:w-e-ectx,tr:w-e-let-x,tr:w-e-delete}, concluding the goal.
+  Decompose $\trg{\Omega'}=\trg{\commlib;\library;\kontstack;\memstate}$, which can be backed up by inverting \Cref{asm:exprbacktranslation:beg:wrapper:correct:exect}.
+  The relation follows easily.\MK{ref the ctors}
+  Noting that $\src{Dealloc\ \loc}\in\src{X'}$, \Cref{goal:exprbacktranslation:beg:wrapper:correct:traceeq} follows using \Cref{tr:ignore-cons-trace-eq,tr:cons-trace-eq,tr:empty-trace-eq}, concluding with \Cref{tr:ret-event-eq}.
+\end{proof}
 
 \begin{lemma}[Middle of Backtranslation Correctness]\label{lem:exprbacktranslation:mid:wrapper:correct}
   If
@@ -4492,24 +4535,31 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
   \item $\exect{\Omega}{K\hole{call\ foo\ \interfacevalue}}{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}{\color{black}\mmlAmmlAtcomp{e_{foo}}}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
   \item $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{Call\ \ctxtocomp\ foo\ \interfacevalue}=\Game',\trg{\overline{\loc'}},\src{let\ z = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item\label[ass]{lem:exprbacktranslation:end:wrapper:correct:backstateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
   \item $\src{let\ foo\ x:\type_{\color{black}\lambda}:=e_{foo}}\in\src{\library_{comp}}$
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
 %  \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\trace}\ \src{L'}\ \src{X'}$,
+  then $\exists \delta'\ \src{L'}\ \src{X'}\ \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
-  \item $\delta\subseteq\delta'$
-  \item $\src{L}\subseteq\src{L'}$
-  \item $\src{X}\subseteq\src{X'}$
-  \item $\exec{\src{\Omega}}{\src{K[let\ x = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}\src{]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}}{\src{e_{foo}}}{\src{\trace}}$
-  \item $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\kontstack;\memstate'}}{\Omega'}$
-  \item $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:deltasubset} $\delta\subseteq\delta'$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Lsubset} $\src{L}\subseteq\src{L'}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K[let\ x = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}\src{]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate'}}{\src{e_{foo}}}{\src{\trace}}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:stateeq} $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\kontstack;\memstate'}}{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Note that $\src{\memstate}=\src{H;\Delta}$. Let $\src{\loc}$ and $\src{z}=\trg{z}$ such that $\fresh{\src{\Delta}}{\src{\loc}}$ and $\fresh{\src{\Delta}}{\src{\loc}}$.
+  Furthermore, let $\src{\interfacevalue} = \mmlAmmlAtbackv{\interfacevalue}$.
+  Choose $\delta'=\delta\cup\left\{\src{\loc}\mapsto\trg{z}\right\}, \src{L'}=\src{L}\cup\left\{\src{\loc}\right\}, \src{X'}=\src{X}\cup\left\{\src{Alloc\ \loc\ 42}\right\}$, and $\src{\trace}=\src{Alloc\ \loc\ 42\cdot Call\ \ctxtocomp\ foo\ \interfacevalue}$.
+  \Cref{goal:exprbacktranslation:end:wrapper:correct:deltasubset,goal:exprbacktranslation:end:wrapper:correct:Lsubset,goal:exprbacktranslation:end:wrapper:correct:Xsubset} follow easily.
+  For \Cref{goal:exprbacktranslation:end:wrapper:correct:execs}, use \Cref{tr:w-e-ectx,tr:w-e-let-new} and either \Cref{tr:w-e-ectx-call-loc} or \Cref{tr:w-e-ectx-call-value}, depending on the shape of $\mmlAmmlAtbackv{\interfacevalue}$\MK{take care of substitution when calling?}.
+  \Cref{goal:exprbacktranslation:end:wrapper:correct:stateeq}, use \Cref{tr:cons-ignore-memstate-eq} once, the rest follows from inverting \Cref{lem:exprbacktranslation:end:wrapper:correct:backstateeq} and making use of \Cref{tr:memstate-qe}.
+  Lastly, noting that $\src{Alloc\ \loc\ 42}\in\src{X'}$, apply \Cref{tr:ignore-cons-trace-eq,tr:cons-trace-eq,tr:empty-trace-eq}, concluding with \Cref{tr:ret-event-eq}.
+\end{proof}
 
 \clearpage
 \begin{lemma}[Very End of Backtranslation Correctness]\label{lem:exprbacktranslation:vend:wrapper:correct}

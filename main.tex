@@ -1102,6 +1102,14 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \execs[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
     }{w-e-ectx-stuck}
     %
+    \typerule{$e-\text{ctx}-\src{call}-$main}{
+      \src{\Omega}=\src{\commlib;\library;\hole{\cdot};\memstate} &
+      \src{\library}=\src{\library_1,}(\src{let\ main\ x:\type}_\lambda\src{:=e})\src{,\library_2} &
+      \src{\Omega'}=\src{\commlib;\library;K^{main}_{\comm},\hole{\cdot};\memstate} \\
+    }{
+      \execs[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start}
+    }{w-e-ectx-call-main}
+    %
     \typerule{$e-\text{ctx}-\src{call}-\src{\valueexpr}$}{
       \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
@@ -1121,6 +1129,11 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     }{
       \execs[]{\Omega}{K[call\ foo\ x]}{\Omega'}{e[x/\valueexpr]}{\event}
     }{w-e-ectx-call-loc}
+    %
+    \typerule{$e-\text{ctx}-\src{return}-$main}{
+    }{
+      \exec[]{\src{\commlib;\library;K^{main}_{\ctxtocomp},\hole{\cdot};\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\hole{\cdot};\memstate}}{\src{K[\valueexpr]}}{\src{End\ \valueexpr}}
+    }{w-e-ectx-ret-main}
     %
     \typerule{$e-\text{ctx}-\src{return}-\src{\valueexpr}$}{
     }{
@@ -1232,16 +1245,16 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \judgbox{\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$, giving dynamic state\\$\configs$ and emitting trace $\src{\trace}$.''}
     \typerule{$e-\text{wprog}$}{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} \\
-      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot Ret\ \ctxtocomp\ \interfacevalue}
+      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
     }{
-      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{Start\cdot\trace\cdot End\ \interfacevalue}
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}
     }{ws-e-prog}
     %
     \typerule{$e-\text{wprog}-\lightning$}{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} \\
-      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot \lightning}
+      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning}
     }{
-      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{Start\cdot\trace\cdot \lightning}
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace\cdot\lightning}
     }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}

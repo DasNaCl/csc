@@ -863,8 +863,8 @@ Theorem checkf_equiv_check (Γ : Gamma) (e : expr) (τ : Ty) :
 .
 Proof. split; now (eapply checkf_refinement + eapply checkf_correctness). Qed.
 
-(** Symbols are pairs consisting of the function and its type. *)
-Definition symbol : Type := evalctx * Ty.
+(** Symbols look like `fn foo x : τ := e` *)
+Definition symbol : Type := vart * Ty * expr.
 #[local]
 Instance symbol__Instance : SymbolClass symbol := {}.
 
@@ -905,7 +905,7 @@ Fixpoint interfaces (s : symbols) : option(Gamma) :=
   | mapCons name EL s' =>
     let* a := interfaces s' in
     match EL with
-    | (E, Tectx(Tarrow τ0 τ1)) => Some(name ↦ Tectx(Tarrow τ0 τ1) ◘ a)
+    | (x, Tectx(Tarrow τ0 τ1), _e) => Some(name ↦ Tectx(Tarrow τ0 τ1) ◘ a)
     | _ => None
     end
   end

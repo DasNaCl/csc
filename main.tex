@@ -4030,6 +4030,16 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{center}
     \judgbox{\mmlAmmlAtbackcomptoctx[\Game, \trg{\overline{\loc}}]{\event}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\comptoctx$-interaction-event $\trg{\event}$.''}
     %
+    \typerule{backtrans-start}{
+    }{
+      \mmlAmmlAtbackcomptoctx[\emptyset,\trg{\hole{\cdot}}]{\trg{Start}} = \emptyset,\trg{\hole{\cdot}},\src{42}
+    }{backtrans-start}
+    %
+    \typerule{backtrans-end}{
+    }{
+      \mmlAmmlAtbackcomptoctx[\emptyset,\trg{\hole{\cdot}}]{\trg{End\ \interfacevalue}} = \emptyset,\trg{\hole{\cdot}},\mmlAmmlAtbackv{\interfacevalue}
+    }{backtrans-end}
+    %
     \typerule{backtrans-call-comptoctx}{
     }{
       \mmlAmmlAtbackcomptoctx[\Game,\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{42}
@@ -4256,29 +4266,28 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   This typechecks easily, making use of \Cref{tr:w-t-new,tr:w-t-delete} and \Cref{tr:t-let,tr:t-return,tr:t-call}, as well as \Thmref{lem:expr:backtranslation:welltyped}\MK{...and weakening (with NonOwnedPtr stuff)}.
 \end{incompleteproof}
 
-\begin{lemma}[Very Beginning of Backtranslation Correctness]\label{lem:exprbacktranslation:vbeg:wrapper:correct}
+\begin{lemma}[Backtranslation Correctness of $\trg{Start}$]\label{lem:exprbacktranslation:vbeg:wrapper:correct}
   If
   \begin{assumptions}
-  \item $\trg{\Omega}=\trg{\commlib;\library;\hole{\cdot};\memstate}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:exect} $\exect{\Omega}{e}{\Omega'}{e'}{Call\ \comptoctx\ main\ 0}$
-  \item $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{Call\ \comptoctx\ main\ 0}=\Game,\trg{\overline{\loc}},\src{42}$
-  \item $\xlangstateeq{\Omega}{\Omega}$
-  \item $\src{\Omega}=\src{\commlib;\library;\hole{\cdot};\memstate}$
+  \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:exect} $\exect[]{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}}{Start}$
+  \item $\mmlAmmlAtbackdetail[\Game,\trg{\hole{\cdot}}]{Start}=\Game,\trg{\hole{\cdot}},\src{42}$
+  \item $\xlangstateeq[\emptyset;\src{\hole{\cdot}}]{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
   \item $\src{\library}=\left\{\src{main}\mapsto\src{42;e_{main}}\right\}\src{\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \src{\trace}$,
+  Then
   \begin{goals}
-  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{call\ main\ 0}}{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}}{\src{e_{main}}}{\src{\trace}}$\MK{use step index (technicality)}
-  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:backstateeq} $\xlangbackstateeq[\delta;\src{L}]{\Omega'}{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp};\memstate}}$
-  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:eventeq} $\src{\trace}\thexlangtraceeq[\delta;\src{X}]\trg{Call\ \comptoctx\ main\ 0}$
+  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:execs} $\exec{\src{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\src{call\ main\ 0}}{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\src{e_{main}}}{\src{Start}}$
+  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:backstateeq} $\xlangbackstateeq[\emptyset;\src{\hole{\cdot}}]{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}}$
+  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:eventeq} $\src{Start}\thexlangtraceeq[\emptyset;\src{\hole{\cdot}}]\trg{Start}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Choose $\src{\event}=\src{Call\ \comptoctx\ main\ 0}$. Obviously, $\src{main}\in\operatorname{dom}\left\{\src{main}\mapsto\src{42;e_{main}}\right\}$.
+  %$\src{main}\in\operatorname{dom}\left\{\src{main}\mapsto\src{42;e_{main}}\right\}$.
   For \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:execs}, use \Cref{tr:w-e-ectx-call-value,tr:w-e-ectx,tr:w-e-let-x}.
-  Invert \Cref{asm:exprbacktranslation:vbeg:wrapper:correct:exect}, \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:backstateeq,goal:exprbacktranslation:vbeg:wrapper:correct:eventeq} follow by reflexivity.
+  \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:backstateeq} by \Cref{tr:state-qe}, \Cref{tr:memstate-qe,tr:cfstate-qe} and \Cref{tr:empty-kontstack-qe,tr:empty-commlib-eq,tr:empty-memstate-eq}.
+  \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:eventeq} follow \Cref{tr:start-event-eq}.
 \end{proof}
 
 \begin{lemma}[Beginning of Backtranslation Correctness]\label{lem:exprbacktranslation:beg:wrapper:correct}

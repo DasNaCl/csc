@@ -3056,7 +3056,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{start-event-eq}
     %
     \typerule{end-event-eq}{
-      \src{\interfacevalue} = \trg{\interfacevalue}
+      \src{\interfacevalue} = \mmlAmmlAtbackv{\interfacevalue}
     }{
       \xlangeventeq{End\ \interfacevalue}{End\ \interfacevalue}
     }{end-event-eq}
@@ -4284,7 +4284,6 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{proof}
-  %$\src{main}\in\operatorname{dom}\left\{\src{main}\mapsto\src{42;e_{main}}\right\}$.
   For \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:execs}, use \Cref{tr:w-e-ectx-call-value,tr:w-e-ectx,tr:w-e-let-x}.
   \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:backstateeq} by \Cref{tr:state-qe}, \Cref{tr:memstate-qe,tr:cfstate-qe} and \Cref{tr:empty-kontstack-qe,tr:empty-commlib-eq,tr:empty-memstate-eq}.
   \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:eventeq} follow \Cref{tr:start-event-eq}.
@@ -4579,41 +4578,64 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Lastly, noting that $\src{Alloc\ \loc\ 42}\in\src{X'}$, apply \Cref{tr:ignore-cons-trace-eq,tr:cons-trace-eq,tr:empty-trace-eq}, concluding with \Cref{tr:ret-event-eq}.
 \end{proof}
 
-\clearpage
-\begin{lemma}[Very End of Backtranslation Correctness]\label{lem:exprbacktranslation:vend:wrapper:correct}
+\begin{lemma}[$\xlangstateeq{\commlib;\library;\hole{\cdot}}{\commlib;\library;\hole{\cdot}}$ holds]\label{lem:cfeq:refl}
   If
   \begin{assumptions}
-  \item $\trg{\Omega}=\trg{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}$
+    \item $\xlangstateeq{\library}{\library}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\xlangstateeq{\commlib;\library;\hole{\cdot}}{\commlib;\library;\hole{\cdot}}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Backtranslation Correctness of $\trg{End}$]\label{lem:exprbacktranslation:vend:wrapper:correct}
+  If
+  \begin{assumptions}
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item $\exect{\Omega}{K\hole{return\ n}}{\commlib;\library;\hole{\cdot};\memstate}{n}{Ret\ \ctxtocomp\ n}$
-  \item\label[ass]{lem:exprbacktranslation:vend:wrapper:correct:backtrans} $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{Ret\ \ctxtocomp\ n}=\Game,\trg{\overline{\loc}},\src{e}$ %$let\ x = new\ 1\ in\ delete\ x;return\ }\mmlAmmlAtbackv{n}$
-  \item\label[ass]{lem:exprbacktranslation:vend:wrapper:correct:backstateeq} $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{\Omega}=\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}$
-  \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
+  \item $\exect[]{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}{K\hole{return\ n}}{\commlib;\library;\hole{\cdot};\memstate}{n}{End\ n}$
+  \item\label[ass]{lem:exprbacktranslation:vend:wrapper:correct:backtrans} $\mmlAmmlAtbackdetail[\Game,\trg{\hole{\cdot}}]{End\ n}=\Game,\trg{\hole{\cdot}},\src{n}$
+  \item\label[ass]{lem:exprbacktranslation:vend:wrapper:correct:neq} $\src{n}=\mmlAmmlAtbackv{n}$
+  \item\label[ass]{lem:exprbacktranslation:vend:wrapper:correct:backstateeq} $\xlangbackstateeq{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}$
+  \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{L'}\ \src{X'}\ \src{\trace}\ \src{\memstate'}$,
+  Then
   \begin{goals}
-  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:delta} $\delta\subseteq\delta'$
-  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:L} $\src{L}\subseteq\src{L'}$
-  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:X} $\src{X}\subseteq\src{X'}$
-  \item $\exec{\src{\Omega}}{\src{K[e]}}{\src{\commlib;\library;\hole{\cdot};\memstate'}}{\mmlAmmlAtbackv{n}}{\src{\trace}}$
-  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:stateeq} $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\hole{\cdot};\memstate'}}{\commlib;\library;\hole{\cdot};\memstate}$
-  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{Ret\ \ctxtocomp\ n}$
+  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:execs0} $\exec{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}}{\src{K[return\ n]}}{\src{\commlib;\library;\hole{\cdot};\memstate}}{\mmlAmmlAtbackv{n}}{\src{End\ n}}$
+  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:stateeq} $\xlangstateeq{\src{\commlib;\library;\hole{\cdot};\memstate}}{\commlib;\library;\hole{\cdot};\memstate}$
+  \item\label[goal]{lem:exprbacktranslation:vend:wrapper:correct:traceeq} $\src{End\ n}\thexlangeventeq\trg{End\ n}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Note that $\src{\memstate}=\src{H;\Delta}$.
-  Let $\src{\loc}$ such that $\fresh{\src{\memstate}}{\src{\loc}}$ and also let $\src{z}=\trg{z}$ such that $\fresh{\src{\memstate}}{\src{z}}$\MK{make sure $\src{z}$ here is fresh w.r.t. $\Game$. Relation between $\src{\Delta}$ and $\Game$}.
-  Furthermore, let $\src{n}=\mmlAmmlAtbackv{n}$.
-  Pick $\delta'=\delta\cup\left\{\src{\loc}\mapsto\trg{z}\right\}$, $\src{L'}=\src{L}\cup\left\{\src{\loc}\right\}$, $\src{X'}=\src{X}\cup\left\{\src{Alloc\ \loc\ 1}, \src{Dealloc\ \loc}\right\}$, and $\src{\trace}=\src{Alloc\ \loc\ 42 \cdot Dealloc\ \loc \cdot Ret\ \comptoctx\ n}$.
-  Finally, choose $\src{\memstate'}=\src{H';\Delta'}$, where $\src{H'}=\src{H,0}$ and $\src{\Delta'}=\src{z\mapsto\loc,\Delta}$.
-  \Cref{lem:exprbacktranslation:vend:wrapper:correct:delta,lem:exprbacktranslation:vend:wrapper:correct:L,lem:exprbacktranslation:vend:wrapper:correct:X} follow easily.
-  Invert \Cref{lem:exprbacktranslation:vend:wrapper:correct:backtrans} to get $\src{e}=\src{let\ z = new\ 1\ in\ delete\ z;return\ }\mmlAmmlAtbackv{n}$.
-  Make use of \Cref{tr:w-e-ectx,tr:w-e-let-x,tr:w-e-let-new,tr:w-e-delete,tr:w-e-ectx-ret-value}, arriving at the desired state.
-  For \Cref{lem:exprbacktranslation:vend:wrapper:correct:stateeq}, use \Cref{tr:cons-ignore-memstate-eq} once, the rest follows from inverting \Cref{lem:exprbacktranslation:vend:wrapper:correct:backstateeq} and making use of \Cref{tr:memstate-qe}.
-  For \Cref{lem:exprbacktranslation:vend:wrapper:correct:traceeq}, apply \Cref{tr:ignore-cons-trace-eq} twice, noting that both $\src{Alloc\ \loc\ 1}\in\src{X'}$ and $\src{Dealloc\ \loc}\in\src{X'}$.
-  Lastly, apply \Cref{tr:cons-trace-eq,tr:empty-trace-eq}, concluding with \Cref{tr:ret-event-eq}.
+  \Cref{lem:exprbacktranslation:vend:wrapper:correct:execs0} follows immediately from \Cref{tr:w-e-ectx-ret-value}.
+  For \Cref{lem:exprbacktranslation:vend:wrapper:correct:stateeq}, invert \Cref{lem:exprbacktranslation:vend:wrapper:correct:backstateeq}:
+  \begin{passumptions}{F}
+    \item\label[ass]{lem:exprbacktranslation:vend:wrapper:correct:lollimem} $\xlangbackstateeq{\memstate}{\memstate}$
+    \item\label[ass]{lem:exprbacktranslation:vend:wrapper:correct:lollicf} $\xlangbackstateeq{\commlib;\library;\hole{\cdot}}{\commlib;\library;\hole{\cdot}}$
+  \end{passumptions}
+  Invert \Cref{lem:exprbacktranslation:vend:wrapper:correct:lollimem}:
+  \begin{passumptions}{F}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:exprbacktranslation:vend:wrapper:correct:memstateeq} $\xlangstateeq{\memstate}{\memstate}$
+  \end{passumptions}
+  Apply \Cref{tr:state-eq} to \Cref{lem:exprbacktranslation:vend:wrapper:correct:stateeq}, giving:
+  \begin{passumptions}{(ii)}
+    \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:memstateeq} $\xlangstateeq{\memstate}{\memstate}$
+    \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:cfstateeq} $\xlangstateeq{\commlib;\library;\hole{\cdot}}{\commlib;\library;\hole{\cdot}}$
+  \end{passumptions}
+  \Cref{goal:exprbacktranslation:vend:wrapper:correct:memstateeq} is fulfilled by \Cref{asm:exprbacktranslation:vend:wrapper:correct:memstateeq}.
+  Invert \Cref{lem:exprbacktranslation:vend:wrapper:correct:lollimem}:
+  \begin{passumptions}{F}
+    \setcounter{enumi}{3}
+    \item\label[ass]{asm:exprbacktranslation:vend:wrapper:correct:libeq} $\xlangstateeq[]{\library}{\library}$
+    \item $\xlangbackstateeq[]{\hole{\cdot}}{\hole{\cdot}}$
+  \end{passumptions}
+  \noindent
+  \Cref{goal:exprbacktranslation:vend:wrapper:correct:cfstateeq} follows from \Thmref{lem:cfeq:refl}, which uses \Cref{asm:exprbacktranslation:vend:wrapper:correct:libeq}.
+  With \Cref{lem:exprbacktranslation:vend:wrapper:correct:neq} we can finish with \Cref{tr:end-event-eq} on \Cref{lem:exprbacktranslation:vend:wrapper:correct:traceeq}.
 \end{proof}
 
 % \begin{lemma}[Subtoplevel Backtranslation Correctness]\label{lem:subtop:backtranslation:correct}

@@ -1122,12 +1122,12 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \typerule{$e-\text{ctx}-\src{call}-\src{\loc}$}{
       \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
       \src{\memstate}=\src{H;\Delta}&
-      \src{\Delta}=\src{\Delta_1},\src{x\mapsto\loc_\poison},\src{\Delta_2}\\
+      \src{\Delta}=\src{\Delta_1},\src{y\mapsto\loc_\poison},\src{\Delta_2}\\
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
       \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{\loc}) = \src{\event},\src{\comm} &
       \src{\Omega'}=\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ x]}{\Omega'}{e[x/\valueexpr]}{\event}
+      \execs[]{\Omega}{K[call\ foo\ x]}{\Omega'}{e[x/y]}{\event}
     }{w-e-ectx-call-loc}
     %
     \typerule{$e-\text{ctx}-\src{return}-$main}{
@@ -4687,26 +4687,63 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{Call\ \ctxtocomp\ foo\ \interfacevalue}=\Game',\trg{\overline{\loc'}},\src{let\ z = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}$
   \item\label[ass]{lem:exprbacktranslation:end:wrapper:correct:backstateeq} $\xlangbackstateeq{\Omega}{\Omega}$
   \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
-  \item $\src{let\ foo\ x:\type_{\color{black}\lambda}:=e_{foo}}\in\src{\library_{comp}}$
+  \item $\src{let\ foo\ y:\type_{\color{black}\lambda}:=e_{foo}}\in\src{\library_{comp}}$
+  \setcounter{enumi}{9}
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
 %  \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{L'}\ \src{X'}\ \src{\trace}\ \src{\memstate'}$,
+  then $\exists \src{L'}\ \src{X'}\ \src{\trace}\ \src{\memstate'}\ \src{\gamma}$,
   \begin{goals}
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:deltasubset} $\delta\subseteq\delta'$
+%  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:deltasubset} $\delta\subseteq\delta'$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Lsubset} $\src{L}\subseteq\src{L'}$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K[let\ x = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}\src{]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate'}}{\src{e_{foo}}}{\src{\trace}}$
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:stateeq} $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\kontstack;\memstate'}}{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K[let\ x = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}\src{]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate'}}{\src{e_{foo}\gamma}}{\src{\trace}}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:stateeq} $\xlangstateeq[\delta;\src{L'}]{\src{\commlib;\library;\kontstack;\memstate'}}{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta;\src{X'}]\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Note that $\src{\memstate}=\src{H;\Delta}$. Let $\src{\loc}$ and $\src{z}=\trg{z}$ such that $\fresh{\src{\Delta}}{\src{\loc}}$ and $\fresh{\src{\Delta}}{\src{\loc}}$.
-  Furthermore, let $\src{\interfacevalue} = \mmlAmmlAtbackv{\interfacevalue}$.
-  Choose $\delta'=\delta\cup\left\{\src{\loc}\mapsto\trg{z}\right\}, \src{L'}=\src{L}\cup\left\{\src{\loc}\right\}, \src{X'}=\src{X}\cup\left\{\src{Alloc\ \loc\ 42}\right\}$, and $\src{\trace}=\src{Alloc\ \loc\ 42\cdot Call\ \ctxtocomp\ foo\ \interfacevalue}$.
-  \Cref{goal:exprbacktranslation:end:wrapper:correct:deltasubset,goal:exprbacktranslation:end:wrapper:correct:Lsubset,goal:exprbacktranslation:end:wrapper:correct:Xsubset} follow easily.
-  For \Cref{goal:exprbacktranslation:end:wrapper:correct:execs}, use \Cref{tr:w-e-ectx,tr:w-e-let-new} and either \Cref{tr:w-e-ectx-call-loc} or \Cref{tr:w-e-ectx-call-value}, depending on the shape of $\mmlAmmlAtbackv{\interfacevalue}$\MK{take care of substitution when calling?}.
+  First, we unfold the source memory state:
+  \begin{passumptions}{H}
+    \item $\src{\memstate} = \src{H;\Delta}$
+  \end{passumptions}
+  Now, let $\src{\loc}$, $\src{z}$, and $\src{\interfacevalue}$ such that:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{1}
+    \item $\fresh{\src{\Delta}}{\src{\loc}}$
+    \item $\src{z}=\trg{z}$
+    \item $\fresh{\src{\Delta}}{\src{z}}$
+    \item $\src{\interfacevalue} = \mmlAmmlAtbackv{\interfacevalue}$
+  \end{passumptions}
+  Next, we instantiate the existentials in the goals as follows:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{5}
+%    \item $\delta' = \delta \cup \left\{\src{\loc}\mapsto\trg{z}\right\}$
+    \item $\src{L'} = \src{L} \cup \left\{\src{\loc}\right\}$
+    \item $\src{X'} = \src{X} \cup \left\{\src{Alloc\ \loc\ 42}\right\}$
+    \item $\src{\trace} = \src{Alloc\ \loc\ 42\cdot Call\ \ctxtocomp\ foo\ \interfacevalue}$
+    \item $\src{\memstate'} = \underbrace{\src{0,\cdots,0}}_{42-times}\src{,H;z\mapsto\loc,\Delta}$
+    \item $\src{\gamma} = \src{[}\mmlAmmlAtbackv{\interfacevalue}\src{/y]}$
+  \end{passumptions}
+  %\Cref{goal:exprbacktranslation:end:wrapper:correct:deltasubset,}
+  \Cref{goal:exprbacktranslation:end:wrapper:correct:Lsubset,goal:exprbacktranslation:end:wrapper:correct:Xsubset} follow easily.
+  For \Cref{goal:exprbacktranslation:end:wrapper:correct:execs}, first use \Cref{tr:w-e-ectx,tr:w-e-let-new}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{9}
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:execs0} $\exec{\src{\Omega}}{\src{K[let\ x = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}\src{]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}\src{]}}{\src{Alloc\ \loc\ 42}}$
+  \end{passumptions}
+  Next, case analysis on the structure of $\trg{\interfacevalue}$.
+  Say $\trg{\interfacevalue}=\trg{\loc^{y}}$, then use \Cref{tr:w-e-ectx-call-loc}, given that we have a $\src{\loc^{y}}$ where $\delta\left(\src{\loc^{y}}\right)=\trg{\loc^{y}}$ and $\src{\Delta}=\src{\Delta_{1},z\mapsto\loc^{y},\Delta_{2}}$\MK{extract this info from relation between $\Game$ and $\delta/\src{\Delta}$}:
+  \begin{passumptions}{H^a}
+    \setcounter{enumi}{10}
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:execs1a} $\exec{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[call\ foo\ z]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate'}}{\src{e_{foo}[z/y]}}{\src{Call\ \ctxtocomp\ foo\ z}}$
+  \end{passumptions}
+  In the other case $\trg{\interfacevalue}=\trg{\valueexpr}$, use \Cref{tr:w-e-ectx-call-value}:
+  \begin{passumptions}{H^b}
+    \setcounter{enumi}{10}
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:execs1b} $\exec{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[call\ foo\ \valueexpr]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate'}}{\src{e_{foo}[\valueexpr/y]}}{\src{Call\ \ctxtocomp\ foo\ z}}$
+  \end{passumptions}
+
   \Cref{goal:exprbacktranslation:end:wrapper:correct:stateeq}, use \Cref{tr:cons-ignore-memstate-eq} once, the rest follows from inverting \Cref{lem:exprbacktranslation:end:wrapper:correct:backstateeq} and making use of \Cref{tr:memstate-qe}.
   Lastly, noting that $\src{Alloc\ \loc\ 42}\in\src{X'}$, apply \Cref{tr:ignore-cons-trace-eq,tr:cons-trace-eq,tr:empty-trace-eq}, concluding with \Cref{tr:ret-event-eq}.
 \end{proof}

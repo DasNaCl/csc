@@ -3301,7 +3301,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \xlangbackstateeq[]{\cfstate}{\cfstate}
     }{cfstate-qe}
     %
-    \judgbox{\xlangbackstateeq[]{\kontstack}{\kontstack}}{,,The stack of $\mmlAs$ continuations $\src{\kontstack}$ agrees with $\mmlAt$ one $\trg{\kontstack}$.}\\
+    \judgbox{\xlangbackstateeq[]{\kontstack}{\kontstack}}{,,The stack of $\mmlAs$ continuations $\src{\kontstack}$ agrees with $\mmlAt$ one $\trg{\kontstack}$.\\Target state may have internal calls.}\\
     %
     \typerule{empty-kontstack-qe}{
     }{
@@ -3309,22 +3309,22 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{empty-kontstack-qe}
     %
     \typerule{cons-ctx-kontstack-qe}{
-      \xlangbackstateeq[]{\kontstack}{\kontstack}
+      \xlangstateeq[]{\kontstack}{\kontstack}
     }{
-      \xlangbackstateeq[]{K^{\overline{bars}}_{\overline{\nocomm}},K^{foo}_{\ctxtocomp},\kontstack}{K^{foo}_{\ctxtocomp},\kontstack}
+      \xlangbackstateeq[]{\overline{K}^{\overline{bars}}_{\overline{\nocomm}},K^{foo}_{\ctxtocomp},\kontstack}{K^{foo}_{\ctxtocomp},\kontstack}
     }{cons-ctx-kontstack-qe}
     %
     \typerule{cons-comp-kontstack-qe}{
-      \xlangbackstateeq[]{\kontstack}{\kontstack}
+      \xlangstateeq[]{\kontstack}{\kontstack}
     }{
       \xlangbackstateeq[]{K^{foo}_{\comptoctx},\kontstack}{K^{foo}_{\comptoctx},\kontstack}
     }{cons-comp-kontstack-qe}
     %
-    \typerule{cons-internal-kontstack-qe}{
-      \xlangbackstateeq[]{\kontstack}{\kontstack}
-    }{
-      \xlangbackstateeq[]{K^{foo}_{\nocomm},\kontstack}{K^{foo}_{\nocomm},\kontstack}
-    }{cons-internal-kontstack-qe}
+%   \typerule{cons-internal-kontstack-qe}{
+%     \xlangbackstateeq[]{\kontstack}{\kontstack}
+%   }{
+%     \xlangbackstateeq[]{K^{foo}_{\nocomm},\kontstack}{K^{foo}_{\nocomm},\kontstack}
+%   }{cons-internal-kontstack-qe}
   \end{center}
 }{tms-pres-state-relations}{State Relation from $\mmlAt$ to $\mmlAs$. This is meant to relate the states whenever we are ,,inside'' a context.}
 
@@ -4681,6 +4681,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   If
   \begin{assumptions}
   \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+  \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:kontstack} $\trg{\kontstack}=\trg{K'^{bar}_{\ctxtocomp},\kontstack'}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
   \item $\exect{\Omega}{K\hole{call\ foo\ \interfacevalue}}{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}{\color{black}\mmlAmmlAtcomp{e_{foo}}}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
@@ -4743,9 +4744,74 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \setcounter{enumi}{10}
     \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:execs1b} $\exec{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[call\ foo\ \valueexpr]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate'}}{\src{e_{foo}[\valueexpr/y]}}{\src{Call\ \ctxtocomp\ foo\ z}}$
   \end{passumptions}
+  Use \Cref{asm:exprbacktranslation:end:wrapper:correct:execs0,asm:exprbacktranslation:end:wrapper:correct:execs1a} on \Cref{tr:ws-e-trans-important} to get exactly what \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs} wants us to prove.
+  Likewise in the other case, use \Cref{asm:exprbacktranslation:end:wrapper:correct:execs0,asm:exprbacktranslation:end:wrapper:correct:execs1b} on \Cref{tr:ws-e-trans-important} to get exactly what \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs} wants us to prove.
 
-  \Cref{goal:exprbacktranslation:end:wrapper:correct:stateeq}, use \Cref{tr:cons-ignore-memstate-eq} once, the rest follows from inverting \Cref{lem:exprbacktranslation:end:wrapper:correct:backstateeq} and making use of \Cref{tr:memstate-qe}.
-  Lastly, noting that $\src{Alloc\ \loc\ 42}\in\src{X'}$, apply \Cref{tr:ignore-cons-trace-eq,tr:cons-trace-eq,tr:empty-trace-eq}, concluding with \Cref{tr:ret-event-eq}.
+  Invert \Cref{lem:exprbacktranslation:end:wrapper:correct:backstateeq}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{11}
+    \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
+    \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:cfstateeq} $\xlangbackstateeq[]{\cfstate}{\cfstate}$
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:memstateeq} $\xlangbackstateeq{\memstate}{\memstate}$
+  \end{passumptions}
+  Invert \Cref{asm:exprbacktranslation:end:wrapper:correct:cfstateeq}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{15}
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:lib} $\xlangstateeq[]{\library}{\library}$
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:kontsqe} $\xlangbackstateeq[]{\kontstack}{\kontstack}$
+  \end{passumptions}
+  Invert \Cref{asm:exprbacktranslation:end:wrapper:correct:memstateeq}
+  \begin{passumptions}{H}
+    \setcounter{enumi}{17}
+    \item $\trg{\memstate}=\trg{H;\Delta}$
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:hdeltaeq} $\xlangstateeq[]{H;\Delta}{H;\Delta}$
+  \end{passumptions}
+
+  Apply \Cref{tr:state-eq} on \Cref{goal:exprbacktranslation:end:wrapper:correct:stateeq}:
+  \begin{goals}
+    \setcounter{enumi}{4}
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:hdeltaeq} $\xlangstateeq[\delta;\src{L'}]{{\color{black}\underbrace{\src{0,\dots,0}}_{42-times}},H;z\mapsto\loc,\Delta}{H;\Delta}$
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:cfstateeq} $\xlangstateeq[]{\commlib;\library;K^{foo}_{\ctxtocomp},\kontstack}{\commlib;\library;K^{foo}_{\ctxtocomp},\kontstack}$
+  \end{goals}
+  Use \Cref{tr:cons-ignore-memstate-eq} on \Cref{goal:exprbacktranslation:end:wrapper:correct:hdeltaeq}, since $\src{\loc}\in\src{z\mapsto\loc,\Delta}$:
+  \begin{goals}
+    \setcounter{enumi}{6}
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:42skip} $\underbrace{\src{0,\dots,0}}_{\text{42-times}}\src{,H}\vdash^{42}_{\operatorname{skip}}\src{H}$
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:hdeltaeq2} $\xlangstateeq[\delta;\src{L'}]{H;\Delta}{H;\Delta}$
+  \end{goals}
+  \Cref{goal:exprbacktranslation:end:wrapper:correct:42skip} follows by computation.
+
+  \noindent\Cref{goal:exprbacktranslation:end:wrapper:correct:hdeltaeq2} can be resolved by \Cref{asm:exprbacktranslation:end:wrapper:correct:hdeltaeq}.
+
+  \noindent Apply \Cref{tr:cfstate-eq} on \Cref{goal:exprbacktranslation:end:wrapper:correct:cfstateeq}:
+  \begin{goals}
+    \setcounter{enumi}{8}
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:lib} $\xlangstateeq[]{\library}{\library}$
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:konts} $\xlangstateeq[]{K^{foo}_{\ctxtocomp},\kontstack}{K^{foo}_{\ctxtocomp},\kontstack}$
+  \end{goals}
+  \Cref{goal:exprbacktranslation:end:wrapper:correct:lib} is resolved by \Cref{asm:exprbacktranslation:end:wrapper:correct:lib}.
+
+  \noindent Apply \Cref{tr:cons-kontstack-eq} to \Cref{goal:exprbacktranslation:end:wrapper:correct:konts}, leaving us with:
+  \begin{goals}
+    \setcounter{enumi}{10}
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:konts2} $\xlangstateeq[]{\kontstack}{\kontstack}$
+  \end{goals}
+  Invert \Cref{asm:exprbacktranslation:end:wrapper:correct:kontsqe}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{19}
+    \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:kontstackk} $\xlangstateeq[]{\kontstack}{\kontstack}$
+  \end{passumptions}
+  Note that the other cases don't apply, since they contradict \Cref{asm:exprbacktranslation:end:wrapper:correct:kontstack}.
+  Anyhow, \Cref{asm:exprbacktranslation:end:wrapper:correct:kontstackk} can now be used to solve \Cref{goal:exprbacktranslation:end:wrapper:correct:konts2}.
+
+  \noindent Lastly, apply \Cref{tr:ignore-cons-trace-eq} on \Cref{goal:exprbacktranslation:end:wrapper:correct:traceeq}, given that $\src{Alloc\ \loc\ 42}\in\src{X'}$.
+  What is left to show is:
+  \begin{goals}
+    \setcounter{enumi}{6}
+    \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:eventeq} $\xlangtraceeq[\delta;\src{X'}]{Call\ \ctxtocomp\ foo\  \interfacevalue}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
+  \end{goals}
+  \Cref{goal:exprbacktranslation:end:wrapper:correct:eventeq} follows by \Cref{tr:cons-trace-eq,tr:call-event-eq,tr:empty-trace-eq}.
 \end{proof}
 
 \begin{lemma}[Backtranslation Correctness of $\trg{End}$]\label{lem:exprbacktranslation:vend:wrapper:correct}

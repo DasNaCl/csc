@@ -4884,9 +4884,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Backtranslation Correctness]\label{lem:backtranslation:correct}
   If
   \begin{assumptions}
-  \item $\exect{\Omega}{call\ main\ 0}{\Omega'}{\finalexprnoerr}{\trace}$
+  \item\label[ass]{asm:backtrans:correct:exect0} $\exect{\Omega}{call\ main\ 0}{\Omega'}{\finalexprnoerr}{\trace}$
   \item\label[ass]{asm:backtrans:correct:backtrans} $\mmlAmmlAtback[\Game]{\trace}=\Game',\src{\library_{ctx}}$
-  \item\label[ass]{asm:backtrans:correct:initstaterel} $\xlangstateeq[\emptyset]{\Omega}{\Omega}$
+  \item\label[ass]{asm:backtrans:correct:initstaterel} $\xlangstateeq[\emptyset;\src{\emptyset}]{\Omega}{\Omega}$
   \item $\trg{\Omega}=\trg{foo,\hole{\cdot};\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
   \item\label[ass]{asm:backtrans:correct:omegais} $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
   \item\label[ass]{asm:backtrans:correct:srclinks} $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
@@ -4900,12 +4900,76 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
-  Inverting \Cref{asm:backtrans:correct:backtrans} gives\\$\trg{\trace} = \trg{Call\ \comptoctx\ main\ 0\cdot\trace[_{0}]\cdot Call\ \ctxtocomp\ foo\ \interfacevalue_{0}\cdot\trace[_{comp}]\cdot Ret\ \comptoctx\ \interfacevalue_{1}\cdot\trace[_{1}]\cdot Ret\ \ctxtocomp\ \interfacevalue_{2}}$, $\vdash\trg{\trace[^{comp}]}\operatorname{non-int-\trg{\trace}}$, $\mmlAmmlAtbackctxtocomp[\Game,\trg{\hole{\cdot}}]{\trace[_0]} = \Game',\trg{\overline{\loc}},\src{e_0},\src{e_0'},\src{let\ z\ =\ new\ n_0\ in\ e_0''}$, and $\mmlAmmlAtbackcomptoctx[\Game',\trg{\overline{\loc}}]{\trace[_1]} = \Game'',\trg{\hole{\cdot}},\src{e_1},\src{e_1'},\src{e_1''}$, such that $\src{e_{main}}=\src{e_0;e_0';let\ z\ =\ new\ n_0\ in\ \left(e_0'';e_1\right);e_1';e_1''}$ and $\src{\library_{ctx}}=\src{let\ main\ x:\nat\to\nat:=e_{main},\hole{\cdot}}$.
+  Inverting \Cref{asm:backtrans:correct:backtrans} gives:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:backtrans:correct:traceeq0} $\trg{\trace} = \trg{Start\cdot\trace[_{0}]\cdot Call\ \ctxtocomp\ foo\ \interfacevalue_{0}\cdot\trace[_{comp}]\cdot Ret\ \comptoctx\ \interfacevalue_{1}\cdot\trace[_{1}]\cdot End\ \interfacevalue_{2}}$
+    \item $\vdash\trg{\trace[^{comp}]}\operatorname{non-int-\trg{\trace}}$
+    \item\label[ass]{asm:backtrans:correct:subtop1} $\mmlAmmlAtbackctxtocomp[\Game,\trg{\hole{\cdot}}]{Start\cdot\trace[_{0}]\cdot Call\ \ctxtocomp\ foo\ \interfacevalue_{0}} = \Game',\trg{\overline{\loc}},\src{e_{0}},\src{e_{0}'},\src{let\ x_{0} = new\ n_{0}\ in\ e_{0}''}$
+    \item\label[ass]{asm:backtrans:correct:subtop2} $\mmlAmmlAtbackcomptoctx[\Game',\trg{\overline{\loc}}]{Ret\ \comptoctx\ \interfacevalue_{1}\cdot\trace[_{1}]\cdot End\ \interfacevalue_{2}} = \Game'',\trg{\hole{\cdot}},\src{e_{1}},\src{e_{1}'},\src{let\ x_{1} = new\ n_{1}\ in\ e_{1}''}$
+    \item $\src{e}=\src{e_{0};e_{0}';let\ x_{0}=new\ n_{0}\ in\ \left(e_{0}'';e_{1}\right);e_{1}';let\ x_{1} =new\ n_{1}\ in\ e_{1}''}$
+    \item $\src{\library_{ctx}}=\src{let\ main\ x:\nat\to\nat:=e,\hole{\cdot}}$
+  \end{passumptions}
+  Inverting \Cref{asm:backtrans:correct:subtop1}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{6}
+    \item $\vdash\trg{\trace[_{0}]}\operatorname{non-int-\trg{\trace}}$
+    \item $\mmlAmmlAtbackcomptoctx[\Game,\trg{\hole{\cdot}}]{Start} = \Game_{0},\trg{\overline{\loc_{0}}}, \src{e_{0}}$
+    \item $\mmlAmmlAtback[\Game_{0},\trg{\overline{\loc_{0}}}]{\trace[_{0}]} = \Game_{0}',\trg{\overline{\loc_{0}'}}, \src{e_{0}'}$
+    \item $\mmlAmmlAtbackctxtocomp[\Game_{0}',\trg{\overline{\loc_{0}'}}]{Call\ \ctxtocomp\ foo\ \interfacevalue_{0}} = \Game',\trg{\overline{\loc}}, \src{let\ x_{0}=new\ n_{0}\ in\ e_{0}''}$
+  \end{passumptions}
+  Inverting \Cref{asm:backtrans:correct:subtop2}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{10}
+    \item $\vdash\trg{\trace[_{1}]}\operatorname{non-int-\trg{\trace}}$
+    \item $\mmlAmmlAtbackcomptoctx[\Game',\trg{\overline{\loc}}]{Ret\ \comptoctx\ \interfacevalue_{1}} = \Game_{1},\trg{\overline{\loc_{1}}}, \src{e_{1}}$
+    \item $\mmlAmmlAtback[\Game_{1},\trg{\overline{\loc_{1}}}]{\trace[_{1}]} = \Game_{1}',\trg{\overline{\loc_{1}'}}, \src{e_{1}'}$
+    \item $\mmlAmmlAtbackctxtocomp[\Game_{1}',\trg{\overline{\loc_{1}'}}]{End\ \interfacevalue_{2}} = \Game'',\trg{\hole{\cdot}}, \src{let\ x_{1}=new\ n_{1}\ in\ e_{1}''}$
+  \end{passumptions}
+  By transitivity on \Cref{asm:backtrans:correct:exect0} and noting \Cref{asm:backtrans:correct:traceeq0}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{14}
+    \item $\trg{\trace}=\trg{Start\cdot\trace[_{a}]}$
+    \item $\exect[]{\Omega}{call\ main\ 0}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{0}}{Start}$
+    \item $\exect{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{0}}{\Omega'}{\finalexprnoerr}{\trace[_{a}]}$
+  \end{passumptions}
 
-  \noindent
-  By transitivity and inversion, $\exect{\Omega}{call\ main\ 0}{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_0}{Call\ \comptoctx\ main\ 0}$ and $\exect{foo,\hole{\cdot};\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_0}{\Omega'}{\finalexprnoerr}{\trace[_a]}$, where $\trg{\trace}=\trg{Call\ \comptoctx\ main\ 0\cdot\trace[_a]}$.
+  Invert \Cref{asm:backtrans:correct:initstaterel}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{17}
+    \item $\src{\Omega}=\src{\cfstate;\memstate}$
+    \item $\trg{\Omega}=\trg{\cfstate;\memstate}$
+    \item\label[ass]{asm:backtrans:correct:cfstaterel} $\xlangstateeq[]{\cfstate}{\cfstate}$
+    \item\label[ass]{asm:backtrans:correct:memstaterel} $\xlangstateeq[\emptyset;\src{\emptyset}]{\memstate}{\memstate}$
+  \end{passumptions}
+  Subsequently inverting \Cref{asm:backtrans:correct:cfstaterel}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{21}
+    \item $\src{\cfstate}=\src{\commlib;\library;\kontstack}$
+    \item $\trg{\cfstate}=\trg{foo,\hole{\cdot};\library;\hole{\cdot}}$
+    \item\label[ass]{asm:backtrans:correct:libeq} $\xlangstateeq[]{\library}{\library}$\MK{use $\commlib$, so that only $\library_{comp}$ must be compiled; we agreed to use traces though, so somehow extract that info from the trace \textbf{now}}
+    \item\label[ass]{asm:backtrans:correct:kontstack} $\xlangstateeq[]{\kontstack}{\hole{\cdot}}$
+  \end{passumptions}
+  Inverting \Cref{asm:backtrans:correct:kontstack}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{25}
+    \item $\src{\kontstack}=\src{\hole{\cdot}}$
+  \end{passumptions}
+  Similarily, inverting \Cref{asm:backtrans:correct:memstaterel} and noting that $\trg{\memstate}=\trg{\hole{\cdot};\hole{\cdot}}$:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{26}
+    \item $\src{\memstate}=\src{\hole{\cdot};\hole{\cdot}}$
+  \end{passumptions}
+  Use \Cref{asm:backtrans:correct:libeq} to conclude:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{27}
+    \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
+    \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\mmlAmmlAtcomp{\library_{comp}}$
+  \end{passumptions}
 
-  Now use \Thmref{lem:exprbacktranslation:vbeg:wrapper:correct} to get
+  {\Large\color{green}TODO}
+
+
+  \noindent Now use \Thmref{lem:exprbacktranslation:vbeg:wrapper:correct} to get
   \begin{passumptions}{H}
     \item $\execs{\Omega}{call\ main\ 0}{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}{e_{main}}{\trace}$
     \item\label[ass]{asm:backtrans:correct:backstaterel0} $\xlangbackstateeq[\emptyset;\src{L}]{\Omega}{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate}$

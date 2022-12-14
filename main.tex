@@ -4464,18 +4464,18 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
   \item $\exect{\Omega}{e}{\Omega'}{e'}{\trace}$
-  \item $\mmlAmmlAtbackdetail[\Game]{\trace}=\Game',\src{e}$
-  \item $\vdash\trg{\trace}\operatorname{ non-int-}\trg{\trace}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
+  \item\label[ass]{asm:exprbacktranslation:mid:correct:backtrans} $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trace}=\Game',\trg{\overline{\loc'}},\src{e}$
+  \item\label[ass]{asm:exprbacktranslation:mid:correct:nonint} $\vdash\trg{\trace}\operatorname{ non-int-}\trg{\trace}$
+  \item\label[ass]{asm:exprbacktranslation:mid:correct:staterel} $\xlangbackstateeq{\Omega}{\Omega}$
   \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
 %  \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
   \end{assumptions}
   then $\exists \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
-  \item $\exec{\src{\Omega}}{\src{K[e]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[42]}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta;\src{L}]{\Omega'}{\src{\commlib;\library;\kontstack;\memstate'}}$
-  \item $\src{\trace}\thexlangtraceeq[\delta;\src{X}]\trg{\trace}$
+  \item\label[goal]{goal:exprbacktranslation:mid:correct:execs} $\exec{\src{\Omega}}{\src{K[e]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[42]}}{\src{\trace}}$
+  \item\label[goal]{goal:exprbacktranslation:mid:correct:staterel} $\xlangbackstateeq[\delta;\src{L}]{\Omega'}{\src{\commlib;\library;\kontstack;\memstate'}}$
+  \item\label[goal]{goal:exprbacktranslation:mid:correct:tracerel} $\src{\trace}\thexlangtraceeq[\delta;\src{X}]\trg{\trace}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -4484,194 +4484,62 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{description}
   \item \textbf{Case $\trg{\trace}=\trg{\hole{\cdot}}$}
 
-  If
-  \begin{assumptions}
-  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
-  \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
-  \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item\label[ass]{asm:backtranscorr:case0:exect} $\exect{\Omega}{e}{\Omega'}{e'}{\hole{\cdot}}$
-  \item\label[ass]{asm:backtranscorr:case0:thebacktrans} $\mmlAmmlAtback[\Game]{\hole{\cdot}}=\Game,\src{e}$
-  \item\label[ass]{asm:backtranscorr:case0:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
-  \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
-  \end{assumptions}
-  then $\exists \src{\trace}\ \src{\memstate'}$,
-  \begin{goals}
-  \item $\exec{\configs}{\src{K[e]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[42]}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'}{\commlib;\library;\kontstack;\memstate'}$
-  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
-  \end{goals}
+  Invert \Cref{asm:exprbacktranslation:mid:correct:backtrans} to obtain:
+  \begin{passumptions}{H}
+    \item $\src{e}=\src{42}$
+    \item $\Game'=\Game$
+    \item $\trg{\overline{\loc'}}=\trg{\overline{\loc}}$
+  \end{passumptions}
 
-  By inversion on \Cref{asm:backtranscorr:case0:thebacktrans}, what is left to show is:
-  If
-  \begin{assumptions}
-  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
-  \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
-  \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item $\exect{\Omega}{e}{\Omega'}{e'}{\hole{\cdot}}$
-  \item $\mmlAmmlAtback[\Game]{\hole{\cdot}}=\Game,\src{42}$
-  \item $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
-  \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
-  \end{assumptions}
-  then $\exists \src{\trace}\ \src{\memstate'}$,
-  \begin{goals}
-  \item $\exec{\configs}{\src{K[42]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[42]}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'}{\commlib;\library;\kontstack;\memstate'}$
-  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\hole{\cdot}}$
-  \end{goals}
+  Instantiate our goals with:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{3}
+    \item $\src{\trace}=\src{\hole{\cdot}}$
+    \item $\src{\memstate'}=\src{\memstate}$
+  \end{passumptions}
 
-  Instantiate our goal with $\src{\trace}=\src{\hole{\cdot}}$ and $\src{\memstate'}=\src{\memstate}$, the first two goals and the fourth follow immediately by reflexivity, the third goal follows by \Cref{asm:backtranscorr:case0:stateeq} after inverting \Cref{asm:backtranscorr:case0:exect}.
+  \Cref{goal:exprbacktranslation:mid:correct:execs} follows by reflexivity.
+
+  \noindent Use \Cref{asm:exprbacktranslation:mid:correct:staterel} to solve \Cref{goal:exprbacktranslation:mid:correct:staterel}.
+
+  \noindent For \Cref{goal:exprbacktranslation:mid:correct:tracerel}, use \Cref{tr:empty-trace-eq}.
 
   \item \textbf{Case $\trg{\trace}=\trg{\event\cdot\trace}$:}
-  If
-  \begin{passumptions}{H^{(0)}}
-  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
-  \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
-  \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item\label{asm:backtranscorr:indu:step} $\exect{\Omega}{e}{\Omega'}{e'}{\event\cdot\trace}$
-  \item $\mmlAmmlAtback{\msevent\cdot\trace}=\Game',\src{e}$
-  \item\label[ass]{asm:backtranscorr:case1:stateeq} $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
-  \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
-  \end{passumptions}
-  then $\exists \src{\trace}$,
-  \begin{goals}
-  \item $\exec{\configs}{\src{K[e]}}{\src{\configs'}}{\src{K[e']}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\event}$
-  \end{goals}
+  All cases are similar, regardless of the shape of $\trg{\event}$, so we won't do a separate case analysis on all of these.
 
-  The induction hypothesis is:\MK{continue cleaning up here}
+  In fact, inverting \Cref{asm:exprbacktranslation:mid:correct:backtrans} gives:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:exprbacktranslation:mid:correct:indu0:backtrans} $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trace}=\Game',\trg{\overline{\loc'}},\src{e}$
+  \end{passumptions}
+  Inverting \Cref{asm:exprbacktranslation:mid:correct:nonint}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{3}
+    \item\label[ass]{asm:exprbacktranslation:mid:correcd:indu0:noninte} $\vdash\trg{\event}\operatorname{non-int-\trg{\event}}$
+    \item\label[ass]{asm:exprbacktranslation:mid:correcd:indu0:nonintt} $\vdash\trg{\trace}\operatorname{non-int-\trg{\trace}}$
+  \end{passumptions}
+
+  The induction hypothesis is:
 
           \noindent
-  If $\forall \trg{\Omega_{\IH}}\ \trg{\commlib_{\IH}}\ \trg{\library_{\IH}}\ \trg{\library_{ctx}^{\IH}}\ \trg{\kontstack_{\IH}}\ \trg{\memstate^{\IH}}\ \trg{\Omega'_{\IH}}\ \trg{e_{\IH}}\ \trg{\finalexprnoerr_{\IH}}\ \src{\Omega_{\IH}}\ \src{\commlib^{\IH}}\ \src{\library_{\IH}}\ \src{\library_{ctx}^{\IH}}\ \src{\library_{comp}^{\IH}}\ \src{\kontstack_{\IH}}\ \src{\memstate_{\IH}}\ \src{e_{\IH}}\ \delta_{\IH}\ \Game_{\IH}\ \Game_{\IH}',$
+  If $\forall \trg{\Omega_{\IH}}\ \trg{\commlib_{\IH}}\ \trg{\library_{\IH}}\ \trg{\library_{ctx}^{\IH}}\ \trg{\kontstack_{\IH}}\ \trg{\memstate^{\IH}}\ \trg{\Omega'_{\IH}}\ \trg{e_{\IH}}\ \trg{\finalexprnoerr_{\IH}}\ \trg{\overline{\loc_{\IH}}}\ \trg{\overline{\loc_{\IH}'}}\ \src{\Omega_{\IH}}\ \src{\commlib_{\IH}}\ \src{\library_{\IH}}\ \src{\library_{ctx}^{\IH}}\ \src{\library_{comp}^{\IH}}\ \src{\kontstack_{\IH}}\ \src{\memstate_{\IH}}\ \src{e_{\IH}}\ \src{L}\ \delta_{\IH}\ \Game_{\IH}\ \Game_{\IH}',$
   \begin{assumptions}
   \item $\trg{\Omega_{\IH}}=\trg{\commlib_{\IH};\library_{\IH};\kontstack_{\IH};\memstate_{\IH}}$
   \item $\trg{\library_{\IH}}=\trg{\library_{ctx}^{\IH}\linker}\mmlAmmlAtcomp{\library_{comp}^{\IH}}$
   \item $\trg{\commlib_{\IH}}=\mmlAmmlAtcomp{\commlib_{\IH}}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}^{\IH}}$
   \item $\exect{\Omega_{\IH}}{e_{\IH}}{\Omega'_{\IH}}{\finalexprnoerr_{\IH}}{\trace}$
-  \item $\mmlAmmlAtback[\Game_{\IH}]{\trace}=\Game_{\IH}',\src{e_{\IH}}$
-  \item $\xlangbackstateeq[\delta_{\IH}]{\Omega_{\IH}}{\Omega_{\IH}}$
+  \item $\mmlAmmlAtback[\Game_{\IH},\trg{\overline{\loc_{\IH}}}]{\trace}=\Game_{\IH}',\trg{\overline{\loc_{\IH}'}},\src{e_{\IH}}$
+  \item $\vdash\trg{\trace}\operatorname{non-int-\trg{\trace}}$
+  \item $\xlangbackstateeq[\delta_{\IH};\src{L_{\IH}}]{\Omega_{\IH}}{\Omega_{\IH}}$
   \item $\src{\Omega_{\IH}}=\src{\commlib_{\IH};\library_{\IH};\kontstack_{\IH};\memstate_{\IH}}$
   \item $\src{\library_{\IH}}=\src{\library_{ctx}^{\IH}\linker\library_{comp}^{\IH}}$
   \end{assumptions}
-  then $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
+  then $\exists \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
-  \item $\delta_{\IH}\subseteq\delta'$
   \item $\exec{\src{\Omega_{\IH}}}{\src{e_{\IH}}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
-  \item $\xlangbackstateeq[\delta']{\Omega'_{\IH}}{\Omega'}$
+  \item $\xlangbackstateeq[\delta]{\Omega'_{\IH}}{\commlib;\library;\kontstack;\memstate'}$
   \item $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
   \end{goals}
-
-  We proceed by case-analysis on $\trg{\msevent}$.
-  \begin{description}
-    \item \textbf{Case $\trg{\msevent}=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}$:}
-      Note that:
-      \begin{passumptions}{H}
-    \item\label[ass]{asm:backtranscorr:freshl} $\fresh{\Game}{\trg{\loc}}$
-    \item\label[ass]{asm:backtranscorr:freshz} $\Game_z=\Game[\trg{\loc}]$
-    \item $\src{z}=\Game_z(\trg{\loc})$
-    \item\label[ass]{asm:backtranscorr:indu:backtrans} $\mmlAmmlAtback[\Game_{z}]{\trace}=\Game',\src{e_a}$
-    \item $\src{e} = \src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtback[\Game_{z}]{foo}\ \mmlAmmlAtbackv[\Game_{z}]{\interfacevalue}\src{;delete\ z;e_{a}}$
-    \item $\mmlAmmlAtback[\Game]{Call\ \ctxtocomp\ foo\ \interfacevalue\cdot\mstrace}=\Game',\src{e}$
-    \item\label[ass]{asm:backtranscorr:call:origexect} $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{Call\ \ctxtocomp\ foo\ \interfacevalue\cdot\trace}$
-      \end{passumptions}
-
-      Let $\delta_z=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}$, obviously $\delta\subseteq\delta_z$.
-      Since the call event is $\ctxtocomp$, we can conclude\MK{technical lemma} that $\trg{foo}\in\mmlAmmlAtcomp{\commlib}$ and, thus, $\trg{foo}\in\operatorname{dom}\mmlAmmlAtcomp{\library_{comp}}$.
-      Consequently, $\mmlAmmlAtback[\Game_{z}]{foo}\in\operatorname{dom}\src{\library_{comp}}$\MK{technical lemma}.
-      Invert \Cref{asm:backtranscorr:call:origexect}, yielding:
-      \begin{passumptions}{H}
-        \setcounter{enumi}{7}
-        \item\label[ass]{asm:backtranscorr:call:call:exect} $\exect[]{\Omega}{e}{\Omega_{0}}{e_{0}}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
-        \item\label[ass]{asm:backtranscorr:call:rest:exect} $\exect{\Omega_{0}}{e_{0}}{\Omega'}{\finalexprnoerr}{\trace}$
-      \end{passumptions}
-
-      Let $\src{\Omega}=\src{\commlib;\library;\kontstack;H;\Delta}$ and $\src{H'}=\src{H}\ll\src{42}$.
-      Note that $\fresh{\src{\Delta}}{\src{\loc}}$ and $\fresh{\src{\Delta}}{\src{z}}$ using \Cref{asm:backtranscorr:freshl,asm:backtranscorr:freshz}.\MK{technical lemma. Maybe also $\multimap$ needs to know about $\Game$}
-      Using that, by \Cref{tr:w-e-let-new}, we know:
-      \begin{passumptions}{F}
-        \item $\execs[]{\Omega}{e}{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}{e_{b}}{Alloc\ \loc\ 42}$
-        \item $\src{e_{b}}=\src{call\ }\mmlAmmlAtback[\Game_{z}]{foo}\ \mmlAmmlAtbackv[\Game_{z}]{\interfacevalue}\ \src{; delete\ z;e_{a}}$
-      \end{passumptions}
-      Since $\mmlAmmlAtback{foo}=\src{foo}\in\src{\commlib}$, we know that $(\src{let\ foo\ x:\type_{{\color{black}}\lambda}:=e})\in\src{\library_{comp}}$ and, thus, also $\mmlAmmlAtcomp{let\ foo\ x:\type_{{\color{black}}\lambda}:=e}\in\mmlAmmlAtcomp{\library_{comp}}$.
-      Let $\src{K}=\src{let\ \_ = \hole{\cdot}\ in\ delete\ z;e_{a}}$. It is easy to see that $\src{K\hole{call\ foo\ \color{black}\mmlAmmlAtbackv{\interfacevalue}\color{\stlccol}}}=\src{e_{b}}$.
-      By inverting \Cref{asm:backtranscorr:call:call:exect}, we know $\trg{e_{0}}=\mmlAmmlAtcomp{K\hole{call\ foo\ ...}}$.
-          {\color{red}\large TODO: break up call one step for the blue stuff, thus allowing us to apply the lemma approxoflolly}
-      Given \Cref{asm:backtranscorr:case1:stateeq}, it is immediate\MK{don't be lazy} that:
-      \begin{passumptions}{F}
-        \setcounter{enumi}{2}
-        \item\label[ass]{asm:backtranscorr:call:src:stateeq:call} $\xlangbackstateeq[\delta;\src{\loc,L}]{\Omega}{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}$
-      \end{passumptions}
-      Now use \Thmref{lem:relations:call:approxoflolly} with \Cref{asm:backtranscorr:call:call:exect,asm:backtranscorr:call:src:stateeq:call} to get that $\xlangstateeq[\delta,\src{\loc,L}]{\Omega}{\Omega_{0}}$.
-
-      %Use \Thmref{lem:relations:ret:lollyofapprox} and \Thmref{lem:relations:call:approxoflolly}
-
-%     With \Cref{lem:trg:calldecompose}, we can decompose \Cref{asm:backtranscorr:call:origexect} into three parts:
-%     \begin{passumptions}{\trg{E}}
-%   \item $\exect[]{\commlib;\library;\kontstack;\memstate}{K[e]}{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{Call\ \comm\ foo\ \interfacevalue}$
-%   \item $\exect[^{n}]{\commlib;\library;K_{\hat{\comm}}^{foo},\kontstack;\memstate}{e_{0}}{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\trace[_{1}]\cdot Ret\ \hat{\comm}\ \interfacevalue'}$
-%   \item $\exect{\commlib;\library;\kontstack;\memstate'}{K[\interfacevalue']}{\Omega'}{\finalexpr}{\trace[_{2}]}$
-%   \item $\trg{\memstate}\ogreaterthan\trg{\memstate'}$
-%   \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
-%     \end{passumptions}
-      We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{\commlib;\library;\kontstack;\memstate'}$, $\trg{\Omega_{\IH}'}=\trg{\Omega'}$, $\trg{e_{\IH}}=\trg{K[\interfacevalue']}$, $\trg{\finalexprnoerr_{\IH}}=\trg{\finalexprnoerr}$, $\src{\Omega_{\IH}}=\src{\commlib;\library;\kontstack;H';z\mapsto\loc_{\poisonless},\Delta}$\MK{$\src{Delta}$ may be different}, $\src{e_{\IH}}=\src{delete\ z; e_a}$, $\delta_{\IH}=\delta_z$, $\Game_{\IH}=\Game_z$, and $\Game_{\IH}'=\Game'$.
-      {\color{red} ok, this probably breaks because we need the execution in the induction hypothesis to not terminate with an $\src{f}$ but step as we want}
-
-      Using \Cref{asm:backtranscorr:case1:stateeq}, we apply \Cref{tr:back-cons-locmap-eq}\MK{we technically need a lemma that says we can apply it under monotone $\delta$, i.e. for "bigger" $\delta$} to get
-      \begin{passumptions}{H}
-        \setcounter{enumi}{8}
-      \item\label[ass]{asm:backtranscorr:indu:staterel} $\xlangbackstateeq[\delta_x]{H';z\mapsto\loc_{\poisonless},\Delta}{H';z\mapsto\loc_{\poisonless},\Delta}$
-      \end{passumptions}
-      thereby introducing some fresh $\src{z}$ and $\src{\loc}$.
-      Furthermore, the following assumption is easily derivable from the existing ones:
-      \begin{passumptions}{H}
-        \setcounter{enumi}{9}
-      \item\label[ass]{asm:backtranscorr:indu:trace} $\trg{\mstrace}=\thetospecificfilter\left(\trg{\trace}\right)$
-      \end{passumptions}
-
-      We now instantiate $\IH$ with $\trg{\Omega_{\IH}}=\trg{H';z,\mapsto\loc_{\poisonless},\Delta}$, $\trg{\Omega_{\IH}'}=\trg{\Omega''}$, $\trg{e_{\IH}}=\trg{e'[z/x]}$, $\trg{\finalexprnoerr_{\IH}}=\trg{\finalexprnoerr}$, $\src{\Omega_{\IH}}=\src{H';z\mapsto\loc_{\poisonless},\Delta}$, $\src{e_{\IH}}=\src{e_a}$, $\delta_{\IH}=\delta_x$, $\Game_{\IH}=\Game_x$, and $\Game_{\IH}'=\Game'$.
-      Whence, specialize it with \Cref{asm:backtranscorr:indu:steps,asm:backtranscorr:indu:trace,asm:backtranscorr:indu:backtrans,asm:backtranscorr:indu:staterel}, giving us:
-      \begin{passumptions}{F}
-      \item\label[ass]{asm:backtranscorr:indu:deltasubset} $\delta_x\subseteq\delta'$
-      \item\label[ass]{asm:backtranscorr:indu:afterallocstep} $\exec{\src{H';z\mapsto\loc_{\poisonless},\Delta}}{\src{e'[z/x]}}{\src{\configs''}}{\src{\finalexprnoerr}}{\src{\trace}}$
-      \item\label[ass]{asm:backtranscorr:indu:finalstaterel} $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$
-      \item\label[ass]{asm:backtranscorr:indu:tracerel1} $\src{\trace}\thexlangtraceeq[\delta']\trg{\trace}$
-      \end{passumptions}
-
-      For the sake of clarity, we repeat our goal:
-      $\exists \delta'\ \src{\Omega'}\ \src{\trace}\ \src{\finalexprnoerr}$,
-      \begin{goals}
-      \item $\delta\subseteq\delta'$
-      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs'}}{\src{\finalexprnoerr}}{\src{\trace}}$
-      \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega'}$
-      \item $\src{\trace}\thexlangtraceeq[\delta']\trg{Alloc\ \loc\ n\cdot\trace}$
-      \end{goals}
-
-      Instantiate it with $\delta'=\delta'$, $\src{\Omega'} = \src{\Omega''}$, $\src{\trace}=\src{Alloc\ \loc\ n\cdot\trace}$, and $\src{v}=\src{v}$.
-      \begin{goals}
-      \item $\delta\subseteq\delta'$
-
-        Follows by definition of $\delta_x$ and \Cref{asm:backtranscorr:indu:deltasubset}.
-      \item $\exec{\configs}{\src{let\ x=new\ }\mmlAmmlAtbackv{n}\src{\ in\ e'}}{\src{\configs''}}{\src{\finalexprnoerr}}{\src{Alloc\ \loc\ n\cdot\trace}}$
-
-        Apply \Cref{tr:ws-e-trans-important}, use \Cref{tr:w-e-let-new} and then we are done using \Cref{asm:backtranscorr:indu:afterallocstep} .
-      \item $\xlangbackstateeq[\delta']{\Omega''}{\Omega''}$
-
-        By \Cref{asm:backtranscorr:indu:finalstaterel}.
-      \item $\src{Alloc\ \loc\ }\mmlAmmlAtbackv{n}\thexlangtraceeq[\delta']\trg{Alloc\ \loc\ n\cdot\trace}$
-
-      Easy using \Cref{tr:empty-trace-eq}, \Cref{tr:cons-trace-eq}, \Cref{tr:alloc-event-eq}, and \Thmref{lem:compvals:insertion}.
-      \end{goals}
-
-    \item \textbf{Case $\trg{\msevent}=\specificev{Dealloc\ \loc}$:}
-      todo.
-
-    \item \textbf{Case $\trg{\msevent}=\specificev{Use\ \loc\ n}$:}
-      todo.
-
-  \end{description}
+  \Cref{asm:exprbacktranslation:mid:correct:indu0:backtrans,asm:exprbacktranslation:mid:correct:indu0:nonintt} may now be used to discharge the inductive hypothesis.
 
   \end{description}
 \end{incompleteproof}

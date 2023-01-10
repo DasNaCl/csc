@@ -615,10 +615,6 @@ $\src{\library_{ctx}}$ takes the role as attacker code.
   }{
     \vdash\src{\nat}\operatorname{int}
   }{src-int-type-nat}
-  \typerule{int-$\src{\wptr}$}{
-  }{
-    \vdash\src{\wptr}\operatorname{int}
-  }{src-int-type-wptr}
   \end{center}
 }{src-int-types}{Interface types of $\mmlAs$.}
 
@@ -1504,7 +1500,7 @@ As before, we need a way to translate one set of actions to another:
   \begin{gather*}
     \begin{aligned}
       \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon}\mid \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
     \end{aligned}
   \end{gather*}
 }{sms-monitor}{\gls{sms} Monitor.}
@@ -4105,6 +4101,18 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \mmlAmmlAtbacksubtop[\Game,\trg{\overline{\loc}}]{\trg{\event[_1]\cdot\trace\cdot\event[_2]}}=\Game''',\trg{\overline{\loc'''}}, \src{e_1}, \src{e_2},\src{e_3}
     }{subtoplevel-backtrans}
+    %
+    \typerule{subtoplevel-backtrans-indu}{
+      \trg{\trace[_1]}=\trg{\event[^A_1]\cdot\trace[^A]\cdot\event[^A_2]} &
+      \vdash\trg{\trace[^A]}\ \operatorname{non-int-\trg{\trace}} \\
+      \mmlAmmlAtbackcomptoctx[\Game,\trg{\overline{\loc}}]{\trg{\event[^A_1]}}=\Game',\trg{\overline{\loc'}},\src{e_1^A} &
+      \mmlAmmlAtbackdetail[\Game',\trg{\overline{\loc'}}]{\trg{\trace^A}}=\Game'',\trg{\overline{\loc''}}, \src{e_2^A} \\
+      \mmlAmmlAtbackctxtocomp[\Game'',\trg{\overline{\loc''}}]{\trg{\event[^A_2]}}=\Game''',\trg{\overline{\loc'''}},\src{let\ x_0=new\ n_0\ in\ e_3^A} \\
+      \mmlAmmlAtbacksubtop[\Game''',\trg{\overline{\loc'''}}]{\trace[_2]} = \Game'''',\trg{\overline{\loc''''}},\src{e_1^B},\src{e_2^B},\src{e_3^B} \\
+      \src{e^A}=\src{e^A_1;e^A_2;let\ x_0=new\ n_0\ in\ (e_3^A;e_1^B)}
+    }{
+      \mmlAmmlAtbacksubtop[\Game,\trg{\overline{\loc}}]{\trg{\trace[_1]\cdot\trace[_2]}}=\Game'''',\trg{\overline{\loc''''}},\src{e^A},\src{e^B_2},\src{e^B_3}
+    }{subtoplevel-backtrans-indu}
   \end{center}
 }{tms-pres-subtop-backtrans}{Interaction-Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
 
@@ -5020,6 +5028,25 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 }{outline-sketch}{Compilation Pipeline}
 
 \clearpage
+
+\section{...allow passing References}
+
+Here, we describe what changes need to be made to allow passing references.
+
+\myfig{
+  \begin{center}
+    \judgbox{\vdash\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
+  \typerule{int-$\src{\nat}$}{
+  }{
+    \vdash\src{\nat}\operatorname{int}
+  }{src-int-type-nat}
+  \typerule{int-$\src{\wptr}$}{
+  }{
+    \vdash\src{\wptr}\operatorname{int}
+  }{src-int-type-wptr}
+  \end{center}
+}{src-int-types-refs}{Interface types of $\mmlAs$.}
+
 \cleardoublepage
 
 \bibliographystyle{plain}

@@ -2776,13 +2776,19 @@ Lemma store_agree_split T__TMS Δ1 x ℓ ρ Δ2 δ :
                     store_agree δ ({ℓ'} ∪ (TMMon.emptytmsmon)) (x ↦ (addr ℓ, ρ) ◘ sNil) /\
                     T__TMS = TMMon.append T__TMS1 (TMMon.append ({ℓ'} ∪ TMMon.emptytmsmon) T__TMS2)
 .
-Proof. Admitted.
+Proof.
+  induction Δ1; intros H; cbn in *.
+  - exists TMMon.emptytmsmon. exists T__TMS. exists (TMMon.addr ℓ).
+Admitted.
+
 Lemma store_agree_rsplit T__TMS1 T__TMS2 Δ1 Δ2 δ:
   store_agree δ T__TMS1 Δ1 ->
   store_agree δ T__TMS2 Δ2 ->
   store_agree δ (TMMon.append T__TMS1 T__TMS2) (Δ1 ◘ Δ2)
 .
-Proof. Admitted.
+Proof.
+Admitted.
+
 Lemma store_split_poisoned Ξ Δ1 x ℓ Δ2 Γ :
   store_split Ξ (Δ1 ◘ x ↦ (addr ℓ, ☣) ◘ Δ2) Γ ->
   store_split Ξ (Δ1 ◘ Δ2) Γ /\ (~ List.In x (dom Γ))

@@ -79,6 +79,34 @@ Notation "'{' ℓ '}' '∪' T" := (extend ℓ T) (at level 82, T at next level).
 #[local]
 Notation "T '∖' '{' ℓ '}'" := (without T ℓ) (at level 82, ℓ at next level).
 
+Lemma same_tmon (T : TMSMonitor) :
+  T = {| A := T.(A) ; F := T.(F) |}.
+Proof. now destruct T. Qed.
+
+Lemma fold_extend (ℓ : loc) (T : TMSMonitor) :
+  ({ ℓ } ∪ T) = {| A := List.cons ℓ T.(A) ; F := T.(F) |}.
+Proof. now destruct T. Qed.
+
+Lemma fold_append_A (T1 T2 : TMSMonitor) :
+  (append T1 T2).(A) = List.app T1.(A) T2.(A).
+Proof.
+  destruct T1; cbn.
+  induction A0, F0; try unfold append; cbn; easy.
+Qed.
+Lemma fold_append_F (T1 T2 : TMSMonitor) :
+  (append T1 T2).(F) = List.app T1.(F) T2.(F).
+Proof.
+  destruct T1; cbn.
+  induction A0, F0; try unfold append; cbn; easy.
+Qed.
+
+Lemma fold_append (T1 T2 : TMSMonitor) :
+  append T1 T2 = {| A := List.app T1.(A) T2.(A) ; F := List.app T1.(F) T2.(F) |}.
+Proof.
+  destruct T1; cbn.
+  induction A0, F0; try unfold append; cbn; easy.
+Qed.
+
 Lemma loc_inside_split (T1 T2 : TMSMonitor) (ℓ : loc) :
   ℓ ∈ append T1 (append ({ℓ} ∪ TMMon.emptytmsmon) T2)
 .

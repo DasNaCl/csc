@@ -895,10 +895,6 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   end
 .
 
-(** Typechecking evaluation contexts, which represent functions. *)
-Definition ectx_check (symbs : symbols) (init : Gamma) (K : evalctx) (τ : Ty) : Prop :=
-  False.
-
 Fixpoint interfaces (s : symbols) : option(Gamma) :=
   match s with
   | mapNil _ _ => Some [⋅]
@@ -914,16 +910,19 @@ Fixpoint interfaces (s : symbols) : option(Gamma) :=
 Definition prog_check (p : prog) : Prop :=
   let '(Cprog symbs) := p in
   let inttt := interfaces symbs in
-  match List.find (fun x => eqb x ("main"%string)) (dom inttt) with
-  | Some _ =>
-    match inttt with
-    | Some intt =>
+  match inttt with
+  | Some intt =>
+    match List.find (fun (x : vart) => vareq x ("main"%string)) (dom intt) with
+    | Some _ =>
       match noownedptrf intt with
       | Some ints =>
         let fix doo (stack : symbols) :=
           match stack with
           | mapNil _ _ => True
-          | mapCons foo (E, Tectx(Tarrow τ0 τ1)) xs => ectx_check symbs ints E (Tectx(Tarrow τ0 τ1)) /\ doo xs
+          | mapCons foo (x, Tectx(Tarrow τ0 τ1), e) xs =>
+            int τ0 /\ int τ1 /\
+            doo xs /\
+            check (x ↦ (Texpr τ0) ◘ ints) e (Treturn τ1)
           | _ => False
           end
         in doo symbs
@@ -1710,9 +1709,9 @@ Inductive estep : CtxStep :=
                (E E__foo : evalctx) (f : fnoerr),
     (F ; Ξ ; E__foo :: ξ ; H ; Δ ▷ insert E (Xreturn f) ==[ Sret f ]==> F ; Ξ ; ξ ; H ; Δ ▷ insert E__foo f)
 | E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
-             (E E__foo : evalctx) (τ__int : Ty) (foo : vart) (f : fnoerr),
-    Some (E__foo,τ__int) = mget Ξ foo ->
-    (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ insert (Kreturn E__foo) f)
+             (e__foo : expr) (E : evalctx) (τ__int : Ty) (argx foo : vart) (f : fnoerr),
+    Some (argx, τ__int, e__foo) = mget Ξ foo ->
+    (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ Xreturn (subst argx e__foo f))
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
@@ -1782,8 +1781,8 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
     let '(F, Ξ, ξ, H, Δ) := Ω in
     match mget Ξ foo with
     | None => None
-    | Some (K__foo,_) =>
-    Some(Some(Scall foo f), (F ; Ξ ; (K :: ξ) ; H ; Δ ▷ (insert (Kreturn K__foo) (Xres(Fres f)))))
+    | Some (argx, τ__arg, e__foo) =>
+    Some(Some(Scall foo f), (F ; Ξ ; (K :: ξ) ; H ; Δ ▷ (Xreturn (subst argx e__foo f))))
     end
   | Xreturn(Xres(Fres f)) =>
     let '(F, Ξ, ξ', H, Δ) := Ω in
@@ -1974,13 +1973,16 @@ Proof.
       now rewrite (get_rid_of_letstar (E, Xreturn f)).
     + (* call *)
       unfold estepf.
-      rewrite (get_rid_of_letstar (F, Ξ, E__foo :: ξ, H, Δ)).
+      rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)).
       rewrite elim_ectx_call.
       rewrite (get_rid_of_letstar (E, Xcall foo f)).
-      change ((fun o => match o with
-                    | Some(K__foo, _) => Some(Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), insert (Kreturn K__foo) f))
-                    | None => None
-                    end = Some(Some(Scall foo f), (Some(F, Ξ, E :: ξ, H, Δ), insert (Kreturn E__foo) f))) (mget Ξ foo)).
+      change ((fun o => (
+        match o with
+        | Some (argx0, _, e__foo0) =>
+            Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx0 e__foo0 f)))
+        | None => None
+        end = Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx e__foo f)))
+      )) (mget Ξ foo)).
       now rewrite <- H0.
     + (* normal step *) assert (H':=H); eapply pstep_compat_weaken in H.
       apply (@grab_ectx e0 K e H) in H0 as H0';
@@ -2036,14 +2038,16 @@ Proof.
         grab_value e0.
         -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
            destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-           apply (not_eq_None_Some) in Hx as [[E__foo τ__int] Hx].
+          apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
            rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto. eapply E_call; symmetry; eassumption.
+           eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto.
+           eapply E_call; symmetry; eassumption.
         -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
            destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-           apply (not_eq_None_Some) in Hx as [[E__foo τ__int] Hx].
+           apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
            rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; subst; eauto. eapply E_call; symmetry; eassumption.
+           eapply ungrab_ectx in Hx0; subst; eauto.
+           eapply E_call; symmetry; eassumption.
 Qed.
 
 Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :

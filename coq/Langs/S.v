@@ -2762,7 +2762,12 @@ Proof. Admitted.
 Lemma δ_of_Δ_poison_eq (Δ1 Δ2 : store) (x : vart) (ℓ : loc) :
   δ_of_Δ (Δ1 ◘ x ↦ (ℓ, ◻) ◘ Δ2) = δ_of_Δ (Δ1 ◘ x ↦ (ℓ, ☣) ◘ Δ2)
 .
-Proof. Admitted.
+Proof.
+  induction Δ1; cbn; eauto.
+  destruct b as [[] _]. fold (append Δ1 (x ↦ (ℓ, ◻) ◘ Δ2));
+  fold (append Δ1 (x ↦ (ℓ, ☣) ◘ Δ2)).
+  now f_equal.
+Qed.
 
 Lemma store_agree_split T__TMS Δ1 x ℓ ρ Δ2 δ :
   store_agree δ T__TMS (Δ1 ◘ x ↦ (addr ℓ, ρ) ◘ Δ2) ->

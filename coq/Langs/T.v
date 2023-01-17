@@ -682,17 +682,19 @@ Inductive pstep : PrimStep :=
 | e_hasℕ_x : forall (Ω : state) (x : vart),
     Ω ▷ Xhas (Fvar x) Tℕ --[]--> Ω ▷ 1
 | e_hasℕ_pair : forall (Ω : state) (n1 n2 : nat),
-    Ω ▷ Xhas (Xpair n1 n2) Tpair --[]--> Ω ▷ 1
+    Ω ▷ Xhas (Xpair n1 n2) Tℕ --[]--> Ω ▷ 1
 | e_hasPair_n : forall (Ω : state) (n : nat),
-    Ω ▷ Xhas n Tℕ --[]--> Ω ▷ 1
+    Ω ▷ Xhas n Tpair --[]--> Ω ▷ 1
 | e_hasPair_x : forall (Ω : state) (x : vart),
-    Ω ▷ Xhas (Fvar x) Tℕ --[]--> Ω ▷ 1
+    Ω ▷ Xhas (Fvar x) Tpair --[]--> Ω ▷ 1
 | e_hasPair_pair : forall (Ω : state) (n1 n2 : nat),
     Ω ▷ Xhas (Xpair n1 n2) Tpair --[]--> Ω ▷ 0
 | e_xispoison_yes : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ Δ1 Δ2 : store) (x : vart) (ℓ : nat),
+    Util.nodupinv Δ ->
     Δ = (Δ1 ◘ x ↦ ((addr ℓ), ☣) ◘ Δ2) ->
     (F ; Ξ ; ξ ; H ; Δ) ▷ Xispoison x --[]--> (F ; Ξ ; ξ ; H ; Δ) ▷ 0
 | e_xispoison_no : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ Δ1 Δ2 : store) (x : vart) (ℓ : nat),
+    Util.nodupinv Δ ->
     Δ = (Δ1 ◘ x ↦ ((addr ℓ), ◻) ◘ Δ2) ->
     (F ; Ξ ; ξ ; H ; Δ) ▷ Xispoison x --[]--> (F ; Ξ ; ξ ; H ; Δ) ▷ 1
 .
@@ -801,6 +803,28 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       Some(Some(Salloc (addr ℓ) n), (Fresh.advance F' ; Ξ ; ξ ; H' ; Δ') ▷ e'')
     | _ => None
     end
+  | Xπ1 (Xpair (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2))))) =>
+    Some(None, Ω ▷ n1)
+  | Xπ2 (Xpair (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2))))) =>
+    Some(None, Ω ▷ n2)
+  | Xispoison x => (* e-ispoison *)
+    let '(F, Ξ, ξ, H, Δ) := Ω in
+    let* Δ__x := undup Δ in
+    let* (Δ1, x, (L, ρ), Δ2) := splitat Δ__x x in
+    match ρ with
+    | ☣ => Some(None, Ω ▷ 0) (* e-ispoison-yes *)
+    | ◻ => Some(None, Ω ▷ 1) (* e-ispoison-no *)
+    end
+  | Xhas e τ =>
+    match e, τ with
+    | Xres(Fres(Fval(Vnat _))), Tℕ => Some(None, Ω ▷ 0)
+    | Xres(Fres(Fvar _)), Tℕ => Some(None, Ω ▷ 1)
+    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))), Tℕ => Some(None, Ω ▷ 1)
+    | Xres(Fres(Fval(Vnat _))), Tpair => Some(None, Ω ▷ 1)
+    | Xres(Fres(Fvar _)), Tpair => Some(None, Ω ▷ 1)
+    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))), Tpair => Some(None, Ω ▷ 0)
+    | _, _ => None
+    end
   | _ => None (* no matching rule *)
   end
 .
@@ -811,11 +835,11 @@ Ltac crush_interp :=
         let Ω := fresh "Ω" in destruct oΩ as [|]; inversion H
     end.
 Ltac grab_value e :=
-  (destruct e as [[[[e]|]|]| | | | | | | | | |]; try congruence)
+  (destruct e as [[[[e]|]|]| | | | | | | | | | | | | | |]; try congruence)
 .
 Ltac grab_value2 e1 e2 := (grab_value e1; grab_value e2).
 Ltac grab_final e :=
-  (destruct e as [[e|]| | | | | | | | | | ]; try congruence)
+  (destruct e as [[e|]| | | | | | | | | | | | | | |]; try congruence)
 .
 
 Lemma Hget_none (H : heap) (n : nat) :
@@ -855,6 +879,18 @@ Proof.
     + (* e-let *) now subst; cbn.
     + (* e-new *) subst; unfold pstepf.
       now rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)), <- H5, (get_rid_of_letstar H'), H4, (get_rid_of_letstar Δ').
+    + (* e-π1 *) easy.
+    + (* e-π2 *) easy.
+    + (* e-has-Tℕ-yes *) easy.
+    + (* e-has-Tℕ-no *) easy.
+    + (* e-has-Tℕ-no *) easy.
+    + (* e-has-Tpair-no *) easy.
+    + (* e-has-Tpair-no *) easy.
+    + (* e-has-Tpair-yes *) easy.
+    + (* e-ispoison-yes *) cbn; apply nodupinv_equiv_undup in H0 as H0'; rewrite H0'.
+      rewrite H1, splitat_elim; subst; auto.
+    + (* e-ispoison-no *) cbn; apply nodupinv_equiv_undup in H0 as H0'; rewrite H0'.
+      rewrite H1, splitat_elim; subst; auto.
   - intros H; destruct r0 as [oΩ e], r1 as [Ω' e']; destruct e; cbn in H; crush_interp; clear H.
     + (* e = e1 ⊕ e2 *)
       now grab_value2 e1 e2; inv H1; eapply e_binop.
@@ -893,7 +929,37 @@ Proof.
       grab_value e1. destruct e1; inv H1; apply e_ifz_true || apply e_ifz_false.
     + (* e = abort *)
       apply e_abort.
+    + (* e = ispoison x *)
+      destruct s as [[[[F Ξ] ξ] H] Δ]. crush_undup Δ; apply nodupinv_equiv_undup in Hx.
+      recognize_split.
+      * rewrite H0 in Hx; apply splitat_elim in Hx as Hx'.
+        change
+       ((fun o => (match o with
+       | Some (_, _, (_, ◻), _) => Some (None, (Some (F, Ξ, ξ, H, m1 ◘ x ↦ v ◘ m2), (Xres(Vnat 1))))
+       | Some (_, _, (_, ☣), _) => Some (None, (Some (F, Ξ, ξ, H, m1 ◘ x ↦ v ◘ m2), (Xres(Vnat 0))))
+       | None => None
+       end = Some (a, (Ω', e')))) (splitat (m1 ◘ x ↦ v ◘ m2) x)) in H1.
+        rewrite Hx' in H1. destruct v as [[ll] []]; inv H1;
+        econstructor; eauto.
+      * apply splitat_notin in Hy.
+        change
+       ((fun o => (match o with
+       | Some (_, _, (_, ◻), _) => Some (None, (Some (F, Ξ, ξ, H, Δ), (Xres(Vnat 1))))
+       | Some (_, _, (_, ☣), _) => Some (None, (Some (F, Ξ, ξ, H, Δ), (Xres(Vnat 0))))
+       | None => None
+       end = Some (a, (Ω', e')))) (splitat Δ x)) in H1.
+        now rewrite Hy in H1.
+    + (* e = π1 <n1, n2> *)
+      destruct e; try congruence. grab_value2 e1 e2; inv H1; constructor.
+    + (* e = π2 <n1, n2> *)
+      destruct e; try congruence. grab_value2 e1 e2; inv H1; constructor.
+    + (* e = e has τ *)
+      destruct e; try congruence.
+      * repeat destruct f; try congruence. destruct v, τ; try congruence; inv H1; constructor.
+        destruct τ; try congruence; inv H1; constructor.
+      * grab_value2 e1 e2; destruct τ; inv H1; constructor.
 Qed.
+
 Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
   pstepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->
   nodupinv Ω ->

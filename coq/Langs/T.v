@@ -501,6 +501,29 @@ Instance symbol__Instance : SymbolClass symbol := {}.
 #[local]
 Existing Instance varteq__Instance | 0.
 
+(** Fill hole in evaluation context. *)
+Fixpoint insert (K : evalctx) (withh : expr) : expr :=
+  let R := fun k => insert k withh in
+  match K with
+  | Khole => withh
+  | KbinopL b K' e => Xbinop b (R K') e
+  | KbinopR b v K' => Xbinop b v (R K')
+  | Kget x K' => Xget x (R K')
+  | KsetL x K' e => Xset x (R K') e
+  | KsetR x v K' => Xset x v (R K')
+  | Klet x K' e => Xlet x (R K') e
+  | Knew x K' e => Xnew x (R K') e
+  | Kifz K' e0 e1 => Xifz (R K') e0 e1
+  | Kcall foo K' => Xcall foo (R K')
+  | Kreturn K' => Xreturn (R K')
+  | KpairL K' e => Xpair (R K') e
+  | KpairR e K' => Xpair e (R K')
+  | Kπ1 K' => Xπ1 (R K')
+  | Kπ2 K' => Xπ2 (R K')
+  | Khas K' τ => Xhas (R K') τ
+  end
+.
+
 Fixpoint interfaces (s : symbols) : option(list vart) :=
   match s with
   | mapNil _ _ => Some List.nil
@@ -1038,6 +1061,42 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     | _ => let* (K, c') := evalctx_of_expr c in
           Some(Kifz K e0 e1, c')
     end
+  | Xpair e0 e1 =>
+    match e0, e1 with
+    | Xres(Fres(Fval(Vnat v0))), Xres(Fres(Fval(Vnat v1))) =>
+      Some(Khole, Xpair v0 v1)
+    | Xres(Fres(Fval(Vnat v0))), _ =>
+      let* (K, e') := evalctx_of_expr e1 in
+      Some(KpairR v0 K, e')
+    | _, _ =>
+      let* (K, e') := evalctx_of_expr e0 in
+      Some(KpairL K e1, e')
+    end
+  | Xπ1 e =>
+    match e with
+    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))) =>
+      Some(Khole, Xπ1 e)
+    | _ =>
+      let* (K, e') := evalctx_of_expr e in
+      Some(Kπ1 K, e')
+    end
+  | Xπ2 e =>
+    match e with
+    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))) =>
+      Some(Khole, Xπ2 e)
+    | _ =>
+      let* (K, e') := evalctx_of_expr e in
+      Some(Kπ2 K, e')
+    end
+  | Xhas e τ =>
+    match e with
+    | Xres(Fres _) | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))) =>
+      Some(Khole, Xhas e τ)
+    | _ =>
+      let* (K, e') := evalctx_of_expr e in
+      Some(Khas K τ, e')
+    end
+  | Xispoison x => Some(Khole, Xispoison x)
   end
 .
 (* Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
@@ -1052,6 +1111,11 @@ Definition pstep_compatible (e : expr) : option expr :=
   | Xset x (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some(Xset x n1 n2)
   | Xnew x (Xres(Fres(Fval(Vnat n)))) e => Some(Xnew x n e)
   | Xlet x (Xres(Fres f)) e => Some(Xlet x f e)
+  | Xispoison x => Some (Xispoison x)
+  | Xhas (Xres(Fres f)) τ => Some(Xhas f τ)
+  | Xhas (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) τ => Some(Xhas (Xpair f1 f2) τ)
+  | Xπ1 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ1 (Xpair f1 f2))
+  | Xπ2 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ2 (Xpair f1 f2))
   | _ => None
   end
 .
@@ -1068,6 +1132,11 @@ Definition pestep_compatible (e : expr) : option expr :=
   | Xlet x (Xres(Fres f)) e => Some(Xlet x f e)
   | Xcall foo (Xres(Fres f)) => Some(Xcall foo f)
   | Xreturn (Xres(Fres f)) => Some(Xreturn f)
+  | Xispoison x => Some (Xispoison x)
+  | Xhas (Xres(Fres f)) τ => Some(Xhas f τ)
+  | Xhas (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) τ => Some(Xhas (Xpair f1 f2) τ)
+  | Xπ1 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ1 (Xpair f1 f2))
+  | Xπ2 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ2 (Xpair f1 f2))
   | _ => None
   end
 .
@@ -1090,8 +1159,8 @@ Inductive estep : CtxStep :=
                (E E__foo : evalctx) (f : fnoerr),
     (F ; Ξ ; E__foo :: ξ ; H ; Δ ▷ insert E (Xreturn f) ==[ Sret f ]==> F ; Ξ ; ξ ; H ; Δ ▷ insert E__foo f)
 | E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
-             (e__foo : expr) (E : evalctx) (τ__int : Ty) (argx foo : vart) (f : fnoerr),
-    Some (argx, τ__int, e__foo) = mget Ξ foo ->
+             (e__foo : expr) (E : evalctx) (argx foo : vart) (f : fnoerr),
+    Some (argx, e__foo) = mget Ξ foo ->
     (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ Xreturn (subst argx e__foo f))
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
@@ -1162,7 +1231,7 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
     let '(F, Ξ, ξ, H, Δ) := Ω in
     match mget Ξ foo with
     | None => None
-    | Some (argx, τ__arg, e__foo) =>
+    | Some (argx, e__foo) =>
     Some(Some(Scall foo f), (F ; Ξ ; (K :: ξ) ; H ; Δ ▷ (Xreturn (subst argx e__foo f))))
     end
   | Xreturn(Xres(Fres f)) =>
@@ -1287,7 +1356,19 @@ Proof.
   specialize (IHe K e0 H Heqek) as ->;
   destruct ek; trivial.
   induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
-Qed.
+
+  admit.
+
+  admit.
+
+  cbn; remember (insert K e0) as ek.
+  destruct (expr_val_dec ek) as [H2|H2];
+  try (inv H2; crush_insert; inv H).
+  specialize (IHe K e0 H Heqek) as ->;
+  destruct ek; trivial.
+  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
+  admit.
+Admitted.
 
 Lemma easy_ectx e0 :
   Some e0 = pestep_compatible e0 ->
@@ -1320,6 +1401,9 @@ Proof.
   - (* let *) grab_value e1.
   - (* new *) grab_value e1.
   - (* ifz *) grab_value e1; destruct e1; now inv H.
+  - (* π1 *) grab_value e; grab_value2 e1 e2.
+  - (* π2 *) grab_value e; grab_value2 e1 e2.
+  - (* has *) grab_value e; grab_value2 e1 e2.
 Qed.
 
 Lemma pestep_compatible_some e e' :
@@ -1334,6 +1418,9 @@ Proof.
   - (* ret *) grab_value e.
   - (* call *) grab_value e.
   - (* ifz *) grab_value e1; destruct e1; now inv H.
+  - (* π1 *) grab_value e; grab_value2 e1 e2.
+  - (* π2 *) grab_value e; grab_value2 e1 e2.
+  - (* has *) grab_value e; grab_value2 e1 e2.
 Qed.
 Lemma elim_ectx_ret K (f : fnoerr) :
   evalctx_of_expr (insert K (Xreturn f)) = Some(K, Xreturn f).
@@ -1359,7 +1446,7 @@ Proof.
       rewrite (get_rid_of_letstar (E, Xcall foo f)).
       change ((fun o => (
         match o with
-        | Some (argx0, _, e__foo0) =>
+        | Some (argx0, e__foo0) =>
             Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx0 e__foo0 f)))
         | None => None
         end = Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx e__foo f)))
@@ -1419,13 +1506,13 @@ Proof.
         grab_value e0.
         -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
            destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-          apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
+          apply (not_eq_None_Some) in Hx as [[x__arg e__foo] Hx].
            rewrite Hx in H1. inv H1.
            eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto.
            eapply E_call; symmetry; eassumption.
         -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
            destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-           apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
+           apply (not_eq_None_Some) in Hx as [[x__arg e__foo] Hx].
            rewrite Hx in H1. inv H1.
            eapply ungrab_ectx in Hx0; subst; eauto.
            eapply E_call; symmetry; eassumption.

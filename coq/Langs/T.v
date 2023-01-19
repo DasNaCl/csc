@@ -21,6 +21,7 @@ Instance varteq__Instance : HasEquality vart := {
 (** The only values we have in S are natural numbers. *)
 Inductive value : Type :=
 | Vnat : nat -> value
+| Vpair : nat -> nat -> value
 .
 Coercion Vnat : nat >-> value.
 (** References are not values. In fact, they cannot be represented syntactically. *)
@@ -150,6 +151,10 @@ Fixpoint string_of_expr (e : expr) :=
   match e with
   | Xres(Fabrt) => "abort"%string
   | Xres(Fres(Fval(Vnat n))) => string_of_nat n
+  | Xres(Fres(Fval(Vpair n1 n2))) =>
+    String.append
+    (String.append "⟨"%string (string_of_nat n1))
+    (String.append ","%string (String.append (string_of_nat n2) "⟩"%string))
   | Xres(Fres(Fvar x)) => x
   | Xbinop _symb e0 e1 =>
     let s0 := string_of_expr e0 in
@@ -252,9 +257,7 @@ Instance evalctx__Instance : EvalCtxClass evalctx := {}.
 (* TODO: mark locations with function, remove when returning *)
 
 (** Evaluation of binary expressions. Note that 0 means `true` in S, so `5 < 42` evals to `0`. *)
-Definition eval_binop (b : binopsymb) (v0 v1 : value) :=
-  let '(Vnat n0) := v0 in
-  let '(Vnat n1) := v1 in
+Definition eval_binop (b : binopsymb) (n0 n1 : nat) :=
   Vnat(match b with
        | Bless => (if Nat.ltb n0 n1 then 0 else 1)
        | Badd => (n0 + n1)
@@ -604,16 +607,14 @@ Definition string_of_event (e : event) :=
   | (Sget (addr ℓ) n) => String.append
                     (String.append ("Get ℓ"%string) (string_of_nat ℓ))
                     (String.append (" "%string) (string_of_nat n))
-  | (Sset (addr ℓ) n (Vnat m)) => String.append
+  | (Sset (addr ℓ) n m) => String.append
                              (String.append
                                (String.append ("Set ℓ"%string) (string_of_nat ℓ))
                                (String.append (" "%string) (string_of_nat n)))
-                             (String.append (" "%string) (string_of_nat m))
+                             (String.append (" "%string) (string_of_expr m))
   | (Scrash) => "↯"%string
-  | (Scall foo (Fval(Vnat n))) => String.append (String.append (String.append ("Call "%string) foo) " "%string) (string_of_nat n)
-  | (Scall foo (Fvar x)) => String.append (String.append (String.append ("Call "%string) foo) " "%string) x
-  | (Sret (Fval(Vnat n))) => String.append ("Ret "%string) (string_of_nat n)
-  | (Sret (Fvar x)) => String.append ("Ret "%string) x
+  | (Scall foo n) => String.append (String.append (String.append ("Call "%string) foo) " "%string) (string_of_expr n)
+  | (Sret n) => String.append ("Ret "%string) (string_of_expr n)
   end
 .
 
@@ -697,21 +698,21 @@ Inductive pstep : PrimStep :=
     Some H' = Hgrow H n ->
     (F ; Ξ ; ξ ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; Ξ ; ξ ; H' ; Δ') ▷ (subst x e (Fvar z))
 | e_proj1 : forall (Ω : state) (n1 n2 : nat),
-    Ω ▷ Xπ1 (Xpair n1 n2) --[]--> Ω ▷ n1
+    Ω ▷ Xπ1 (Vpair n1 n2) --[]--> Ω ▷ n1
 | e_proj2 : forall (Ω : state) (n1 n2 : nat),
-    Ω ▷ Xπ2 (Xpair n1 n2) --[]--> Ω ▷ n2
+    Ω ▷ Xπ2 (Vpair n1 n2) --[]--> Ω ▷ n2
 | e_hasℕ_n : forall (Ω : state) (n : nat),
     Ω ▷ Xhas n Tℕ --[]--> Ω ▷ 0
 | e_hasℕ_x : forall (Ω : state) (x : vart),
     Ω ▷ Xhas (Fvar x) Tℕ --[]--> Ω ▷ 1
 | e_hasℕ_pair : forall (Ω : state) (n1 n2 : nat),
-    Ω ▷ Xhas (Xpair n1 n2) Tℕ --[]--> Ω ▷ 1
+    Ω ▷ Xhas (Vpair n1 n2) Tℕ --[]--> Ω ▷ 1
 | e_hasPair_n : forall (Ω : state) (n : nat),
     Ω ▷ Xhas n Tpair --[]--> Ω ▷ 1
 | e_hasPair_x : forall (Ω : state) (x : vart),
     Ω ▷ Xhas (Fvar x) Tpair --[]--> Ω ▷ 1
 | e_hasPair_pair : forall (Ω : state) (n1 n2 : nat),
-    Ω ▷ Xhas (Xpair n1 n2) Tpair --[]--> Ω ▷ 0
+    Ω ▷ Xhas (Vpair n1 n2) Tpair --[]--> Ω ▷ 0
 | e_xispoison_yes : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ Δ1 Δ2 : store) (x : vart) (ℓ : nat),
     Util.nodupinv Δ ->
     Δ = (Δ1 ◘ x ↦ ((addr ℓ), ☣) ◘ Δ2) ->
@@ -720,6 +721,8 @@ Inductive pstep : PrimStep :=
     Util.nodupinv Δ ->
     Δ = (Δ1 ◘ x ↦ ((addr ℓ), ◻) ◘ Δ2) ->
     (F ; Ξ ; ξ ; H ; Δ) ▷ Xispoison x --[]--> (F ; Ξ ; ξ ; H ; Δ) ▷ 1
+| e_pairconv : forall (Ω : state) (n1 n2 : nat),
+    Ω ▷ Xpair n1 n2 --[]--> Ω ▷ Vpair n1 n2
 .
 #[local]
 Existing Instance pstep.
@@ -826,9 +829,9 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       Some(Some(Salloc (addr ℓ) n), (Fresh.advance F' ; Ξ ; ξ ; H' ; Δ') ▷ e'')
     | _ => None
     end
-  | Xπ1 (Xpair (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2))))) =>
+  | Xπ1 (Vpair n1 n2) =>
     Some(None, Ω ▷ n1)
-  | Xπ2 (Xpair (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2))))) =>
+  | Xπ2 (Vpair n1 n2) =>
     Some(None, Ω ▷ n2)
   | Xispoison x => (* e-ispoison *)
     let '(F, Ξ, ξ, H, Δ) := Ω in
@@ -842,12 +845,14 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
     match e, τ with
     | Xres(Fres(Fval(Vnat _))), Tℕ => Some(None, Ω ▷ 0)
     | Xres(Fres(Fvar _)), Tℕ => Some(None, Ω ▷ 1)
-    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))), Tℕ => Some(None, Ω ▷ 1)
+    | Xres(Fres(Fval(Vpair n1 n2))), Tℕ => Some(None, Ω ▷ 1)
     | Xres(Fres(Fval(Vnat _))), Tpair => Some(None, Ω ▷ 1)
     | Xres(Fres(Fvar _)), Tpair => Some(None, Ω ▷ 1)
-    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))), Tpair => Some(None, Ω ▷ 0)
+    | Xres(Fres(Fval(Vpair n1 n2))), Tpair => Some(None, Ω ▷ 0)
     | _, _ => None
     end
+  | Xpair (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) =>
+    Some(None, Ω ▷ Vpair n1 n2)
   | _ => None (* no matching rule *)
   end
 .
@@ -858,7 +863,7 @@ Ltac crush_interp :=
         let Ω := fresh "Ω" in destruct oΩ as [|]; inversion H
     end.
 Ltac grab_value e :=
-  (destruct e as [[[[e]|]|]| | | | | | | | | | | | | | |]; try congruence)
+  (destruct e as [[[[e|e]|]|]| | | | | | | | | | | | | | |]; try congruence)
 .
 Ltac grab_value2 e1 e2 := (grab_value e1; grab_value e2).
 Ltac grab_final e :=
@@ -914,6 +919,7 @@ Proof.
       rewrite H1, splitat_elim; subst; auto.
     + (* e-ispoison-no *) cbn; apply nodupinv_equiv_undup in H0 as H0'; rewrite H0'.
       rewrite H1, splitat_elim; subst; auto.
+    + (* e-pairconv *) easy.
   - intros H; destruct r0 as [oΩ e], r1 as [Ω' e']; destruct e; cbn in H; crush_interp; clear H.
     + (* e = e1 ⊕ e2 *)
       now grab_value2 e1 e2; inv H1; eapply e_binop.
@@ -972,15 +978,15 @@ Proof.
        | None => None
        end = Some (a, (Ω', e')))) (splitat Δ x)) in H1.
         now rewrite Hy in H1.
+    + grab_value2 e1 e2; inv H1; constructor.
     + (* e = π1 <n1, n2> *)
-      destruct e; try congruence. grab_value2 e1 e2; inv H1; constructor.
+      grab_value e; inv H1; constructor.
     + (* e = π2 <n1, n2> *)
-      destruct e; try congruence. grab_value2 e1 e2; inv H1; constructor.
+      grab_value e; inv H1; constructor.
     + (* e = e has τ *)
       destruct e; try congruence.
-      * repeat destruct f; try congruence. destruct v, τ; try congruence; inv H1; constructor.
-        destruct τ; try congruence; inv H1; constructor.
-      * grab_value2 e1 e2; destruct τ; inv H1; constructor.
+      repeat destruct f; try congruence. destruct v, τ; try congruence; inv H1; constructor.
+      destruct τ; try congruence; inv H1; constructor.
 Qed.
 
 Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
@@ -999,9 +1005,9 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
   | Xabort => Some(Khole, Xabort)
   | Xbinop b e1 e2 =>
     match e1, e2 with
-    | Xres(Fres(Fval(Vnat n1))), Xres(Fres(Fval(Vnat n2))) =>
+    | Xres(Fres(Fval n1)), Xres(Fres(Fval n2)) =>
       Some(Khole, Xbinop b n1 n2)
-    | Xres(Fres(Fval(Vnat n1))), en2 =>
+    | Xres(Fres(Fval n1)), en2 =>
       let* (K, e2') := evalctx_of_expr en2 in
       Some(KbinopR b n1 K, e2')
     | _, _ =>
@@ -1010,16 +1016,16 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xget x en =>
     match en with
-    | Xres(Fres(Fval(Vnat n))) =>
+    | Xres(Fres(Fval n)) =>
       Some(Khole, Xget x n)
     | _ => let* (K, en') := evalctx_of_expr en in
           Some(Kget x K, en')
     end
   | Xset x en ev =>
     match en, ev with
-    | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
+    | Xres(Fres(Fval n)), Xres(Fres(Fval v)) =>
       Some (Khole, Xset x n v)
-    | Xres(Fres(Fval(Vnat n))), ev =>
+    | Xres(Fres(Fval n)), ev =>
       let* (K, ev') := evalctx_of_expr ev in
       Some(KsetR x n K, ev')
     | en, ev =>
@@ -1035,7 +1041,7 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xnew x e1 e2 =>
     match e1 with
-    | Xres(Fres(Fval(Vnat n))) =>
+    | Xres(Fres(Fval n)) =>
       Some(Khole, Xnew x n e2)
     | _ => let* (K, e1') := evalctx_of_expr e1 in
           Some(Knew x K e2, e1')
@@ -1056,16 +1062,16 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xifz c e0 e1 =>
     match c with
-    | Xres(Fres(Fval(Vnat v))) =>
+    | Xres(Fres(Fval v)) =>
       Some(Khole, Xifz v e0 e1)
     | _ => let* (K, c') := evalctx_of_expr c in
           Some(Kifz K e0 e1, c')
     end
   | Xpair e0 e1 =>
     match e0, e1 with
-    | Xres(Fres(Fval(Vnat v0))), Xres(Fres(Fval(Vnat v1))) =>
+    | Xres(Fres(Fval v0)), Xres(Fres(Fval v1)) =>
       Some(Khole, Xpair v0 v1)
-    | Xres(Fres(Fval(Vnat v0))), _ =>
+    | Xres(Fres(Fval v0)), _ =>
       let* (K, e') := evalctx_of_expr e1 in
       Some(KpairR v0 K, e')
     | _, _ =>
@@ -1074,7 +1080,7 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xπ1 e =>
     match e with
-    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))) =>
+    | Xres(Fres(Fval _)) =>
       Some(Khole, Xπ1 e)
     | _ =>
       let* (K, e') := evalctx_of_expr e in
@@ -1082,7 +1088,7 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xπ2 e =>
     match e with
-    | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))) =>
+    | Xres(Fres(Fval _)) =>
       Some(Khole, Xπ2 e)
     | _ =>
       let* (K, e') := evalctx_of_expr e in
@@ -1090,8 +1096,7 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xhas e τ =>
     match e with
-    | Xres(Fres _) | Xpair (Xres(Fres(Fval(Vnat _)))) (Xres(Fres(Fval(Vnat _)))) =>
-      Some(Khole, Xhas e τ)
+    | Xres(Fres _) => Some(Khole, Xhas e τ)
     | _ =>
       let* (K, e') := evalctx_of_expr e in
       Some(Khas K τ, e')
@@ -1106,16 +1111,15 @@ Definition pstep_compatible (e : expr) : option expr :=
   | Xifz (S n) e0 e1 => Some (Xifz (S n) e0 e1)
   | Xabort => Some (Xabort)
   | Xdel x => Some (Xdel x)
-  | Xbinop b (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some (Xbinop b n1 n2)
-  | Xget x (Xres(Fres(Fval(Vnat n)))) => Some(Xget x n)
-  | Xset x (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some(Xset x n1 n2)
-  | Xnew x (Xres(Fres(Fval(Vnat n)))) e => Some(Xnew x n e)
+  | Xbinop b (Xres(Fres(Fval n1))) (Xres(Fres(Fval n2))) => Some (Xbinop b n1 n2)
+  | Xget x (Xres(Fres(Fval n))) => Some(Xget x n)
+  | Xset x (Xres(Fres(Fval n1))) (Xres(Fres(Fval n2))) => Some(Xset x n1 n2)
+  | Xnew x (Xres(Fres(Fval n))) e => Some(Xnew x n e)
   | Xlet x (Xres(Fres f)) e => Some(Xlet x f e)
   | Xispoison x => Some (Xispoison x)
   | Xhas (Xres(Fres f)) τ => Some(Xhas f τ)
-  | Xhas (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) τ => Some(Xhas (Xpair f1 f2) τ)
-  | Xπ1 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ1 (Xpair f1 f2))
-  | Xπ2 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ2 (Xpair f1 f2))
+  | Xπ1 (Xres(Fres(Fval f))) => Some(Xπ1 f)
+  | Xπ2 (Xres(Fres(Fval f))) => Some(Xπ2 f)
   | _ => None
   end
 .
@@ -1125,18 +1129,17 @@ Definition pestep_compatible (e : expr) : option expr :=
   | Xifz (S n) e0 e1 => Some (Xifz (S n) e0 e1)
   | Xabort => Some (Xabort)
   | Xdel x => Some (Xdel x)
-  | Xbinop b (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some (Xbinop b n1 n2)
-  | Xget x (Xres(Fres(Fval(Vnat n)))) => Some(Xget x n)
-  | Xset x (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some(Xset x n1 n2)
-  | Xnew x (Xres(Fres(Fval(Vnat n)))) e => Some(Xnew x n e)
+  | Xbinop b (Xres(Fres(Fval n1))) (Xres(Fres(Fval n2))) => Some (Xbinop b n1 n2)
+  | Xget x (Xres(Fres(Fval n))) => Some(Xget x n)
+  | Xset x (Xres(Fres(Fval n1))) (Xres(Fres(Fval n2))) => Some(Xset x n1 n2)
+  | Xnew x (Xres(Fres(Fval n))) e => Some(Xnew x n e)
   | Xlet x (Xres(Fres f)) e => Some(Xlet x f e)
   | Xcall foo (Xres(Fres f)) => Some(Xcall foo f)
   | Xreturn (Xres(Fres f)) => Some(Xreturn f)
   | Xispoison x => Some (Xispoison x)
   | Xhas (Xres(Fres f)) τ => Some(Xhas f τ)
-  | Xhas (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) τ => Some(Xhas (Xpair f1 f2) τ)
-  | Xπ1 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ1 (Xpair f1 f2))
-  | Xπ2 (Xpair (Xres(Fres(Fval f1))) (Xres(Fres(Fval f2)))) => Some(Xπ2 (Xpair f1 f2))
+  | Xπ1 (Xres(Fres(Fval f))) => Some(Xπ1 f)
+  | Xπ2 (Xres(Fres(Fval f))) => Some(Xπ2 f)
   | _ => None
   end
 .
@@ -1265,13 +1268,14 @@ Ltac crush_insert :=
 
 Inductive is_val : expr -> Prop :=
 | Cfres : forall e f, e = Xres(Fres(Fval(Vnat f))) -> is_val e
+| Cpair : forall e v1 v2, e = Xres(Fres(Fval(Vpair v1 v2))) -> is_val e
 .
 
 Lemma expr_val_dec e :
   { is_val e } + { ~is_val e }.
 Proof.
   induction e.
-  1: destruct f. destruct f. destruct v. left; eauto using Cfres.
+  1: destruct f. destruct f. destruct v. left; eauto using Cfres. left; eauto using Cpair.
   all: right; intros H; inv H; inv H0.
 Qed.
 #[local]
@@ -1290,6 +1294,7 @@ Ltac crush_grab_ectx :=
       | [ |- _ ] => trivial
       end;
       cbn; repeat match goal with
+           | [v: value |- context C[?v]] => destruct v
            | [H1: _ = insert _ _ |- _] => cbn in H1
            | [H: Some ?e0 = pestep_compatible ?e0 |- match insert ?K ?e0 with
                                                    | Xres _ => _
@@ -1327,7 +1332,7 @@ Ltac crush_grab_ectx :=
                           | Fval _ => _
                           | _ => _
                           end = _] => destruct f; trivial
-      | [H: ~ is_val (Xres(Fres(Fval ?v))) |- _ ] => destruct v; destruct H; eauto using Cfres
+      | [H: ~ is_val (Xres(Fres(Fval ?v))) |- _ ] => destruct v; destruct H; eauto using Cfres, Cpair
       end).
 Lemma grab_ectx e K e0 :
   Some e0 = pestep_compatible e0 ->
@@ -1335,7 +1340,9 @@ Lemma grab_ectx e K e0 :
   evalctx_of_expr e = Some(K, e0)
 .
 Proof.
+  (*revert K e0; induction e; intros; crush_insert; crush_grab_ectx.*)
   revert K e0; induction e; intros; crush_insert; crush_grab_ectx.
+
   cbn. remember (insert K e0) as ek.
   destruct (expr_val_dec ek) as [H2|H2];
   try (inv H2; crush_insert; inv H).
@@ -1357,18 +1364,13 @@ Proof.
   destruct ek; trivial.
   induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
 
-  admit.
-
-  admit.
-
   cbn; remember (insert K e0) as ek.
   destruct (expr_val_dec ek) as [H2|H2];
   try (inv H2; crush_insert; inv H).
-  specialize (IHe K e0 H Heqek) as ->;
+  specialize (IHe K e0 H Heqek) as ->.
   destruct ek; trivial.
   induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
-  admit.
-Admitted.
+Qed.
 
 Lemma easy_ectx e0 :
   Some e0 = pestep_compatible e0 ->

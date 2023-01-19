@@ -1497,27 +1497,18 @@ Proof.
          destruct e0; try congruence; inv Hx1.
     + destruct e0; try congruence; inv Hy1; inv H.
       * (* ret *)
-        grab_value e0.
-        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
-           inv H1;
-           eapply ungrab_ectx in Hx0; subst; eauto using E_return.
-        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
-           inv H1;
-           eapply ungrab_ectx in Hx0; subst; eauto using E_return.
+        grab_value e0;
+        destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence;
+        inv H1;
+        eapply ungrab_ectx in Hx0; subst; eauto using E_return.
       * (* call *)
-        grab_value e0.
-        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
-           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-          apply (not_eq_None_Some) in Hx as [[x__arg e__foo] Hx].
-           rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto.
-           eapply E_call; symmetry; eassumption.
-        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
-           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-           apply (not_eq_None_Some) in Hx as [[x__arg e__foo] Hx].
-           rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; subst; eauto.
-           eapply E_call; symmetry; eassumption.
+        grab_value e0;
+        destruct Ω as [[[[F Ξ] ξ] H] Δ];
+        destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence);
+        apply (not_eq_None_Some) in Hx as [[x__arg e__foo] Hx];
+        rewrite Hx in H1; inv H1;
+        eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto;
+        eapply E_call; symmetry; eassumption.
 Qed.
 
 Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :

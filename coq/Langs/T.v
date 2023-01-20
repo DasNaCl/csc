@@ -527,6 +527,16 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   end
 .
 
+(** A program is just a collection of symbols. The symbol `main` is the associated entry-point. *)
+Inductive prog : Type := Cprog : symbols -> prog.
+#[local]
+Instance prog__Instance : ProgClass prog := Cprog.
+
+Definition string_of_prog (p : prog) :=
+  let '(Cprog s) := p in
+  "prog"%string (*TODO*)
+.
+
 Fixpoint interfaces (s : symbols) : option(list vart) :=
   match s with
   | mapNil _ _ => Some List.nil
@@ -1653,6 +1663,20 @@ Fixpoint get_fuel (e : expr) : option nat :=
     let* ge1 := get_fuel e1 in
     Some(1 + gc + ge0 + ge1)
   | Xabort => Some(1)
+  | Xispoison x => Some(1)
+  | Xpair e0 e1 =>
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + ge0 + ge1)
+  | Xπ2 e =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
+  | Xπ1 e =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
+  | Xhas e τ =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
   end
 .
 Ltac crush_option :=
@@ -1690,6 +1714,11 @@ Proof.
   - crush_fuel; try crush_option; exists n0; now inv H.
   - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
   - exists 0; now inv H.
+  - exists 0; now inv H.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - crush_fuel; try crush_option; inv H; now exists n0.
+  - crush_fuel; try crush_option; inv H; now exists n0.
+  - crush_fuel; try crush_option; inv H; now exists n0.
 Qed.
 Lemma star_stepf_one_step Ω e r r' a As fuel :
   Some (S fuel) = get_fuel e ->
@@ -1790,6 +1819,20 @@ Lemma star_stepf_is_nodupinv_invariant Ω e Ω' e' a fuel :
 .
 Proof. intros H__fuel H0 H1; apply equiv_starstep in H0; eauto; apply star_step_is_nodupinv_invariant in H0; eauto. Qed.
 
+
+Definition prog_check (p : prog) : Prop :=
+  let '(Cprog symbs) := p in
+  let inttt := interfaces symbs in
+  match inttt with
+  | Some intt =>
+    match List.find (fun (x : vart) => vareq x ("main"%string)) intt with
+    | Some _ => True
+    | None => False
+    end
+  | None => False
+  end
+.
+
 (** Evaluation of programs *)
 Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
 | e_wprog : forall (symbs : symbols) (As : tracepref) (r : rtexpr),
@@ -1837,12 +1880,28 @@ Fixpoint get_fuel_fn_aux (E : evalctx) {struct E} : option nat :=
   | Kcall foo K =>
     let* gK := get_fuel_fn_aux K in
     Some(gK + 1)
+  | KpairL K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(gK + ge + 1)
+  | KpairR v K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Kπ1 K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Kπ2 K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Khas K τ =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
   end
 .
 Fixpoint get_fuel_fn (e : expr) : option nat :=
   match e with
   | Xres _ => Some 0
-  | Xabort | Xdel _ => Some 1
+  | Xispoison _ | Xabort | Xdel _ => Some 1
   | Xbinop b e1 e2 =>
     let* f1 := get_fuel_fn e1 in
     let* f2 := get_fuel_fn e2 in
@@ -1872,6 +1931,19 @@ Fixpoint get_fuel_fn (e : expr) : option nat :=
     Some (f + 1)
   | Xcall foo e' =>
     let* f := get_fuel_fn e' in
+    Some (f + 1)
+  | Xpair e0 e1 =>
+    let* f0 := get_fuel_fn e0 in
+    let* f1 := get_fuel_fn e1 in
+    Some (f0 + f1 + 1)
+  | Xπ1 e =>
+    let* f := get_fuel_fn e in
+    Some (f + 1)
+  | Xπ2 e =>
+    let* f := get_fuel_fn e in
+    Some (f + 1)
+  | Xhas e _ =>
+    let* f := get_fuel_fn e in
     Some (f + 1)
   end
 .
@@ -1904,6 +1976,19 @@ Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
     let* r0 := collect_callsites ξ e0 in
     let* r1 := collect_callsites ξ e1 in
     Some(cr ◘ r0 ◘ r1)
+  | Xπ1 e =>
+    let* ce := collect_callsites ξ e in
+    Some(ce)
+  | Xπ2 e =>
+    let* ce := collect_callsites ξ e in
+    Some(ce)
+  | Xhas e _ =>
+    let* ce := collect_callsites ξ e in
+    Some(ce)
+  | Xpair e1 e2 =>
+    let* r1 := collect_callsites ξ e1 in
+    let* r2 := collect_callsites ξ e2 in
+    Some(r1 ◘ r2)
   | _ => Some(nosymb)
   end
 .
@@ -1912,12 +1997,12 @@ Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
     Also, add 1 to the final result, because the top-level performs a call to "main". *)
 Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
   let* Kτ := mget ξ foo in
-  let '(x__arg,_,e__arg) := Kτ in
+  let '(x__arg,e__arg) := Kτ in
   let e := subst x__arg e__arg (Xres 0) in
   let* ge := get_fuel e in
   let* symbs := collect_callsites ξ e in
   let* res := List.fold_left (fun acc Eτ =>
-                                let '(_,_,e__arg) := Eτ in
+                                let '(_,e__arg) := Eτ in
                                 let* a := acc in
                                 let* b := get_fuel_fn e__arg in
                                 Some(1 + a + b)) (img symbs) (Some ge) in

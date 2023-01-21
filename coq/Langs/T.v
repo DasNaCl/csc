@@ -118,7 +118,7 @@ Instance tyeq__Instance : HasEquality ty := {
 #[local]
 Existing Instance varteq__Instance.
 
-Fixpoint string_of_ty (τ : ty) :=
+Definition string_of_ty (τ : ty) :=
   match τ with
   | Tnat => "ℕ"%string
   | Tpair => "ℕ * ℕ"%string
@@ -501,6 +501,8 @@ Definition active_ectx := list evalctx.
 Definition symbol : Type := vart * expr.
 #[local]
 Instance symbol__Instance : SymbolClass symbol := {}.
+Definition symbols := mapind varteq__Instance symbol.
+
 #[local]
 Existing Instance varteq__Instance | 0.
 

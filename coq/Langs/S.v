@@ -867,6 +867,7 @@ Proof. split; now (eapply checkf_refinement + eapply checkf_correctness). Qed.
 Definition symbol : Type := vart * Ty * expr.
 #[local]
 Instance symbol__Instance : SymbolClass symbol := {}.
+Definition symbols := mapind varteq__Instance symbol.
 
 (** A program is just a collection of symbols. The symbol `main` is the associated entry-point. *)
 Inductive prog : Type := Cprog : symbols -> prog.
@@ -2075,6 +2076,15 @@ End ModAux.
 Module SMod := CSC.Langs.Util.Mod(ModAux).
 Import SMod.
 
+Lemma different_reduction Ω Ω' e v v' As :
+  ((Ω ▷ e ==[As]==>* Ω' ▷ v) -> False) ->
+  Ω ▷ e ==[As]==>* Ω' ▷ v' ->
+  v <> v'
+.
+Proof.
+  intros H0 H1 H2; now subst.
+Qed.
+
 Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
   Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
   nodupinv Ω ->
@@ -3017,7 +3027,7 @@ Proof.
     + now inv IHAb4.
 Qed.
 
-Theorem s_is_tms (Ξ : @symbols vart symbol varteq__Instance symbol__Instance) As Ω f :
+Theorem s_is_tms (Ξ : @Util.symbols vart symbol varteq__Instance symbol__Instance) As Ω f :
   wstep (Cprog Ξ) As (Ω ▷ (Xres f)) ->
   TMS As.
 Proof.

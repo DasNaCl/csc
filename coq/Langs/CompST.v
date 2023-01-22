@@ -92,16 +92,117 @@ Fixpoint comp__symbs (Fs : S.symbols) : option(T.symbols) :=
 .
 
 (** Definition of various relations *)
-Definition locmap_st (ℓ : S.loc) : T.loc :=
-  let '(S.addr n) := ℓ in T.addr n
-.
+Definition locmap_st := mapind S.loceq__Instance T.loc.
 Inductive poison_eq : S.poison -> T.poison -> Prop :=
 | poisonedEqual : poison_eq S.poisoned T.poisoned
 | poisonlessEqual : poison_eq S.poisonless T.poisonless
 .
-Inductive memstate_eq : (S.heap * S.store) -> (T.heap * T.store) -> Prop :=
-| empty_memstate_eq : memstate_eq (mapNil _ _, mapNil _ _) (mapNil _ _, mapNil _ _)
-(* TODO *)
+Inductive heap_agree : nat -> S.heap -> T.heap -> S.heap -> T.heap -> Prop :=
+| heap_agree_zero : forall (sH : S.heap) (tH : T.heap),
+    heap_agree 0 sH tH sH tH
+| heap_agree_cons : forall (sH sH' : S.heap) (tH tH' : T.heap) (sx tx sn tn m : nat),
+    sx = tx ->
+    sn = tn ->
+    heap_agree m sH tH sH' tH' ->
+    heap_agree (S m) (sx ↦ sn ◘ sH) (tx ↦ tn ◘ tH) sH' tH'
+.
+Inductive heap_skip : nat -> S.heap -> S.heap -> Prop :=
+| heap_skip_nil : forall (H : S.heap),
+    heap_skip 0 H H
+| heap_skip_cons : forall (H H' : S.heap) (x n m : nat),
+    heap_skip n H H' ->
+    heap_skip (S n) (x ↦ m ◘ H) H'
+.
+(** This relation describes the agreement between the memory states in S and T.
+    It's indexed by a map from source locations to target locatoions and  by
+    a list of source locations that should simply be ignored by the relation. *)
+Inductive memstate_eq (δ : locmap_st) (sL : list S.loc) : (S.heap * S.store) -> (T.heap * T.store) -> Prop :=
+| empty_memstate_eq : memstate_eq δ sL (mapNil _ _, mapNil _ _) (mapNil _ _, mapNil _ _)
+| cons_memstate_eq : forall (sℓ sℓ' : S.loc) (tℓ tℓ' : T.loc) (n0 n1 n2 n3 : nat) (sx sy : S.vart) (tx ty : T.vart)
+                       (sρ sρ' : S.poison) (tρ tρ' : T.poison) (sΔ : S.store) (tΔ : T.store)
+                       (sH sH' : S.heap) (tH tH' : T.heap),
+    ~(List.In (sℓ) sL) ->
+    sx = tx ->
+    Util.mget δ (sℓ) = Some (tℓ) ->
+    poison_eq sρ tρ ->
+    (sℓ, sℓ', tℓ, tℓ') = (S.addr n0, S.addr n1, T.addr n2, T.addr n3) ->
+    n1 - n0 = n3 - n2 ->
+    heap_agree (n1 - n0) sH tH sH' tH' ->
+    memstate_eq δ sL (sH, (sy ↦ (sℓ', sρ') ◘ sΔ)) (tH, (ty ↦ (tℓ', tρ') ◘ tΔ)) ->
+    memstate_eq δ sL (sH, (sx ↦ (sℓ, sρ) ◘ (sy ↦ (sℓ', sρ') ◘ sΔ)))
+                     (tH, (ty ↦ (tℓ, tρ) ◘ (ty ↦ (tℓ', tρ') ◘ tΔ)))
+| lastcons_memstate_eq : forall (sℓ : S.loc) (tℓ : T.loc) (n0 n1 : nat) (sx : S.vart) (tx : T.vart)
+                       (sρ : S.poison) (tρ : T.poison)
+                       (sH : S.heap) (tH : T.heap),
+    ~(List.In (sℓ) sL) ->
+    sx = tx ->
+    Util.mget δ (sℓ) = Some (tℓ) ->
+    poison_eq sρ tρ ->
+    heap_agree (Util.length sH) sH tH (mapNil _ _) (mapNil _ _) ->
+    memstate_eq δ sL (sH, (sx ↦ (sℓ, sρ) ◘ mapNil _ _)) (tH, (tx ↦ (tℓ, tρ) ◘ mapNil _ _))
+| cons_ignore_memstate_eq : forall (sℓ : S.loc) (sρ : S.poison) (sH' sH : S.heap) (sΔ : S.store)
+                              (tH : T.heap) (tΔ : T.store) (x : S.vart),
+    List.In sℓ sL ->
+    heap_skip 42 sH' sH ->
+    memstate_eq δ sL (sH, sΔ) (tH, tΔ) ->
+    memstate_eq δ sL (sH', x ↦ (sℓ, sρ) ◘ sΔ) (tH, tΔ)
+.
+Inductive lib_eq : S.symbols -> T.symbols -> Prop :=
+| empty_commlib_lib_eq : forall (tΞ : T.symbols),
+    lib_eq (mapNil _ _) tΞ
+| cons_commlib_lib_eq : forall (sfoo sx : S.vart) (tfoo tx : T.vart) (se__bdy : S.expr) (τ : S.Ty)
+                          (te__bdy : T.expr) (sΞ : S.symbols) (tΞ1 tΞ2 : T.symbols),
+    sfoo = tfoo ->
+    comp__symb (sx, τ, se__bdy) = Some(tx, te__bdy) ->
+    lib_eq sΞ (tΞ1 ◘ tΞ2) ->
+    lib_eq (sfoo ↦ (sx, τ, se__bdy) ◘ sΞ) (tΞ1 ◘ tfoo ↦ (tx, te__bdy) ◘ tΞ2)
+.
+Inductive kont_eq : S.active_ectx -> T.active_ectx -> Prop :=
+| empty_kontstack : kont_eq (List.nil) (List.nil)
+| cons_kontstack : forall (sK : S.evalctx) (tK : T.evalctx) (sKs : S.active_ectx) (tKs : T.active_ectx),
+    kont_eq sKs tKs ->
+    kont_eq (sK :: sKs) (tK :: tKs)
+.
+Inductive cfstate_eq : (S.symbols * S.active_ectx) -> (T.symbols * T.active_ectx) -> Prop :=
+| Ccfstate_eq : forall (sΞ : S.symbols) (sK : S.active_ectx) (tΞ : T.symbols) (tK : T.active_ectx),
+    lib_eq sΞ tΞ ->
+    kont_eq sK tK ->
+    cfstate_eq (sΞ, sK) (tΞ, tK)
+.
+Inductive state_eq (δ : locmap_st) (sL : list S.loc) : S.state -> T.state -> Prop :=
+| Cstate_eq : forall (sF : CSC.Fresh.fresh_state) (sΞ : S.symbols) (sK : S.active_ectx) (sH : S.heap) (sΔ : S.store)
+                (tF : CSC.Fresh.fresh_state) (tΞ : T.symbols) (tK : T.active_ectx) (tH : T.heap) (tΔ : T.store),
+    cfstate_eq (sΞ, sK) (tΞ, tK) ->
+    memstate_eq δ sL (sH, sΔ) (tH, tΔ) ->
+    state_eq δ sL (sF, sΞ, sK, sH, sΔ) (tF, tΞ, tK, tH, tΔ)
+.
+
+
+Inductive xlang_value_eq : S.value -> T.value -> Prop :=
+| natval_eq : forall (n1 n2 : nat),
+    xlang_value_eq (S.Vnat n1) (T.Vnat n2)
+.
+(** Crosslanguage Relation between Traces/Actions *)
+Inductive event_eq (δ : locmap_st) : option S.event -> option T.event -> Prop :=
+| empty_event_eq : event_eq δ None None
+| alloc_event_eq : forall (sℓ : S.loc) (tℓ : T.loc) (sn tn : nat),
+    sn = tn ->
+    Util.mget δ sℓ = Some(tℓ) ->
+    event_eq δ (Some(S.Salloc sℓ sn)) (Some(T.Salloc tℓ tn))
+| dealloc_event_eq : forall (sℓ : S.loc) (tℓ : T.loc),
+    Util.mget δ sℓ = Some(tℓ) ->
+    event_eq δ (Some(S.Sdealloc sℓ)) (Some(T.Sdealloc tℓ))
+| get_event_eq : forall (sℓ : S.loc) (tℓ : T.loc) (sn tn : nat),
+    sn = tn ->
+    Util.mget δ sℓ = Some(tℓ) ->
+    event_eq δ (Some(S.Sget sℓ sn)) (Some(T.Sget tℓ tn))
+| set_event_eq : forall (sℓ : S.loc) (tℓ : T.loc) (sn tn : nat) (sv : S.value) (tv : T.value),
+    sn = tn ->
+    xlang_value_eq sv tv ->
+    Util.mget δ sℓ = Some(tℓ) ->
+    event_eq δ (Some(S.Sset sℓ sn sv)) (Some(T.Sset tℓ tn tv))
+| crash_event_eq : event_eq δ (Some S.Scrash) (Some T.Scrash)
+(* TODO: call, ret, start, end *)
 .
 
 (** Lemmas *)
@@ -114,3 +215,17 @@ Lemma injective_comp__e (e : S.expr) (et₁ et₂ : T.expr) :
 Proof.
   now induction e; intros H1 H2; match goal with | [H: _ = et₁ |- et₁ = et₂] => inv H end.
 Qed.
+
+
+(* FIXME: cannot use notation for some reason... maybe 'cause we are across a module? *)
+Lemma forward_simulation_pstep (sΩ sΩ' : S.state) (se se' : S.expr) (sa : option S.event) (δ : locmap_st)
+                               (sL : list S.loc) (tΩ : T.state) (τ : S.Ty) :
+  (S.pstep (Some sΩ, se) sa (Some sΩ', se')) ->
+  state_eq δ sL sΩ tΩ ->
+  S.rt_check sΩ se τ ->
+  exists (δ' : locmap_st) (tΩ' : T.state) (ta : option T.event),
+    Util.MSubset δ δ' /\
+    (T.pstep (Some tΩ, comp__e(se)) ta (Some tΩ', comp__e(se'))) /\
+    (* FIXME: relate actions *) True /\
+    state_eq δ sL sΩ' tΩ'
+.

@@ -144,7 +144,7 @@ Inductive expr : Type :=
 | Xhas (e : expr) (τ : ty) : expr
 .
 Coercion Xres : ferr >-> expr.
-#[local]
+#[global]
 Instance expr__Instance : ExprClass expr := {}.
 
 Fixpoint string_of_expr (e : expr) :=
@@ -607,7 +607,7 @@ Definition eventeq (e1 e2 : event) : bool :=
   | _, _ => false
   end
 .
-#[local]
+#[global]
 Instance Event__Instance : TraceEvent event := {}.
 (** Pretty-printing function for better debuggability *)
 Definition string_of_event (e : event) :=
@@ -632,7 +632,7 @@ Definition string_of_event (e : event) :=
 
 (** A runtime program is a state plus an expression. *)
 Definition rtexpr : Type := (option state) * expr.
-#[local]
+#[global]
 Instance rtexpr__Instance : RuntimeExprClass rtexpr := {}.
 (* '▷' is `\triangleright and '↯' is `\lightning`` *)
 Notation "Ω '▷' e" := ((((Some (Ω)) : option state), (e : expr)) : rtexpr) (at level 81).
@@ -736,9 +736,9 @@ Inductive pstep : PrimStep :=
 | e_pairconv : forall (Ω : state) (n1 n2 : nat),
     Ω ▷ Xpair n1 n2 --[]--> Ω ▷ Vpair n1 n2
 .
-#[local]
+#[global]
 Existing Instance pstep.
-#[local]
+#[global]
 Hint Constructors pstep : core.
 
 Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
@@ -1165,7 +1165,7 @@ Lemma pstep_compat_weaken e :
   Some e = pstep_compatible e ->
   Some e = pestep_compatible e.
 Proof. induction e; now cbn. Qed.
-#[local]
+#[global]
 Hint Resolve pstep_compat_weaken call_pestep_compat return_pestep_compat : core.
 
 (** Environment Semantics extended with context switches *)
@@ -1191,9 +1191,9 @@ Inductive estep : CtxStep :=
     Ω ▷ e --[ Scrash ]--> ↯ ▷ stuck ->
     Ω ▷ e0 ==[ Scrash ]==> ↯ ▷ stuck
 .
-#[local]
+#[global]
 Existing Instance estep.
-#[local]
+#[global]
 Hint Constructors estep : core.
 
 Lemma estep_is_nodupinv_invariant Ω e Ω' e' a :

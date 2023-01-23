@@ -584,6 +584,8 @@ Qed.
 
 (** Types of events that may occur in a trace. *)
 Variant event : Type :=
+| Sstart : event
+| Send (v : value) : event
 | Salloc (ℓ : loc) (n : nat) : event
 | Sdealloc (ℓ : loc) : event
 | Sget (ℓ : loc) (n : nat) : event
@@ -612,6 +614,10 @@ Instance Event__Instance : TraceEvent event := {}.
 (** Pretty-printing function for better debuggability *)
 Definition string_of_event (e : event) :=
   match e with
+  | (Sstart) => "Start"%string
+  | (Send(Vnat n)) => String.append ("End "%string) (string_of_nat n)
+  | (Send(Vpair n1 n2)) => String.append (String.append ("End ⟨"%string) (string_of_nat n1))
+                                        (String.append (", "%string) (String.append (string_of_nat n2) ("⟩"%string)))
   | (Salloc (addr ℓ) n) => String.append
                       (String.append ("Alloc ℓ"%string) (string_of_nat ℓ))
                       (String.append (" "%string) (string_of_nat n))

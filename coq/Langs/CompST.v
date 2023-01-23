@@ -177,14 +177,26 @@ Inductive state_eq (δ : locmap_st) (sL : list S.loc) : S.state -> T.state -> Pr
     state_eq δ sL (sF, sΞ, sK, sH, sΔ) (tF, tΞ, tK, tH, tΔ)
 .
 
-
 Inductive xlang_value_eq : S.value -> T.value -> Prop :=
 | natval_eq : forall (n1 n2 : nat),
     xlang_value_eq (S.Vnat n1) (T.Vnat n2)
 .
+Inductive xlang_fnoerr_eq : S.fnoerr -> T.fnoerr -> Prop :=
+| fnoerr_val_eq : forall (sv : S.value) (tv : T.value),
+    xlang_value_eq sv tv ->
+    xlang_fnoerr_eq (S.Fval sv) (T.Fval tv)
+| fnoerr_var_eq : forall (sx : S.vart) (tx : T.vart),
+    (* FIXME: this is way too strict. Lookup identifiers somewhere and grab the location, those should be equal, but not the identifiers*)
+    sx = tx ->
+    xlang_fnoerr_eq (S.Fvar sx) (T.Fvar tx)
+.
 (** Crosslanguage Relation between Traces/Actions *)
 Inductive event_eq (δ : locmap_st) : option S.event -> option T.event -> Prop :=
 | empty_event_eq : event_eq δ None None
+| start_event_eq : event_eq δ (Some S.Sstart) (Some T.Sstart)
+| end_event_eq : forall (sv : S.value) (tv : T.value),
+    xlang_value_eq sv tv ->
+    event_eq δ (Some(S.Send sv)) (Some(T.Send tv))
 | alloc_event_eq : forall (sℓ : S.loc) (tℓ : T.loc) (sn tn : nat),
     sn = tn ->
     Util.mget δ sℓ = Some(tℓ) ->
@@ -202,7 +214,13 @@ Inductive event_eq (δ : locmap_st) : option S.event -> option T.event -> Prop :
     Util.mget δ sℓ = Some(tℓ) ->
     event_eq δ (Some(S.Sset sℓ sn sv)) (Some(T.Sset tℓ tn tv))
 | crash_event_eq : event_eq δ (Some S.Scrash) (Some T.Scrash)
-(* TODO: call, ret, start, end *)
+| return_event_eq : forall (sv : S.fnoerr) (tv : T.fnoerr),
+    xlang_fnoerr_eq sv tv ->
+    event_eq δ (Some(S.Sret sv)) (Some(T.Sret tv))
+| call_event_eq : forall (sfoo : S.vart) (tfoo : T.vart) (sv : S.fnoerr) (tv : T.fnoerr),
+    sfoo = tfoo ->
+    xlang_fnoerr_eq sv tv ->
+    event_eq δ (Some(S.Scall tfoo sv)) (Some(T.Scall tfoo tv))
 .
 
 (** Lemmas *)
@@ -229,3 +247,5 @@ Lemma forward_simulation_pstep (sΩ sΩ' : S.state) (se se' : S.expr) (sa : opti
     (* FIXME: relate actions *) True /\
     state_eq δ sL sΩ' tΩ'
 .
+Proof.
+Admitted.

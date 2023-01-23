@@ -1258,6 +1258,8 @@ Proof. Admitted.
 
 (** Types of events that may occur in a trace. *)
 Variant event : Type :=
+| Sstart : event
+| Send (v : value) : event
 | Salloc (ℓ : loc) (n : nat) : event
 | Sdealloc (ℓ : loc) : event
 | Sget (ℓ : loc) (n : nat) : event
@@ -1268,6 +1270,8 @@ Variant event : Type :=
 .
 Definition eventeq (e1 e2 : event) : bool :=
   match e1, e2 with
+  | Sstart, Sstart => true
+  | Send(Vnat n1), Send(Vnat n2) => Nat.eqb n1 n2
   | Salloc(addr ℓ0) n0, Salloc(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
   | Sdealloc(addr ℓ0), Sdealloc(addr ℓ1) => Nat.eqb ℓ0 ℓ1
   | Sget(addr ℓ0) n0, Sget(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
@@ -1286,6 +1290,8 @@ Instance Event__Instance : TraceEvent event := {}.
 (** Pretty-printing function for better debuggability *)
 Definition string_of_event (e : event) :=
   match e with
+  | (Sstart) => "Start"%string
+  | (Send(Vnat n)) => String.append ("End "%string) (string_of_nat n)
   | (Salloc (addr ℓ) n) => String.append
                       (String.append ("Alloc ℓ"%string) (string_of_nat ℓ))
                       (String.append (" "%string) (string_of_nat n))
@@ -2691,6 +2697,7 @@ Module SMSMod := CSC.Langs.Util.Mod(MSModAux).
 
 Definition msev_of_ev (ev : event) : option msevent :=
   match ev with
+  | Sstart | Send _ => None (* FIXME: make start/end msevents, too *)
   | Salloc ℓ n => Some(MSalloc ℓ n)
   | Sdealloc ℓ => Some(MSdealloc ℓ)
   | Sget ℓ n => Some(MSuse ℓ n)

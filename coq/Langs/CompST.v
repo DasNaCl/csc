@@ -222,9 +222,22 @@ Inductive event_eq (δ : locmap_st) : option S.event -> option T.event -> Prop :
     xlang_fnoerr_eq sv tv ->
     event_eq δ (Some(S.Scall tfoo sv)) (Some(T.Scall tfoo tv))
 .
+Inductive trace_eq (δ : locmap_st) (X : list(option S.event)) : list(option S.event) -> list(option T.event) -> Prop :=
+| empty_trace_eq : trace_eq δ X List.nil List.nil
+| cons_trace_eq : forall (sa : option S.event) (ta : option T.event)
+                    (sAs : list(option S.event)) (tAs : list(option T.event)),
+    ~(List.In sa X) ->
+    event_eq δ sa ta ->
+    trace_eq δ X sAs tAs ->
+    trace_eq δ X (sa :: sAs) (ta :: tAs)
+| ignore_trace_eq : forall (sa : option S.event) (ta : option T.event)
+                      (sAs : list(option S.event)) (tAs : list(option T.event)),
+    List.In sa X ->
+    trace_eq δ X sAs tAs ->
+    trace_eq δ X (sa :: sAs) (ta :: tAs)
+.
 
 (** Lemmas *)
-
 Lemma injective_comp__e (e : S.expr) (et₁ et₂ : T.expr) :
   comp__e e = et₁ ->
   comp__e e = et₂ ->

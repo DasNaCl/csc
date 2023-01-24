@@ -1181,33 +1181,56 @@ Fixpoint Hgrow_aux (H : heap) (s len : nat) : option heap :=
 Definition Hgrow (H : heap) (s : nat) : option heap :=
   Hgrow_aux H s (List.length (dom H))
 .
-Definition active_ectx := list evalctx.
+Variant comms : Type :=
+| Qctxtocomp : comms
+| Qcomptoctx : comms
+| Qinternal : comms
+.
+Definition comms_eq (q1 q2 : comms) :=
+  match q1, q2 with
+  | Qctxtocomp, Qctxtocomp => true
+  | Qcomptoctx, Qcomptoctx => true
+  | Qinternal, Qinternal => true
+  | _, _ => false
+  end
+.
+Definition string_of_comms (q : comms) :=
+  match q with
+  | Qctxtocomp => "?"%string
+  | Qcomptoctx => "!"%string
+  | Qinternal => "∅"%string
+  end
+.
+Definition active_ectx := list (evalctx * vart * comms).
+(** Contains names of component-level functions *)
+Definition commlib := list vart.
 
 #[local]
 Existing Instance varteq__Instance | 0.
-Definition state : Type := CSC.Fresh.fresh_state * symbols * active_ectx * heap * store.
-Notation "F ';' Ξ ';' ξ ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (Ξ : symbols),
-                                         (ξ : active_ectx), (H : heap), (Δ : store))
-                                         (at level 81, ξ at next level, Ξ at next level, H at next level, Δ at next level).
+Definition state : Type := CSC.Fresh.fresh_state * symbols * commlib * active_ectx * heap * store.
+Notation "F ';' Ξ ';' ξ ';' K ';' H ';' Δ" := ((F : CSC.Fresh.fresh_state), (Ξ : symbols),
+                                               (ξ : commlib), (K : active_ectx), (H : heap), (Δ : store))
+                                               (at level 81, K at next level, ξ at next level, Ξ at next level, H at next level, Δ at next level).
 Ltac splitΩ Ω :=
   let F := fresh "F" in
   let Ξ := fresh "Ξ" in
   let ξ := fresh "ξ" in
+  let K := fresh "K" in
   let H := fresh "H" in
   let Δ := fresh "Δ" in
-  destruct Ω as [[[[F Ξ] ξ] H] Δ].
+  destruct Ω as [[[[[F Ξ] ξ] K] H] Δ].
 Definition nodupinv (Ω : state) : Prop :=
-  let '(F, Ξ, ξ, H, Δ) := Ω in
+  let '(F, Ξ, ξ, K, H, Δ) := Ω in
   nodupinv Ξ /\ nodupinv H /\ snodupinv Δ
 .
-Lemma nodupinv_empty Ξ :
+Lemma nodupinv_empty Ξ ξ :
   Util.nodupinv Ξ ->
-  nodupinv(Fresh.empty_fresh ; Ξ ; nil ; hNil ; sNil).
+  nodupinv(Fresh.empty_fresh ; Ξ ; ξ ; List.nil ; hNil ; sNil).
 Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
-Lemma nodupinv_H F Ξ ξ H Δ n H':
-  nodupinv (F;Ξ;ξ;H;Δ) ->
+Lemma nodupinv_H F Ξ ξ K H Δ n H':
+  nodupinv (F;Ξ;ξ;K;H;Δ) ->
   Hgrow H n = Some H' ->
-  nodupinv (F;Ξ;ξ;H';Δ)
+  nodupinv (F;Ξ;ξ;K;H';Δ)
 .
 Proof.
   intros [Ha [Hb Hc]]; repeat split; eauto.
@@ -1233,7 +1256,7 @@ Inductive store_split (Ξ : symbols) : store -> Gamma -> Prop :=
     store_split Ξ Δ (x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ)
 .
 Inductive state_split : state -> Gamma -> Prop :=
-| TΩ : forall F Ξ ξ H Δ (Γ : Gamma), store_split Ξ Δ Γ -> state_split (F ; Ξ ; ξ ; H ; Δ) Γ
+| TΩ : forall F Ξ ξ K H Δ (Γ : Gamma), store_split Ξ Δ Γ -> state_split (F ; Ξ ; ξ ; K ; H ; Δ) Γ
 .
 Inductive rt_check : state -> expr -> Ty -> Prop :=
 | Trtcheck : forall (Ω : state) (e : expr) (τ : Ty) (Γ : Gamma),
@@ -1265,8 +1288,8 @@ Variant event : Type :=
 | Sget (ℓ : loc) (n : nat) : event
 | Sset (ℓ : loc) (n : nat) (v : value) : event
 | Scrash : event
-| Scall (foo : vart) (arg : fnoerr) : event
-| Sret (f : fnoerr) : event
+| Scall (q : comms) (foo : vart) (arg : fnoerr) : event
+| Sret (q : comms) (f : fnoerr) : event
 .
 Definition eventeq (e1 e2 : event) : bool :=
   match e1, e2 with
@@ -1278,10 +1301,10 @@ Definition eventeq (e1 e2 : event) : bool :=
   | Sset(addr ℓ0) n0 (Vnat v0), Sset(addr ℓ1) n1 (Vnat v1) => andb (andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1))
                                                                   (Nat.eqb v0 v1)
   | Scrash, Scrash => true
-  | Scall foo (Fval(Vnat v0)), Scall bar (Fval(Vnat v1)) => andb (String.eqb foo bar) (Nat.eqb v0 v1)
-  | Scall foo (Fvar x), Scall bar (Fvar y) => andb (String.eqb foo bar) (String.eqb x y)
-  | Sret (Fval(Vnat v0)), Sret (Fval(Vnat v1)) => Nat.eqb v0 v1
-  | Sret (Fvar x), Sret (Fvar y) => String.eqb x y
+  | Scall q1 foo (Fval(Vnat v0)), Scall q2 bar (Fval(Vnat v1)) => andb (andb (String.eqb foo bar) (Nat.eqb v0 v1)) (comms_eq q1 q2)
+  | Scall q1 foo (Fvar x), Scall q2 bar (Fvar y) => andb(andb (String.eqb foo bar) (String.eqb x y)) (comms_eq q1 q2)
+  | Sret q1 (Fval(Vnat v0)), Sret q2 (Fval(Vnat v1)) => andb (Nat.eqb v0 v1) (comms_eq q1 q2)
+  | Sret q1 (Fvar x), Sret q2 (Fvar y) => andb (String.eqb x y) (comms_eq q1 q2)
   | _, _ => false
   end
 .
@@ -1305,10 +1328,22 @@ Definition string_of_event (e : event) :=
                                (String.append (" "%string) (string_of_nat n)))
                              (String.append (" "%string) (string_of_nat m))
   | (Scrash) => "↯"%string
-  | (Scall foo (Fval(Vnat n))) => String.append (String.append (String.append ("Call "%string) foo) " "%string) (string_of_nat n)
-  | (Scall foo (Fvar x)) => String.append (String.append (String.append ("Call "%string) foo) " "%string) x
-  | (Sret (Fval(Vnat n))) => String.append ("Ret "%string) (string_of_nat n)
-  | (Sret (Fvar x)) => String.append ("Ret "%string) x
+  | (Scall q foo (Fval(Vnat n))) => String.append (String.append
+                                                  (String.append ("Call "%string)
+                                                   (String.append (string_of_comms q)
+                                                    (String.append " "%string foo))) " "%string)
+                                   (string_of_nat n)
+  | (Scall q foo (Fvar x)) => String.append (String.append
+                                            (String.append ("Call "%string)
+                                             (String.append (string_of_comms q)
+                                              (String.append " "%string foo))) " "%string)
+                             x
+  | (Sret q (Fval(Vnat n))) => String.append ("Ret "%string)
+                              (String.append (string_of_comms q)
+                               (String.append " "%string (string_of_nat n)))
+  | (Sret q (Fvar x)) => String.append ("Ret "%string)
+                         (String.append (string_of_comms q)
+                          (String.append " "%string x))
   end
 .
 
@@ -1365,28 +1400,28 @@ Inductive pstep : PrimStep :=
     Ω ▷ Xifz (S n) e1 e2 --[]--> Ω ▷ e2
 | e_abort : forall (Ω : state),
     Ω ▷ Xabort --[ (Scrash) ]--> ↯ ▷ stuck
-| e_get : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
+| e_get : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some v = mget H (ℓ + n))
       (H0b : ℓ + n >= length H -> v = 1729)
       (H0c : Util.nodupinv (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)),
-    (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ (Sget (addr ℓ) n) ]--> (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
-| e_set : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
+    (F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xget x n --[ (Sget (addr ℓ) n) ]--> (F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
+| e_set : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H H' : heap) (Δ1 Δ2 : store) (x : vart) (ℓ n v : nat) (ρ : poison),
     forall (H0a : ℓ + n < length H -> Some H' = mset H (ℓ + n) v)
       (H0b : ℓ + n >= length H -> H' = H)
       (H0c : Util.nodupinv (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)),
-    (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ (Sset (addr ℓ) n v) ]--> (F ; Ξ ; ξ ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
-| e_delete : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison)
+    (F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xset x n v --[ (Sset (addr ℓ) n v) ]--> (F ; Ξ ; ξ ; K ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ v
+| e_delete : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H : heap) (Δ1 Δ2 : store) (x : vart) (ℓ : nat) (ρ : poison)
       (H0c : Util.nodupinv (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)),
-    (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ (Sdealloc (addr ℓ)) ]--> (F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
+    (F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2)) ▷ Xdel x --[ (Sdealloc (addr ℓ)) ]--> (F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2)) ▷ 0
 | e_let : forall (Ω : state) (x : vart) (f : fnoerr) (e e' : expr),
     e' = subst x e f ->
     Ω ▷ Xlet x f e --[]--> Ω ▷ e'
-| e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H H' : heap) (Δ Δ' : store) (x z : vart) (ℓ n : nat) (e : expr),
+| e_alloc : forall (F F' F'' : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H H' : heap) (Δ Δ' : store) (x z : vart) (ℓ n : nat) (e : expr),
     ℓ = Fresh.fresh F ->  F' = Fresh.advance F ->
     z = Fresh.freshv F' -> F'' = Fresh.advance F' ->
     spush z ((addr ℓ) ⋅ ◻) Δ = Some Δ' ->
     Some H' = Hgrow H n ->
-    (F ; Ξ ; ξ ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; Ξ ; ξ ; H' ; Δ') ▷ (subst x e (Fvar z))
+    (F ; Ξ ; ξ ; K ; H ; Δ) ▷ Xnew x n e --[ (Salloc (addr ℓ) n) ]--> (F'' ; Ξ ; ξ ; K ; H' ; Δ') ▷ (subst x e (Fvar z))
 .
 #[global]
 Existing Instance pstep.
@@ -1414,7 +1449,7 @@ Proof.
     rewrite snodupinv_whocares in H; exact H.
   - (*e_alloc*) splitΩ Ω; inv H; splitΩ Ω'; inv H0.
     intros [Ha [Hb Hc]]; repeat split; eauto.
-    + eapply nodupinv_H; eauto. instantiate (1:=Δ'); instantiate (1:=ξ); instantiate (1:=Ξ); instantiate (1:=advance F).
+    + eapply nodupinv_H; eauto. instantiate (1:=Δ'); instantiate (1:=K); instantiate (1:=ξ); instantiate (1:=Ξ); instantiate (1:=advance F).
       repeat split; eauto using spush_ok.
     + now apply spush_ok in H6.
 Qed.
@@ -1440,7 +1475,7 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   | Xget x en => (* e-get *)
     match en with
     | Xres(Fres(Fval(Vnat n))) =>
-      let '(F, Ξ, ξ, H, Δ) := Ω in
+      let '(F, Ξ, ξ, K, H, Δ) := Ω in
       let* Δ__x := undup Δ in
       let* (Δ1, x, (L, ρ), Δ2) := splitat Δ__x x in
       let '(addr ℓ) := L in
@@ -1449,30 +1484,30 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
               | Some w => w
               end
       in
-        Some(Some(Sget (addr ℓ) n), F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sget (addr ℓ) n), F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
     | _ => None
     end
   | Xset x en ev => (* e-set *)
     match en, ev with
     | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
-      let '(F, Ξ, ξ, H, Δ) := Ω in
+      let '(F, Ξ, ξ, K, H, Δ) := Ω in
       let* Δ__x := undup Δ in
       let* (Δ1, x, (L, ρ), Δ2) := splitat Δ__x x in
       let '(addr ℓ) := L in
       match mset H (ℓ + n) v with
       | Some H' =>
-        Some(Some(Sset (addr ℓ) n v), F ; Ξ ; ξ ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sset (addr ℓ) n v), F ; Ξ ; ξ ; K ; H' ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
       | None =>
-        Some(Some(Sset (addr ℓ) n v), F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
+        Some(Some(Sset (addr ℓ) n v), F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ρ) ◘ Δ2) ▷ v)
       end
     | _, _ => None
     end
   | Xdel x => (* e-delete *)
-    let '(F, Ξ, ξ, H, Δ) := Ω in
+    let '(F, Ξ, ξ, K, H, Δ) := Ω in
     let* Δ__x := undup Δ in
     let* (Δ1, x, (L, ρ), Δ2) := splitat Δ__x x in
     let '(addr ℓ) := L in
-    Some(Some(Sdealloc (addr ℓ)), F ; Ξ ; ξ ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
+    Some(Some(Sdealloc (addr ℓ)), F ; Ξ ; ξ ; K ; H ; (Δ1 ◘ x ↦ ((addr ℓ) ⋅ ☣) ◘ Δ2) ▷ 0)
   | Xlet x ef e' => (* e-let *)
     match ef with
     | Xres(Fres f) =>
@@ -1483,14 +1518,14 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   | Xnew x ef e' => (* e-new *)
     match ef with
     | Xres(Fres(Fval(Vnat n))) =>
-      let '(F, Ξ, ξ, H, Δ) := Ω in
+      let '(F, Ξ, ξ, K, H, Δ) := Ω in
       let* H' := Hgrow H n in
       let ℓ := CSC.Fresh.fresh F in
       let F' := Fresh.advance F in
       let z := CSC.Fresh.freshv F' in
       let* Δ' := spush z ((addr ℓ) ⋅ ◻) Δ in
       let e'' := subst x e' (Fvar z) in
-      Some(Some(Salloc (addr ℓ) n), (Fresh.advance F' ; Ξ ; ξ ; H' ; Δ') ▷ e'')
+      Some(Some(Salloc (addr ℓ) n), (Fresh.advance F' ; Ξ ; ξ ; K ; H' ; Δ') ▷ e'')
     | _ => None
     end
   | _ => None (* no matching rule *)
@@ -1546,18 +1581,18 @@ Proof.
     + (* e-delete *) cbn; apply nodupinv_equiv_undup in H0c as H0c'; rewrite H0c'; rewrite splitat_elim; eauto.
     + (* e-let *) now subst; cbn.
     + (* e-new *) subst; unfold pstepf.
-      now rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)), <- H5, (get_rid_of_letstar H'), H4, (get_rid_of_letstar Δ').
+      now rewrite (get_rid_of_letstar (F, Ξ, ξ, K, H, Δ)), <- H5, (get_rid_of_letstar H'), H4, (get_rid_of_letstar Δ').
   - intros H; destruct r0 as [oΩ e], r1 as [Ω' e']; destruct e; cbn in H; crush_interp; clear H.
     + (* e = e1 ⊕ e2 *)
       now grab_value2 e1 e2; inv H1; eapply e_binop.
     + (* e = x[e] *)
-      grab_value e; destruct s as [[[[F Ξ] ξ] H] Δ]; crush_undup Δ; apply nodupinv_equiv_undup in Hx.
+      grab_value e; destruct s as [[[[[F Ξ] ξ] K] H] Δ]; crush_undup Δ; apply nodupinv_equiv_undup in Hx.
       recognize_split; elim_split; destruct v as [[ℓ] ρ].
       inv H1; eapply e_get; try intros H0; eauto.
       * now apply Hget_some in H0 as [v ->].
       * now apply Hget_none in H0 as ->.
     + (* e = x[e1] <- e2 *)
-      grab_value2 e1 e2. destruct s as [[[[F Ξ] ξ] H] Δ].
+      grab_value2 e1 e2. destruct s as [[[[[F Ξ] ξ] K] H] Δ].
       crush_undup Δ; apply nodupinv_equiv_undup in Hx.
       recognize_split; elim_split; destruct v as [[ℓ] ρ].
       destruct (Arith.Compare_dec.lt_dec (ℓ + e1) (length H)) as [H2|H2].
@@ -1578,7 +1613,7 @@ Proof.
       apply not_eq_None_Some in Hx0 as [Δ' Hx0]; rewrite Hx0 in H1.
       rewrite (get_rid_of_letstar Δ') in H1; inv H1. eapply e_alloc; eauto.
     + (* e = delete x *)
-      destruct s as [[[[F Ξ] ξ] H] Δ]; inv H1. crush_undup Δ; apply nodupinv_equiv_undup in Hx.
+      destruct s as [[[[[F Ξ] ξ] K] H] Δ]; inv H1. crush_undup Δ; apply nodupinv_equiv_undup in Hx.
       recognize_split; elim_split; destruct v as [[ℓ] ρ]; subst.
       inv H2; apply e_delete; eauto.
     + (* e = ifz c e0 e1 *)
@@ -1711,14 +1746,44 @@ Proof. induction e; now cbn. Qed.
 Hint Resolve pstep_compat_weaken call_pestep_compat return_pestep_compat : core.
 
 (** Environment Semantics extended with context switches *)
+Inductive ρ__call : commlib -> vart -> vart -> fnoerr -> option event -> comms -> Prop :=
+| comm_call_comptoctx : forall ξ foo bar iv,
+    ~(List.In foo ξ) ->
+    List.In bar ξ ->
+    ρ__call ξ foo bar iv (Some(Scall Qcomptoctx foo iv)) Qctxtocomp
+| comm_call_ctxtocomp : forall ξ foo bar iv,
+    List.In foo ξ ->
+    ~(List.In bar ξ) ->
+    ρ__call ξ foo bar iv (Some(Scall Qctxtocomp foo iv)) Qcomptoctx
+| comm_call_internal_comp : forall ξ foo bar iv,
+    List.In foo ξ ->
+    List.In bar ξ ->
+    ρ__call ξ foo bar iv None Qinternal
+| comm_call_internal_ctx : forall ξ foo bar iv,
+    ~(List.In foo ξ) ->
+    ~(List.In bar ξ) ->
+    ρ__call ξ foo bar iv None Qinternal
+.
+Inductive ρ__calls : commlib -> vart -> active_ectx -> fnoerr -> option event -> comms -> Prop :=
+| comm_call_empty_stack_comp : forall ξ foo iv,
+    List.In foo ξ ->
+    ρ__calls ξ foo List.nil iv (Some(Scall Qctxtocomp foo iv)) Qcomptoctx
+| comm_call_empty_stack_ctx : forall ξ foo iv,
+    ~(List.In foo ξ) ->
+    ρ__calls ξ foo List.nil iv (Some(Scall Qcomptoctx foo iv)) Qctxtocomp
+| comm_call_nonempty_stack : forall ξ foo iv bar (K : active_ectx) a c E q__E,
+    ρ__call ξ foo bar iv a c ->
+    ρ__calls ξ foo ((E, bar, q__E)::K) iv a c
+.
+Inductive ρ__ret : comms -> fnoerr -> option event -> Prop :=
+| comm_ret_ctxtocomp : forall f,
+    ρ__ret Qctxtocomp f (Some(Sret Qctxtocomp f))
+| comm_ret_comptoctx : forall f,
+    ρ__ret Qcomptoctx f (Some(Sret Qcomptoctx f))
+| comm_ret_internal : forall f,
+    ρ__ret Qinternal f None
+.
 Inductive estep : CtxStep :=
-| E_return : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
-               (E E__foo : evalctx) (f : fnoerr),
-    (F ; Ξ ; E__foo :: ξ ; H ; Δ ▷ insert E (Xreturn f) ==[ Sret f ]==> F ; Ξ ; ξ ; H ; Δ ▷ insert E__foo f)
-| E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : active_ectx) (H : heap) (Δ : store)
-             (e__foo : expr) (E : evalctx) (τ__int : Ty) (argx foo : vart) (f : fnoerr),
-    Some (argx, τ__int, e__foo) = mget Ξ foo ->
-    (F ; Ξ ; ξ ; H ; Δ ▷ insert E (Xcall foo f) --[ Scall foo f ]--> F ; Ξ ; E :: ξ ; H ; Δ ▷ Xreturn (subst argx e__foo f))
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
@@ -1732,6 +1797,19 @@ Inductive estep : CtxStep :=
     e0 = insert K e ->
     Ω ▷ e --[ Scrash ]--> ↯ ▷ stuck ->
     Ω ▷ e0 ==[ Scrash ]==> ↯ ▷ stuck
+| E_call_main : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (H : heap) (Δ : store)
+                  (e__foo : expr) (x__arg : vart),
+    Some (x__arg, (Tectx(Tarrow Tℕ Tℕ)), e__foo) = mget Ξ "main"%string ->
+    (F ; Ξ ; ξ ; List.nil ; H ; Δ ▷ insert Khole (Xcall "main"%string 0) ==[ Sstart ]==> F ; Ξ ; ξ ; (Khole, "main"%string, Qcomptoctx) :: List.nil ; H ; Δ ▷ Xreturn (subst x__arg e__foo 0))
+| E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H : heap) (Δ : store)
+               (E : evalctx) (e__foo : expr) (τ__foo : Ty) f (x__arg foo : vart) (q : comms) (a : option event),
+    Some (x__arg, τ__foo, e__foo) = mget Ξ foo ->
+    ρ__calls ξ foo K f a q ->
+    (F ; Ξ ; ξ ; K ; H ; Δ ▷ insert E (Xcall foo f) ==[, a ]==> F ; Ξ ; ξ ; (E, foo, q) :: K ; H ; Δ ▷ Xreturn (subst x__arg e__foo f))
+| E_ret : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H : heap) (Δ : store)
+            (E E' : evalctx) (foo : vart) (q : comms) f (a : option event),
+    ρ__ret q f a ->
+    (F ; Ξ ; ξ ; (E, foo, q) :: K ; H ; Δ ▷ insert E' (Xreturn f) ==[, a ]==> F ; Ξ ; ξ ; K ; H ; Δ ▷ insert E f)
 .
 #[global]
 Existing Instance estep.
@@ -1779,6 +1857,7 @@ Ltac unfold_estep := (match goal with
      induction K; cbn in H; try congruence; inv H
    end).
 
+(** TODO: implement fρ__call*)
 Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
   let '(oΩ, e) := r in
   let* Ω := oΩ in

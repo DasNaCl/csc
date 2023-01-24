@@ -1818,6 +1818,36 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   Induction on $\storeagreetms{\tmsmonitor}{\src{\Delta}}$.
 \end{proof}
 
+\begin{lemma}[Filter Weaken]\label{lem:filter-weaken}
+  If
+  \begin{assumptions}
+    \item $\theta_{\delta}\left(\src{\trace}\right) \not=\hole{\cdot}$
+    \item $\delta\subseteq\delta'$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\theta_{\delta}\left(\src{\trace}\right) = \theta_{\delta'}\left(\src{\trace}\right)$
+  \end{goals}
+\end{lemma}
+
+\begin{lemma}[\gls{tms}-$\src{\Delta}$-split]\label{lem:tms:store:split}
+  If
+  \begin{assumptions}
+    \item $\storeagreetms{\tmsmonitor}{\src{\Delta_{1},x\mapsto\loc_{\poison},\Delta_{2}}}$
+  \end{assumptions}
+  Then $\exists \tmsmonitor[_{1}]\ \tmsmonitor[_{2}]\ \specificev{\loc}$,
+  \begin{goals}
+    \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+    \item $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+    \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+    \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Trivial.
+\end{proof}
+
+
 \begin{lemma}[Trace-based Transitivity Authentic]\label{lem:trace-agree-trans}
   If
   \begin{assumptions}
@@ -2008,7 +2038,14 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
       \end{goals}
 
-      We conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$ by inverting \Cref{asm:basetmsmonitor:storeagree}.\MK{technical lemma instead of inversion}
+      Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
+      \begin{passumptions}{F}
+        \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+        \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+        \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+      \end{passumptions}
+      Invert \Cref{asm:basetmsmonitor:storeagree:unfolded} to conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$.
       Choose $\absevent=\textbf{Dealloc\ }\specificev{\loc}$ and $\delta_{\text{MS}}'=\delta_{\text{MS}}$.
 
       \Cref{goal:basetmsmonitor:subseteq}, $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}$, follows trivially.
@@ -2181,7 +2218,15 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
         \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_{\poison},\Delta_2}}$
       \end{goals}
-      We conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$ by inverting \Cref{asm:basetmsmonitor:storeagree}.\MK{technical lemma instead of inversion}
+
+      Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
+      \begin{passumptions}{F}
+        \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+        \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+        \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+      \end{passumptions}
+      Invert \Cref{asm:basetmsmonitor:storeagree:unfolded} to conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$.
       Choose $\absevent=\bm{Use\ }\specificev{\loc}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
       The goals become:
       \begin{goals}
@@ -2206,7 +2251,14 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
         \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_{\poison},\Delta_2}}$
       \end{goals}
-      We conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$ by inverting \Cref{asm:basetmsmonitor:storeagree}.\MK{technical lemma instead of inversion}
+      Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
+      \begin{passumptions}{F}
+        \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+        \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+        \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+      \end{passumptions}
+      Invert \Cref{asm:basetmsmonitor:storeagree:unfolded} to conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$.
       Choose $\absevent=\bm{Use\ }\specificev{\loc}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
       The goals become:
       \begin{goals}
@@ -2324,7 +2376,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
           We solve our goals by instantiating $\abstrace=\absevent\cdot\abstrace_{\IH}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}^{\IH}$, and $\tmsmonitor[']=\tmsmonitor[_{\IH}]$.
           \Cref{goal:stepstmsmonitor:final:delta} follows by transitivity using \Cref{asm:stepstmsmonitor:deltasubset0,asm:stepstmsmonitor:deltasubset1}.
 
-          Similarily for \Cref{goal:stepstmsmonitor:final:traceagree} using \Cref{asm:stepstmsmonitor:traceagree0,asm:stepstmsmonitor:traceagree1}.\MK{$\theta$ subsets lemma}
+          Similarily for \Cref{goal:stepstmsmonitor:final:traceagree} using \Cref{asm:stepstmsmonitor:traceagree0,asm:stepstmsmonitor:traceagree1} and \Thmref{lem:filter-weaken}.
 
           \Cref{goal:stepstmsmonitor:final:monitorstep} also by transitivity using \Cref{asm:stepstmsmonitor:monitorcheck0,asm:stepstmsmonitor:monitorcheck1}.
 
@@ -3387,7 +3439,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
         \item $\xlangstateeq{\cfstate;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{\Omega'}$
       \end{goals}
 
-      First note that $\trg{\Omega}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case2:stateeq}.\MK{technical lemma needed}
+      First note that $\trg{\Omega}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, because of \Cref{asm:step:forwardsim:case2:stateeq}.
 
       Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}$, and $\trg{\event}=\trg{Dealloc\ \loc}$, so that what is left to prove is:
       \begin{goals}
@@ -3403,10 +3455,10 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       For \Cref{goal:step:forwardsim:case2:eventeq}, apply \Cref{tr:dealloc-event-eq}, what is left to show is $\delta(\src{\loc})=\trg{\loc}$.
 
-      Similarily for \Cref{goal:step:forwardsim:case2:stateeq}, apply \Cref{tr:state-eq,tr:cons-locmap-eq} ,,suitably''\MK{needs technical lemma: splitting} so that what is left to show is
+      Similarily for \Cref{goal:step:forwardsim:case2:stateeq}, apply \Cref{tr:state-eq,tr:cons-memstate-eq} ,,suitably'' so that what is left to show is
       $\xlangstateeq{\cfstate}{\cfstate}$, $\xlangstateeq{H}{H}$, $\xlangstateeq{\Delta_1}{\Delta_1}$, $\xlangstateeq{\Delta_2}{\Delta_2}$, $\mmlAmmlAtcomp{x}=\trg{x}$, and, like in the previous case, $\delta(\src{\loc})=\trg{\loc}$.
 
-      $\mmlAmmlAtcomp{x}=\trg{x}$ follows by definition of the compiler, anything else follows immediately by inverting \Cref{asm:step:forwardsim:case2:stateeq} ,,suitably''\MK{needs technical lemma: splitting}.
+      $\mmlAmmlAtcomp{x}=\trg{x}$ follows by definition of the compiler, anything else follows immediately by inverting \Cref{asm:step:forwardsim:case2:stateeq} ,,suitably''.
 
     \item \textbf{Case $\exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Get\ \loc\ n}$:}
 
@@ -3424,7 +3476,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
         \item $\xlangeventeq{Get\ \loc\ n}{\event}$
         \item $\xlangstateeq{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega'}$
       \end{goals}
-      First note that $\trg{\Omega}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case3:stateeq}.\MK{technical lemma needed}
+      First note that $\trg{\Omega}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, because of \Cref{asm:step:forwardsim:case3:stateeq}.
 
       Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, and $\trg{\event}=\trg{Get\ \loc\ n}$, so that what is left to prove is:
       \begin{goals}
@@ -3438,7 +3490,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \Cref{goal:step:forwardsim:case3:deltasubset} follows immediately from reflexivity of the subset relation.
 
-      For \Cref{goal:step:forwardsim:case3:eventeq}, invert \Cref{asm:step:forwardsim:case3:stateeq} ,,suitably''\MK{technical lemma needed: splitting} to obtain the assumption $\delta(\src{\loc})=\trg{\loc}$. The claim then follows by applying \Cref{tr:get-event-eq}.
+      For \Cref{goal:step:forwardsim:case3:eventeq}, invert \Cref{asm:step:forwardsim:case3:stateeq} ,,suitably'' to obtain the assumption $\delta(\src{\loc})=\trg{\loc}$. The claim then follows by applying \Cref{tr:get-event-eq}.
 
       \Cref{goal:step:forwardsim:case3:stateeq} follows immediately from \Cref{asm:step:forwardsim:case3:stateeq}.
 
@@ -3449,7 +3501,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \item $\trg{\loc}\not\in\operatorname{dom} \trg{H}\implies\trg{v}=\trg{1729}$
       \end{goals}
 
-      Now, note that $\src{\loc}\in\operatorname{dom}\src{H}\Leftrightarrow\delta(\src{\loc})=\trg{\loc}\in\operatorname{dom}\trg{H}$.\MK{This is a technical lemma...}
+      Now, note that $\src{\loc}\in\operatorname{dom}\src{H}\Leftrightarrow\delta(\src{\loc})=\trg{\loc}\in\operatorname{dom}\trg{H}$.
       We continue with a case distinction.
       \begin{description}
         \item \textbf{Case $\src{\loc}\in\operatorname{dom}\src{H}$:}
@@ -3479,7 +3531,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
         \item $\xlangeventeq{Set\ \loc\ n}{\event}$
         \item $\xlangstateeq{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{\Omega'}$
       \end{goals}
-      First note that $\trg{\Omega}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case4:stateeq}.\MK{technical lemma needed}
+      First note that $\trg{\Omega}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, because of \Cref{asm:step:forwardsim:case4:stateeq}.
 
       Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}$, and $\trg{\event}=\trg{Set\ \loc\ n}$, so that what is left to prove is:
       \begin{goals}
@@ -3496,7 +3548,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       This follows by \Cref{asm:step:forwardsim:case4:stateeq}.\MK{technical lemma: compatibility with update}
 
       Apply \Cref{tr:set-event-eq} on \Cref{goal:step:forwardsim:case4:eventeq}, what is left to show is $\mmlAmmlAtcomp{n}=\trg{n}$, which is trivial, and $\delta(\src{\loc})=\trg{\loc}$.
-      The latter can be obtained by a ,,suitable''\MK{technical lemma needed} inversion of \Cref{asm:step:forwardsim:case4:stateeq}.
+      The latter can be obtained by a ,,suitable'' inversion of \Cref{asm:step:forwardsim:case4:stateeq}.
 
       \Cref{goal:step:forwardsim:case4:stateeq} is assumed in \Cref{asm:step:forwardsim:case4:stateeq}.
 
@@ -3515,7 +3567,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
         \item $\xlangeventeq{Alloc\ \loc\ n}{\event}$
         \item $\xlangstateeq{\cfstate;H;z\mapsto\loc_\poisonless,\Delta}{\Omega'}$
       \end{goals}
-      First note that $\trg{\Omega}=\trg{H;z\mapsto\loc_\poisonless,\Delta}$, otherwise we'd get a contradiction in \Cref{asm:step:forwardsim:case5:stateeq}.\MK{technical lemma needed}
+      First note that $\trg{\Omega}=\trg{H;z\mapsto\loc_\poisonless,\Delta}$, because of \Cref{asm:step:forwardsim:case5:stateeq}.
 
       Instantiate the goal with $\delta'=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\},\ \trg{\Omega'}=\trg{\cfstate;H;z\mapsto\loc_\poisonless,\Delta}$, and $\trg{\event}=\trg{Alloc\ \loc\ n}$, so that what is left to prove is:
 
@@ -3533,7 +3585,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       Apply \Cref{tr:set-event-eq} on \Cref{goal:step:forwardsim:case5:eventeq}, what is left to show is $\mmlAmmlAtcomp{n}=\trg{n}$, follows immediately by definition of the compiler, and $(\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\})(\src{\loc})=\trg{\loc}$, which follows by definition.
 
-      Apply \Cref{tr:state-eq,tr:cons-locmap-eq} on \Cref{goal:step:forwardsim:case5:stateeq}, what is left to show is $\mmlAmmlAtcomp{x}=\trg{x}$, follows immediately by definition of the compiler, and $(\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\})(\src{\loc})=\trg{\loc}$, which follows by definition.
+      Apply \Cref{tr:state-eq,tr:cons-memstate-eq} on \Cref{goal:step:forwardsim:case5:stateeq}, what is left to show is $\mmlAmmlAtcomp{x}=\trg{x}$, follows immediately by definition of the compiler, and $(\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\})(\src{\loc})=\trg{\loc}$, which follows by definition.
 
     \item \textbf{Case $\exprevals{\Omega}{abort()}{\lightning}{stuck}{\lightning}$:}
 
@@ -3754,7 +3806,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
                 Instantiate the goal with $\delta_{\IH}, \trg{\Omega_{\IH}}, \trg{\event\cdot\trace}$.
                 Note that $\delta\subseteq\delta_{\IH}$ (\Cref{goal:forwardsim:deltasubset}) follows by transitivity using \Cref{asm:forwardsim:deltasubset0,asm:forwardsim:deltasubset:IH}.
-                Similarily for \Cref{goal:forwardsim:staterel}.\MK{technical lemma...}
+                Similarily for \Cref{goal:forwardsim:staterel}.
 
                 Apply \Cref{tr:wt-e-trans-important} on \Cref{goal:forwardsim:steps}. So, what is left to show is
                 \begin{goals}
@@ -4231,7 +4283,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item\label[ass]{asm:expr:interact:call:ctxtocomp:backtranslation:welltyped} $\mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{Call\ \ctxtocomp\ foo\ \interfacevalue}=\Game',\trg{\loc,\overline{\loc'}},\src{e'}$
   \item $\src{x} = \Game'\left(\trg{\loc}\right)$
   \item $\src{e}=\src{e';\ delete\ x}$
-  \item\label[ass]{asm:expr:interact:call:ctxtocomp:backtranslation:gamma} $\src{\Gamma}=\src{\Gamma_{1}, foo:\nat\to\nat ,\Gamma_{2}}$\MK{$\src{\nat\to\nat}$ only holds under the assumption of non-passing pointers}
+  \item\label[ass]{asm:expr:interact:call:ctxtocomp:backtranslation:gamma} $\src{\Gamma}=\src{\Gamma_{1}, foo:\nat\to\nat ,\Gamma_{2}}$
   \end{assumptions}
   Then,
   \begin{goals}
@@ -4242,6 +4294,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Invert \Cref{asm:expr:interact:call:ctxtocomp:backtranslation:welltyped} giving\\$\src{e}=\src{let\ x=new\ 42\ in\ call\ }\mmlAmmlAtbackv[\Game']{foo}\ \mmlAmmlAtbackv[\Game']{\interfacevalue}\src{;\ delete\ x}$, where $\Game' = \Game\left[\trg{\loc}\right]$ and $\fresh{\Game}{\trg{\loc}}$.
   The claim follows using \Cref{tr:w-t-new,tr:w-t-delete} and \Cref{tr:t-let,tr:t-call}, where the latter uses \Cref{asm:expr:interact:call:ctxtocomp:backtranslation:gamma}.
 \end{proof}
+
+Note that $\src{\nat\to\nat}$ only holds under the assumption of non-passing pointers.
 
 \begin{lemma}[Backtranslation for Ret-$\ctxtocomp$ is Well-Typed]\label{lem:expr:interact:ret:ctxtocomp:backtranslation:welltyped}
   If
@@ -4255,7 +4309,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \end{lemma}
 \begin{proof}
   Invert \Cref{asm:expr:interact:ret:ctxtocomp:backtranslation:welltyped} giving $\src{e}=\src{let\ x=new\ 1\ in\ delete\ x;\ return\ }\mmlAmmlAtbackv{\interfacevalue}$, where $\fresh{\Game}{\src{x}}$.
-  It's assumed that $\mmlAmmlAtbackv{\interfacevalue}=\src{n}$\MK{this assumption is gone if we talk about passing pointers}, so the claim follows using \Cref{tr:w-t-new,tr:w-t-delete,tr:t-return}.
+  It's assumed that $\mmlAmmlAtbackv{\interfacevalue}=\src{n}$, which works because we disregard the passing of pointers at the moment.
+  So, the claim follows using \Cref{tr:w-t-new,tr:w-t-delete,tr:t-return}.
 \end{proof}
 
 \begin{lemma}[Backtranslation is Well-Typed]\label{lem:backtranslation:welltyped}
@@ -4284,7 +4339,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Also, $\src{e_{1}}=\src{delete\ z}$, $\mmlAmmlAtbackdetail[\Game',\trg{\loc,\overline{\loc}}]{\trace[_{1}']}=\Game'',\trg{\hole{\cdot}},\src{e_{1}'}$, and $\src{e_{1}''}=\src{let\ x = new\ 1\ in\ delete\ x;return\ m}$, where $\src{m}=\mmlAmmlAtbackv[\Game'']{\interfacevalue_{4}}$ and $\fresh{\Game''}{\src{x}}$.
   Therefore: $$\src{e}=\src{42;e_{0}';let\ z=new\ 42\ in\ \left(call\ foo\ n; delete\ z\right);e_{1}';let\ x=\ new\ 1\ in\ delete\ x;return\ m}$$
 
-  This typechecks easily, making use of \Cref{tr:w-t-new,tr:w-t-delete} and \Cref{tr:t-let,tr:t-return,tr:t-call}, as well as \Thmref{lem:expr:backtranslation:welltyped}\MK{...and weakening (with NonOwnedPtr stuff)}.
+  This typechecks easily, making use of \Cref{tr:w-t-new,tr:w-t-delete} and \Cref{tr:t-let,tr:t-return,tr:t-call}, as well as \Thmref{lem:expr:backtranslation:welltyped}.
 \end{incompleteproof}
 
 \begin{lemma}[Backtranslation Correctness of $\trg{Start}$]\label{lem:exprbacktranslation:vbeg:wrapper:correct}
@@ -4792,7 +4847,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \setcounter{enumi}{21}
     \item $\src{\cfstate}=\src{\commlib;\library;\kontstack}$
     \item $\trg{\cfstate}=\trg{foo,\hole{\cdot};\library;\hole{\cdot}}$
-    \item\label[ass]{asm:backtrans:correct:libeq} $\xlangstateeq[]{\library}{\library}$\MK{use $\commlib$, so that only $\library_{comp}$ must be compiled; we agreed to use traces though, so somehow extract that info from the trace \textbf{now}}
+    \item\label[ass]{asm:backtrans:correct:libeq} $\xlangstateeq[]{\library}{\library}$
     \item\label[ass]{asm:backtrans:correct:kontstack} $\xlangstateeq[]{\kontstack}{\hole{\cdot}}$
   \end{passumptions}
   Inverting \Cref{asm:backtrans:correct:kontstack}:

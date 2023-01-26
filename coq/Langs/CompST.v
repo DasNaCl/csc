@@ -159,9 +159,9 @@ Inductive lib_eq : S.symbols -> T.symbols -> Prop :=
 .
 Inductive kont_eq : S.active_ectx -> T.active_ectx -> Prop :=
 | empty_kontstack : kont_eq (List.nil) (List.nil)
-| cons_kontstack : forall (sK : S.evalctx) (tK : T.evalctx) (sKs : S.active_ectx) (tKs : T.active_ectx),
+| cons_kontstack : forall (sK : S.evalctx) (sfoo : S.vart) (sq : S.comms) (tK : T.evalctx) (sKs : S.active_ectx) (tKs : T.active_ectx),
     kont_eq sKs tKs ->
-    kont_eq (sK :: sKs) (tK :: tKs)
+    kont_eq ((sK, sfoo, sq) :: sKs) (tK :: tKs)
 .
 Inductive cfstate_eq : (S.symbols * S.active_ectx) -> (T.symbols * T.active_ectx) -> Prop :=
 | Ccfstate_eq : forall (sΞ : S.symbols) (sK : S.active_ectx) (tΞ : T.symbols) (tK : T.active_ectx),
@@ -170,11 +170,11 @@ Inductive cfstate_eq : (S.symbols * S.active_ectx) -> (T.symbols * T.active_ectx
     cfstate_eq (sΞ, sK) (tΞ, tK)
 .
 Inductive state_eq (δ : locmap_st) (sL : list S.loc) : S.state -> T.state -> Prop :=
-| Cstate_eq : forall (sF : CSC.Fresh.fresh_state) (sΞ : S.symbols) (sK : S.active_ectx) (sH : S.heap) (sΔ : S.store)
+| Cstate_eq : forall (sF : CSC.Fresh.fresh_state) (sΞ : S.symbols) (sξ : S.commlib) (sK : S.active_ectx) (sH : S.heap) (sΔ : S.store)
                 (tF : CSC.Fresh.fresh_state) (tΞ : T.symbols) (tK : T.active_ectx) (tH : T.heap) (tΔ : T.store),
     cfstate_eq (sΞ, sK) (tΞ, tK) ->
     memstate_eq δ sL (sH, sΔ) (tH, tΔ) ->
-    state_eq δ sL (sF, sΞ, sK, sH, sΔ) (tF, tΞ, tK, tH, tΔ)
+    state_eq δ sL (sF, sΞ, sξ, sK, sH, sΔ) (tF, tΞ, tK, tH, tΔ)
 .
 
 Inductive xlang_value_eq : S.value -> T.value -> Prop :=
@@ -214,13 +214,13 @@ Inductive event_eq (δ : locmap_st) : option S.event -> option T.event -> Prop :
     Util.mget δ sℓ = Some(tℓ) ->
     event_eq δ (Some(S.Sset sℓ sn sv)) (Some(T.Sset tℓ tn tv))
 | crash_event_eq : event_eq δ (Some S.Scrash) (Some T.Scrash)
-| return_event_eq : forall (sv : S.fnoerr) (tv : T.fnoerr),
+| return_event_eq : forall (sv : S.fnoerr) (sq : S.comms) (tv : T.fnoerr),
     xlang_fnoerr_eq sv tv ->
-    event_eq δ (Some(S.Sret sv)) (Some(T.Sret tv))
-| call_event_eq : forall (sfoo : S.vart) (tfoo : T.vart) (sv : S.fnoerr) (tv : T.fnoerr),
+    event_eq δ (Some(S.Sret sq sv)) (Some(T.Sret tv))
+| call_event_eq : forall (sq : S.comms) (sfoo : S.vart) (tfoo : T.vart) (sv : S.fnoerr) (tv : T.fnoerr),
     sfoo = tfoo ->
     xlang_fnoerr_eq sv tv ->
-    event_eq δ (Some(S.Scall tfoo sv)) (Some(T.Scall tfoo tv))
+    event_eq δ (Some(S.Scall sq tfoo sv)) (Some(T.Scall tfoo tv))
 .
 Inductive trace_eq (δ : locmap_st) (X : list(option S.event)) : list(option S.event) -> list(option T.event) -> Prop :=
 | empty_trace_eq : trace_eq δ X List.nil List.nil

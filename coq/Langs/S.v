@@ -865,19 +865,17 @@ Proof. split; now (eapply checkf_refinement + eapply checkf_correctness). Qed.
 
 (** Symbols look like `fn foo x : τ := e` *)
 Definition symbol : Type := vart * Ty * expr.
-#[local]
-Instance symbol__Instance : SymbolClass symbol := {}.
 Definition symbols := mapind varteq__Instance symbol.
 
+(** Type for list of relevant functions, i.e. those that are part of the component. *)
+Definition commlib := list vart.
+
 (** A program is just a collection of symbols. The symbol `main` is the associated entry-point. *)
-(* FIXME: add ξ : list vart in here*)
-Inductive prog : Type := Cprog : symbols -> prog.
-#[local]
-Instance prog__Instance : ProgClass prog := Cprog.
+Inductive prog : Type := Cprog : symbols -> commlib -> prog.
 
 
 Definition string_of_prog (p : prog) :=
-  let '(Cprog s) := p in
+  let '(Cprog s ξ) := p in
   "prog"%string (*TODO*)
 .
 (** Fill hole in evaluation context. *)
@@ -902,21 +900,22 @@ Fixpoint interfaces (s : symbols) : option(Gamma) :=
   match s with
   | mapNil _ _ => Some [⋅]
   | mapCons name EL s' =>
-    let* a := interfaces s' in
     match EL with
-    | (x, Tectx(Tarrow τ0 τ1), _e) => Some(name ↦ Tectx(Tarrow τ0 τ1) ◘ a)
+    | (x, Tectx(Tarrow τ0 τ1), _e) =>
+      let* a := interfaces s' in
+      Some(name ↦ Tectx(Tarrow τ0 τ1) ◘ a)
     | _ => None
     end
   end
 .
 
 Definition prog_check (p : prog) : Prop :=
-  let '(Cprog symbs) := p in
+  let '(Cprog symbs ξ) := p in
   let inttt := interfaces symbs in
   match inttt with
   | Some intt =>
-    match List.find (fun (x : vart) => vareq x ("main"%string)) (dom intt) with
-    | Some _ =>
+    match mget intt ("main"%string) with
+    | Some(Tectx(Tarrow Tℕ Tℕ)) =>
       match noownedptrf intt with
       | Some ints =>
         let fix doo (stack : symbols) :=
@@ -931,7 +930,7 @@ Definition prog_check (p : prog) : Prop :=
         in doo symbs
       | None => False
       end
-    | None => False
+    | _ => False
     end
   | None => False
   end
@@ -1205,7 +1204,6 @@ Definition string_of_comms (q : comms) :=
 .
 Definition active_ectx := list (evalctx * vart * comms).
 (** Contains names of component-level functions *)
-Definition commlib := list vart.
 
 #[local]
 Existing Instance varteq__Instance | 0.
@@ -2522,10 +2520,10 @@ Proof. intros H__fuel H0 H1; apply equiv_starstep in H0; eauto; apply star_step_
 
 (** Evaluation of programs *)
 Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
-| e_wprog : forall (symbs : symbols) (As : tracepref) (r : rtexpr),
-    prog_check (Cprog symbs) ->
-    (Fresh.empty_fresh ; symbs ; nil (*FIXME: use ξ here*) ; nil ; hNil ; sNil ▷ Xcall "main"%string 0 ==[ As ]==>* r) ->
-    wstep (Cprog symbs) As r
+| e_wprog : forall (symbs : symbols) (ξ : commlib) (As : tracepref) (r : rtexpr),
+    prog_check (Cprog symbs ξ) ->
+    (Fresh.empty_fresh ; symbs ; ξ ; nil ; hNil ; sNil ▷ Xcall "main"%string 0 ==[ As ]==>* r) ->
+    wstep (Cprog symbs ξ) As r
 .
 
 Fixpoint get_fuel_fn_aux (E : evalctx) {struct E} : option nat :=
@@ -2634,7 +2632,7 @@ Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
     let* r0 := collect_callsites ξ e0 in
     let* r1 := collect_callsites ξ e1 in
     Some(cr ◘ r0 ◘ r1)
-  | _ => Some(nosymb)
+  | _ => Some(mapNil _ _)
   end
 .
 (** Compute the total amount of fuel necessary to run a complete program. Each context corresponding to a call
@@ -2655,10 +2653,10 @@ Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
 .
 
 Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
-  let '(Cprog symbs) := p in
+  let '(Cprog symbs ξ) := p in
   let e := Xcall "main"%string 0 in
   let* fuel := get_fuel_toplevel symbs "main"%string in
-  let R := Fresh.empty_fresh ; symbs ; nil (* FIXME: use ξ here *) ; nil ; hNil ; sNil ▷ e in
+  let R := Fresh.empty_fresh ; symbs ; ξ ; nil ; hNil ; sNil ▷ e in
   star_stepf fuel R
 .
 Definition debug_eval (p : prog) :=
@@ -2692,8 +2690,8 @@ Definition smsunsafe_ctx : expr :=
 
 Definition smsunsafe_prog_aux : symbols :=
   ("foo"%string ↦ ("y"%string, Tectx(Tarrow Tℕ Tℕ), smsunsafe_ep) ◘
-  ("main"%string ↦ ("arg"%string, Tectx(Tarrow Tℕ Tℕ), smsunsafe_ctx) ◘ nosymb)).
-Definition smsunsafe_prog := Cprog smsunsafe_prog_aux.
+  ("main"%string ↦ ("arg"%string, Tectx(Tarrow Tℕ Tℕ), smsunsafe_ctx) ◘ mapNil _ _)).
+Definition smsunsafe_prog := Cprog smsunsafe_prog_aux ("foo"%string :: List.nil).
 
 Tactic Notation "splitΓfor" :=
 try do 2 match goal with
@@ -2720,10 +2718,12 @@ end.
 
 Lemma ownedptrsplit Γ1 Γ2 : NoOwnedPtr Γ1 -> NoOwnedPtr Γ2 -> NoOwnedPtr (Γ1 ◘ Γ2).
 Proof.
-Admitted.
+  induction Γ1; cbn; intros H1 H2; trivial; destruct H1 as [H1__a H1__b]; auto.
+Qed.
 Lemma ownedptrcons x y Γ2 : NoOwnedPtr (x ↦ y ◘ [⋅]) -> NoOwnedPtr Γ2 -> NoOwnedPtr (x ↦ y ◘ Γ2).
 Proof.
-Admitted.
+  intros [H1__a H1__b] H2; split; auto.
+Qed.
 
 Lemma smsunsafe_prog_checks : prog_check smsunsafe_prog.
 Proof.
@@ -2872,7 +2872,7 @@ Module SMSMod := CSC.Langs.Util.Mod(MSModAux).
 
 Definition msev_of_ev (ev : event) : option msevent :=
   match ev with
-  | Sstart | Send _ => None (* FIXME: make start/end msevents, too *)
+  | Sstart | Send _ => None
   | Salloc ℓ n => Some(MSalloc ℓ n)
   | Sdealloc ℓ => Some(MSdealloc ℓ)
   | Sget ℓ n => Some(MSuse ℓ n)
@@ -2944,6 +2944,12 @@ Definition TMS (As : tracepref) :=
                                                          TMMon.TMS Bs
 .
 
+Lemma pstep_preservation Ω e τ Ω' e' a :
+  rt_check Ω e τ ->
+  Ω ▷ e --[, a ]--> Ω' ▷ e' ->
+  rt_check Ω' e' τ
+.
+Proof. Admitted.
 Lemma estep_preservation Ω e τ Ω' e' a :
   rt_check Ω e τ ->
   Ω ▷ e ==[, a ]==> Ω' ▷ e' ->
@@ -2955,10 +2961,8 @@ Lemma δ_of_Δ_poison_eq (Δ1 Δ2 : store) (x : vart) (ℓ : loc) :
   δ_of_Δ (Δ1 ◘ x ↦ (ℓ, ◻) ◘ Δ2) = δ_of_Δ (Δ1 ◘ x ↦ (ℓ, ☣) ◘ Δ2)
 .
 Proof.
-  induction Δ1; cbn; eauto.
-  destruct b as [[] _]. fold (append Δ1 (x ↦ (ℓ, ◻) ◘ Δ2));
-  fold (append Δ1 (x ↦ (ℓ, ☣) ◘ Δ2)).
-  now f_equal.
+  induction Δ1; cbn; eauto; destruct b as [[] _]; fold (append Δ1 (x ↦ (ℓ, ◻) ◘ Δ2));
+  fold (append Δ1 (x ↦ (ℓ, ☣) ◘ Δ2)); now f_equal.
 Qed.
 
 Lemma store_agree_split T__TMS Δ1 x ℓ ρ Δ2 δ :
@@ -3128,40 +3132,40 @@ Lemma ctx_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (a : event)
   /\ (δ' = δ_of_Δ (let '(_,_,_,_,_,Δ) := Ω' in Δ))
 .
 Proof.
-  (* FIXME: proof broken *)
-  (*
   intros Aa Ab Ac Ad.
   inv Ab.
-  - exists None. exists (δ_of_Δ Δ). exists T__TMS. repeat split; eauto; try easy. cbn. constructor. inv Ac. inv H3; easy. constructor. now inv Ac.
-  - exists None. exists (δ_of_Δ Δ). exists T__TMS. repeat split; eauto; try easy. cbn. constructor. inv Ac. inv H4; easy. constructor. now inv Ac.
-  - eapply rt_check_recompose in Aa as [τ' [Aa0 Aa1]].
-    destruct Ω as [[[[]]]]; rename s0 into Δ.
+  - eapply rt_check_recompose in Aa as [τ' [Aa0 Aa1]]. destruct Ω as [[[[[]]]]]. rename s0 into Δ.
     eapply base_tms_via_monitor in H7; eauto.
     deex. destruct H7 as [H7a [H7b [H7c [H7d H7e]]]].
-    destruct Ω' as [[[[]]]]; rename s1 into Δ'.
+    destruct Ω' as [[[[[]]]]]; rename s1 into Δ'.
     do 3 eexists; repeat split; subst; eauto.
     now inv H7d.
-  *)
-Admitted.
+  - exists None. exists (δ_of_Δ Δ). exists T__TMS. repeat split; eauto; try easy. cbn. constructor. inv Ac. inv H4; easy. constructor. now inv Ac.
+  - inv H6; exists None; exists (δ_of_Δ Δ); exists T__TMS; repeat split; eauto; try easy; cbn; try constructor.
+    inv Ac. inv H5; easy. now inv Ac. inv Ac. inv H5; easy. now inv Ac.
+  - inv H4; exists None; exists (δ_of_Δ Δ); exists T__TMS; repeat split; eauto; try easy; cbn; try constructor.
+    inv Ac. inv H3; easy. now inv Ac. inv Ac. inv H3; easy. now inv Ac.
+  - exists None. exists (δ_of_Δ Δ). exists T__TMS. repeat split; eauto; try easy. cbn. constructor. inv Ac. inv H3; easy. constructor. now inv Ac.
+Qed.
 
 Lemma ctx_tms_via_monitor_ignore (Ω Ω' : state) (e e' : expr) (τ : Ty)
                                  (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
   rt_check Ω e τ ->
   (Ω ▷ e ==[]==> Ω' ▷ e') ->
   state_agree δ T__TMS Ω ->
-  δ = δ_of_Δ (let '(_,_,_,_,Δ) := Ω in Δ) ->
+  δ = δ_of_Δ (let '(_,_,_,_,_,Δ) := Ω in Δ) ->
   exists (δ' : deltamap) (T__TMS' : TMMon.TMSMonitor),
      MSubset δ δ'
   /\ (TMMon.step T__TMS None T__TMS')
   /\ state_agree δ' T__TMS' Ω'
-  /\ (δ' = δ_of_Δ (let '(_,_,_,_,Δ) := Ω' in Δ))
+  /\ (δ' = δ_of_Δ (let '(_,_,_,_,_,Δ) := Ω' in Δ))
 .
 Proof.
   intros Aa Ab Ac Ad; destruct Ω as [[[[[]]]]]; rename s0 into Δ.
   exists (δ_of_Δ Δ). exists T__TMS. repeat split; subst; eauto; try easy. constructor.
   all: inv Ab; try inv H7; try easy.
-  (*TODO: continue this*)
-Admitted.
+  all: inv Ac; now constructor.
+Qed.
 
 Lemma steps_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : Ty) (As : tracepref)
                           (T__TMS : TMMon.TMSMonitor) (δ : deltamap) :
@@ -3205,8 +3209,6 @@ Proof.
   - (* unimp *)
     destruct r2 as [[Ω2|] e2]; cbn in H0; try contradiction; clear H0.
     eapply estep_preservation in Aa as Aa'; eauto.
-    (*FIXME: proof is broken starting here *)
-    (*
     eapply ctx_tms_via_monitor_ignore in Aa as Aa''; eauto; deex; destruct Aa'' as [Ha [Hb [Hc Hd]]].
     specialize (IHAb Ω2 Ω' e2 e' Aa' JMeq_refl JMeq_refl δ' T__TMS' Hc Hd).
     destruct Ω as [[[[[]]]]]; rename s0 into Δ; destruct Ω2 as [[[[[]]]]]; rename s1 into Δ2.
@@ -3216,26 +3218,58 @@ Proof.
     + etransitivity; eauto.
     + econstructor; eauto; econstructor; eapply mget_subset; eauto.
     + now inv IHAb4.
-   *)
+Qed.
+
+Lemma toplevel_check_weakening Ξ Γ foo τ0 τ1 bar τ0' τ1' x e__bar :
+  interfaces (bar ↦ (x, Tectx(Tarrow τ0' τ1'), e__bar) ◘ Ξ) = Some Γ ->
+  mget Γ foo = Some(Tectx(Tarrow τ0 τ1)) ->
+  NoOwnedPtr Γ ->
+  foo <> bar ->
+  check (bar ↦ (Tectx(Tarrow τ0' τ1')) ◘ Γ) (Fvar foo) (Tarrow τ0 τ1) ->
+  check Γ (Fvar foo) (Tarrow τ0 τ1)
+.
+Proof.
 Admitted.
 
-Theorem s_is_tms (Ξ : @Util.symbols vart symbol varteq__Instance symbol__Instance) As Ω f :
-  wstep (Cprog Ξ) As (Ω ▷ (Xres f)) ->
+Theorem s_is_tms (Ξ : symbols) (ξ : commlib) As Ω f :
+  wstep (Cprog Ξ ξ) As (Ω ▷ (Xres f)) ->
   TMS As.
 Proof.
-  intros Ha; inv Ha; unfold prog_check in H0.
+  intros Ha; inv Ha; unfold prog_check in H1.
   destruct (option_dec (interfaces Ξ)) as [Hx|Hx]; try (rewrite Hx in H0; contradiction).
-  apply not_eq_None_Some in Hx as [x__x Hx]; rewrite Hx in H0.
+  apply not_eq_None_Some in Hx as [x__x Hx]; rewrite Hx in H1.
   remember (Fresh.empty_fresh ; Ξ ; nil ; nil ; hNil ; sNil) as Ω__init; pose ((mapNil _ _) : deltamap) as δ__init.
   assert (state_agree (mapNil _ _) TMMon.emptytmsmon Ω__init) by (subst; repeat constructor).
   assert (δ__init= δ_of_Δ (let '(_,_,_,_,_,Δ) := Ω__init in Δ)) by (subst; cbn; easy).
-  subst. eapply steps_tms_via_monitor in H1; eauto.
-  deex; destruct H1 as [F__a [F__b [F__c [F__d F__e]]]].
+  subst. eapply steps_tms_via_monitor in H4; eauto.
+  deex; destruct H4 as [F__a [F__b [F__c [F__d F__e]]]].
   intros MAs H__As. exists δ'. exists Bs. split; subst. exact F__b.
-  unfold TMMon.TMS. exists T__TMS'; easy.
+  unfold TMMon.TMS. exists T__TMS'; try eexact F__c.
   econstructor. repeat constructor. exact Hx.
   econstructor. instantiate (1:=Tℕ); constructor.
   instantiate (1:=Tℕ); constructor.
-  admit.
+  shelve.
   constructor.
+  option_boilerplate (mget x__x "main"%string); rewrite Hx0 in H1; try easy.
+  destruct x; try easy; destruct e; try easy; destruct t, t0; try easy.
+  crush_noownedptrf x__x. now apply noownedptr_equiv_noownedptrf.
+  now rewrite Hx2 in H1. constructor; now inv H.
+  now rewrite Hx in H1.
+  Unshelve.
+  option_boilerplate (mget x__x "main"%string); rewrite Hx0 in H1; try easy.
+  destruct x; try easy; destruct e; try easy; destruct t, t0; try easy.
+  crush_noownedptrf x__x; try now rewrite Hx2 in H1.
+  clear H H4 H0 Hx1 δ__init; revert x__x H1 Hx Hx0 Hx2; induction Ξ; intros.
+  - inv Hx; inv Hx0.
+  - destruct b; destruct p. destruct t; try inv H1. destruct e0. destruct H1 as [H1__a [H1__b [H1__c H1__d]]].
+    destruct (eq_dec a "main"%string).
+    + subst. cbn in Hx.
+      option_boilerplate (interfaces Ξ); rewrite Hx1 in Hx; try easy.
+      inv Hx. change (check (mapNil _ _ ◘ "main"%string ↦ Tectx(Tarrow t t0) ◘ x0) (Fvar "main"%string) (Tectx(Tarrow Tℕ Tℕ))).
+      cbn in Hx0; inv Hx0. eapply CTvar.
+      admit.
+      easy. easy. apply noownedptr_equiv_noownedptrf in Hx2.
+      change (NoOwnedPtr ("main"%string ↦ Tectx(Tarrow Tℕ Tℕ) ◘ mapNil _ _ ◘ x0)) in Hx2.
+      now apply noownedptr_split in Hx2 as [Hx2__a Hx2__b].
+    + (*indu is bonkers*) admit.
 Admitted.

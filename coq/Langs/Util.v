@@ -547,14 +547,6 @@ Class RuntimeExprClass (Expr : Type) := {}.
 Class EvalCtxClass (Ectx : Type) := {}.
 Class TraceEvent (Ev : Type) := {}.
 Class TyClass (T : Type) := {}.
-Class SymbolClass (Symb : Type) := {}.
-
-(** Definition of the symbol table. *)
-Definition symbols {V E} `{H: HasEquality V} `{SymbolClass E} := mapind H E.
-Definition nosymb {V E} `{H: HasEquality V} `{SymbolClass E} : symbols := mapNil H E.
-
-Class ProgClass {V E} (Prog : Type) `{Hv: HasEquality V}
-                      `{He: SymbolClass E} := Cprog__Class : symbols -> Prog.
 
 Definition Gamma {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} := mapind H TheTy.
 Definition Gnil {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} : Gamma := mapNil H TheTy.
@@ -753,14 +745,6 @@ Module Mod (X : MOD).
   Hint Constructors star_step : core.
   Notation "e0 '==[]==>*' e1" := (star_step e0 (Tnil) e1) (at level 82, e1 at next level).
 End Mod.
-
-(*
-Class ProgStep (A B C : Type) (Ev : Type) (Prog : Type)
-               `{HasEquality C} `{SymbolClass A} `{RuntimeExprClass B} `{TraceEvent Ev} `{ProgClass C A Prog}
-  := wstep__Class : Prog -> C -> tracepref -> B -> Prop.
-#[global]
-Notation "'PROG[' symbs '][' start ']====[' As ']===>' r" := (wstep__Class (Cprog__Class symbs) start As r) (at level 81, r at next level).
- *)
 
 Module NoDupList.
 

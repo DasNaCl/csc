@@ -499,8 +499,6 @@ Definition active_ectx := list evalctx.
 
 (** Symbols look like `fn foo x : τ := e` *)
 Definition symbol : Type := vart * expr.
-#[local]
-Instance symbol__Instance : SymbolClass symbol := {}.
 Definition symbols := mapind varteq__Instance symbol.
 
 #[local]
@@ -531,8 +529,6 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
 
 (** A program is just a collection of symbols. The symbol `main` is the associated entry-point. *)
 Inductive prog : Type := Cprog : symbols -> prog.
-#[local]
-Instance prog__Instance : ProgClass prog := Cprog.
 
 Definition string_of_prog (p : prog) :=
   let '(Cprog s) := p in
@@ -1997,7 +1993,7 @@ Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
     let* r1 := collect_callsites ξ e1 in
     let* r2 := collect_callsites ξ e2 in
     Some(r1 ◘ r2)
-  | _ => Some(nosymb)
+  | _ => Some(mapNil _ _)
   end
 .
 (** Compute the total amount of fuel necessary to run a complete program. Each context corresponding to a call

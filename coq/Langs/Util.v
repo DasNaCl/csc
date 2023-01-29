@@ -723,12 +723,12 @@ Module Mod (X : MOD).
     forall n, a <> b -> wherein a (Tcons b As) n -> n > 0.
   Proof.
     intros n H1 H2; inv H2; try easy; try apply Gt.gt_Sn_O.
-  Qed. 
+  Qed.
 
   Lemma wherein_predecessor (a b: Ev) (As : tracepref) : 
     forall n, a <> b -> wherein a (Tcons b As) n -> wherein a As (pred n).
   Proof.
-    intros n H1 H2; inversion H2; subst; try contradiction.
+    intros n H1 H2; inv H2; try contradiction.
     rewrite PeanoNat.Nat.pred_succ; assumption.
   Qed.
 

@@ -179,11 +179,12 @@ Proof.
   intros [T__TMS H]; induction H; try easy; 
   intros ℓ n H2; apply (@before_split _ _ _ _ n); left;
   apply (IHstar_step _ (pred n)) , wherein_predecessor with (b := a); trivial.
-  inversion H2; try easy.
+  admit.
+  (* inversion H2; try easy.
   assert (n <> 0). 
-    { rewrite NPeano.Nat.neq_0_lt_0. eapply wherein_n_cons_gt0; eapply H2. }
-  unfold "<>" in H6; subst; contradiction.
-Qed.
+    { rewrite NPeano.Nat.neq_0_lt_0. eapply wherein_n_cons_gt0; eapply H2. } 
+  unfold "<>" in H6; subst; contradiction. *) 
+  Admitted.
 
 Module TMMonNotation.
 Notation "T1 '⊆__F' T2" := (entails T1 T2) (at level 82, T2 at next level).

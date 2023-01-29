@@ -713,12 +713,28 @@ Module Mod (X : MOD).
   Proof. unfold before; intros H; deex; destruct H as [H0 [H1 H2]]; inv H0. Qed.
 
   Lemma before_split a As a0 a1 n :
-    before a0 a1 As \/ (a0 = a /\ wherein a1 As n) ->
+    (a0 <> a /\ a <> a1 /\ before a0 a1 As) \/ (a0 = a /\ a1 <> a /\ wherein a1 As n) ->
     before a0 a1 (Tcons a As)
   .
   Proof.
-  Admitted.
+    intros H.
+    destruct H as [H | [H1 [H2 H3]]].
+    - destruct H as [H1 H2 H3]; destruct H2 as [H3 H4] , H4 as [x H4] , H4 as [x' H4] , H4 as [H4 [H5 H6]].
+      exists (S x) , (S x'); repeat split; try (apply whereinS; assumption).
+      + apply whereinS; unfold "<>"; intros. apply H3; symmetry; assumption. apply H5.
+      + rewrite <- PeanoNat.Nat.succ_lt_mono; assumption.
+    - subst; exists 0 , (S n); repeat split.
+      + apply whereinZ.
+      + apply whereinS; assumption.
+      + apply PeanoNat.Nat.lt_0_succ.
+  Qed.
 
+  Lemma wherein_nil (a : Ev) :
+    forall n, wherein a Tnil n -> False.
+  Proof.
+    intros n H; inv H.
+  Qed. 
+  
   Lemma wherein_n_cons_gt0 (a b : Ev) (As : tracepref):  
     forall n, a <> b -> wherein a (Tcons b As) n -> n > 0.
   Proof.

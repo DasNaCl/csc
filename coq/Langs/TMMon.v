@@ -93,6 +93,7 @@ Proof.
   destruct T1; cbn.
   induction A0, F0; try unfold append; cbn; easy.
 Qed.
+
 Lemma fold_append_F (T1 T2 : TMSMonitor) :
   (append T1 T2).(F) = List.app T1.(F) T2.(F).
 Proof.
@@ -110,14 +111,23 @@ Qed.
 Lemma loc_inside_split (T1 T2 : TMSMonitor) (ℓ : loc) :
   ℓ ∈ append T1 (append ({ℓ} ∪ TMMon.emptytmsmon) T2)
 .
-Proof. Admitted.
+Proof.
+  rewrite fold_append; unfold contains; cbn; split; 
+  try (rewrite List.in_app_iff; right; cbn; left; auto).
+  (* stuck because we need information that loc wasn't already in freed for T1 and T2 *)
+Admitted.
+
 #[global]
 Hint Resolve loc_inside_split : core.
 
 Lemma remove_loc_from_union (T1 T2 : TMSMonitor) (ℓ : loc) :
   append T1 T2 = (append T1 (append ({ℓ} ∪ emptytmsmon) T2) ∖ {ℓ})
 .
-Proof. Admitted.
+Proof.
+  repeat rewrite fold_append; cbn.
+  unfold without; cbn.
+  (* can this really be true ? *)
+Admitted.
 
 (** Step Relations *)
 Inductive step : TMSMonitor -> option event -> TMSMonitor -> Prop :=
@@ -166,11 +176,14 @@ Definition simptmssafe (As : tracepref) :=
 Theorem TMS_refines_tmssafe As :
   TMS As -> simptmssafe As.
 Proof.
-  intros [T__TMS H]; induction H; try easy.
-  intros ℓ n H2.
-  destruct a as [[ℓ0] | [ℓ0] | [ℓ0] | ].
-  - inv H2. exists 0.
-Admitted.
+  intros [T__TMS H]; induction H; try easy; 
+  intros ℓ n H2; apply (@before_split _ _ _ _ n); left;
+  apply (IHstar_step _ (pred n)) , wherein_predecessor with (b := a); trivial.
+  inversion H2; try easy.
+  assert (n <> 0). 
+    { rewrite NPeano.Nat.neq_0_lt_0. eapply wherein_n_cons_gt0; eapply H2. }
+  unfold "<>" in H6; subst; contradiction.
+Qed.
 
 Module TMMonNotation.
 Notation "T1 '⊆__F' T2" := (entails T1 T2) (at level 82, T2 at next level).

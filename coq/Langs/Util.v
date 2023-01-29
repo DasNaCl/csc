@@ -719,6 +719,19 @@ Module Mod (X : MOD).
   Proof.
   Admitted.
 
+  Lemma wherein_n_cons_gt0 (a b : Ev) (As : tracepref):  
+    forall n, a <> b -> wherein a (Tcons b As) n -> n > 0.
+  Proof.
+    intros n H1 H2; inv H2; try easy; try apply Gt.gt_Sn_O.
+  Qed. 
+
+  Lemma wherein_predecessor (a b: Ev) (As : tracepref) : 
+    forall n, a <> b -> wherein a (Tcons b As) n -> wherein a As (pred n).
+  Proof.
+    intros n H1 H2; inversion H2; subst; try contradiction.
+    rewrite PeanoNat.Nat.pred_succ; assumption.
+  Qed.
+
   Definition once (a : Ev) (As : tracepref) :=
     forall n m, wherein a As n -> wherein a As m -> n = m
   .

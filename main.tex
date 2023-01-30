@@ -544,7 +544,7 @@ Now, we want to formalize this idea of ``being able to swap things around'' for 
       \node (mmlAs) {$\mmlAs$};
       \node[right=1 of mmlAs] (mmlAt) {$\mmlAt$};
       \node[right=1 of mmlAt] (mmlAtmemsafe) {$\mmlAt$};
-      \node[below=1 of mmlAtmemsafe] (asm) {$\nospecASM$};
+      \node[below=1 of mmlAtmemsafe] (asm) {$\ctASM$};%{$\nospecASM$};
 
       \path[->,very thick] (mmlAs) edge[sloped,above] node {TMS} (mmlAt);
       \path[->,dotted,very thick] (mmlAt) edge[sloped,above] node {SMS} (mmlAtmemsafe);
@@ -601,19 +601,20 @@ Now, we want to formalize this idea of ``being able to swap things around'' for 
   \mi{Variables}~\ &\src{x} \mid \src{y} \mid \src{foo} \mid \dots \hspace{0.5cm}
   %
   \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
+  \mi{Sandbox\ Tag}~&\ \src{\sandboxtag}~\bnfdef\ \src{\ctx} \mid \src{\comp}\\
   %
   \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\type}\hspace{0.5cm}
-  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc_\poison},\Deltas\\
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto\loc^{\sandboxtag}_\poison},\Deltas\\
   %
   \mi{Communication}~\src{\comm} \bnfdef&\ \src{\ctxtocomp} \mid \src{\comptoctx} \mid \src{\nocomm} \hspace{0.5cm}
   \mi{Heaps}~\src{H} \bnfdef\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \\
   %
-  \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid \src{K}^{\src{foo}}_{\src{\comm}},\src{\kontstack} \hspace{0.5cm}
+  \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid \src{K}^{\src{foo}},\src{\kontstack} \hspace{0.5cm}
   \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{\asymbol},\src{\library} \\
   \mi{Relevant}\ \src{\commlib} \bnfdef& \src{\hole{\cdot}} \mid \src{foo},\src{\commlib}\hspace{0.5cm}
   \mi{State}~\configs\ \bnfdef\ \src{\cfstate;\memstate}\\
-  \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\kontstack}\hspace{0.5cm}
-  \mi{Memory\ State}~\src{\memstate}\bnfdef\ \src{H;\Delta} \\
+  \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\sandboxtag;\kontstack}\hspace{0.5cm}
+  \mi{Memory\ State}~\src{\memstate}\bnfdef\ \src{H^{\ctx};H^{\comp};\Delta} \\
   %
   \mi{Programs}\ &\src{prog\ \library_{ctx}\ \library_{comp}} \\
   \end{aligned}
@@ -624,6 +625,12 @@ Most of the syntax is more or less standard.
 Qualifiers $\src{q}$ can be attached to pointers to signal ownership.
 Hereby, the qualifier $\src{\full}$ means "fully owned", meaning we may and also must delete the pointer at some point, while we cannot do the same for $\src{\half}$, which forbids us to delete.
 Poison $\src{\poison}$ marks locations in the execution-context $\src{\Omega}$ as ,,to-be-deleted'' ($\src{\poisonless}$) or ,,deleted'' ($\src{\poisoned}$).
+$\src{\commlib}$ contains a list of identifiers referencing what functions are considered a component.
+Anything not present in $\src{\commlib}$ is considered to be a context.
+We describe the act of calling or returning from component to context or vice versa as ,,crossing the boundary''.
+The heap is split into two parts, such that any component listed in $\src{\commlib}$ will allocate in $\src{H^{\comp}}$ and anything else in $\src{H^{\ctx}}$.
+Objects pointed at by a location $\src{\loc}$ are marshalled when they are passed across the boundary.
+Without the heap sandboxing, contexts can arbitrarily rewrite a component's memory, which incurs compiler correctness issues.
 We chose to distinguish between successful final results ($\src{\finalexprnoerr}$) and potentially crashed results ($\src{\finalexpr}$).
 Note that a final result may also be an identifier, which we keep around as abstract representation for locations of pointers.
 However, we still distinct them from ordinary values ($\src{\valueexpr}$), since they don't behave like normal values.
@@ -632,7 +639,7 @@ When discussing secure compilation, there is a notion of ,,context'' and ,,compo
 We use the term ,,context-switching'' with its usual meaning, i.e. change in control flow to some other procedure.
 For $\src{\comm}$, the representation $\src{\ctxtocomp}$ signalizes a context switch from context to component, $\src{\comptoctx}$ from component to context, and $\src{\nocomm}$ signals an internal change, either inside the context or inside the component.
 The state $\configs$ carries information on what the current context is and the continuation stack $\src{\kontstack}$ is used in the semantics to mark events with above policy accordingly.
-Continuations $\src{K}$ in the stack are annotated with the symbol of communication $\src{\comm}$ that was used when the continuation was being pushed on the stack and with the name of the function $\src{foo}$ the continuation originates from.
+Continuations $\src{K}$ in the stack are annotated with the name of the function $\src{foo}$ the continuation originates from.
 Programs $\src{prog\ \library_{ctx}\ \library_{comp}}$ contain two lists of top-level definitions $\src{\library_{ctx}}$ and $\src{\library_{comp}}$.
 $\src{\library_{ctx}}$ takes the role as attacker code.
 
@@ -969,7 +976,7 @@ This is inspired by linear logic.
       \typechecks{\library}{\Delta}{\Gamma}&
       \typechecks{\Gamma}{e}{\type}
     }{
-      \typechecks{}{\commlib;\library;\kontstack;H;\Delta\triangleright e}{\type}
+      \typechecks{}{\commlib;\library;\kontstack;\sandboxtag;H^\ctx;H^\comp;\Delta\triangleright e}{\type}
     }{w-t-prog}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
@@ -988,13 +995,13 @@ Perhaps most interesting is \Cref{tr:w-t-prog} which generates a suitable typing
     \typerule{$T\ptr$}{
     \typechecks{\library}{\Delta}{\Gamma}
     }{
-    \typechecks{\library}{x\mapsto\loc_\poisonless,\Delta}{x:\ptr,\Gamma}
+    \typechecks{\library}{x\mapsto\loc^{\sandboxtag}_\poisonless,\Delta}{x:\ptr,\Gamma}
     }{t-ptr-store}
     %
     \typerule{$T\ptr\text{poison}$}{
     \typechecks{\library}{\Delta}{\Gamma}
     }{
-    \typechecks{\library}{x\mapsto\loc_\poisoned,\Delta}{\Gamma}
+    \typechecks{\library}{x\mapsto\loc^{\sandboxtag}_\poisoned,\Delta}{\Gamma}
     }{t-poison-store}
   \end{center}
 }{store-ty}{$\mmlAs$ store typing.}
@@ -1022,26 +1029,32 @@ They do not have any other relevance.
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}\oplus\src{n_2}=\src{n_3}
   }{
-    \exprevals{\configs}{n_1\oplus n_2}{\configs}{n_3}{\emptyevent}
+    \exprevals{\configs}{n_1 \oplus n_2}{\configs}{n_3}{\emptyevent}
   }{w-e-oplus}
   %
   \typerule{$e-\src{get}-\in$}{
-    \src{\loc}+\src{n}\in\text{dom }\src{H}
+    \src{\loc}+\src{n}\in\text{dom }\src{H^{\sandboxtag}}
   }{
-    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
+    \exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag}_\poison,\Delta_2}{x[n]}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag}_\poison,\Delta_2}{H^{\sandboxtag}(\loc+n)}{Get\ \loc^{\sandboxtag}\ n}
   }{w-e-get-in}
   %
   \typerule{$e-\src{get}-\notin$}{
-    \src{\loc}\notin\text{dom }\src{H}
+    \src{\loc}\notin\text{dom }\src{H^{\sandboxtag}}
   }{
-    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
+    \exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag}_\poison,\Delta_2}{x[n]}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag}_\poison,\Delta_2}{1729}{Get\ \loc^{\sandboxtag}\ n}
   }{w-e-get-notin}
   %
-  \typerule{$e-\src{set}$}{
-    \src{H'} = \src{H}(\src{\loc+n}\mapsto \src{v})
+  \typerule{$e-\src{set}-\ctx$}{
+    \src{H^{\ctx'}} = \src{H^{\ctx}}(\src{\loc+n}\mapsto \src{v})
   }{
-    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow v}{\cfstate;H';\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n\ v}
-  }{w-e-set}
+    \exprevals{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\ctx}_\poison,\Delta_2}{x[n]\leftarrow v}{\cfstate;\sandboxtag;H^{\ctx'};H^{\comp};\Delta_1,x\mapsto\loc^{\ctx}_\poison,\Delta_2}{v}{Set\ \loc^{\ctx}\ n\ v}
+  }{w-e-set-ctx}
+  %
+  \typerule{$e-\src{set}-\comp$}{
+    \src{H^{\comp'}} = \src{H^{\comp}}(\src{\loc+n}\mapsto \src{v})
+  }{
+    \exprevals{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\comp}_\poison,\Delta_2}{x[n]\leftarrow v}{\cfstate;\sandboxtag;H^{\ctx};H^{\comp'};\Delta_1,x\mapsto\loc^{\comp}_\poison,\Delta_2}{v}{Set\ \loc^{\comp}\ n\ v}
+  }{w-e-set-comp}
   %
   \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
   }{
@@ -1050,16 +1063,24 @@ They do not have any other relevance.
   %
   \typerule{$e-\src{delete}$}{
   }{
-    \exprevals{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{\cfstate;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}
+    \exprevals{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag'}_\poison,\Delta_2}{delete\ x}{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag'}_\poisoned,\Delta_2}{0}{Dealloc\ \loc^{\sandboxtag'}}
   }{w-e-delete}
   %
-  \typerule{$e-\src{new}$}{
+  \typerule{$e-\src{new}-ctx$}{
     \fresh{\src{\Delta}}{\src{\loc}} &
     \fresh{\src{\Delta}}{\src{z}} &
-    \src{H'} = \src{H} \ll \src{n} &
+    \src{H^{\ctx'}} = \src{H^{\ctx}} \ll \src{n} &
   }{
-  \exprevals{\cfstate;H;\Delta}{let\ x=new\ n\ in\ e}{\cfstate;H';z\mapsto \loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}
-  }{w-e-let-new}
+  \exprevals{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;H^{\ctx'};H^{\comp};z\mapsto \loc^{\ctx}_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc^{\ctx}\ n}
+  }{w-e-let-new-ctx}
+  %
+  \typerule{$e-\src{new}-comp$}{
+    \fresh{\src{\Delta}}{\src{\loc}} &
+    \fresh{\src{\Delta}}{\src{z}} &
+    \src{H^{\comp'}} = \src{H^{\comp}} \ll \src{n} &
+  }{
+  \exprevals{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;H^{\ctx};H^{\comp'};z\mapsto \loc^{\comp}_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc^{\comp}\ n}
+  }{w-e-let-new-comp}
   %
   \typerule{$e-\src{ifz}-$true}{
   }{

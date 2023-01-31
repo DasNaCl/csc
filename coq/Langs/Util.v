@@ -719,12 +719,6 @@ Module Mod (X : MOD).
       apply wherein_nil in H; contradiction
     end.
 
-  Lemma wherein_predecessor (a b: Ev) (As : tracepref) : 
-    forall n, a <> b -> wherein a (b :: As) n -> wherein a As (pred n).
-  Proof.
-    induction n; try easy.
-  Qed. 
-
   Lemma whereinE (a : Ev) (As : tracepref) :
     forall n, wherein a As n <-> List.nth_error As n = Some a.
   Proof.
@@ -735,39 +729,54 @@ Module Mod (X : MOD).
       now inv H.
   Qed. 
 
-  Lemma in_cons_variant (A : Type) (a b : A) (l : list A) : In b (a :: l) -> a = b \/ In b l.
+  Lemma wherein_predecessor (a b: Ev) (As : tracepref) : 
+    forall n, a <> b -> wherein a (b :: As) n -> wherein a As (pred n).
   Proof.
-    intros H; induction H.
-    - left; assumption.
-    - right; assumption.
+    induction n; easy.
+  Qed.
+
+  Lemma wherein_eq (a : Ev) (As : tracepref) :
+  forall n m, wherein a As n -> wherein a As m -> n = m.
+  Proof.
+    intros n m H1 H2.
+    assert (H3 : NoDup As).
+      { apply tracepref_unique. }
+    apply NoDup_nth_error with (i := n) (j := m) in H3; try easy.
+    - apply nth_error_Some; unfold "<>"; intros H4; apply whereinE in H1; rewrite H4 in H1; easy.
+    - apply whereinE in H1,H2; rewrite H1,H2; easy.
+  Qed.   
+
+  Lemma in_cons_variant (A : Type) (a b : A) (l : list A) : In b (a :: l) <-> a = b \/ In b l.
+  Proof.
+    split.
+    - intros H; induction H.
+      + left; assumption.
+      + right; assumption.
+    - intros H; destruct H.
+      + rewrite H; cbn; left; reflexivity.
+      + now apply in_cons with (a := a) in H.  
   Qed.    
+
+  Lemma wherein_nth As a : In a As -> exists n, wherein a As n.
+  Proof.
+    intros H.
+    apply In_nth_error in H; deex.
+    exists n; apply whereinE; easy.
+  Qed.
 
   Lemma wherein_implies_wherein_cons (a b : Ev) (As : tracepref) :
     forall n, wherein a As n -> wherein a (b :: As) (n + 1).
   Proof.
     intros n H.
+    apply whereinE in H; apply whereinE.
+    rewrite <- H; apply nth_error_In in H.
+    assert (In a (b :: As)).
+      { rewrite in_cons_variant; right; trivial. }
+    assert (NoDup (b :: As)).
+      { apply tracepref_unique. }
   Admitted. 
-
-  Lemma wherein_nth As a : In a As -> exists n, wherein a As n.
-  Proof.
-    induction As; try easy.
-    intros H. apply in_cons_variant in H; destruct H.
-    - exists 0; easy.
-    - destruct IHAs; try apply H; exists (x + 1);
-      apply wherein_implies_wherein_cons with (b := a0) in H0; assumption.
-  Qed.
     
-  Lemma wherein_eq (a : Ev) (As : tracepref) :
-    forall n m, wherein a As n -> wherein a As m -> n = m.
-  Proof.
-    intros n m H1 H2.
-    apply whereinE in H1,H2.
-    apply nth_error_split in H1, H2; deex.
-    destruct H1 as [H0 H1]; destruct H2 as [H2 H3]; inv H2.
-    remember (a :: l3) as l3'.
-    remember (a :: l2) as l2'.
-  Admitted. 
-      
+
   Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
     exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
   .
@@ -784,8 +793,15 @@ Module Mod (X : MOD).
     before a0 a1 (a :: As)
   .
   Proof.
-  Admitted.  
-
+    intros [H1 | [H1 H2]].
+    - unfold before in *; deex; destruct H1 as [H1 [H2 H3]];
+      exists (n0 + 1), (n1 + 1); repeat split; try apply wherein_implies_wherein_cons; try apply Plus.plus_lt_compat_r; trivial.
+    - exists 0, (n + 1); repeat split. 
+      + apply whereinE; simpl; subst; easy.
+      + apply wherein_implies_wherein_cons; trivial.
+      + apply PeanoNat.Nat.add_pos_r , NPeano.Nat.lt_0_1.
+  Qed. 
+  
   (* Use this to define a coercion *)
   Definition ev_to_tracepref (e : Ev) : tracepref := e :: nil.
 

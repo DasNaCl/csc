@@ -183,10 +183,11 @@ Qed.
 Theorem TMS_refines_tmssafe As :
   TMS As -> simptmssafe As.
 Proof.
-  intros [T__TMS H]; induction H; try apply simptmssafe_nil; try easy.
-  intros ℓ n H2. 
-  apply (@before_split _ _ _ _ (S n)); left. 
-  apply (IHstar_step _ (pred n)) , wherein_predecessor with (b := a); trivial.
+  intros [T__TMS H]; induction H; try easy; try apply simptmssafe_nil; intros ℓ n H2.
+  unfold before.
+
+  (* - eapply before_split; left;  *)
+    (* apply (IHstar_step _ (pred n)) , wherein_predecessor with (b := a); easy. *)
 Admitted.
 
 Module TMMonNotation.

@@ -172,14 +172,21 @@ Definition TMS (As : tracepref) :=
 Definition simptmssafe (As : tracepref) :=
   forall ℓ n, wherein (Salloc ℓ) As n -> before (Salloc ℓ) (Sdealloc ℓ) As
 .
+
+Lemma simptmssafe_nil : simptmssafe nil.
+Proof.
+  unfold simptmssafe; intros.
+  apply wherein_nil in H; contradiction.
+Qed.
+
 (* Show the above are equally strong...? *)
 Theorem TMS_refines_tmssafe As :
   TMS As -> simptmssafe As.
 Proof.
-  intros [T__TMS H]; induction H; try easy; 
+  intros [T__TMS H]; induction H; try apply simptmssafe_nil; try easy.
   intros ℓ n H2. 
-  apply (@before_split _ _ _ _ (S n)); left; 
-  apply (IHstar_step _ (pred n)), wherein_predecessor with (b := a); trivial.
+  apply (@before_split _ _ _ _ (S n)); left. 
+  apply (IHstar_step _ (pred n)) , wherein_predecessor with (b := a); trivial.
 Admitted.
 
 Module TMMonNotation.

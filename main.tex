@@ -612,8 +612,8 @@ Now, we want to formalize this idea of ``being able to swap things around'' for 
   \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid \src{K}^{\src{foo}},\src{\kontstack} \hspace{0.5cm}
   \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{\asymbol},\src{\library} \\
   \mi{Relevant}\ \src{\commlib} \bnfdef& \src{\hole{\cdot}} \mid \src{foo},\src{\commlib}\hspace{0.5cm}
-  \mi{State}~\configs\ \bnfdef\ \src{\cfstate;\memstate}\\
-  \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\sandboxtag;\kontstack}\hspace{0.5cm}
+  \mi{State}~\configs\ \bnfdef\ \src{\cfstate;\sandboxtag;\memstate}\\
+  \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\kontstack}\hspace{0.5cm}
   \mi{Memory\ State}~\src{\memstate}\bnfdef\ \src{H^{\ctx};H^{\comp};\Delta} \\
   %
   \mi{Programs}\ &\src{prog\ \library_{ctx}\ \library_{comp}} \\
@@ -1121,117 +1121,75 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     }{w-e-ectx-stuck}
     %
     \typerule{$e-\text{ctx}-\src{call}-$main}{
-      \src{\Omega}=\src{\commlib;\library;\hole{\cdot};\memstate} &
-      \src{\library}=\src{\library_1,}(\src{let\ main\ x:\type}_\lambda\src{:=e})\src{,\library_2} &
-      \src{\Omega'}=\src{\commlib;\library;K^{main}_{\comm},\hole{\cdot};\memstate} \\
+      \src{\Omega}=\src{\commlib;\library;\hole{\cdot};\comp;\memstate} &
+      \src{\library}=\src{\library_1,}(\src{let\ main\ x:\type}_\lambda\src{:=e})\src{,\library_2}\\
+      \src{\Omega'}=\src{\commlib;\library;\ctx;K^{main},\hole{\cdot};\memstate}
     }{
       \execs[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start}
     }{w-e-ectx-call-main}
     %
-    \typerule{$e-\text{ctx}-\src{call}-\src{\valueexpr}$}{
-      \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
+    \typerule{$e-\text{ctx}-\src{call}-\text{notsame}$}{
+      \src{\Omega}=\src{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
-      \src{\Omega'}=\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
+      %\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
+      \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
+      \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm} &
+      \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{\event}
-    }{w-e-ectx-call-value}
+      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \finalexprnoerr}
+    }{w-e-ectx-call-notsame}
     %
-    \typerule{$e-\text{ctx}-\src{call}-\src{\loc}$}{
-      \src{\Omega}=\src{\commlib;\library;\kontstack;\memstate} &
-      \src{\memstate}=\src{H;\Delta}&
-      \src{\Delta}=\src{\Delta_1},\src{y\mapsto\loc_\poison},\src{\Delta_2}\\
+    \typerule{$e-\text{ctx}-\src{call}-\text{same}$}{
+      \src{\Omega}=\src{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{\loc}) = \src{\event},\src{\comm} &
-      \src{\Omega'}=\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
+      %\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
+      \src{foo}\in_{\src{\sandboxtag}}\src{\commlib} &
+      \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ x]}{\Omega'}{e[x/y]}{\event}
-    }{w-e-ectx-call-loc}
+      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \finalexprnoerr}
+    }{w-e-ectx-call-same}
     %
     \typerule{$e-\text{ctx}-\src{return}-$main}{
     }{
-      \exec[]{\src{\commlib;\library;K^{main}_{\ctxtocomp},\hole{\cdot};\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\hole{\cdot};\memstate}}{\src{K[\valueexpr]}}{\src{End\ \valueexpr}}
+      \exec[]{\src{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\hole{\cdot};\comp;\memstate}}{\src{\valueexpr}}{\src{End\ \valueexpr}}
     }{w-e-ectx-ret-main}
     %
-    \typerule{$e-\text{ctx}-\src{return}-\src{\valueexpr}$}{
+    \typerule{$e-\text{ctx}-\src{return}-\text{notsame}$}{
+      \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
+      \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\memstate}}{\src{K[\valueexpr]}}{\rho_{\tiny ret}\left(\src{\comm},\src{\valueexpr}\right)}
-    }{w-e-ectx-ret-value}
+      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \finalexprnoerr}}
+    }{w-e-ectx-ret-notsame}
     %
-    \typerule{$e-\text{ctx}-\src{return}-\src{\loc}$}{
-      \rho_{\tiny ret}\left(\src{\comm}\right)=\src{\comm_0} &
-      \src{\memstate}=\src{H;\Delta}&
-      \src{\Delta}=\src{\Delta_1},\src{x\mapsto\loc_\poison},\src{\Delta_2}
+    \typerule{$e-\text{ctx}-\src{return}-\text{same}$}{
+      \src{foo}\in_{\src{\sandboxtag}}\src{\commlib}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\src{K'[return\ x]}}{\src{\commlib;\library;\kontstack;\memstate}}{\src{K[x]}}{\rho_{\tiny ret}\left(\src{\comm},\src{\loc}\right)}
-    }{w-e-ectx-ret-loc}
+      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \finalexprnoerr}}
+    }{w-e-ectx-ret-same}
     %
-    \judgbox{\rho_{\tiny ret}(\src{\comm},\src{\interfacevalue})=\src{\event}}{,,Given the last comm. and we are returning, yield event.''}
+    \judgbox{\rho(\src{\sandboxtag})=\src{\comm}}{,,Returns either $\src{\ctxtocomp}$ or $\src{\comptoctx}$ depending on $\src{\sandboxtag}$.''}\\
     %
-    \typerule{comm-ret-ctxtocomp}{
+    \typerule{comm-ctxtocomp}{
     }{
-      \rho_{\tiny ret}(\src{\ctxtocomp},\src{\interfacevalue})=\src{Ret\ \ctxtocomp\ \interfacevalue}
-    }{w-comm-ret-ctxtocomp}
+      \rho(\src{\ctx})=\src{\ctxtocomp}
+    }{w-comm-ctxtocomp}
     %
-    \typerule{comm-ret-internal}{
+    \typerule{comm-comptoctx}{
     }{
-      \rho_{\tiny ret}(\src{\nocomm},\src{\interfacevalue})=\src{\varepsilon}
-    }{w-comm-ret-internal}
+      \rho(\src{\comp})=\src{\comptoctx}
+    }{w-comm-comptoctx}\\[0.33cm]
     %
-    \typerule{comm-ret-comptoctx}{
+    \judgbox{\src{\neg\sandboxtag}=\src{\sandboxtag'}}{,,Negation of $\src{\sandboxtag}$.''}\\
+    %
+    \typerule{neg-ctx}{
     }{
-      \rho_{\tiny ret}(\src{\comptoctx},\src{\interfacevalue})=\src{Ret\ \comptoctx\ \interfacevalue}
-    }{w-comm-ret-comptoctx}\\[0.33cm]
+      \src{\neg\ctx}=\src{\comp}
+    }{w-neg-ctx}
     %
-    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{\interfacevalue})=\src{\event},\src{\comm}}{,,Given the ctx. info, yield event. $\src{\commlib}$ contains all\\component names. $\src{foo}$ is the to-be-called function. $\src{\kontstack}$ is\\the stack of eval. ctx. and $\src{\interfacevalue}$ the passed interface-value.''}
-    %
-    \typerule{comm-call-empty-stack-comp}{
-      \src{foo}\in\src{\commlib}
+    \typerule{neg-comp}{
     }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}},\src{\interfacevalue})=\src{Call\ \ctxtocomp\ foo\ \interfacevalue},\src{\comptoctx}
-    }{w-comm-call-empty-stack-comp}
-    %
-    \typerule{comm-call-empty-stack-ctx}{
-      \src{foo}\notin\src{\commlib}
-    }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{\hole{\cdot}},\src{\interfacevalue})=\src{Call\ \comptoctx\ foo\ \interfacevalue},\src{\ctxtocomp}
-    }{w-comm-call-empty-stack-ctx}
-    %
-    \typerule{comm-call-nonempty-stack}{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar},\src{\interfacevalue})=\src{\event},\src{\comm}
-    }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{K^{bar},\kontstack},\src{\interfacevalue})=\src{\event},\src{\comm}
-    }{w-comm-call-nonempty-stack}
-    %
-    \judgbox{\rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{\event},\src{\comm}}{,,Given the current ctx. info, yield comm. $\src{\commlib}$ contains\\all component names. $\src{foo}$ is the to-be-called\\function. $\src{bar_{cur}}$ is the current function in which the\\call is performed. $\src{\interfacevalue}$ is the passed interface-value.''}
-    %
-    \typerule{comm-call-comptoctx}{
-      \src{foo}\notin\src{\commlib} &
-      \src{\commlib}=\src{\commlib_1},\src{bar_{cur}},\src{\commlib_2}
-    }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{Call\ \comptoctx\ foo\ \interfacevalue},\src{\ctxtocomp}
-    }{w-comm-call-comptoctx}
-    %
-    \typerule{comm-call-internal-both-irrelevant}{
-      \src{foo}\notin\src{\commlib} &
-      \src{bar_{cur}}\notin\src{\commlib}
-    }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{\emptyevent},\src{\nocomm}
-    }{w-comm-call-internal-both-irrelevant}
-    %
-    \typerule{comm-call-internal-both-relevant}{
-      \src{\commlib} = \src{\commlib_1},\src{foo},\src{\commlib_2} &
-      \src{\commlib} = \src{\commlib_3},\src{bar_{cur}},\src{\commlib_4}
-    }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{\emptyevent},\src{\nocomm}
-    }{w-comm-call-internal-both-relevant}
-    %
-    \typerule{comm-call-ctxtocomp}{
-      \src{\commlib}=\src{\commlib_1},\src{foo},\src{\commlib_2} &
-      \src{bar_{cur}}\notin\src{\commlib}
-    }{
-      \rho_{\tiny call}(\src{\commlib},\src{foo},\src{bar_{cur}},\src{\interfacevalue})=\src{Call\ \ctxtocomp\ foo\ \interfacevalue},\src{\comptoctx}
-    }{w-comm-call-ctxtocomp}
+      \src{\neg\comp}=\src{\ctx}
+    }{w-neg-ctx}
   \end{center}
 }{w-expr-ctx-eval}{Contextual Evaluation of $\mmlAs$ expressions.}
 \myfig{
@@ -1262,14 +1220,16 @@ When generating the static context from the execution context, \Cref{tr:t-poison
   \begin{center}
     \judgbox{\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$, giving dynamic state\\$\configs$ and emitting trace $\src{\trace}$.''}
     \typerule{$e-\text{wprog}$}{
-      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} \\
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
+      \src{main}\notin\src{\commlib}\\
       \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
     }{
       \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}
     }{ws-e-prog}
     %
     \typerule{$e-\text{wprog}-\lightning$}{
-      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} \\
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
+      \src{main}\notin\src{\commlib}\\
       \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning}
     }{
       \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace\cdot\lightning}

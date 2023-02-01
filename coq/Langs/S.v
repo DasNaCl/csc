@@ -2477,7 +2477,7 @@ Proof.
       rewrite Hx in H.
       rewrite (get_rid_of_letstar (a, (Ω', e'))) in H.
       destruct (option_dec ((
-fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
+fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (list event * rtexpr) :=
             let (oΩ, e) := r in
             let* _ := oΩ
             in match fuel with
@@ -2495,9 +2495,8 @@ fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
                end
                 ) fuel (Ω', e'))) as [Hx0|Hy0]; try rewrite Hy0 in H.
       2: inv H.
-      (* apply not_eq_None_Some in Hx0 as [[As0 r1'] Hx0]; 
-(* THIS LINE IS NOW BROKEN *)
-      rewrite Hx0 in H.  
+      apply not_eq_None_Some in Hx0 as [[As0 r1'] Hx0].
+      rewrite Hx0 in H.
       rewrite (get_rid_of_letstar (As0, r1')) in H.
       rewrite <- equiv_estep in Hx;
       destruct a as [a|]; inv H.
@@ -2510,8 +2509,7 @@ fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
         destruct Ω' as [Ω'|]; try now cbn.
         apply (fuel_step Hf) in Hx.
         eapply IHfuel; eauto. 
-Qed. *) 
-Admitted. 
+Qed.
 
 Lemma star_stepf_is_nodupinv_invariant Ω e Ω' e' a fuel :
   Some fuel = get_fuel e ->

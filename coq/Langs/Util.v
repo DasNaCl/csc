@@ -768,15 +768,14 @@ Module Mod (X : MOD).
     forall n, wherein a As n -> wherein a (b :: As) (n + 1).
   Proof.
     intros n H.
-    apply whereinE in H; apply whereinE.
-    rewrite <- H; apply nth_error_In in H.
-    assert (In a (b :: As)).
-      { rewrite in_cons_variant; right; trivial. }
-    assert (NoDup (b :: As)).
-      { apply tracepref_unique. }
-  Admitted. 
+    apply whereinE in H; apply whereinE; rewrite <- H.
+    destruct n.
+    - reflexivity.
+    - simpl; destruct As.
+      + rewrite PeanoNat.Nat.add_1_r; reflexivity. 
+      + rewrite PeanoNat.Nat.add_1_r; simpl; reflexivity.
+  Qed.
     
-
   Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
     exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
   .

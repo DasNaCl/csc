@@ -1802,7 +1802,7 @@ fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (tracepref * rtexpr) :=
       2: inv H.
       (*
       apply not_eq_None_Some in Hx0 as [[As0 r1'] Hx0]; 
-      (* THIS LINE IS BROKEN *)
+  (* THIS LINE IS NOW BROKEN *)
       rewrite Hx0 in H.
       rewrite (get_rid_of_letstar (As0, r1')) in H.
       rewrite <- equiv_estep in Hx;

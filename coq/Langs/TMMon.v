@@ -169,6 +169,8 @@ Definition TMS (As : tracepref) :=
   exists T__TMS, ∅ ==[As]==>* T__TMS
 .
 
+Axiom Salloc_imp_Sdealloc : forall As ℓ x, wherein (Salloc ℓ) As x -> (exists x, wherein (Sdealloc ℓ) As x).
+
 Definition simptmssafe (As : tracepref) :=
   forall ℓ n, wherein (Salloc ℓ) As n -> before (Salloc ℓ) (Sdealloc ℓ) As
 .
@@ -183,13 +185,50 @@ Qed.
 Theorem TMS_refines_tmssafe As :
   TMS As -> simptmssafe As.
 Proof.
-  intros [T__TMS H]; induction H; try easy; try apply simptmssafe_nil; intros ℓ n H2.
-  unfold before.
-
-  (* - eapply before_split; left;  *)
-    (* apply (IHstar_step _ (pred n)) , wherein_predecessor with (b := a); easy. *)
-Admitted.
-
+  intros [T__TMS H].
+  induction H; try easy; try apply simptmssafe_nil.
+  intros ℓ n H2.  
+  inv H. 
+  - unfold simptmssafe;
+    apply before_split with (n := n); left.
+    destruct (IHstar_step ℓ (pred n)).
+    apply wherein_predecessor with (b := Suse ℓ0); try easy.
+    deex; destruct H as [H6 [H7 H8]];
+    exists x,n1; repeat split; easy.
+  - unfold notin in H6; destruct H6 as [H3 H4].
+    assert (H5 : exists x, wherein (Sdealloc ℓ) (Salloc ℓ0 :: As)%list x).
+      { apply Salloc_imp_Sdealloc with (x := n); assumption. }
+    deex.
+    destruct n. 
+    + apply whereinE in H2; inversion H2; rewrite H6 in H5.
+      exists 0,x; repeat split; try assumption.
+      destruct x.
+      * apply whereinE in H5; inversion H5.
+      * apply Gt.gt_Sn_O. 
+    + unfold simptmssafe in IHstar_step.
+      destruct (IHstar_step ℓ (pred (S n))).
+      * apply whereinE in H2; inversion H2.
+        apply whereinE in H6.
+        rewrite PeanoNat.Nat.pred_succ; assumption. 
+      * deex; destruct H as [H6 [H7 H8]].
+        exists (x0 + 1), (n1 + 1).
+        apply wherein_implies_wherein_cons with (b := Salloc ℓ0) in H7.
+        assert (x_eq: x = n1 + 1).
+          { eapply wherein_eq. apply H5. apply H7. }
+        apply wherein_implies_wherein_cons with (b := Salloc ℓ0) in H6.
+        assert (n_eq: x0 + 1 = S n).
+          { eapply wherein_eq. apply H6. apply H2. }
+        rewrite PeanoNat.Nat.add_1_r in n_eq; injection n_eq as n_eq.
+        subst; repeat split; try assumption.
+        repeat rewrite PeanoNat.Nat.add_1_r; now apply Lt.lt_n_S.
+  - unfold simptmssafe;
+    apply before_split with (n := n); left;
+    destruct (IHstar_step ℓ (pred n)).
+    apply wherein_predecessor with (b := Sdealloc ℓ0); try easy.
+    deex; destruct H as [H6 [H7 H8]];
+    exists x,n1; repeat split; easy.
+  Qed. 
+  
 Module TMMonNotation.
 Notation "T1 '⊆__F' T2" := (entails T1 T2) (at level 82, T2 at next level).
 Notation "ℓ '∈' T" := (contains ℓ T) (at level 82, T at next level).

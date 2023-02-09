@@ -1014,7 +1014,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \begin{gather*}
   \begin{aligned}
   \mi{Interface\ Value}~\src{\interfacevalue} \bnfdef&\ \src{\valueexpr} \mid \src{\loc} \\
-  \mi{Base\ Events}~\src{\event_{b}} \bnfdef&\ \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n} \mid \src{\lightning} \\
+  \mi{Base\ Events}~\src{\event_{b}} \bnfdef&\ \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n\ v} \mid \src{\lightning} \\
                                   & \mid \src{Call\ \comm\ foo\ \interfacevalue} \mid \src{Ret\ \comm\ \interfacevalue} \mid \src{Start} \mid \src{End\ \interfacevalue}\\
   \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{\event_{b};\sandboxtag}
   \end{aligned}
@@ -1034,54 +1034,63 @@ They do not have any other relevance.
   }{w-e-oplus}
   %
   \typerule{$e-\src{get}-\in$}{
-    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag}_\poison,\Delta_2} &
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
     \src{\loc}+\src{n}\in\text{dom }\src{H^{\sandboxtag}}
   }{
-    \exprevals{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc^{\sandboxtag}\ n}
+    \exprevals{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
   }{w-e-get-in}
   %
   \typerule{$e-\src{get}-\notin$}{
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
     \src{\loc}\notin\text{dom }\src{H^{\sandboxtag}}
   }{
-    \exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag}_\poison,\Delta_2}{x[n]}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag}_\poison,\Delta_2}{1729}{Get\ \loc^{\sandboxtag}\ n}
+    \exprevals{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
   }{w-e-get-notin}
   %
   \typerule{$e-\src{set}-\ctx$}{
-    \src{H^{\ctx'}} = \src{H^{\ctx}}(\src{\loc+n}\mapsto \src{v})
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+    \src{H^{\ctx'}} = \src{H^{\ctx}}(\src{\loc+n}\mapsto \src{v}) \\
+    \src{\memstate'}=\src{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2}
   }{
-    \exprevals{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\ctx}_\poison,\Delta_2}{x[n]\leftarrow v}{\cfstate;\sandboxtag;H^{\ctx'};H^{\comp};\Delta_1,x\mapsto\loc^{\ctx}_\poison,\Delta_2}{v}{Set\ \loc^{\ctx}\ n\ v}
+    \exprevals{\cfstate;\ctx;\memstate}{x[n]\leftarrow v}{\cfstate;\ctx;\memstate'}{v}{Set\ \loc\ n\ v;\ctx}
   }{w-e-set-ctx}
   %
   \typerule{$e-\src{set}-\comp$}{
-    \src{H^{\comp'}} = \src{H^{\comp}}(\src{\loc+n}\mapsto \src{v})
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+    \src{H^{\comp'}} = \src{H^{\comp}}(\src{\loc+n}\mapsto \src{v}) \\
+    \src{\memstate'}=\src{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2}
   }{
-    \exprevals{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\comp}_\poison,\Delta_2}{x[n]\leftarrow v}{\cfstate;\sandboxtag;H^{\ctx};H^{\comp'};\Delta_1,x\mapsto\loc^{\comp}_\poison,\Delta_2}{v}{Set\ \loc^{\comp}\ n\ v}
+    \exprevals{\cfstate;\comp;\memstate}{x[n]\leftarrow v}{\cfstate;\comp;\memstate'}{v}{Set\ \loc\ n\ v;\comp}
   }{w-e-set-comp}
   %
   \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
   }{
-  \exprevals{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
+    \exprevals{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
   }{w-e-let-x}
   %
   \typerule{$e-\src{delete}$}{
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
   }{
-    \exprevals{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag'}_\poison,\Delta_2}{delete\ x}{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto\loc^{\sandboxtag'}_\poisoned,\Delta_2}{0}{Dealloc\ \loc^{\sandboxtag'}}
+    \exprevals{\cfstate;\sandboxtag;\memstate}{delete\ x}{\cfstate;\sandboxtag;\memstate'}{0}{Dealloc\ \loc;\sandboxtag}
   }{w-e-delete}
   %
   \typerule{$e-\src{new}-ctx$}{
     \fresh{\src{\Delta}}{\src{\loc}} &
     \fresh{\src{\Delta}}{\src{z}} &
-    \src{H^{\ctx'}} = \src{H^{\ctx}} \ll \src{n} &
+    \src{H^{\ctx'}} = \src{H^{\ctx}} \ll \src{n} \\
+    \src{\memstate} = \src{H^{\ctx'};H^{\comp};z\mapsto \loc^{\ctx}_\poisonless,\Delta}
   }{
-  \exprevals{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;H^{\ctx'};H^{\comp};z\mapsto \loc^{\ctx}_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc^{\ctx}\ n}
+    \exprevals{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;\memstate}{e[z/x]}{Alloc\ \loc\ n;\ctx}
   }{w-e-let-new-ctx}
   %
   \typerule{$e-\src{new}-comp$}{
     \fresh{\src{\Delta}}{\src{\loc}} &
     \fresh{\src{\Delta}}{\src{z}} &
-    \src{H^{\comp'}} = \src{H^{\comp}} \ll \src{n} &
+    \src{H^{\comp'}} = \src{H^{\comp}} \ll \src{n} \\
+    \src{\memstate} = \src{H^{\ctx};H^{\comp'};z\mapsto \loc^{\ctx}_\poisonless,\Delta}
   }{
-  \exprevals{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;H^{\ctx};H^{\comp'};z\mapsto \loc^{\comp}_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc^{\comp}\ n}
+  \exprevals{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate}{e[z/x]}{Alloc\ \loc\ n;\comp}
   }{w-e-let-new-comp}
   %
   \typerule{$e-\src{ifz}-$true}{
@@ -1127,7 +1136,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{\library}=\src{\library_1,}(\src{let\ main\ x:\type}_\lambda\src{:=e})\src{,\library_2}\\
       \src{\Omega'}=\src{\commlib;\library;\ctx;K^{main},\hole{\cdot};\memstate}
     }{
-      \execs[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start}
+      \execs[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start;\comp}
     }{w-e-ectx-call-main}
     %
     \typerule{$e-\text{ctx}-\src{call}-\text{notsame}$}{
@@ -1138,7 +1147,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm} &
       \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \finalexprnoerr}
+      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \finalexprnoerr;\sandboxtag}
     }{w-e-ectx-call-notsame}
     %
     \typerule{$e-\text{ctx}-\src{call}-\text{same}$}{
@@ -1148,25 +1157,25 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{foo}\in_{\src{\sandboxtag}}\src{\commlib} &
       \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \finalexprnoerr}
+      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \finalexprnoerr;\sandboxtag}
     }{w-e-ectx-call-same}
     %
     \typerule{$e-\text{ctx}-\src{return}-$main}{
     }{
-      \exec[]{\src{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\hole{\cdot};\comp;\memstate}}{\src{\valueexpr}}{\src{End\ \valueexpr}}
+      \exec[]{\src{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\hole{\cdot};\comp;\memstate}}{\src{\valueexpr}}{\src{End\ \valueexpr;\sandboxtag}}
     }{w-e-ectx-ret-main}
     %
     \typerule{$e-\text{ctx}-\src{return}-\text{notsame}$}{
       \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
-      \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm}
+      \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm;\sandboxtag}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \finalexprnoerr}}
+      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \finalexprnoerr;\sandboxtag}}
     }{w-e-ectx-ret-notsame}
     %
     \typerule{$e-\text{ctx}-\src{return}-\text{same}$}{
       \src{foo}\in_{\src{\sandboxtag}}\src{\commlib}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \finalexprnoerr}}
+      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \finalexprnoerr;\sandboxtag}}
     }{w-e-ectx-ret-same}
     %
     \judgbox{\rho(\src{\sandboxtag})=\src{\comm}}{,,Returns either $\src{\ctxtocomp}$ or $\src{\comptoctx}$ depending on $\src{\sandboxtag}$.''}\\
@@ -1232,9 +1241,9 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \typerule{$e-\text{wprog}-\lightning$}{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
       \src{main}\notin\src{\commlib}\\
-      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning}
+      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
     }{
-      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace\cdot\lightning}
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
     }{ws-e-prog}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
@@ -1254,6 +1263,82 @@ The translation is, however, standard.
 The empty action $\specificev{\emptyevent}$ is necessary. When proving lemmas by structural induction on the primitive steps (\Cref{fig:w-expr-prim-eval}), we get a concrete event $\src{\emptyevent}$ that needs to be related to some $\msevent$. The natural candidate is $\specificev{\emptyevent}$.
 We also use it to project the call/return events onto it.
 
+\myfig{
+  \begin{center}
+    \judgbox{\delta(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevs[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAs$ event to MS-specific events.''}
+    %
+    \typerule{filter-context}{
+      \src{\event_b} \not= \src{\lightning}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{filter-context}
+    %
+    \typerule{filter-comp-alloc}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc} &
+      \specificev{n}=\src{n}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n}
+    }{filter-comp-alloc}
+    %
+    \typerule{filter-comp-dealloc}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc}
+    }{filter-comp-dealloc}
+    %
+    \typerule{filter-comp-get}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc} &
+      \specificev{n}=\src{n}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+    }{filter-comp-get}
+    %
+    \typerule{filter-comp-set}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc} &
+      \specificev{n}=\src{n}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+    }{filter-comp-set}
+    %
+    \typerule{filter-comp-call}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{filter-comp-call}
+    %
+    \typerule{filter-comp-ret}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{filter-comp-ret}
+    %
+    \typerule{filter-abort}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+    }{filter-abort}
+    %
+    \judgbox{\tospecificevs[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAs$ trace to MS-specific traces.''}
+    %
+    \typerule{filter-empty}{
+    }{
+      \tospecificevs[^*_{\delta_{MS}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{filter-empty}
+    %
+    \typerule{filter-cons-relevant}{
+      \tospecificevs[_{\delta_{MS}}]{\event} = \specificev{\event} &
+      \tospecificevs[^*_{\delta_{MS}}]{\trace} = \mstrace &
+      \specificev{\event} \not= \specificev{\emptyevent}
+    }{
+      \tospecificevs[^*_{\delta_{MS}}]{\event\cdot\trace} = \specificev{\event}\cdot\mstrace
+    }{filter-cons-relevant}
+    %
+    \typerule{filter-cons-relevant}{
+      \tospecificevs[_{\delta_{MS}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevs[^*_{\delta_{MS}}]{\trace} = \mstrace
+    }{
+      \tospecificevs[^*_{\delta_{MS}}]{\event\cdot\trace} = \mstrace
+    }{filter-cons}
+  \end{center}
+}{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
 \myfig{
   \begin{center}
     \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
@@ -1371,7 +1456,7 @@ We also use it to project the call/return events onto it.
       \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent\cdot\mstrace}=\mstrace[_0]
     }{src-cons-empty-map}
   \end{center}
-}{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
+}{aw-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
 \MK{update filter for contexts that pass pointers to the component}
 We write just $\tospecificevs[_{\delta_{MS}}]{\bullet}$ for $\tospecificevs[_{\delta_{MS}}^{\nocomm}]{\bullet}$.
 

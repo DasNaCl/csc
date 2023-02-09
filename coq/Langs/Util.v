@@ -668,6 +668,7 @@ Module Type MOD.
 End MOD.
 Module Mod (X : MOD).
   Export X.
+  
 
   #[export]
   Instance State__Instance : RuntimeExprClass State := {}.
@@ -675,66 +676,144 @@ Module Mod (X : MOD).
   Instance Event__Instance : TraceEvent Ev := {}.
 
   (** Since we only care about security properties anyways, it's fine to stay in "traces are lists"-land *)
-  Inductive tracepref : Type :=
-  | Tnil : tracepref
-  | Tcons (e : Ev) (As : tracepref) : tracepref
-  .
-  Fixpoint Tappend (As Bs : tracepref) : tracepref :=
+  Definition tracepref := list Ev.
+
+  Axiom tracepref_unique : forall (As : tracepref), NoDup As. 
+
+  
+  (* Fixpoint Tappend (As Bs : tracepref) : tracepref :=
     match As with
     | Tnil => Bs
-    | Tcons e Cs => Tcons e (Tappend Cs Bs)
+    | TCons P, e :: Cs => e :: (Tappend Cs Bs)
     end
-  .
-  Notation "As '·' Bs" := (Tappend As Bs) (at level 81).
+  . *)
+
+  (* Notation "As '·' Bs" := (append As Bs) (at level 81). *)
 
   Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
     match t with
-    | Tnil => acc
-    | Tcons a Tnil => String.append acc (string_of_event a)
-    | Tcons a As =>
+    | nil => acc
+    | a :: nil => String.append acc (string_of_event a)
+    | a :: As =>
         let acc' := String.append acc (String.append (string_of_event a) (" · "%string))
         in string_of_tracepref_aux As acc'
     end
   .
   Definition string_of_tracepref (t : tracepref) : string := string_of_tracepref_aux t (""%string).
 
-  Inductive wherein (a : Ev) : tracepref -> nat -> Prop :=
-  | whereinZ : forall (As : tracepref), wherein a (Tcons a As) 0
-  | whereinS : forall (a0 : Ev) (As : tracepref) (n : nat),
-               a <> a0 ->
-               wherein a As n ->
-               wherein a (Tcons a0 As) (S n)
-  .
+  Definition wherein (a : Ev) (As : tracepref) (n : nat) := 
+    match List.nth_error As n with 
+    | None => False 
+    | Some x => a = x
+  end.
+
+  Lemma wherein_nil (a : Ev) :
+    forall n, wherein a nil n -> False.
+  Proof.
+    induction n; easy. 
+  Qed. 
+
+  Ltac wherein_discharge := 
+    repeat match goal with 
+    | [H: wherein _ nil _ |- _ ] =>
+      apply wherein_nil in H; contradiction
+    end.
+
+  Lemma whereinE (a : Ev) (As : tracepref) :
+    forall n, wherein a As n <-> List.nth_error As n = Some a.
+  Proof.
+    split; intros.
+    - unfold wherein in H. destruct (nth_error As n); try easy;
+      now inv H.
+    - unfold wherein. destruct (nth_error As n); try easy;
+      now inv H.
+  Qed. 
+
+  Lemma wherein_predecessor (a b: Ev) (As : tracepref) : 
+    forall n, a <> b -> wherein a (b :: As) n -> wherein a As (pred n).
+  Proof.
+    induction n; easy.
+  Qed.
+
+  Lemma wherein_eq (a : Ev) (As : tracepref) :
+  forall n m, wherein a As n -> wherein a As m -> n = m.
+  Proof.
+    intros n m H1 H2.
+    assert (H3 : NoDup As).
+      { apply tracepref_unique. }
+    apply NoDup_nth_error with (i := n) (j := m) in H3; try easy.
+    - apply nth_error_Some; unfold "<>"; intros H4; apply whereinE in H1; rewrite H4 in H1; easy.
+    - apply whereinE in H1,H2; rewrite H1,H2; easy.
+  Qed.   
+
+  Lemma in_cons_variant (A : Type) (a b : A) (l : list A) : In b (a :: l) <-> a = b \/ In b l.
+  Proof.
+    split.
+    - intros H; induction H.
+      + left; assumption.
+      + right; assumption.
+    - intros H; destruct H.
+      + rewrite H; cbn; left; reflexivity.
+      + now apply in_cons with (a := a) in H.  
+  Qed.    
+
+  Lemma wherein_nth As a : In a As -> exists n, wherein a As n.
+  Proof.
+    intros H.
+    apply In_nth_error in H; deex.
+    exists n; apply whereinE; easy.
+  Qed.
+
+  Lemma wherein_implies_wherein_cons (a b : Ev) (As : tracepref) :
+    forall n, wherein a As n -> wherein a (b :: As) (n + 1).
+  Proof.
+    intros n H.
+    apply whereinE in H; apply whereinE; rewrite <- H.
+    destruct n.
+    - reflexivity.
+    - simpl; destruct As.
+      + rewrite PeanoNat.Nat.add_1_r; reflexivity. 
+      + rewrite PeanoNat.Nat.add_1_r; simpl; reflexivity.
+  Qed.
+    
   Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
     exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
   .
+
   Lemma before_nothing a0 a1 :
-    before a0 a1 Tnil -> False.
-  Proof. unfold before; intros H; deex; destruct H as [H0 [H1 H2]]; inv H0. Qed.
+    before a0 a1 nil -> False.
+  Proof.
+    unfold before; intros H; deex; destruct H as [H1 [H2 H3]].
+    induction n0 , n1; easy.
+  Qed. 
 
   Lemma before_split a As a0 a1 n :
-    before a0 a1 As \/ (a0 = a /\ wherein a1 As n) ->
-    before a0 a1 (Tcons a As)
+    (before a0 a1 As) \/ (a0 = a /\ wherein a1 As n) ->
+    before a0 a1 (a :: As)
   .
   Proof.
-  Admitted.
-
-  Definition once (a : Ev) (As : tracepref) :=
-    forall n m, wherein a As n -> wherein a As m -> n = m
-  .
+    intros [H1 | [H1 H2]].
+    - unfold before in *; deex; destruct H1 as [H1 [H2 H3]];
+      exists (n0 + 1), (n1 + 1); repeat split; try apply wherein_implies_wherein_cons; try apply Plus.plus_lt_compat_r; trivial.
+    - exists 0, (n + 1); repeat split. 
+      + apply whereinE; simpl; subst; easy.
+      + apply wherein_implies_wherein_cons; trivial.
+      + apply PeanoNat.Nat.add_pos_r , NPeano.Nat.lt_0_1.
+  Qed. 
+  
   (* Use this to define a coercion *)
-  Definition ev_to_tracepref (e : Ev) : tracepref := Tcons e Tnil.
+  Definition ev_to_tracepref (e : Ev) : tracepref := e :: nil.
 
   Reserved Notation "e0 '==[' a ']==>*' e1" (at level 82, e1 at next level).
   Inductive star_step : State -> tracepref -> State -> Prop :=
   | ES_refl : forall (r1 : State),
       is_value r1 = true ->
-      r1 ==[ Tnil ]==>* r1
+      r1 ==[ nil ]==>* r1
   | ES_trans_important : forall (r1 r2 r3 : State) (a : Ev) (As : tracepref),
       step r1 (Some a) r2 ->
       ~is_stuck r2 ->
       r2 ==[ As ]==>* r3 ->
-      r1 ==[ Tcons a As ]==>* r3
+      r1 ==[ a :: As ]==>* r3
   | ES_trans_unimportant : forall (r1 r2 r3 : State) (As : tracepref),
       step r1 None r2 ->
       ~is_stuck r2 ->

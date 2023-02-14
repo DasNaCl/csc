@@ -1079,7 +1079,7 @@ They do not have any other relevance.
     \fresh{\src{\Delta}}{\src{\loc}} &
     \fresh{\src{\Delta}}{\src{z}} &
     \src{H^{\ctx'}} = \src{H^{\ctx}} \ll \src{n} \\
-    \src{\memstate} = \src{H^{\ctx'};H^{\comp};z\mapsto \loc^{\ctx}_\poisonless,\Delta}
+    \src{\memstate} = \src{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
   }{
     \exprevals{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;\memstate}{e[z/x]}{Alloc\ \loc\ n;\ctx}
   }{w-e-let-new-ctx}
@@ -1088,7 +1088,7 @@ They do not have any other relevance.
     \fresh{\src{\Delta}}{\src{\loc}} &
     \fresh{\src{\Delta}}{\src{z}} &
     \src{H^{\comp'}} = \src{H^{\comp}} \ll \src{n} \\
-    \src{\memstate} = \src{H^{\ctx};H^{\comp'};z\mapsto \loc^{\ctx}_\poisonless,\Delta}
+    \src{\memstate} = \src{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
   }{
   \exprevals{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate}{e[z/x]}{Alloc\ \loc\ n;\comp}
   }{w-e-let-new-comp}
@@ -1848,12 +1848,12 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[\gls{tms}-$\src{\Delta}$-split]\label{lem:tms:store:split}
   If
   \begin{assumptions}
-    \item $\storeagreetms{\tmsmonitor}{\src{\Delta_{1},x\mapsto\loc_{\poison},\Delta_{2}}}$
+    \item $\storeagreetms{\tmsmonitor}{\src{\Delta_{1},x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_{2}}}$
   \end{assumptions}
   Then $\exists \tmsmonitor[_{1}]\ \tmsmonitor[_{2}]\ \specificev{\loc}$,
   \begin{goals}
     \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
-    \item $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+    \item $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;n),\hole{\cdot}}}$
     \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
     \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
   \end{goals}
@@ -2034,7 +2034,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{proof}
   First, we note
   \begin{itemize}
-    \item $\src{\Omega}=\src{\cfstate;\memstate}$
+    \item $\src{\Omega}=\src{\cfstate;\sandboxtag;\memstate}$
     \item $\src{\cfstate}=\src{\commlib;\library;\kontstack}$
     \item $\src{\memstate}=\src{H;\Delta}$
   \end{itemize}
@@ -2043,21 +2043,21 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item[$\src{e}=\src{delete\ x}$:]
       If
       \begin{passumptions}{H}
-        \item $\typechecks{}{\src{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright \src{delete\ x}}{\type}$
-        \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
+        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H;\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}}$
       \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
       \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
         \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree{\specificev{Dealloc\ }\delta_{\text{MS}}'(\src{\loc})}{\absevent}$
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$
       \end{goals}
 
       Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
       \begin{passumptions}{F}
         \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
-        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;n),\hole{\cdot}}}$
         \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
         \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
       \end{passumptions}
@@ -2073,7 +2073,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
       \item[\Cref{tr:store-cons-agree}:] \ \\
         If
         \begin{passumptions}{F}
-        \item $\typechecks{}{\src{\cfstate;H;\Delta_1},\src{x\mapsto\loc_\poisonless},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H;\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisonless;n),\src{\Delta_2}\triangleright \src{delete\ x}}}{\type}$
         \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
         \item $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$
         \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -2082,18 +2082,18 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         then $\exists \tmsmonitor[']$,
         \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}$
-        \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
+        \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$
         \end{goals}
         Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
 
         \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}$, follows immediately by \Cref{tr:tms-dealloc}.
 
-        \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
+        \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
 
       \item[\Cref{tr:store-poison-agree}:] \ \\
         If
         \begin{passumptions}{F}
-        \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{\cfstate;H;\Delta_1},\src{x\mapsto\loc_\poisoned},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{\cfstate;\sandboxtag;H;\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisoned;n)},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
         \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
         \item $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$
         \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -2102,13 +2102,13 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         then $\exists \tmsmonitor[']$,
         \begin{goals}
         \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}$
-        \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}$
+        \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$
         \end{goals}.
 
         Invert \Cref{asm:basetmsmonitor:typing} to get
         \begin{passumptions}{F}
           \setcounter{enumi}{6}
-          \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{\library}{\src{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}}{\Gammas}$
+          \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{\library}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}{\Gammas}$
           \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{delete\ x}{\nat}$
         \end{passumptions}
 
@@ -2199,7 +2199,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
         \item $\traceagree{\specificev{Alloc\ }\delta_{\text{MS}}'(\loc)\specificev{\ n}}{\absevent}$
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{z\mapsto\loc_{\poisonless},\Delta}}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}}$
       \end{goals}
       Let $\specificev{\loc}$ be such that $\fresh{\operatorname{dom} \delta_{\text{MS}}}{\specificev{\loc}}$.
       Choose $\absevent=\bm{Alloc\ }\specificev{\loc}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}\cup\left\{\src{\loc}\mapsto\specificev{\loc}\right\}$, and $\tmsmonitor[']=\left\{\specificev{\loc}\right\}\cup\tmsmonitor$.
@@ -2208,7 +2208,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item\label[goal]{goal:basetmsmonitor:case4:subseteq} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}\cup\left\{\src{\loc}\mapsto\specificev{\loc}\right\}$
         \item\label[goal]{goal:basetmsmonitor:case4:tmstraceagree} $\traceagree{\specificev{Alloc\ \loc\ n}}{\bm{Alloc\ }\specificev{\loc}}$
         \item\label[goal]{goal:basetmsmonitor:case4:monitorstep} $\monitorcheck[]{\tmsmonitor}{\left\{A:\tmsmonitor.A\cup\left\{\specificev{\loc}\right\},F:\tmsmonitor.F\right\}}{\bm{Alloc\ }\specificev{\loc}}$
-        \item\label[goal]{goal:basetmsmonitor:case4:storeagree} $\storeagreetms[\delta_{MS}\cup\left\{\src{\loc}\mapsto\specificev{\loc}\right\}]{\left\{\specificev{\loc}\right\}\cup\tmsmonitor}{\src{z\mapsto\loc_{\poisonless},\Delta}}$
+        \item\label[goal]{goal:basetmsmonitor:case4:storeagree} $\storeagreetms[\delta_{MS}\cup\left\{\src{\loc}\mapsto\specificev{\loc}\right\}]{\left\{\specificev{\loc}\right\}\cup\tmsmonitor}{\src{z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}}$
       \end{goals}
 
       \Cref{goal:basetmsmonitor:case4:subseteq} is trivial.
@@ -2222,8 +2222,8 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item[$\src{e}=\src{x[n]}$:]
       If
       \begin{passumptions}{H}
-        \item $\typechecks{}{\src{\cfstate};\src{H};\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright\src{x[n]}}{\type}$
-        \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
+        \item $\typechecks{}{\src{\cfstate};\sandboxtag;\src{H};\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}\triangleright\src{x[n]}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
         \item $\src{\loc}\in\operatorname{dom}\src{H}\implies \src{v}=\src{H}\left(\src{\loc+n}\right)$
         \item $\src{\loc}\not\in\operatorname{dom}\src{H}\implies \src{v}=\src{1729}$
       \end{passumptions}
@@ -2232,13 +2232,13 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
         \item $\traceagree[\delta_{\text{MS}}']{\specificev{Use\ }\delta_{\text{MS}}'(\loc)\specificev{\ n}}{\absevent}$
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_{\poison},\Delta_2}}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
       \end{goals}
 
       Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
       \begin{passumptions}{F}
         \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
-        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;m),\hole{\cdot}}}$
         \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
         \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
       \end{passumptions}
@@ -2249,15 +2249,15 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}$
         \item $\traceagree{\specificev{Use\ \loc\ n}}{\bm{Use\ }\specificev{\loc}}$
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{Use\ }\specificev{\loc}}$
-        \item $\storeagreetms[\delta_{\text{MS}}]{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_{\poison},\Delta_2}}$
+        \item $\storeagreetms[\delta_{\text{MS}}]{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
       \end{goals}
       All goals follow easy.
 
     \item[$\src{e}=\src{x[n]\leftarrow\valueexpr}$:]
       If
       \begin{passumptions}{H}
-        \item $\typechecks{}{\src{\cfstate};\src{H};\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}\triangleright\src{x[n]}}{\type}$
-        \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_\poison,\Delta_2}}$
+        \item $\typechecks{}{\src{\cfstate};\sandboxtag;\src{H};\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}\triangleright\src{x[n]}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
         \item $\src{H'}=\src{H}\left(\src{\loc+n}\mapsto\src{\valueexpr}\right)$
       \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
@@ -2265,12 +2265,12 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
         \item $\traceagree{\specificev{Use\ \loc\ n}}{\absevent}$
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto\loc_{\poison},\Delta_2}}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
       \end{goals}
       Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
       \begin{passumptions}{F}
         \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
-        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto\loc_{\poison},\hole{\cdot}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;m),\hole{\cdot}}}$
         \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
         \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
       \end{passumptions}
@@ -2281,7 +2281,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}$
         \item $\traceagree[\delta_{\text{MS}}']{\specificev{Use\ \loc\ n}}{\bm{Use\ }\specificev{\loc}}$
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{Use\ }\specificev{\loc}}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor}{\src{\Delta_1,x\mapsto\loc_{\poison},\Delta_2}}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
       \end{goals}
       All goals follow easy.
   \end{description}

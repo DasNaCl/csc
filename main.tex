@@ -1233,7 +1233,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \typerule{$e-\text{wprog}$}{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
       \src{main}\notin\src{\commlib}\\
-      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+      \execs{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
     }{
       \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}
     }{ws-e-prog}
@@ -1241,10 +1241,10 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \typerule{$e-\text{wprog}-\lightning$}{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
       \src{main}\notin\src{\commlib}\\
-      \execs{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+      \execs{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
     }{
       \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
-    }{ws-e-prog}
+    }{ws-e-prog-crash}
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 
@@ -1273,6 +1273,11 @@ We also use it to project the call/return events onto it.
     }{
       \tospecificevs[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
     }{filter-context}
+    %
+    \typerule{filter-comp-start}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Start;\comp} = \specificev{\emptyevent}
+    }{filter-comp-start}
     %
     \typerule{filter-comp-alloc}{
       \delta_{MS}(\src{\loc})=\specificev{\loc} &
@@ -1339,126 +1344,6 @@ We also use it to project the call/return events onto it.
     }{filter-cons}
   \end{center}
 }{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
-\myfig{
-  \begin{center}
-    \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
-    \judgbox{\tospecificevs[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAs$ event $\src{\event}$ to $\msevent$.''}
-    %
-    \typerule{filter-alloc-relevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \specificev{n}=\src{n} &
-      \src{\comm}=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Alloc\ \loc\ n} = \src{\comm},\specificev{Alloc\ \loc\ n}
-    }{filter-alloc-relevant}
-    %
-    \typerule{filter-dealloc-relevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \src{\comm}=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Dealloc\ \loc} = \src{\comm},\specificev{Dealloc\ \loc}
-    }{filter-dealloc-relevant}
-    %
-    \typerule{filter-get-relevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \specificev{n}=\src{n} &
-      \src{\comm}=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Get\ \loc\ n} = \src{\comm},\specificev{Use\ \loc\ n}
-    }{filter-get-relevant}
-    %
-    \typerule{filter-set-relevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \specificev{n}=\src{n} &
-      \src{\comm}=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Set\ \loc\ n} = \src{\comm},\specificev{Use\ \loc\ n}
-    }{filter-set-relevant}
-    %
-    %
-    \typerule{filter-alloc-irrelevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \specificev{n}=\src{n} &
-      \src{\comm}\not=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Alloc\ \loc\ n} = \src{\comm},\specificev{\emptyevent}
-    }{filter-alloc-irrelevant}
-    %
-    \typerule{filter-dealloc-irrelevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \src{\comm}\not=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Dealloc\ \loc} = \src{\comm},\specificev{\emptyevent}
-    }{filter-dealloc-irrelevant}
-    %
-    \typerule{filter-get-irrelevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \specificev{n}=\src{n} &
-      \src{\comm}\not=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Get\ \loc\ n} = \src{\comm},\specificev{\emptyevent}
-    }{filter-get-irrelevant}
-    %
-    \typerule{filter-set-irrelevant}{
-      \delta_{MS}(\src{\loc})=\specificev{\loc} &
-      \specificev{n}=\src{n} &
-      \src{\comm}\not=\src{\ctxtocomp}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Set\ \loc\ n} = \src{\comm},\specificev{\emptyevent}
-    }{filter-set-irrelevant}
-    %
-    %
-    \typerule{filter-call-external}{
-      \src{\comm}\not=\src{\nocomm}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm'}}]{Call\ \comm\ foo\ n} = \src{\comm},\specificev{\emptyevent}
-    }{filter-call-external}
-    %
-    \typerule{filter-ret-external}{
-      \src{\comm}\not=\src{\nocomm}
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm'}}]{Ret\ \comm\ foo\ n} = \src{\comm},\specificev{\emptyevent}
-    }{filter-ret-external}
-    %
-    \typerule{filter-call-internal}{
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Call\ \nocomm\ foo\ n} = \src{\comm},\specificev{\emptyevent}
-    }{filter-call-internal}
-    %
-    \typerule{filter-ret-internal}{
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{Ret\ \nocomm\ foo\ n} = \src{\comm},\specificev{\emptyevent}
-    }{filter-ret-internal}
-    %
-    %
-    \typerule{filter-abort}{
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\lightning} = \src{\comm}, \src{\lightning}
-    }{filter-abort}
-    \\
-    %
-    %
-    \typerule{$\src{\mstrace}$-empty-$\theta$}{
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\hole{\cdot}}=\hole{\cdot}
-    }{src-mstrace-empty-map}
-    \typerule{$\src{\mstrace}$-cons-$\theta$}{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent}=\src{\comm},\msevent[_0]&
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\mstrace}=\mstrace[_0]&
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent\cdot\mstrace}=\msevent[_0]\cdot\mstrace[_0]
-    }{src-cons-empty-map}
-    %
-    \typerule{$\src{\mstrace}$-cons-$\theta$-ignore}{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent}=\src{\comm'},\specificev{\emptyevent}&
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm'}}]{\mstrace}=\mstrace[_0]&
-    }{
-      \tospecificevs[_{\delta_{MS}}^{\src{\comm}}]{\msevent\cdot\mstrace}=\mstrace[_0]
-    }{src-cons-empty-map}
-  \end{center}
-}{aw-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
-\MK{update filter for contexts that pass pointers to the component}
-We write just $\tospecificevs[_{\delta_{MS}}]{\bullet}$ for $\tospecificevs[_{\delta_{MS}}^{\nocomm}]{\bullet}$.
 
 \subsubsection{\gls*{tms} Monitor}
 In order to just talk about temporal memory safety, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
@@ -1582,14 +1467,14 @@ As before, we need a way to translate one set of actions to another:
       \specificev{\loc}\notin\tmsmonitor&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagreetms{\left\{\specificev{\loc}\right\}\cup \tmsmonitor}{\src{x\mapsto\loc_\poisonless,\Delta}}
+      \storeagreetms{\left\{\specificev{\loc}\right\}\cup \tmsmonitor}{\src{x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}}
     }{store-cons-agree}
     %
     \typerule{Poison-Agree}{
       \delta_{MS}(\src{\loc})=\specificev{\loc}&
       \storeagreetms{\tmsmonitor}{\src{\Delta}}
     }{
-      \storeagreetms{\tmsmonitor}{\src{x\mapsto\loc_\poisoned,\Delta}}
+      \storeagreetms{\tmsmonitor}{\src{x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta}}
     }{store-poison-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
@@ -1762,6 +1647,20 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{itemize}
 \end{definition}
 
+\begin{lemma}[$\texttt{TMS}(\mstrace)$ implies $tmsafe(\mstrace)$]\label{lem:tmssafe-tracetms}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:tmssafe-tracetms:tms} $\texttt{TMS}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $tmsafe(\mstrace)$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:tmssafe-tracetms:tms}.
+\end{proof}
+
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
@@ -1769,7 +1668,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\texttt{TMS}(\tospecificevs[_{\emptyset}]{\trace})$
+  \item $tmsafe(\tospecificevs{\trace})$
   \end{goals}.
 \end{scontents}
 \mockthm{thm:mmlAs:tmssafe}{1}
@@ -1880,7 +1779,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
   Note that $\src{NoOwnedPtr\ z:\nat,\Gamma_{0}}$ holds by $\src{\nat}\not=\src{\ptr}$ and $\src{\nat\to\nat}\not=\src{\ptr}$
 
-  Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Call\ ?main\ 0}\cdot\src{Call\ !foo\ 42}\cdot\src{Alloc\ \loc\ 42}\cdot\src{Get\ \loc\ 1337}\cdot\src{Dealloc\ \loc}\cdot\src{Ret\ ?1729}\cdot\src{Call\ !1729}$.
+  Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Start;\comp}\cdot\src{Call\ !foo\ 42;\ctx}\cdot\src{Alloc\ \loc\ 42;\comp}\cdot\src{Get\ \loc\ 1337;\comp}\cdot\src{Dealloc\ \loc;\comp}\cdot\src{Ret\ ?1729;\comp}\cdot\src{End\ 1729;\ctx}$.
   We omit the precise derivation for brevity, but note that \thmref{lem:toplevel:progress} gives us the necessary execution.\\[0.3cm]
   By \Cref{fig:w-events-project-to-specific}, $\tospecificevs{\trace}=\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}$.\\[0.3cm]
   \Cref{def:spatmemsafe} requires $\specificev{Alloc\ \loc\ 42}\in\tospecificevs{\trace}$ and $\specificev{Use\ \loc\ 1337}\in\tospecificevs{\trace}$, which hold.\\[0.3cm]

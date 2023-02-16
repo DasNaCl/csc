@@ -1623,7 +1623,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \end{definition}
 
 \begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
-  We define the property $tmsafe(\mstrace)$ as a conjunction of the following conditions:
+  We define the property $\operatorname{tmsafe}$ as a conjunction of the following conditions for any given $\mstrace$:
   \begin{itemize}
     \item $\specificev{Alloc\ \loc\ s}\le_{{\mstrace}}\specificev{Dealloc\ \loc}$
     \item $\neg(\specificev{Use\ \loc\ n}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s})$
@@ -1634,7 +1634,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \end{definition}
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property ${smsafe}\left({\mstrace}\right)$ as follows:
+  We define the property $\operatorname{smsafe}$ as follows for any given $\mstrace$:
   \begin{itemize}
     \item If $\specificev{Alloc\ \loc\ s}\in{\mstrace}$ and $\specificev{Use\ \loc\ n}\in{\mstrace}$, then ${n}<{s}$
   \end{itemize}
@@ -1648,14 +1648,14 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{itemize}
 \end{definition}
 
-\begin{lemma}[$\texttt{TMS}(\mstrace)$ implies $tmsafe(\mstrace)$]\label{lem:tmssafe-tracetms}
+\begin{lemma}[$\texttt{TMS}(\mstrace)$ implies $\mstrace\in\operatorname{tmsafe}$]\label{lem:tmssafe-tracetms}
   If
   \begin{assumptions}
     \item\label[ass]{asm:tmssafe-tracetms:tms} $\texttt{TMS}(\mstrace)$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $tmsafe(\mstrace)$
+    \item $\mstrace\in\operatorname{tmsafe}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -1669,7 +1669,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $tmsafe(\tospecificevs[_{\delta_{ms}}]{\trace})$
+  \item $\tospecificevs[_{\delta_{ms}}]{\trace}\in\operatorname{tmssafe}$
   \end{goals}.
 \end{scontents}
 \mockthm{thm:mmlAs:tmssafe}{1}
@@ -2576,22 +2576,34 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{tw-e-oplus}
   %
   \typerule{$e-\trg{get}-\in$}{
-    \trg{\loc}+\trg{n}\in\text{dom }\trg{H}
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
+    \trg{\loc}+\trg{n}\in\text{dom }\trg{H^{\sandboxtag}}
   }{
-    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{H(\loc+n)}{Get\ \loc\ n}
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
   }{tw-e-get-in}
   %
   \typerule{$e-\trg{get}-\notin$}{
-    \trg{\loc}+\trg{n}\notin\text{dom }\trg{H}
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
+    \trg{\loc}\notin\text{dom }\trg{H^{\sandboxtag}}
   }{
-    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]}{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{1729}{Get\ \loc\ n}
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
   }{tw-e-get-notin}
   %
-  \typerule{$e-\trg{set}$}{
-    \trg{H'} = \trg{H}(\trg{\loc+n}\mapsto \trg{v})
+  \typerule{$e-\trg{set}-\ctx$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+    \trg{H^{\ctx'}} = \trg{H^{\ctx}}(\trg{\loc+n}\mapsto \trg{v}) \\
+    \trg{\memstate'}=\trg{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2}
   }{
-    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{x[n]\leftarrow \valueexpr}{\cfstate;H';\Delta_1,x\mapsto\loc_\poison,\Delta_2}{v}{Set\ \loc\ n\ \valueexpr}
-  }{tw-e-set}
+    \exprevalt{\cfstate;\ctx;\memstate}{x[n]\leftarrow v}{\cfstate;\ctx;\memstate'}{v}{Set\ \loc\ n\ v;\ctx}
+  }{tw-e-set-ctx}
+  %
+  \typerule{$e-\trg{set}-\comp$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+    \trg{H^{\comp'}} = \trg{H^{\comp}}(\trg{\loc+n}\mapsto \trg{v}) \\
+    \trg{\memstate'}=\trg{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2}
+  }{
+    \exprevalt{\cfstate;\comp;\memstate}{x[n]\leftarrow v}{\cfstate;\comp;\memstate'}{v}{Set\ \loc\ n\ v;\comp}
+  }{tw-e-set-comp}
   %
   \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
   }{
@@ -2638,7 +2650,9 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
     \exprevalt{\configt}{abort()}{\configt}{stuck}{\lightning}
   }{tw-e-abort}
   %
-  %
+}{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
+
+\myfig{
   \typerule{$e-\trg{\pi_1}$}{
   }{
     \exprevalt{\configt}{\pi_1\langle n_1;n_2\rangle}{\configt}{n_1}{\emptyevent}
@@ -2651,16 +2665,16 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   %
   \typerule{$e-\trg{x\ is\ \poisoned}-$yes}{
     \trg{\memstate}=\trg{H;\Delta} &
-    \trg{\Delta}=\trg{\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}
+    \trg{\Delta}=\trg{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
   }{
-    \exprevalt{\cfstate;\memstate}{x\ is\ \poisoned}{\cfstate;\memstate}{0}{\emptyevent}
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{0}{\emptyevent}
   }{tw-e-x-is-poisoned-yes}
   %
   \typerule{$e-\trg{x\ is\ \poisoned}-$no}{
     \trg{\memstate}=\trg{H;\Delta} &
-    \trg{\Delta}=\trg{\Delta_1,x\mapsto\loc_\poisonless,\Delta_2}
+    \trg{\Delta}=\trg{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2}
   }{
-    \exprevalt{\cfstate;\memstate}{x\ is\ \poisoned}{\cfstate;\memstate}{1}{\emptyevent}
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{1}{\emptyevent}
   }{tw-e-x-is-poisoned-yes}
   %
   \typerule{$e-\trg{n\ has\ \nat}$}{
@@ -2692,123 +2706,95 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{
     \exprevalt{\configt}{x\ has\ \nat\times\nat}{\configt}{1}{\emptyevent}
   }{tw-e-x-haspair}
-}{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
+}{tw-expr-eval-continued}{Evaluation of $\mmlAt$ expressions, continued.}
+
 
 \myfig{
   \begin{center}
     \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and new\\configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
     %
-    \typerule{$et-\text{ctx}$}{
+    \typerule{$e-\text{ctx}$}{
       \exprevalt{\Omega}{e}{\Omega'}{e'}{\event}
     }{
       \exect[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
-    }{w-t-e-ectx}
+    }{tw-e-ectx}
     %
-    \typerule{$et-\text{ctx}-\trg{stuck}$}{
+    \typerule{$e-\text{ctx}-\trg{stuck}$}{
       \exprevalt{\Omega}{e}{\Omega'}{stuck}{\lightning}
     }{
       \exect[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
-    }{w-t-e-ectx-stuck}
+    }{tw-e-ectx-stuck}
     %
-    \typerule{$et-\text{ctx}-\trg{call}-\trg{\valueexpr}$}{
-      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate} &
+    \typerule{$e-\text{ctx}-\trg{call}-$main}{
+      \trg{\Omega}=\trg{\commlib;\library;\hole{\cdot};\comp;\memstate} &
+      \trg{\library}=\trg{\library_1,}(\trg{let\ main\ x:\type}_\lambda\trg{:=e})\trg{,\library_2}\\
+      \trg{\Omega'}=\trg{\commlib;\library;\ctx;K^{main},\hole{\cdot};\memstate}
+    }{
+      \exect[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start;\comp}
+    }{tw-e-ectx-call-main}
+    %
+    \typerule{$e-\text{ctx}-\trg{call}-\text{notsame}$}{
+      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
       \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x:\type}_\lambda\trg{:=e})\trg{,\library_2} \\
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{v}) = \trg{\event},\trg{\comm} &
-      \trg{\Omega'}=\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
+      %\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{v}) = \trg{\event},\trg{\comm} &
+      \trg{foo}\in_{\trg{\neg\sandboxtag}}\trg{\commlib} &
+      \rho\left(\trg{\neg\sandboxtag}\right) = \trg{\comm} &
+      \trg{\Omega'}=\trg{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;\memstate} \\
     }{
-      \exect[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
-    }{w-t-e-ectx-call-value}
+      \exect[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \finalexprnoerr;\sandboxtag}
+    }{tw-e-ectx-call-notsame}
     %
-    \typerule{$et-\text{ctx}-\trg{call}-\trg{\loc}$}{
-      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate} &
-      \trg{\memstate}=\trg{H;\Delta}&
-      \trg{\Delta}=\trg{\Delta_1},\trg{x\mapsto\loc_\poison},\trg{\Delta_2}\\
+    \typerule{$e-\text{ctx}-\trg{call}-\text{same}$}{
+      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
       \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x:\type}_\lambda\trg{:=e})\trg{,\library_2} \\
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{\loc}) = \trg{\event},\trg{\comm} &
-      \trg{\Omega'}=\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate} \\
+      %\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{v}) = \trg{\event},\trg{\comm} &
+      \trg{foo}\in_{\trg{\sandboxtag}}\trg{\commlib} &
+      \trg{\Omega'}=\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate} \\
     }{
-      \exect[]{\Omega}{K[call\ foo\ x]}{\Omega'}{return\ e[x/\valueexpr]}{\event}
-    }{w-t-e-ectx-call-value}
+      \exect[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \finalexprnoerr;\sandboxtag}
+    }{tw-e-ectx-call-same}
     %
-    \typerule{$et-\text{ctx}-\trg{return}-\trg{\valueexpr}$}{
+    \typerule{$e-\text{ctx}-\trg{return}-$main}{
     }{
-      \exec[]{\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\kontstack;\memstate}}{\trg{K[\valueexpr]}}{\rho_{\tiny ret}\left(\trg{\comm},\trg{\valueexpr}\right)}
-    }{w-t-e-ectx-ret}
+      \exec[]{\trg{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\hole{\cdot};\comp;\memstate}}{\trg{\valueexpr}}{\trg{End\ \valueexpr;\sandboxtag}}
+    }{tw-e-ectx-ret-main}
     %
-    \typerule{$e-\text{ctx}-\trg{return}-\trg{\loc}$}{
-      \rho_{\tiny ret}\left(\trg{\comm}\right)=\trg{\comm_0} &
-      \trg{\memstate}=\trg{H;\Delta}&
-      \trg{\Delta}=\trg{\Delta_1},\trg{x\mapsto\loc_\poison},\trg{\Delta_2}
+    \typerule{$e-\text{ctx}-\trg{return}-\text{notsame}$}{
+      \trg{foo}\in_{\trg{\neg\sandboxtag}}\trg{\commlib} &
+      \rho\left(\trg{\neg\sandboxtag}\right) = \trg{\comm;\sandboxtag}
     }{
-      \exec[]{\trg{\commlib;\library;K^{foo}_{\comm},\kontstack;\memstate}}{\trg{K'[return\ x]}}{\trg{\commlib;\library;\kontstack;\memstate}}{\trg{K[x]}}{\rho_{\tiny ret}\left(\trg{\comm},\trg{\loc}\right)}
-    }{w-e-ectx-ret}
+      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \finalexprnoerr]}}{\trg{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\trg{K[\finalexprnoerr]}}{\trg{Ret\ \comm\ \finalexprnoerr;\sandboxtag}}
+    }{tw-e-ectx-ret-notsame}
     %
-    \judgbox{\rho_{\tiny ret}(\trg{\comm},\trg{\interfacevalue})=\trg{\event}}{,,Given the last comm. and we are returning, yield event.''}
-    %
-    \typerule{t-comm-ret-ctxtocomp}{
+    \typerule{$e-\text{ctx}-\trg{return}-\text{same}$}{
+      \trg{foo}\in_{\trg{\sandboxtag}}\trg{\commlib}
     }{
-      \rho_{\tiny ret}(\trg{\ctxtocomp},\trg{\interfacevalue})=\trg{Ret\ \ctxtocomp\ \interfacevalue}
-    }{w-t-comm-ret-ctxtocomp}
+      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \finalexprnoerr]}}{\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\trg{K[\finalexprnoerr]}}{\trg{Ret\ \nocomm\ \finalexprnoerr;\sandboxtag}}
+    }{tw-e-ectx-ret-same}
     %
-    \typerule{t-comm-ret-internal}{
+    \judgbox{\rho(\trg{\sandboxtag})=\trg{\comm}}{,,Returns either $\trg{\ctxtocomp}$ or $\trg{\comptoctx}$ depending on $\trg{\sandboxtag}$.''}\\
+    %
+    \typerule{comm-ctxtocomp}{
     }{
-      \rho_{\tiny ret}(\trg{\nocomm},\trg{\interfacevalue})=\trg{\varepsilon}
-    }{w-t-comm-ret-internal}
+      \rho(\trg{\ctx})=\trg{\ctxtocomp}
+    }{tw-comm-ctxtocomp}
     %
-    \typerule{t-comm-ret-comptoctx}{
+    \typerule{comm-comptoctx}{
     }{
-      \rho_{\tiny ret}(\trg{\comptoctx},\trg{\interfacevalue})=\trg{Ret\ \comptoctx\ \interfacevalue}
-    }{w-t-comm-ret-comptoctx}\\[0.33cm]
+      \rho(\trg{\comp})=\trg{\comptoctx}
+    }{tw-comm-comptoctx}\\[0.33cm]
     %
-    \judgbox{\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{\interfacevalue})=\trg{\event},\trg{\comm}}{,,Given the ctx. info, yield event.''}
+    \judgbox{\trg{\neg\sandboxtag}=\trg{\sandboxtag'}}{,,Negation of $\trg{\sandboxtag}$.''}\\
     %
-    \typerule{t-comm-call-empty-stack-comp}{
-      \trg{foo}\in\trg{\commlib}
+    \typerule{neg-ctx}{
     }{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\hole{\cdot}},\trg{\interfacevalue})=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue},\trg{\comptoctx}
-    }{w-t-comm-call-empty-stack-comp}
+      \trg{\neg\ctx}=\trg{\comp}
+    }{tw-neg-ctx}
     %
-    \typerule{t-comm-call-empty-stack-ctx}{
-      \trg{foo}\notin\trg{\commlib}
+    \typerule{neg-comp}{
     }{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\hole{\cdot}},\trg{\interfacevalue})=\trg{Call\ \comptoctx\ foo\ \interfacevalue},\trg{\ctxtocomp}
-    }{w-t-comm-call-empty-stack-ctx}
-    %
-    \typerule{t-comm-call-nonempty-stack}{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar},\trg{\interfacevalue})=\trg{\event},\trg{\comm}
-    }{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{K^{bar},\kontstack},\trg{\interfacevalue})=\trg{\event},\trg{\comm}
-    }{w-t-comm-call-nonempty-stack}
-    %
-    \judgbox{\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{\event},\trg{\comm}}{,,Given the current ctx. info, yield comm.''}
-    %
-    \typerule{t-comm-call-comptoctx}{
-      \trg{foo}\notin\trg{\commlib} &
-      \trg{\commlib}=\trg{\commlib_1},\trg{bar_{cur}},\trg{\commlib_2}
-    }{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{Call\ \comptoctx\ foo\ \interfacevalue},\trg{\ctxtocomp}
-    }{w-t-comm-call-comptoctx}
-    %
-    \typerule{t-comm-call-internal-both-irrelevant}{
-      \trg{foo}\notin\trg{\commlib} &
-      \trg{bar_{cur}}\notin\trg{\commlib}
-    }{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{\emptyevent},\trg{\nocomm}
-    }{w-t-comm-call-internal-both-irrelevant}
-    %
-    \typerule{t-comm-call-internal-both-relevant}{
-      \trg{\commlib} = \trg{\commlib_1},\trg{foo},\trg{\commlib_2} &
-      \trg{\commlib} = \trg{\commlib_3},\trg{bar_{cur}},\trg{\commlib_4}
-    }{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{\emptyevent},\trg{\nocomm}
-    }{w-t-comm-call-internal-both-relevant}
-    %
-    \typerule{t-comm-call-ctxtocomp}{
-      \trg{\commlib}=\trg{\commlib_1},\trg{foo},\trg{\commlib_2} &
-      \trg{bar_{cur}}\notin\trg{\commlib}
-    }{
-      \rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{bar_{cur}},\trg{\interfacevalue})=\trg{Call\ \ctxtocomp\ foo\ \interfacevalue},\trg{\comptoctx}
-    }{w-t-comm-call-ctxtocomp}
+      \trg{\neg\comp}=\trg{\ctx}
+    }{tw-neg-ctx}
   \end{center}
 }{w-t-expr-ctx-eval}{Contextual Evaluation of $\mmlAt$ expressions.}
 
@@ -2838,22 +2824,24 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 
 \myfig{
   \begin{center}
-    \judgbox{\wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \library_{ctx}\ \library_{comp}}$, giving\\dynamic state $\configt$ and emitting trace $\trg{\trace}$.''}
-    \typerule{$te-\text{wprog}$}{
+    \judgbox{\wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexprnoerr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \library_{ctx}\ \library_{comp}}$, giving\\dynamic state $\configt$ and emitting trace $\trg{\trace}$.''}
+    \typerule{$e-\text{wprog}$}{
       \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
+      \trg{main}\notin\trg{\commlib} &
       \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
-      \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot Ret\ \ctxtocomp\ \interfacevalue}
+      \exect{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
     }{
-      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{Start\cdot\trace\cdot End\ \interfacevalue}
-    }{wt-e-prog}
+      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}
+    }{ws-e-prog}
     %
-    \typerule{$te-\text{wprog}-\lightning$}{
+    \typerule{$e-\text{wprog}-\lightning$}{
       \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
+      \trg{main}\notin\trg{\commlib} &
       \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
-      \exect{\commlib;\library;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{Call\ \comptoctx\ main\ 0\cdot\trace\cdot\lightning}
+      \exect{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
     }{
-      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{Start\cdot\trace\cdot\lightning}
-    }{wt-e-prog-fail}
+      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+    }{ws-e-prog-crash}
   \end{center}
 }{twprog-run}{Running a whole $\mmlAt$ program.}
 

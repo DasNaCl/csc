@@ -3140,10 +3140,39 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{empty-memstate-eq}{
     }{
-      \xlangstateeq{\hole{\cdot};\hole{\cdot}}{\hole{\cdot};\hole{\cdot}}
+      \xlangstateeq{\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\hole{\cdot};\hole{\cdot};\hole{\cdot}}
     }{empty-memstate-eq}
     %
-    %% TODO:
+    \typerule{comp-cons-memstate-eq}{
+      \src{\loc}\not\in\src{L} &
+      \src{n}=\trg{n} &
+      \src{\poison}=\trg{\poison} &
+      \delta\left(\src{\loc}\right)=\trg{\loc} \\
+      \src{\loc},\src{n}\vdash_{\delta}\src{H^{\comp}}\approx\trg{H^{\comp}} &
+      \xlangstateeq{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta_{1},\Delta_{2}}
+    }{
+      \xlangstateeq{H^{\ctx};H^{\comp};x\mapsto(\loc;\comp;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;n),\Delta_{2}}
+    }{comp-cons-memstate-eq}
+    %
+    \typerule{ctx-cons-memstate-eq}{
+      \src{\loc}\not\in\src{L} &
+      \xlangstateeq{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{
+      \xlangstateeq{H^{\ctx};H^{\comp};x\mapsto(\loc;\ctx;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{ctx-cons-memstate-eq}
+    %
+    \typerule{whatever-cons-memstate-eq}{
+      \src{\loc}\in\src{L} &
+      \xlangstateeq{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{
+      \xlangstateeq{H^{\ctx};H^{\comp};x\mapsto(\loc;\sandboxtag;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{ctx-cons-memstate-eq}
+    %
+    %
+    \judgbox{\src{\loc},\src{n}\vdash_{\delta}\src{H^{\comp}}\approx\trg{H^{\comp}}}{,,The heaps $\src{H^{\ctx}}$ and $\trg{H^{\ctx}}$ are related at $\src{\loc}$ for\\$\src{n}$ memory cells.''}
+    %
+    % TODO
+    %
     \judgbox{\xlangstateeq[]{\cfstate}{\cfstate}}{,,The $\mmlAs$ control-flow-state $\src{\cfstate}$ agrees with $\mmlAt$ one $\trg{\cfstate}$.''} \\
     %
     \typerule{cfstate-eq}{

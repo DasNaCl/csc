@@ -2504,7 +2504,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \mi{State}\ \configt \bnfdef\ \trg{\cfstate;\sandboxtag;\memstate} \\
   %
   \mi{Flow\ State}\ \trg{\cfstate} \bnfdef&\ \trg{\commlib;\library;\kontstack}\hspace{0.35cm}
-  \mi{Memory\ State}\ \trg{\memstate} \bnfdef \trg{H;\Delta}\\
+  \mi{Memory\ State}\ \trg{\memstate} \bnfdef \trg{H^{\ctx};H^{\comp};\Delta}\\
   %
   \mi{Programs}\ &\trg{prog\ \library_{ctx}\ \library_{comp}} \\
   \end{aligned}
@@ -2559,8 +2559,9 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \begin{gather*}
   \begin{aligned}
   \mi{Interface\ Value}~\trg{\interfacevalue} \bnfdef&\ \trg{\valueexpr} \mid \trg{\loc} \\
-  \mi{Events}~\trg{\event} \bnfdef&\ \trg{\emptyevent} \mid \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}\\
-                             & \mid \trg{Call\ \comm\ foo\ \interfacevalue} \mid \trg{Ret\ \comm\ \interfacevalue} \mid \trg{Start} \mid \trg{End\ \interfacevalue}
+  \mi{Base~Events}~\trg{\event_{b}} \bnfdef&\ \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}\\
+                                                     & \mid \trg{Call\ \comm\ foo\ \interfacevalue} \mid \trg{Ret\ \comm\ \interfacevalue} \mid \trg{Start} \mid \trg{End\ \interfacevalue} \\
+  \mi{Events}~\trg{\event} \bnfdef&\ \trg{\emptyevent} \mid \trg{\event_{b};\sandboxtag}
   \end{aligned}
   \end{gather*}
 }{tw-events}{Events of $\mmlAt$.}
@@ -2598,17 +2599,29 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{tw-e-let-x}
   %
   \typerule{$e-\trg{delete}$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
   }{
-    \exprevalt{\cfstate;H;\Delta_1,x\mapsto\loc_\poison,\Delta_2}{delete\ x}{\cfstate;H;\Delta_1,x\mapsto\loc_\poisoned,\Delta_2}{0}{Dealloc\ \loc}
+    \exprevalt{\cfstate;\sandboxtag;\memstate}{delete\ x}{\cfstate;\sandboxtag;\memstate'}{0}{Dealloc\ \loc;\sandboxtag}
   }{tw-e-delete}
   %
-  \typerule{$e-\trg{new}$}{
+  \typerule{$e-\trg{new}-ctx$}{
     \fresh{\trg{\Delta}}{\trg{\loc}} &
     \fresh{\trg{\Delta}}{\trg{z}} &
-    \trg{H'} = \trg{H} \ll \trg{n} &
+    \trg{H^{\ctx'}} = \trg{H^{\ctx}} \ll \trg{n} \\
+    \trg{\memstate} = \trg{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
   }{
-  \exprevalt{\cfstate;H;\Delta}{let\ x=new\ n\ in\ e}{\cfstate;H';z\mapsto \loc_\poisonless,\Delta}{e[z/x]}{Alloc\ \loc\ n}
-  }{tw-e-let-new}
+    \exprevalt{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;\memstate}{e[z/x]}{Alloc\ \loc\ n;\ctx}
+  }{tw-e-let-new-ctx}
+  %
+  \typerule{$e-\trg{new}-comp$}{
+    \fresh{\trg{\Delta}}{\trg{\loc}} &
+    \fresh{\trg{\Delta}}{\trg{z}} &
+    \trg{H^{\comp'}} = \trg{H^{\comp}} \ll \trg{n} \\
+    \trg{\memstate} = \trg{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+  }{
+    \exprevalt{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate}{e[z/x]}{Alloc\ \loc\ n;\comp}
+  }{tw-e-let-new-comp}
   %
   \typerule{$e-\trg{ifz}-$true}{
   }{

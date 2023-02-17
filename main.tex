@@ -3876,73 +3876,75 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \myfig{
   \begin{center}
-    \judgbox{\Game(\trg{\loc}) = \src{x}}{,,Map from $\mmlAt$ locations to $\mmlAs$ variable names.''}
-    \judgbox{\Game[\trg{\loc}] = \Game'}{,,Extend $\Game$ with $\trg{\loc}$ and call the extension $\Game'$.''}
+    \judgbox{\delta(\src{\loc}) = \trg{\loc}}{,,Map from $\mmlAt$ locations to $\mmlAs$ locations.''}
+    \judgbox{\delta[\trg{\loc}] = \delta'}{,,Extend $\delta$ with $\trg{\loc}$ and call the extension $\delta'$.''}
     \typerule{backtrans-create-symb}{
-      \trg{\loc}\not\in\operatorname{dom}\Game &
-      \fresh{\Game}{\src{x}} &
+      \trg{\loc}\not\in\operatorname{img}\delta &
+      \fresh{\delta}{\src{\loc}} &
     }{
-      \Game'[\trg{\loc}]=\Game\cup\left\{\trg{\loc}\mapsto\src{x}\right\}
+      \delta'=[\trg{\loc}]=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}
     }{backtrans-create-symb}
     \typerule{backtrans-nocreate-symb}{
-      \trg{\loc}\in\operatorname{dom}\Game &
+      \trg{\loc}\in\operatorname{img}\delta &
     }{
-      \Game'[\trg{\loc}]=\Game
+      \delta'[\trg{\loc}]=\delta
     }{backtrans-nocreate-symb}
     %
     \typerule{backtrans-lookup-symb}{
-      \trg{\loc}\in\operatorname{dom}\Game
+      \trg{\loc}\in\operatorname{img}\delta
     }{
-      \Game(\trg{\loc}) = \src{x}
+      \delta(\src{\loc}) = \trg{\loc}
     }{backtrans-lookup-symb}
   \end{center}
 }{backtrans-locs-to-var}{\varmapbacktransds to keep track of $\mmlAt$ locations and $\mmlAs$ variables.}
 
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtbackv{\interfacevalue} = \src{\interfacevalue}}{,,Map an $\mmlAt$ interface value to an $\mmlAs$ interface value.''}$\;$\\
+    \judgbox{\Game\left(\src{\loc}\right)=\src{x}}{,,Map an $\mmlAs$ location to an $\mmlAs$ identifier.''}
+    \judgbox{\mmlAmmlAtbackv[\Game,\delta]{\interfacevalue} = \src{\interfacevalue}}{,,Map an $\mmlAt$ interface value to an $\mmlAs$ interface value.''}$\;$\\
     \typerule{backtrans-value}{
     }{
-      \mmlAmmlAtbackv{n} = \src{n}
+      \mmlAmmlAtbackv[\Game,\delta]{n} = \src{n}
     }{backtrans-value}
     \typerule{backtrans-location}{
+      \delta(\src{\loc})=\trg{\loc}
     }{
-      \mmlAmmlAtbackv{\loc} = \Game(\trg{\loc})
+      \mmlAmmlAtbackv[\Game,\delta]{\loc} = \Game(\src{\loc})
     }{backtrans-value}
   \end{center}
 }{backtrans-values}{Backtranslation of $\mmlAt$ interface values to $\mmlAs$ interface values.}
 
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtbackdetail[\Game, \trg{\overline{\loc}}]{\trace}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\backtranslation contexts from target-trace $\trg{\mstrace}$.''}
+    \judgbox{\mmlAmmlAtbackdetail[]{\trace}=\src{e}}{,,Backtranslate a non-interface trace $\trg{\trace}$ to an $\mmlAs$ expression.''}
     %
     \typerule{backtrans-empty}{
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\hole{\cdot}}=\Game,\trg{\overline{\loc}},\src{42}
+      \mmlAmmlAtbackdetail[]{\hole{\cdot}}=\src{42}
     }{backtrans-empty}
     \typerule{backtrans-alloc}{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{\trace}}=\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Alloc\ \loc\ s}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{Alloc\ \loc\ s;\sandboxtag}\cdot\trg{\trace}}=\src{e}
     }{backtrans-alloc}
     \typerule{backtrans-dealloc}{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{\trace}}=\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Dealloc\ \loc}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{Dealloc\ \loc;\sandboxtag}\cdot\trg{\trace}}=\src{e}
     }{backtrans-dealloc}
     \typerule{backtrans-set}{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{\trace}}=\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Set\ \loc\ n}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{Set\ \loc\ n;\sandboxtag}\cdot\trg{\trace}}=\src{e}
     }{backtrans-set}
     \typerule{backtrans-get}{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{\trace}}=\src{e}
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{\trg{Get\ \loc\ n}\cdot\trg{\trace}}=\Game',\trg{\overline{\loc'}},\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{Get\ \loc\ n;\sandboxtag}\cdot\trg{\trace}}=\src{e}
     }{backtrans-get}
     \typerule{backtrans-abort}{
     }{
-      \mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}\cdot\trace}]{\lightning}=\Game,\trg{\overline{\loc}},\src{abort();}
+      \mmlAmmlAtbackdetail[]{\lightning;\sandboxtag}=\src{abort()}
     }{backtrans-abort}
     %
   \end{center}

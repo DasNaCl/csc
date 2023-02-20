@@ -1014,16 +1014,12 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Interface\ Value}~\src{\interfacevalue} \bnfdef&\ \src{\valueexpr} \mid \src{\loc} \\
-  \mi{Base\ Events}~\src{\event_{b}} \bnfdef&\ \src{Alloc\ \loc\ n} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ n} \mid \src{Set\ \loc\ n\ v} \mid \src{\lightning} \\
-                                  & \mid \src{Call\ \comm\ foo\ \interfacevalue} \mid \src{Ret\ \comm\ \interfacevalue} \mid \src{Start} \mid \src{End\ \interfacevalue}\\
+  \mi{Base\ Events}~\src{\event_{b}} \bnfdef&\ \src{Alloc\ \loc\ \valueexpr} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ \valueexpr} \mid \src{Set\ \loc\ \valueexpr\ \valueexpr'} \mid \src{\lightning} \\
+                                  & \mid \src{Call\ \comm\ foo\ \valueexpr} \mid \src{Ret\ \comm\ \valueexpr} \mid \src{Start} \mid \src{End\ \valueexpr}\\
   \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{\event_{b};\sandboxtag}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
-
-We add the syntactic category of {\em interface values} $\src{\interfacevalue}$, because we want call and return events to allow for values and for locations, which are not values.
-They do not have any other relevance.
 
 \myfig{
   \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{\event}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
@@ -1148,7 +1144,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm} &
       \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \finalexprnoerr;\sandboxtag}
+      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
     }{w-e-ectx-call-notsame}
     %
     \typerule{$e-\text{ctx}-\src{call}-\text{same}$}{
@@ -1158,7 +1154,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{foo}\in_{\src{\sandboxtag}}\src{\commlib} &
       \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate} \\
     }{
-      \execs[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \finalexprnoerr;\sandboxtag}
+      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \valueexpr;\sandboxtag}
     }{w-e-ectx-call-same}
     %
     \typerule{$e-\text{ctx}-\src{return}-$main}{
@@ -1170,13 +1166,13 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
       \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm;\sandboxtag}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \finalexprnoerr;\sandboxtag}}
+      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \valueexpr;\sandboxtag}}
     }{w-e-ectx-ret-notsame}
     %
     \typerule{$e-\text{ctx}-\src{return}-\text{same}$}{
       \src{foo}\in_{\src{\sandboxtag}}\src{\commlib}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \finalexprnoerr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \finalexprnoerr;\sandboxtag}}
+      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
     }{w-e-ectx-ret-same}
     %
     \judgbox{\rho(\src{\sandboxtag})=\src{\comm}}{,,Returns either $\src{\ctxtocomp}$ or $\src{\comptoctx}$ depending on $\src{\sandboxtag}$.''}\\
@@ -2558,9 +2554,8 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Interface\ Value}~\trg{\interfacevalue} \bnfdef&\ \trg{\valueexpr} \mid \trg{\loc} \\
-  \mi{Base~Events}~\trg{\event_{b}} \bnfdef&\ \trg{Alloc\ \loc\ n} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ n} \mid \trg{Set\ \loc\ n} \mid \trg{\lightning}\\
-                                                     & \mid \trg{Call\ \comm\ foo\ \interfacevalue} \mid \trg{Ret\ \comm\ \interfacevalue} \mid \trg{Start} \mid \trg{End\ \interfacevalue} \\
+  \mi{Base~Events}~\trg{\event_{b}} \bnfdef&\ \trg{Alloc\ \loc\ \valueexpr} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ \valueexpr} \mid \trg{Set\ \loc\ \valueexpr\ \valueexpr'} \mid \trg{\lightning}\\
+                                                     & \mid \trg{Call\ \comm\ foo\ \valueexpr} \mid \trg{Ret\ \comm\ \valueexpr} \mid \trg{Start} \mid \trg{End\ \valueexpr} \\
   \mi{Events}~\trg{\event} \bnfdef&\ \trg{\emptyevent} \mid \trg{\event_{b};\sandboxtag}
   \end{aligned}
   \end{gather*}
@@ -2741,7 +2736,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
       \rho\left(\trg{\neg\sandboxtag}\right) = \trg{\comm} &
       \trg{\Omega'}=\trg{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;\memstate} \\
     }{
-      \exect[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \finalexprnoerr;\sandboxtag}
+      \exect[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
     }{tw-e-ectx-call-notsame}
     %
     \typerule{$e-\text{ctx}-\trg{call}-\text{same}$}{
@@ -2751,7 +2746,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
       \trg{foo}\in_{\trg{\sandboxtag}}\trg{\commlib} &
       \trg{\Omega'}=\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate} \\
     }{
-      \exect[]{\Omega}{K[call\ foo\ \finalexprnoerr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \finalexprnoerr;\sandboxtag}
+      \exect[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \valueexpr;\sandboxtag}
     }{tw-e-ectx-call-same}
     %
     \typerule{$e-\text{ctx}-\trg{return}-$main}{
@@ -2763,13 +2758,13 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
       \trg{foo}\in_{\trg{\neg\sandboxtag}}\trg{\commlib} &
       \rho\left(\trg{\neg\sandboxtag}\right) = \trg{\comm;\sandboxtag}
     }{
-      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \finalexprnoerr]}}{\trg{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\trg{K[\finalexprnoerr]}}{\trg{Ret\ \comm\ \finalexprnoerr;\sandboxtag}}
+      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\trg{K[\valueexpr]}}{\trg{Ret\ \comm\ \valueexpr;\sandboxtag}}
     }{tw-e-ectx-ret-notsame}
     %
     \typerule{$e-\text{ctx}-\trg{return}-\text{same}$}{
       \trg{foo}\in_{\trg{\sandboxtag}}\trg{\commlib}
     }{
-      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \finalexprnoerr]}}{\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\trg{K[\finalexprnoerr]}}{\trg{Ret\ \nocomm\ \finalexprnoerr;\sandboxtag}}
+      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\trg{K[\valueexpr]}}{\trg{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
     }{tw-e-ectx-ret-same}
     %
     \judgbox{\rho(\trg{\sandboxtag})=\trg{\comm}}{,,Returns either $\trg{\ctxtocomp}$ or $\trg{\comptoctx}$ depending on $\trg{\sandboxtag}$.''}\\
@@ -3876,19 +3871,13 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \myfig{
   \begin{center}
-    \judgbox{\Game\left(\src{\loc}\right)=\src{x}}{,,Map an $\mmlAs$ location to an $\mmlAs$ identifier.''}
-    \judgbox{\mmlAmmlAtbackv[\Game;\delta]{\interfacevalue} = \src{\interfacevalue}}{,,Map an $\mmlAt$ interface value to an $\mmlAs$ interface value.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackv[]{\valueexpr} = \src{\valueexpr}}{,,Map an $\mmlAt$ value to an $\mmlAs$ value.''}$\;$\\
     \typerule{backtrans-value}{
     }{
-      \mmlAmmlAtbackv[\Game;\delta]{n} = \src{n}
-    }{backtrans-value}
-    \typerule{backtrans-location}{
-      \delta(\src{\loc})=\trg{\loc}
-    }{
-      \mmlAmmlAtbackv[\Game;\delta]{\loc} = \Game(\src{\loc})
+      \mmlAmmlAtbackv[]{n} = \src{n}
     }{backtrans-value}
   \end{center}
-}{backtrans-values}{Backtranslation of $\mmlAt$ interface values to $\mmlAs$ interface values.}
+}{backtrans-values}{Backtranslation of $\mmlAt$ values to $\mmlAs$ values.}
 
 \myfig{
   \begin{center}
@@ -3927,6 +3916,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 }{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{
   \begin{center}
+    \judgbox{\Game\left(\src{\loc}\right)=\src{x}}{,,Map an $\mmlAs$ location to an $\mmlAs$ identifier.''}
     \judgbox{\mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\overline{\loc}}]{\event}=\trg{\overline{\loc'}};\src{e}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\trg{\overline{\loc}}$, yield\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\comptoctx$-interaction-event $\trg{\event}$.''}
     %
     \typerule{backtrans-start}{
@@ -3936,7 +3926,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{backtrans-end}{
     }{
-      \mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\hole{\cdot}}]{\trg{End\ \interfacevalue}} = \trg{\hole{\cdot}};\mmlAmmlAtbackv[\Game;\delta]{\interfacevalue}
+      \mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\hole{\cdot}}]{\trg{End\ \valueexpr}} = \trg{\hole{\cdot}};\mmlAmmlAtbackv[]{\valueexpr}
     }{backtrans-end}
     %
 %   \typerule{backtrans-call-comptoctx}{
@@ -3949,7 +3939,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \src{z}=\Game(\src{\loc}) &
       \src{e}=\src{delete\ z}
     }{
-      \mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}}=\trg{\overline{\loc}};\src{e}
+      \mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \valueexpr}}=\trg{\overline{\loc}};\src{e;}\mmlAmmlAtbackv[]{\valueexpr}
     }{backtrans-ret-comptoctx}
     %
     %
@@ -3961,9 +3951,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \fresh{\delta}{\trg{\loc}}\\
       \Game_z=\Game\cup\{\src{\loc}\mapsto\src{z}\} &
       \delta'=\delta\cup\{\src{\loc}\mapsto\trg{\loc}\}\\
-      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[]{foo}\ \mmlAmmlAtbackv[\Game_z;\delta']{\interfacevalue}
+      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[]{foo}\ \mmlAmmlAtbackv[]{\valueexpr}
     }{
-      \mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}}=\Game_z;\delta';\trg{\loc,\overline{\loc}};\src{e}
+      \mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \valueexpr}}=\Game_z;\delta';\trg{\loc,\overline{\loc}};\src{e}
     }{backtrans-call-ctxtocomp}
     %
 %   \typerule{backtrans-ret-ctxtocomp}{
@@ -3974,7 +3964,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{backtrans-end-ctxtocomp}{
     }{
-      \mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\hole{\cdot}}]{\trg{End\ \interfacevalue}}=\Game;\delta;\trg{\hole{\cdot}};\mmlAmmlAtbackv[\Game;\delta]{\interfacevalue}
+      \mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\hole{\cdot}}]{\trg{End\ \valueexpr}}=\Game;\delta;\trg{\hole{\cdot}};\mmlAmmlAtbackv[]{\valueexpr}
     }{backtrans-end-ctxtocomp}
   \end{center}
 }{tms-pres-backtrans-interact}{Backtranslation of interaction-events from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}

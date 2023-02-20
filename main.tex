@@ -3876,40 +3876,16 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \myfig{
   \begin{center}
-    \judgbox{\delta(\src{\loc}) = \trg{\loc}}{,,Map from $\mmlAt$ locations to $\mmlAs$ locations.''}
-    \judgbox{\delta[\trg{\loc}] = \delta'}{,,Extend $\delta$ with $\trg{\loc}$ and call the extension $\delta'$.''}
-    \typerule{backtrans-create-symb}{
-      \trg{\loc}\not\in\operatorname{img}\delta &
-      \fresh{\delta}{\src{\loc}} &
-    }{
-      \delta'=[\trg{\loc}]=\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\}
-    }{backtrans-create-symb}
-    \typerule{backtrans-nocreate-symb}{
-      \trg{\loc}\in\operatorname{img}\delta &
-    }{
-      \delta'[\trg{\loc}]=\delta
-    }{backtrans-nocreate-symb}
-    %
-    \typerule{backtrans-lookup-symb}{
-      \trg{\loc}\in\operatorname{img}\delta
-    }{
-      \delta(\src{\loc}) = \trg{\loc}
-    }{backtrans-lookup-symb}
-  \end{center}
-}{backtrans-locs-to-var}{\varmapbacktransds to keep track of $\mmlAt$ locations and $\mmlAs$ variables.}
-
-\myfig{
-  \begin{center}
     \judgbox{\Game\left(\src{\loc}\right)=\src{x}}{,,Map an $\mmlAs$ location to an $\mmlAs$ identifier.''}
-    \judgbox{\mmlAmmlAtbackv[\Game,\delta]{\interfacevalue} = \src{\interfacevalue}}{,,Map an $\mmlAt$ interface value to an $\mmlAs$ interface value.''}$\;$\\
+    \judgbox{\mmlAmmlAtbackv[\Game;\delta]{\interfacevalue} = \src{\interfacevalue}}{,,Map an $\mmlAt$ interface value to an $\mmlAs$ interface value.''}$\;$\\
     \typerule{backtrans-value}{
     }{
-      \mmlAmmlAtbackv[\Game,\delta]{n} = \src{n}
+      \mmlAmmlAtbackv[\Game;\delta]{n} = \src{n}
     }{backtrans-value}
     \typerule{backtrans-location}{
       \delta(\src{\loc})=\trg{\loc}
     }{
-      \mmlAmmlAtbackv[\Game,\delta]{\loc} = \Game(\src{\loc})
+      \mmlAmmlAtbackv[\Game;\delta]{\loc} = \Game(\src{\loc})
     }{backtrans-value}
   \end{center}
 }{backtrans-values}{Backtranslation of $\mmlAt$ interface values to $\mmlAs$ interface values.}
@@ -3951,53 +3927,54 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 }{tms-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}
 \myfig{
   \begin{center}
-    \judgbox{\mmlAmmlAtbackcomptoctx[\Game, \trg{\overline{\loc}}]{\event}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\comptoctx$-interaction-event $\trg{\event}$.''}
+    \judgbox{\mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\overline{\loc}}]{\event}=\trg{\overline{\loc'}};\src{e}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\trg{\overline{\loc}}$, yield\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\comptoctx$-interaction-event $\trg{\event}$.''}
     %
     \typerule{backtrans-start}{
     }{
-      \mmlAmmlAtbackcomptoctx[\emptyset,\trg{\hole{\cdot}}]{\trg{Start}} = \emptyset,\trg{\hole{\cdot}},\src{42}
+      \mmlAmmlAtbackcomptoctx[\emptyset;\emptyset;\trg{\hole{\cdot}}]{\trg{Start}} = \trg{\hole{\cdot}};\src{42}
     }{backtrans-start}
     %
     \typerule{backtrans-end}{
     }{
-      \mmlAmmlAtbackcomptoctx[\emptyset,\trg{\hole{\cdot}}]{\trg{End\ \interfacevalue}} = \emptyset,\trg{\hole{\cdot}},\mmlAmmlAtbackv{\interfacevalue}
+      \mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\hole{\cdot}}]{\trg{End\ \interfacevalue}} = \trg{\hole{\cdot}};\mmlAmmlAtbackv[\Game;\delta]{\interfacevalue}
     }{backtrans-end}
     %
-    \typerule{backtrans-call-comptoctx}{
-    }{
-      \mmlAmmlAtbackcomptoctx[\Game,\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{42}
-    }{backtrans-call-comptoctx}
+%   \typerule{backtrans-call-comptoctx}{
+%   }{
+%     \mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\overline{\loc}}]{\trg{Call\ \comptoctx\ foo\ \interfacevalue}}=\trg{\overline{\loc}};\src{42}
+%   }{backtrans-call-comptoctx}
     %
     \typerule{backtrans-ret-comptoctx}{
-      \src{z}=\Game(\trg{\loc}) &
+      \delta(\src{\loc})=\trg{\loc} &
+      \src{z}=\Game(\src{\loc}) &
       \src{e}=\src{delete\ z}
     }{
-      \mmlAmmlAtbackcomptoctx[\Game,\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{e}
+      \mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\loc,\overline{\loc}}]{\trg{Ret\ \comptoctx\ \interfacevalue}}=\trg{\overline{\loc}};\src{e}
     }{backtrans-ret-comptoctx}
-    \typerule{backtrans-start-ctxtocomp}{
-    }{
-      \mmlAmmlAtbackctxtocomp[\Game,\trg{\cdot}]{\trg{Start}}=\Game,\trg{\hole{\cdot}},\src{42}
-    }{backtrans-start-ctxtocomp}
     %
     %
-    \judgbox{\mmlAmmlAtbackctxtocomp[\Game, \trg{\overline{\loc}}]{\event}=\Game',\trg{\overline{\loc'}},\src{e}}{,,Given a \varmapbacktransds $\Game$ and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\ctxtocomp$-interaction-event $\trg{\event}$.''}
+    \judgbox{\mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\overline{\loc}}]{\event}=\Game';\delta';\trg{\overline{\loc'}};\src{e}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\trg{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\ a $\delta'$, another stack of locations $\trg{\overline{\loc'}}$, and an $\mmlAs$\\expression from target $\ctxtocomp$-interaction-event $\trg{\event}$.''}
     %
     \typerule{backtrans-call-ctxtocomp}{
-      \fresh{\Game}{\trg{\loc}}&
-      \Game_z=\Game[\trg{\loc}] &
-      \src{z}=\Game_z(\trg{\loc}) \\
-      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[\Game_z]{foo}\ \mmlAmmlAtbackv[\Game_z]{\interfacevalue}
+      \fresh{\Game,\delta}{\src{\loc}}&
+      \fresh{\Game}{\src{z}}&
+      \fresh{\delta}{\trg{\loc}}\\
+      \Game_z=\Game\cup\{\src{\loc}\mapsto\src{z}\} &
+      \delta'=\delta\cup\{\src{\loc}\mapsto\trg{\loc}\}\\
+      \src{e}=\src{let\ z = new\ 42\ in\ call\ }\mmlAmmlAtbackdetail[]{foo}\ \mmlAmmlAtbackv[\Game_z;\delta']{\interfacevalue}
     }{
-      \mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}}=\Game_z,\trg{\loc,\overline{\loc}},\src{e}
+      \mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\overline{\loc}}]{\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}}=\Game_z;\delta';\trg{\loc,\overline{\loc}};\src{e}
     }{backtrans-call-ctxtocomp}
-    \typerule{backtrans-ret-ctxtocomp}{
-      \fresh{\Game}{\src{x}}
-    }{
-      \mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{let\ x = new\ 1\ in\ delete\ x;return\ }\mmlAmmlAtbackv{\interfacevalue}
-    }{backtrans-ret-ctxtocomp}
+    %
+%   \typerule{backtrans-ret-ctxtocomp}{
+%     \fresh{\Game}{\src{x}}
+%   }{
+%     \mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{\trg{Ret\ \ctxtocomp\ \interfacevalue}}=\Game,\trg{\overline{\loc}},\src{let\ x = new\ 1\ in\ delete\ x;return\ }\mmlAmmlAtbackv{\interfacevalue}
+%   }{backtrans-ret-ctxtocomp}
+    %
     \typerule{backtrans-end-ctxtocomp}{
     }{
-      \mmlAmmlAtbackctxtocomp[\Game,\trg{\cdot}]{\trg{End\ \interfacevalue}}=\Game,\trg{\hole{\cdot}},\mmlAmmlAtbackv{\interfacevalue}
+      \mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\hole{\cdot}}]{\trg{End\ \interfacevalue}}=\Game;\delta;\trg{\hole{\cdot}};\mmlAmmlAtbackv[\Game;\delta]{\interfacevalue}
     }{backtrans-end-ctxtocomp}
   \end{center}
 }{tms-pres-backtrans-interact}{Backtranslation of interaction-events from memory-specific $\mmlAt$ events to $\mmlAs$ terms.}

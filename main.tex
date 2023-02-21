@@ -1136,7 +1136,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \typerule{$e-\text{ctx}-\src{call}-$main}{
       \src{\Omega}=\src{\commlib;\library;\hole{\cdot};\comp;\memstate} &
       \src{\library}=\src{\library_1,}(\src{let\ main\ x:\type}_\lambda\src{:=e})\src{,\library_2}\\
-      \src{\Omega'}=\src{\commlib;\library;\ctx;K^{main},\hole{\cdot};\memstate}
+      \src{\Omega'}=\src{\commlib;\library;\ctx;(K;main),\hole{\cdot};\memstate}
     }{
       \execs[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start;\comp}
     }{w-e-ectx-call-main}
@@ -1146,8 +1146,8 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
       %\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
       \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
-      \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm} &
-      \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;\memstate} \\
+      \rho\left(\src{\sandboxtag}\right) = \src{\comm} &
+      \src{\Omega'}=\src{\commlib;\library;(K;foo),\kontstack;\neg\sandboxtag;\memstate} \\
     }{
       \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
     }{w-e-ectx-call-notsame}
@@ -1157,7 +1157,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
       \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
       %\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
       \src{foo}\in_{\src{\sandboxtag}}\src{\commlib} &
-      \src{\Omega'}=\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate} \\
+      \src{\Omega'}=\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate} \\
     }{
       \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \valueexpr;\sandboxtag}
     }{w-e-ectx-call-same}
@@ -1169,15 +1169,15 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     %
     \typerule{$e-\text{ctx}-\src{return}-\text{notsame}$}{
       \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
-      \rho\left(\src{\neg\sandboxtag}\right) = \src{\comm;\sandboxtag}
+      \rho\left(\src{\sandboxtag}\right) = \src{\comm}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \valueexpr;\sandboxtag}}
+      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \valueexpr;\sandboxtag}}
     }{w-e-ectx-ret-notsame}
     %
     \typerule{$e-\text{ctx}-\src{return}-\text{same}$}{
       \src{foo}\in_{\src{\sandboxtag}}\src{\commlib}
     }{
-      \exec[]{\src{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
+      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
     }{w-e-ectx-ret-same}
     %
     \judgbox{\rho(\src{\sandboxtag})=\src{\comm}}{,,Returns either $\src{\ctxtocomp}$ or $\src{\comptoctx}$ depending on $\src{\sandboxtag}$.''}\\
@@ -4101,7 +4101,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   If
   \begin{assumptions}
     \item $\src{\loc}\in\operatorname{dom}\delta$
-    \item $\xlangstateeq{\Delta;H}{\Delta;H}$
+    \item $\xlangstateeq{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}$
   \end{assumptions}
   Then $\exists \src{\Delta_{1}}\ \src{x}\ \src{\poison}\ \src{\Delta_{2}}$
   \begin{goals}
@@ -4255,25 +4255,27 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Backtranslation Correctness of $\trg{Ret}$]\label{lem:exprbacktranslation:beg:wrapper:correct}
   If
   \begin{assumptions}
-  \item $\trg{\Omega}=\trg{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
+  \item $\trg{\Omega}=\trg{\commlib;\library;(K;foo),\kontstack;\comp;\memstate}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:exect} $\exect[]{\Omega}{K_{component}[return\ \interfacevalue]}{\Omega'}{K[\interfacevalue]}{Ret\ \comptoctx\ \interfacevalue}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:exect} $\exect[]{\Omega}{K_{component}[return\ \interfacevalue]}{\Omega'}{K[\interfacevalue]}{Ret\ \comptoctx\ \valueexpr;\comp}$
   \item $\trg{K_{component}}=\mmlAmmlAtcomp{K_{component}}$
-  \item $\mmlAmmlAtbackdetail[\Game,\trg{\overline{\loc}}]{Ret\ \comptoctx\ \interfacevalue}=\Game',\trg{\overline{\loc'}},\src{delete\ z}$
+  \item $\mmlAmmlAtbackdetail[\Game;\delta;\trg{\overline{\loc}}]{Ret\ \comptoctx\ \valueexpr}=\trg{\overline{\loc'}};\src{delete\ z;}\mmlAmmlAtbackv[]{\valueexpr}$
   \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:staterel} $\xlangstateeq{\Omega}{\Omega}$
-  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:omegas} $\src{\Omega}=\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
-  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:K} $\src{K}=\src{\hole{\cdot};delete\ z;e_{any}}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:omegas} $\src{\Omega}=\src{\commlib;\library;(K,foo),\kontstack;\comp;\memstate}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:K} $\src{K}=\src{\hole{\cdot};delete\ z;K[}\mmlAmmlAtbackv[]{\valueexpr}\src{]}$
   \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
   \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:delta} $\delta\left(\src{\loc}\right)=\trg{\loc}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:z} $\src{z}=\Game(\src{\loc})$
   \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:linL} $\src{\loc}\in\src{L}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:fooinlibctx} $\trg{foo}\in\trg{\library_{\ctx}}$
   \end{assumptions}
   then $\exists \src{X'}\ \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
   \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
-  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K_{component}[return\ }\mmlAmmlAtbackv[\Game']{\trg{\interfacevalue}}\src{]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{e_{any}}}{\src{\trace}}$
-  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:stateeq} $\xlangbackstateeq[\delta;\src{L}]{\Omega'}{\src{\commlib;\library;\hole{\cdot}^{main}_{\ctxtocomp},\hole{\cdot};\memstate'}}$
-  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta;\src{X'}]\trg{Ret\ \comptoctx\ \interfacevalue}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K_{component}[return\ }\mmlAmmlAtbackv[]{\trg{\valueexpr}}\src{]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[}\mmlAmmlAtbackv[]{v}\src{]}}{\src{\trace}}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:stateeq} $\xlangbackstateeq[\delta;\src{L}]{\Omega'}{\src{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta;\src{X'}]\trg{Ret\ \comptoctx\ \valueexpr}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -4284,80 +4286,75 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Invert \Cref{asm:exprbacktranslation:beg:wrapper:correct:staterel}:
   \begin{passumptions}{H}
     \setcounter{enumi}{1}
-    \item $\src{\Omega}=\src{\cfstate;\memstate}$
-    \item $\trg{\Omega}=\trg{\cfstate;\memstate}$
+    \item $\src{\Omega}=\src{\cfstate;\comp;\memstate}$
+    \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
     \item $\xlangstateeq[]{\cfstate}{\cfstate}$
     \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:memstaterel} $\xlangstateeq{\memstate}{\memstate}$
   \end{passumptions}
-  Decompose $\src{\memstate}$ into $\src{\Delta;H}$.
+  Decompose $\src{\memstate}$ into $\src{H^{\ctx};H^{\comp};\Delta}$.
   Make use of \Cref{asm:exprbacktranslation:beg:wrapper:correct:memstaterel,asm:exprbacktranslation:beg:wrapper:correct:locindom} with \Thmref{lem:deltadecomposeDelta}:
   \begin{passumptions}{H}
     \setcounter{enumi}{5}
-    \item $\src{\Delta}=\src{\Delta_{1},x\mapsto\loc_{\poison},\Delta_{2}}$
+    \item $\src{\Delta}=\src{\Delta_{1},x\mapsto(\loc;\sandboxtag';\poison;m),\Delta_{2}}$
   \end{passumptions}
-  Note that $\src{x}=\src{z}$ by shape of $\delta$.\MK{we need relation between $\Game$ and $\delta$/$\src{\Delta}$}
   For the goals, instantiate the existentials with:
   \begin{passumptions}{E}
     \item $\src{X'}=\src{X}\cup\left\{\src{Dealloc\ \loc}\right\}$
-    \item $\src{\trace}=\src{Dealloc\ \loc\cdot Ret\ \comptoctx\ }\mmlAmmlAtbackv{\interfacevalue}$
-    \item $\src{\memstate'}=\src{H;\Delta_{1},x\mapsto\loc_{\poisoned},\Delta_{2}}$
+    \item $\src{\trace}=\src{Dealloc\ \loc\cdot Ret\ \comptoctx\ }\mmlAmmlAtbackv{\valueexpr}$
+    \item $\src{\memstate'}=\src{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\sandboxtag';\poisoned;m),\Delta_{2}}$
   \end{passumptions}
   \Cref{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} is easy.
-  Suppose $\trg{\interfacevalue}=\trg{n}$.
-  For \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs}, first note \Cref{asm:exprbacktranslation:beg:wrapper:correct:omegas}, use \Cref{tr:w-e-ectx-ret-value} and rewrite $\src{K}$ using \Cref{asm:exprbacktranslation:beg:wrapper:correct:K}:
-  \begin{passumptions}{H^a}
+  Let $\src{n}=\mmlAmmlAtbackv[]{\valueexpr}$.
+  For \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs}, first note \Cref{asm:exprbacktranslation:beg:wrapper:correct:omegas}, use \Cref{tr:w-e-ectx-ret-notsame} and rewrite $\src{K}$ using \Cref{asm:exprbacktranslation:beg:wrapper:correct:K}:
+  \begin{passumptions}{H}
     \setcounter{enumi}{6}
-    \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs0a} $\execs[]{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\memstate}{n;delete\ z;e_{any}}{Ret\ \comptoctx\ n}$
+    \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs0a} $\execs[]{\commlib;\library;(K;foo),\kontstack;\comp;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\ctx;\memstate}{n;delete\ z;K[n]}{Ret\ \comptoctx\ n}$
   \end{passumptions}
-  Similarily, if $\trg{\interfacevalue}=\trg{\loc}$ where $\mmlAmmlAtbackv{\loc}=\src{z}$\MK{need a lemma + relation between $\Game$ and $\delta$/$\src{\Delta}$}, just use \Cref{tr:w-e-ectx-ret-loc}:
-  \begin{passumptions}{H^b}
-    \setcounter{enumi}{6}
-    \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs0b} $\execs[]{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\memstate}{z;delete\ z;e_{any}}{Ret\ \comptoctx\ \loc}$
-  \end{passumptions}
-  In the following, we will write $\src{\interfacevalue}$ to represent either $\src{x}$ or $\src{n}$.
-  In both cases, \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0a,asm:exprbacktranslation:beg:wrapper:correct:execs0b}, continue with \Cref{tr:w-e-ectx,tr:w-e-let-x}:
+  This works, because of \Cref{asm:exprbacktranslation:beg:wrapper:correct:fooinlibctx}, then $\rho(\src{\comp})=\src{\comptoctx}$.
+  Note, \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0a}, continue with \Cref{tr:w-e-ectx,tr:w-e-let-x}:
   \begin{passumptions}{H}
     \setcounter{enumi}{7}
-    \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs1} $\execs[]{\commlib;\library;\kontstack;\memstate}{n;delete\ z;e_{any}}{\commlib;\library;\kontstack;\memstate}{delete\ z;e_{any}}{\varepsilon}$
+    \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs1} $\execs[]{\commlib;\library;\kontstack;\ctx;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\ctx;\memstate}{delete\ z;K[n]}{\emptyevent}$
   \end{passumptions}
   Finally, use \Cref{tr:w-e-ectx,tr:w-e-delete} on \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs1}:
   \begin{passumptions}{H}
     \setcounter{enumi}{8}
-    \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs2} $\execs[]{\commlib;\library;\kontstack;\memstate}{delete\ z;e_{any}}{\commlib;\library;\kontstack;\memstate'}{e_{any}}{Dealloc\ \loc}$
+    \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs2} $\execs[]{\commlib;\library;\kontstack;\ctx;\memstate}{delete\ z;K[n]}{\commlib;\library;\kontstack;\ctx;\memstate'}{K[n]}{Dealloc\ \loc}$
   \end{passumptions}
   Use \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0a,asm:exprbacktranslation:beg:wrapper:correct:execs1,asm:exprbacktranslation:beg:wrapper:correct:execs2} on \Cref{tr:ws-e-trans-important,tr:ws-e-trans-unimportant} to get exactly what \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs} wants us to prove.
-  Similarily, use \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0b,asm:exprbacktranslation:beg:wrapper:correct:execs1,asm:exprbacktranslation:beg:wrapper:correct:execs2} on \Cref{tr:ws-e-trans-important,tr:ws-e-trans-unimportant} to get exactly what \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs} wants us to prove.
 
   With \Cref{asm:exprbacktranslation:beg:wrapper:correct:omegas}, invert \Cref{asm:exprbacktranslation:beg:wrapper:correct:staterel}:
   \begin{passumptions}{H}
     \setcounter{enumi}{9}
-    \item $\trg{\Omega}=\trg{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
-    \item $\trg{\cfstate}=\trg{\commlib;\library;K^{foo}_{\comptoctx},\kontstack}$
+    \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
+    \item $\trg{\cfstate}=\trg{\commlib;\library;(K;foo),\kontstack}$
     \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:cfstateeq} $\xlangstateeq[]{\cfstate}{\cfstate}$
     \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:memstaterell} $\xlangstateeq{\memstate}{\memstate}$
   \end{passumptions}
   Invert \Cref{asm:exprbacktranslation:beg:wrapper:correct:exect} to extract:
   \begin{passumptions}{H}
     \setcounter{enumi}{13}
-    \item $\trg{\Omega'}=\trg{\commlib;\library;\kontstack;\memstate}$
+    \item $\trg{\Omega'}=\trg{\cfstate';\ctx;\memstate}$
+    \item $\trg{\cfstate'}=\trg{\commlib;\library;\kontstack}$
   \end{passumptions}
+  Let $\src{\cfstate'}=\src{\commlib;\library;\kontstack}$.
 
   Use \Cref{tr:state-qe} on \Cref{goal:exprbacktranslation:beg:wrapper:correct:stateeq} giving goals:
   \begin{goals}
     \setcounter{enumi}{4}
-    \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:cfstateeq} $\xlangstateeq[]{\cfstate}{\cfstate}$
+    \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:cfstateeq} $\xlangstateeq[]{\cfstate'}{\cfstate'}$
     \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:memstateeq} $\xlangstateeq[\delta;\src{L'}]{\memstate'}{\memstate}$
   \end{goals}
   \Cref{goal:exprbacktranslation:beg:wrapper:correct:cfstateeq} follows by \Cref{asm:exprbacktranslation:beg:wrapper:correct:cfstateeq}.
 
-  Note that $\src{\memstate'}=\src{H;\Delta_{1},x\mapsto\loc_{\poisoned},\Delta_{2}}$ and remember that $\src{\memstate}=\src{H;\Delta_{1},x\mapsto\loc_{\poison},\Delta_{2}}$, of which we know \Cref{asm:exprbacktranslation:beg:wrapper:correct:memstaterell}.
+  Note that $\src{\memstate'}=\src{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\sandboxtag';\poisoned;m),\Delta_{2}}$ and remember that $\src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\sandboxtag';\poison;m),\Delta_{2}}$, of which we know \Cref{asm:exprbacktranslation:beg:wrapper:correct:memstaterell}.
   So, \Cref{goal:exprbacktranslation:beg:wrapper:correct:memstateeq} follows from \Thmref{lem:locinL:poisondoesntmatter}, which needs \Cref{asm:exprbacktranslation:beg:wrapper:correct:linL}.
-  Now \Cref{goal:exprbacktranslation:beg:wrapper:correct:traceeq}.
+  Now \Cref{goal:exprbacktranslation:beg:wrapper:correct:traceeq}:
   First apply \Cref{tr:ignore-cons-trace-eq}, given that $\src{Dealloc\ \loc}\in\src{X'}$.
   What is left to show is:
   \begin{goals}
     \setcounter{enumi}{6}
-    \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:eventeq} $\xlangtraceeq[\delta;\src{X'}]{Ret\ \comptoctx\ \interfacevalue}{Ret\ \comptoctx\ \interfacevalue}$
+    \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:eventeq} $\xlangtraceeq[\delta;\src{X'}]{Ret\ \comptoctx\ \valueexpr}{Ret\ \comptoctx\ \valueexpr}$
   \end{goals}
   \Cref{goal:exprbacktranslation:beg:wrapper:correct:eventeq} follows by \Cref{tr:cons-trace-eq,tr:ret-event-eq,tr:empty-trace-eq}.
 \end{proof}

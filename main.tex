@@ -4369,7 +4369,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item\label[ass]{asm:exprbacktranslation:mid:correct:backtrans} $\mmlAmmlAtbackdetail[]{\trace}=\src{e}$
   \item\label[ass]{asm:exprbacktranslation:mid:correct:nonint} $\vdash\trg{\trace}\operatorname{ non-int-}\trg{\trace}$
   \item\label[ass]{asm:exprbacktranslation:mid:correct:staterel} $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\comp;\memstate}$
+  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\ctx;\memstate}$
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
 %  \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
   \end{assumptions}
@@ -4414,15 +4414,20 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Backtranslation Correctness of $\trg{Call\ \ctxtocomp}$]\label{lem:exprbacktranslation:end:wrapper:correct}
   If
   \begin{assumptions}
-  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\memstate}$
-  \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:kontstack} $\trg{\kontstack}=\trg{K'^{bar}_{\ctxtocomp},\kontstack'}$
+  \item $\trg{\Omega}=\trg{\commlib;\library;\kontstack;\ctx;\memstate}$
+  \item\label[ass]{asm:exprbacktranslation:end:wrapper:correct:kontstack} $\trg{\kontstack}=\trg{(K';bar),\kontstack'}$
   \item $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
   \item $\trg{\commlib}=\mmlAmmlAtcomp{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
-  \item $\exect{\Omega}{K\hole{call\ foo\ \interfacevalue}}{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}{\color{black}\mmlAmmlAtcomp{e_{foo}}}{Call\ \ctxtocomp\ foo\ \interfacevalue}$
-  \item $\mmlAmmlAtbackctxtocomp[\Game,\trg{\overline{\loc}}]{Call\ \ctxtocomp\ foo\ \interfacevalue}=\Game',\trg{\overline{\loc'}},\src{let\ z = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}$
+  \item $\exect[]{\Omega}{K\hole{call\ foo\ \valueexpr}}{\commlib;\library;(K;foo),\kontstack;\comp;\memstate}{\color{black}\mmlAmmlAtcomp{e_{foo}}}{Call\ \ctxtocomp\ foo\ \valueexpr;\ctx}$
+  \item $\mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\overline{\loc}}]{Call\ \ctxtocomp\ foo\ \valueexpr}=\Game';\delta';\trg{\overline{\loc'}};\src{let\ z = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv[]{\valueexpr}$
   \item\label[ass]{lem:exprbacktranslation:end:wrapper:correct:backstateeq} $\xlangbackstateeq{\Omega}{\Omega}$
-  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\memstate}$
+  \item $\src{\Omega}=\src{\commlib;\library;\kontstack;\ctx;\memstate}$
   \item $\src{let\ foo\ y:\type_{\color{black}\lambda}:=e_{foo}}\in\src{\library_{comp}}$
+  \item $\fresh{\Game,\delta}{\src{\loc}}$
+  \item $\fresh{\Game}{\src{z}}$
+  \item $\fresh{\delta}{\trg{\loc}}$
+  \item $\delta'(\src{\loc})=\trg{\loc}$
+  \item $\Game'(\src{\loc})=\src{z}$
   \setcounter{enumi}{9}
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
 %  \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
@@ -4432,17 +4437,17 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 %  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:deltasubset} $\delta\subseteq\delta'$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Lsubset} $\src{L}\subseteq\src{L'}$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K[let\ x = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv{\interfacevalue}\src{]}}{\src{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate'}}{\src{e_{foo}\gamma}}{\src{\trace}}$
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:stateeq} $\xlangstateeq[\delta;\src{L'}]{\src{\commlib;\library;\kontstack;\memstate'}}{\commlib;\library;K^{foo}_{\comptoctx},\kontstack;\memstate}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K[let\ x = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv[]{\valueexpr}\src{]}}{\src{\commlib;\library;(K;foo),\kontstack;\comp;\memstate'}}{\src{e_{foo}\gamma}}{\src{\trace}}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:stateeq} $\xlangstateeq[\delta;\src{L'}]{\src{\commlib;\library;(K,foo),\kontstack;comp;\memstate'}}{\commlib;\library;(K;foo),\kontstack;\comp;\memstate}$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta;\src{X'}]\trg{Call\ \ctxtocomp\ foo\ \interfacevalue}$
   \end{goals}
 \end{lemma}
 \begin{proof}
   First, we unfold the source memory state:
   \begin{passumptions}{H}
-    \item $\src{\memstate} = \src{H;\Delta}$
+    \item $\src{\memstate} = \src{H^{\ctx};H^{\comp};\Delta}$
   \end{passumptions}
-  Now, let $\src{\loc}$, $\src{z}$, and $\src{\interfacevalue}$ such that:
+  Let $\src{\valueexpr}=\mmlAmmlAtbackv{\valueexpr}$.
   \begin{passumptions}{H}
     \setcounter{enumi}{1}
     \item $\fresh{\src{\Delta}}{\src{\loc}}$

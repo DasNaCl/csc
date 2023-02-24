@@ -3796,12 +3796,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{goals}
   \item $\delta\subseteq\delta'$
   \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
-  \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
-  \item $\xlangtraceeq[\delta']{\trace}{\trace}$
+  \item $\xlangstateeq[\delta';\src{L}]{\Omega'}{\Omega'}$
+  \item $\xlangtraceeq[\delta';\src{X}]{\trace}{\trace}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  We prove this by contradiction. So, we get the assumption:
+  We prove this by contradiction. So, we get the assumption:\MK{minor patches}
   \begin{passumptions}{I}
     \item\label[ass]{asm:exprcorr:toplevel} $\forall\delta'\ \src{\Omega'}\ \src{\trace},\delta'\subset\delta\vee\neg\left(\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}\right)\vee\xlangstateneq[\delta']{\Omega'}{\Omega'}\vee\xlangtraceneq[\delta']{\trace}{\trace}$
   \end{passumptions}
@@ -3870,6 +3870,25 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \end{description}
   \end{description}
 \end{proof}
+
+\begin{lemma}[Component Correctness]\label{lem:component:correctness}
+  If
+  \begin{assumptions}
+    \item $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\trg{K[return\ \valueexpr]}}{\trg{\trace}}$
+    \item $\xlangstateeq{\Omega}{\Omega}$
+    \item $\typechecks{}{\Omega\triangleright e}{\nat}$
+  \end{assumptions}
+  Then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$
+  \begin{goals}
+    \item $\delta\subseteq\delta'$
+    \item $\execs{\Omega}{e}{\Omega'}{K[return\ \valueexpr]}{\trace}$
+    \item $\xlangstateeq{\Omega'}{\Omega'}$
+    \item $\xlangtraceeq{\trace}{\trace}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 
 \subsubsection{Trace-based Backtranslation}
 
@@ -4267,12 +4286,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:delta} $\delta\left(\src{\loc}\right)=\trg{\loc}$
   \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:z} $\src{z}=\Game(\src{\loc})$
   \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:linL} $\src{\loc}\in\src{L}$
-  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:fooinlibctx} $\trg{foo}\in\trg{\library_{\ctx}}$
+  \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:fooinlibctx} $\trg{foo}\in\trg{\library_{\comp}}$
   \end{assumptions}
-  then $\exists \src{X'}\ \src{\trace}\ \src{\memstate'}$,
+  then $\exists \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
-  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
-  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K_{component}[return\ }\mmlAmmlAtbackv[]{\trg{\valueexpr}}\src{]}}{\src{\commlib;\library;\kontstack;\memstate'}}{\src{K[}\mmlAmmlAtbackv[]{v}\src{]}}{\src{\trace}}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} $\src{X'}=\src{X}\cup\{\src{Dealloc\ \loc}\}$
+  \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K_{component}[return\ }\mmlAmmlAtbackv[]{\trg{\valueexpr}}\src{]}}{\src{\commlib;\library;\kontstack;\ctx;\memstate'}}{\src{K[}\mmlAmmlAtbackv[]{v}\src{]}}{\src{\trace}}$
   \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:stateeq} $\xlangbackstateeq[\delta;\src{L}]{\Omega'}{\src{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}}$
   \item\label[goal]{goal:exprbacktranslation:beg:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta;\src{X'}]\trg{Ret\ \comptoctx\ \valueexpr}$
   \end{goals}
@@ -4430,11 +4449,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
 %  \item $\src{\library}=\left\{\src{main}\mapsto\src{e_{main}}\right\}\src{\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \src{L'}\ \src{X'}\ \src{\trace}\ \src{\memstate'}$,
+  then $\exists \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
 %  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:deltasubset} $\delta\subseteq\delta'$
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Lsubset} $\src{L}\subseteq\src{L'}$
-  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Lsubset} $\src{L'}=\src{L}\cup\{\src{\loc}\}$
+  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:Xsubset} $\src{X'}=\src{X}\cup\{\src{Alloc\ \loc\ 42}\}$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K[let\ z = new\ 42\ in\ call\ foo\ }\mmlAmmlAtbackv[]{\valueexpr}\src{]}}{\src{\commlib;\library;(K;foo),\kontstack;\comp;\memstate'}}{\src{e_{foo}\gamma}}{\src{\trace}}$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:stateeq} $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;(K,foo),\kontstack;\comp;\memstate'}}{\commlib;\library;(K;foo),\kontstack;\comp;\memstate}$
   \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{Call\ \ctxtocomp\ foo\ \interfacevalue;\ctx}$
@@ -4551,11 +4570,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item $\Game'(\src{\loc})=\src{z}$
   \item $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \src{L'}\ \src{X'}\ \src{\trace}\ \src{\memstate'}$,
+  then $\exists \src{\trace}\ \src{\memstate'}$,
   \begin{goals}
 %  \item\label[goal]{goal:exprbacktranslation:end:wrapper:correct:deltasubset} $\delta\subseteq\delta'$
-  \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:Lsubset} $\src{L}\subseteq\src{L'}$
-  \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:Xsubset} $\src{X}\subseteq\src{X'}$
+  \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:Lsubset} $\src{L'}=\src{L}\cup\{\src{\loc}\}$
+  \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:Xsubset} $\src{X'}=\src{X}\cup\{\src{Alloc\ \loc\ 42},\src{Dealloc\ \loc}\}$
   \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:execs} $\exec{\src{\Omega}}{\src{K[let\ z = new\ 42\ in\ delete\ z;return\ }\mmlAmmlAtbackv[]{\valueexpr}\src{]}}{\src{\commlib;\library;\hole{\cdot};\comp;\memstate'}}{\mmlAmmlAtbackv[]{\valueexpr}}{\src{\trace}}$
   \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:stateeq} $\xlangstateeq[\delta';\src{L'}]{\src{\commlib;\library;\hole{\cdot};\comp;\memstate'}}{\commlib;\library;\hole{\cdot};\comp;\memstate}$
   \item\label[goal]{goal:exprbacktranslation:vend:wrapper:correct:traceeq} $\src{\trace}\thexlangtraceeq[\delta';\src{X'}]\trg{End\ \valueexpr;\ctx}$
@@ -4647,14 +4666,14 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \item\label[ass]{asm:backtrans:correct:omegais} $\src{\Omega}=\src{\commlib;\library;\kontstack;\comp;\memstate}$
   \item\label[ass]{asm:backtrans:correct:srclinks} $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$
   \end{assumptions}
-  then $\exists \src{L}\ \src{X}\ \src{\Omega'}\ \src{\trace}$,
+  then $\exists \delta_{e}\ \src{L_{e}}\ \src{X_{e}}\ \src{\Omega_{e}'}\ \src{\trace_{e}}$,
   \begin{goals}
-  \item $\exec{\configs}{\src{call\ main\ 0}}{\src{\configs'}}{\mmlAmmlAtbackv[]{\valueexpr}}{\src{\trace}}$
-  \item $\xlangstateeq[\delta;\src{L}]{\Omega'}{\Omega'}$
-  \item $\src{\trace}\thexlangtraceeq[\delta;\src{X}]\trg{\trace}$
+  \item\label[goal]{goal:backtrans:correct:execs} $\exec{\configs}{\src{call\ main\ 0}}{\src{\Omega_{e}'}}{\mmlAmmlAtbackv[]{\valueexpr}}{\src{\trace_{e}}}$
+  \item\label[goal]{goal:backtrans:correct:stateeq} $\xlangstateeq[\delta_{e};\src{L_{e}}]{\Omega_{e}'}{\Omega'}$
+  \item\label[goal]{goal:backtrans:correct:traceeq} $\src{\trace_{e}}\thexlangtraceeq[\delta_{e};\src{X_{e}}]\trg{\trace}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
+\begin{proof}
   Inverting \Cref{asm:backtrans:correct:backtrans} gives:
   \begin{passumptions}{H}
     \item\label[ass]{asm:backtrans:correct:traceeq0} $\trg{\trace} = \trg{Start;\comp\cdot\trace[_{0}]\cdot Call\ \ctxtocomp\ foo\ \valueexpr_{0};\ctx\cdot\trace[_{comp}]\cdot Ret\ \comptoctx\ \valueexpr_{1};\comp\cdot\trace[_{1}]\cdot End\ \valueexpr_{2};\ctx}$
@@ -4676,9 +4695,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{passumptions}{H}
     \setcounter{enumi}{10}
     \item\label[ass]{asm:backtranscorr:nonint1} $\vdash\trg{\trace[_{1}]}\operatorname{non-int-\trg{\trace}}$
-    \item $\mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\overline{\loc}}]{Ret\ \comptoctx\ \valueexpr_{1}} = \trg{\overline{\loc_{1}}}; \src{e_{1}}$
+    \item\label[ass]{asm:backtranscorr:backtrans:ret1} $\mmlAmmlAtbackcomptoctx[\Game;\delta;\trg{\overline{\loc}}]{Ret\ \comptoctx\ \valueexpr_{1}} = \trg{\overline{\loc_{1}}}; \src{e_{1}}$
     \item\label[ass]{asm:backtranscorr:backtrans:mid1} $\mmlAmmlAtbackdetail[]{\trace[_{1}]} = \src{e_{1}'}$
-    \item $\mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\overline{\loc_{1}}}]{End\ \interfacevalue_{2}} = \Game';\delta';\trg{\hole{\cdot}}; \src{let\ x_{1}=new\ n_{1}\ in\ e_{1}''}$
+    \item\label[ass]{asm:backtranscorr:backtrans:end} $\mmlAmmlAtbackctxtocomp[\Game;\delta;\trg{\overline{\loc_{1}}}]{End\ \interfacevalue_{2}} = \Game';\delta';\trg{\hole{\cdot}}; \src{let\ x_{1}=new\ n_{1}\ in\ e_{1}''}$
   \end{passumptions}
   Invert \Cref{asm:backtrans:correct:exect0} and noting \Cref{asm:backtrans:correct:traceeq0}:
   \begin{passumptions}{H}
@@ -4744,7 +4763,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \noindent Now use \Thmref{lem:exprbacktranslation:vbeg:wrapper:correct} on \Cref{asm:backtranscorr:liblink,asm:backtranscorr:rellibdom,asm:backtranscorr:exect0,asm:backtranscorr:backtrans:start,asm:backtranscorr:staterel0,asm:backtranscorr:sctx0} to get
   \begin{passumptions}{H}
     \setcounter{enumi}{35}
-    \item $\execs{foo,\hole{\cdot};\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{01}}{Start;\comp}$
+    \item\label[ass]{asm:backtrans:execs0} $\execs{foo,\hole{\cdot};\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{01}}{Start;\comp}$
     \item\label[ass]{asm:backtrans:correct:backstaterel0} $\xlangbackstateeq[\emptyset;\emptyset]{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
     \item $\src{Start;\comp}\thexlangtraceeq[\emptyset;\emptyset]\trg{Start;\comp}$
   \end{passumptions}
@@ -4761,7 +4780,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   With \Cref{asm:backtranscorr:liblink,asm:backtranscorr:rellibdom,asm:backtranscorr:exect1,asm:backtranscorr:backtrans:mid0,asm:backtranscorr:nonint0,asm:backtrans:correct:backstaterel0,asm:backtrans:correct:links}, we can use \Thmref{lem:exprbacktranslation:mid:wrapper:correct} to obtain:
   \begin{passumptions}{H}
     \setcounter{enumi}{41}
-    \item $\execs{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{01}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{K\hole{42}}{\trace[_{0}]}$
+    \item\label[ass]{asm:backtrans:execs1} $\execs{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{01}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{K\hole{42}}{\trace[_{0}]}$
     \item $\xlangbackstateeq[\emptyset;\emptyset]{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
     \item\label[ass]{asm:backtrans:correct:backstaterel1} $\src{\trace[_{0}]}\thexlangtraceeq[\emptyset;\emptyset]\trg{\trace[_{0}]}$
   \end{passumptions}
@@ -4788,16 +4807,113 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{passumptions}
   We are ready to apply \Thmref{lem:exprbacktranslation:end:wrapper:correct} with \Cref{asm:backtranscorr:liblink,asm:backtranscorr:rellibdom,asm:backtranscorr:exect2,asm:backtranscorr:backtrans:call0,asm:backtrans:correct:backstaterel1,asm:backtranscorr:freshsloc0,asm:backtranscorr:freshtloc0,asm:backtranscorr:freshz0,asm:backtranscorr:deltadef,asm:backtranscorr:gamedef}:
   \begin{passumptions}{H}
-    \setcounter{enumi}{7}
-    \item $\src{\emptyset}\subseteq\src{L}$
-    \item $\src{\emptyset}\subseteq\src{X}$
-    \item $\execs{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{K'[let\ x=new\ 42\ in\ call\ foo\ {\color{black}\mmlAmmlAtbackv[]{\valueexpr_{0}}}]}{foo,\hole{\cdot};\library;(K,foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate}{e_{foo}[{\color{black}\mmlAmmlAtbackv[]{\valueexpr_{0}}}/y]}{\trace[_{1}]}$
-    \item $\xlangstateeq[\delta;\src{L}]{foo,\hole{\cdot};\library;(K,foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate}{foo,\hole{\cdot};\library;(K;foo),\kontstack,(\hole{\cdot};main),\hole{\cdot};\comp;H^{\ctx}_{0};\hole{\cdot};\Delta_{0}}$
+    \setcounter{enumi}{49}
+    \item\label[ass]{asm:backtranscorr:locinL} $\src{L}=\{\src{\loc}\}$
+    \item $\src{X}=\{\src{Alloc\ \loc\ 42}\}$
+    \item\label[ass]{asm:backtrans:execs2} $\execs{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{K'[let\ x=new\ 42\ in\ call\ foo\ {\color{black}\mmlAmmlAtbackv[]{\valueexpr_{0}}}]}{foo,\hole{\cdot};\library;(K,foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate}{e_{foo}[{\color{black}\mmlAmmlAtbackv[]{\valueexpr_{0}}}/y]}{\trace[_{1}]}$
+    \item\label[ass]{asm:backtranscorr:staterel1} $\xlangstateeq[\delta;\src{L}]{foo,\hole{\cdot};\library;(K;foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate}{foo,\hole{\cdot};\library;(K;foo),\kontstack,(\hole{\cdot};main),\hole{\cdot};\comp;H^{\ctx}_{0};\hole{\cdot};\Delta_{0}}$
     \item $\src{\trace[_{1}]}\thexlangtraceeq[\delta;\src{X}]\trg{Call\ \ctxtocomp\ foo\ \valueexpr_{0};\ctx}$
   \end{passumptions}
-  .\todo{Do the component part, then wrapper end, middle, EN￼
-D}
-\end{incompleteproof}
+
+  By transitivity, we can split \Cref{asm:backtranscorr:exect2a} arbitrarily, noting that the immediate next action after $\trg{\trace[_{comp}]}$ is $\trg{Ret\ \comptoctx\ \valueexpr_{1}}$:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{54}
+    \item\label[ass]{asm:backtranscorr:exect3} $\exect[]{foo,\hole{\cdot};\library;(K;foo),\kontstack,(\hole{\cdot};main),\hole{\cdot};\comp;H^{\ctx}_{0};\hole{\cdot};\Delta_{0}}{e_{foo}[\valueexpr_{0}/y]}{foo,\hole{\cdot};\library;(K;foo),\kontstack,(\hole{\cdot};main),\hole{\cdot};\comp;H^{\ctx}_{0};H^{\comp}_{0};\Delta_{1}}{K_{c}[return\ \valueexpr_{1}]}{\trace[_{comp}]}$
+    \item\label[ass]{asm:backtranscorr:exect3a} $\exect{foo,\hole{\cdot};\library;(K;foo),\kontstack,(\hole{\cdot};main),\hole{\cdot};\comp;H^{\ctx}_{0};H^{\comp}_{0};\Delta_{1}}{K_{c}[return\ \valueexpr_{1}]}{\Omega'}{\finalexprnoerr}{\trace_{d}}$
+    \item\label[ass]{asm:backtranscorr:traceeq2} $\trg{\trace[_{c}]}=\trg{\trace[_{\comp}]\cdot\trace[_{d}]}$
+  \end{passumptions}
+
+  Remember that $\mmlAmmlAtcomp{e_{foo}}=\trg{e_{foo}}$.
+  Assume\MK{derive this somehow}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{57}
+    \item\label[ass]{asm:backtranscorr:comptypchecks} $\typechecks{}{foo,\hole{\cdot};\library;(K,foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate\triangleright e_{foo}}{\nat}$
+    \item\label[ass]{asm:backtranscorr:Kshape} $\src{K}=\src{\hole{\cdot};delete\ z;\src{K_{r}}[}\mmlAmmlAtbackv[]{\valueexpr_{1}}\src{]}$
+  \end{passumptions}
+
+  Use \Cref{asm:backtranscorr:staterel1,asm:backtranscorr:comptypchecks,asm:backtranscorr:exect3} to apply \Thmref{lem:component:correctness}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{59}
+    \item\label[ass]{asm:backtranscorr:deltasubs0} $\delta\subseteq\delta'$
+    \item\label[ass]{asm:backtrans:execs3} $\execs{foo,\hole{\cdot};\library;(K;foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate}{e_{foo}[\valueexpr_{0}/y]}{foo,\hole{\cdot};\library;(K;foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate'}{K_{c}[return\ \valueexpr_{1}]}{\trace[_{comp}]}$
+    \item\label[ass]{asm:backtranscorr:staterel2} $\xlangstateeq[\delta';\src{L}]{foo,\hole{\cdot};\library;(K;foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate'}{foo,\hole{\cdot};\library;(K;foo),\kontstack,(\hole{\cdot};main),\hole{\cdot};\comp;H^{\ctx}_{0};H^{\comp}_{0};\Delta_{1}}$
+    \item $\xlangtraceeq[\delta';\src{X}]{\trace[_{comp}]}{\trace[_{comp}]}$
+  \end{passumptions}
+
+  By transitivity, we can split \Cref{asm:backtranscorr:exect3a} arbitrarily:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{63}
+    \item\label[ass]{asm:backtranscorr:exect4} $\exect[]{foo,\hole{\cdot};\library;(K;foo),\kontstack,(\hole{\cdot};main),\hole{\cdot};\comp;\memstate'}{K_{c}[return\ \valueexpr_{1}]}{foo,\hole{\cdot};\library;\kontstack,(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}{K[\valueexpr_{1}]}{Ret\ \comptoctx\ \valueexpr_{1}}$
+    \item\label[ass]{asm:backtranscorr:exect4a} $\exect{foo,\hole{\cdot};\library;\kontstack,(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}{K[\valueexpr_{1}]}{\Omega'}{\finalexprnoerr}{\trace_{e}}$
+    \item\label[ass]{asm:backtranscorr:traceeq3} $\trg{\trace[_{d}]}=\trg{Ret\ \comptoctx\ \valueexpr_{1}\cdot\trace[_{e}]}$
+  \end{passumptions}
+  Remember that $\mmlAmmlAtcomp{e_{foo}}=\trg{e_{foo}}$, so:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{66}
+    \item\label[ass]{asm:backtranscorr:kontcomp} $\mmlAmmlAtcomp{K_{c}}=\trg{K_{c}}$.
+  \end{passumptions}
+  Using \Cref{asm:backtranscorr:deltadef,asm:backtranscorr:deltasubs0}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{67}
+    \item\label[ass]{asm:backtranscorr:deltaprimeloc} $\delta'(\src{\loc}) = \trg{\loc}$
+  \end{passumptions}
+
+  We are ready to apply \Thmref{lem:exprbacktranslation:beg:wrapper:correct} with \Cref{asm:backtranscorr:liblink,asm:backtranscorr:rellibdom,asm:backtranscorr:exect4,asm:backtranscorr:backtrans:ret1,asm:backtranscorr:staterel2,asm:backtranscorr:kontcomp,asm:backtranscorr:Kshape,asm:backtranscorr:deltaprimeloc,asm:backtranscorr:gamedef,asm:backtranscorr:locinL}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{68}
+    \item $\src{X'}=\src{X}\cup\{\src{Dealloc\ \loc}\}$
+    \item\label[ass]{asm:backtrans:execs4} $\execs{foo,\hole{\cdot};\library;(K;foo),(\hole{\cdot};main),\hole{\cdot};\comp;\memstate'}{K_{c}[return\ \valueexpr_{1}]}{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}{K[\valueexpr_{1}]}{\trace[_{2}]}$
+    \item\label[ass]{asm:backtranscorr:backstaterel2} $\xlangbackstateeq[\delta';\src{X'}]{foo,\hole{\cdot};\library;\kontstack,(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}$
+    \item $\xlangtraceeq[\delta';\src{L}]{\trace[_{2}]}{Ret\ \comptoctx\ \valueexpr_{1}}$
+  \end{passumptions}
+
+  By transitivity, we can split \Cref{asm:backtranscorr:exect4a} arbitrarily, noting that the immediate next action after $\trg{\trace[_{1}]}$ is $\trg{End\ \valueexpr_{2}}$:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{72}
+    \item\label[ass]{asm:backtranscorr:exect5} $\exect[]{foo,\hole{\cdot};\library;\kontstack,(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}{K[\valueexpr_{1}]}{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate''}{K_{e}[\valueexpr_{2}]}{\trace[_{1}]}$
+    \item\label[ass]{asm:backtranscorr:exect5a} $\exect{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate''}{K_{e}[\valueexpr_{2}]}{\Omega'}{\finalexprnoerr}{End\ \valueexpr_{2}}$
+    \item\label[ass]{asm:backtranscorr:traceeq4} $\trg{\trace[_{e}]}=\trg{\trace[_{1}]\cdot End\ \valueexpr_{2}}$
+  \end{passumptions}
+
+  With \Cref{asm:backtranscorr:liblink,asm:backtranscorr:rellibdom,asm:backtranscorr:exect5,asm:backtranscorr:backtrans:mid1,asm:backtranscorr:nonint1,asm:backtranscorr:backstaterel2,asm:backtrans:correct:links}, we can use \Thmref{lem:exprbacktranslation:mid:wrapper:correct} to obtain:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{75}
+    \item\label[ass]{asm:backtrans:execs5} $\execs{foo,\hole{\cdot};\library;\kontstack,(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}{K[\valueexpr_{1}]}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}{K_{e}\hole{42}}{\trace[_{3}]}$
+    \item\label[ass]{asm:backtrans:correct:backstaterel3} $\xlangbackstateeq[\delta';\emptyset]{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate''}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate'}$
+    \item\label[ass]{asm:backtrans:correct:tracerel3} $\src{\trace[_{3}]}\thexlangtraceeq[\delta';\emptyset]\trg{\trace[_{1}]}$\MK{context could do allocations... don't we need another way to ignore the target actions then?}
+  \end{passumptions}
+
+  Finally, use \Thmref{lem:exprbacktranslation:vend:wrapper:correct} with \Cref{asm:backtranscorr:liblink,asm:backtranscorr:rellibdom,asm:backtranscorr:exect5a,asm:backtranscorr:backtrans:end,asm:backtrans:correct:backstaterel3} to acquire:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{78}
+    \item $\src{L'}=\src{L}\cup\{\src{\loc'}\}$
+    \item $\src{X''}=\src{X'}\cup\{\src{Alloc\ \loc'\ 42},\src{Dealloc\ \loc'}\}$
+    \item\label[ass]{asm:backtrans:execs6} $\execs{foo,\hole{\cdot};\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\memstate''}{K_{e}[return\ \valueexpr_{2}]}{\commlib;\library;\hole{\cdot};\ctx;\memstate''}{\valueexpr_{2}}{\trace_{4}}$
+    \item $\xlangbackstateeq[\delta'';\src{L'}]{foo,\hole{\cdot};\library;\hole{\cdot};\ctx;\memstate''}{\commlib;\library;\hole{\cdot};\ctx;\memstate''}$
+    \item\label[ass]{asm:backtrans:correct:backstaterel3} $\src{\trace_{4}}\thexlangtraceeq[\delta'';\src{X''}]\trg{End\ \valueexpr_{2}}$
+  \end{passumptions}
+
+  Finally, instantiate the existentials in our goals as follows:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{83}
+    \item $\delta_{e}=\delta''$
+    \item $\src{L_{e}}=\src{L'}$
+    \item $\src{X_{e}}=\src{X''}$
+    \item $\src{\Omega'_{e}}=\src{\commlib;\library;\hole{\cdot};\ctx;\memstate''}$
+    \item $\src{\trace_{e}}=\src{Start;\comp\cdot\trace[_{0}]\cdot\trace[_{1}]\cdot\trace[_{\comp}]\cdot\trace[_{2}]\cdot\trace[_{3}]\cdot\trace[_{4}]}$
+  \end{passumptions}
+
+  We solve \Cref{goal:backtrans:correct:execs} by transitivity, making use of \Cref{asm:backtrans:execs0,asm:backtrans:execs1,asm:backtrans:execs2,asm:backtrans:execs3,asm:backtrans:execs4,asm:backtrans:execs5,asm:backtrans:execs6}.
+
+  Similarily, \Cref{goal:backtrans:correct:stateeq} by transitivity, making use of ...
+  \MK{lookup refs}
+
+  Lastly, \Cref{goal:backtrans:correct:traceeq} by transitivity, making use of ...
+
+% \label[goal]{goal:backtrans:correct:execs}
+% \label[goal]{goal:backtrans:correct:stateeq}
+% \label[goal]{goal:backtrans:correct:traceeq}end{incompleteproof}
+\end{proof}
 
 \begin{scontents}[store-env=buffer]
   If

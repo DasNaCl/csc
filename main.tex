@@ -3003,13 +3003,18 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 Compiling components requires a wrapper to ensure that target contexts invoke the compiled component with the right runtime terms.
 For example, by adding the dynamic type check we prevent contexts from binding $\trg{\langle 42,1729 \rangle}$ to $\trg{x}$, which is never valid for $\mmlAs$ components.
 
-.\MK{change \Cref{tr:trg-filter-context} rule to only talk about those that we don't care about}
 \myfig{
   \begin{center}
     \judgbox{\tospecificevt[_{\trg{\bullet}}]{\event} = \trg{\event}}{,,Filter an $\mmlAt$ event.''}
     %
     \typerule{trg-filter-context}{
-      \trg{\event_b} \not= \trg{\lightning}
+      \trg{\event_b} \not= \trg{\lightning} &
+      \trg{\event_b} \not= \trg{Alloc\ \loc\ n} &
+      \trg{\event_b} \not= \trg{Dealloc\ \loc} \\
+      \trg{\event_b} \not= \trg{Get\ \loc\ n} &
+      \trg{\event_b} \not= \trg{Set\ \loc\ n\ m} \\
+      \trg{\event_b} \not= \trg{Call\ \emptyset\ foo\ n} &
+      \trg{\event_b} \not= \trg{Ret\ \emptyset\ n} &
     }{
       \tospecificevt[_{\trg{\bullet}}]{\event_b;\ctx} = \trg{\emptyevent}
     }{trg-filter-context}
@@ -3064,22 +3069,22 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{trg-filter-empty}{
     }{
-      \tospecificevt[^*_{\trg{\bullet}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+      \tospecificevt[^*_{\trg{\bullet}}]{\hole{\cdot}} = \trg{\hole{\cdot}}
     }{trg-filter-empty}
     %
     \typerule{trg-filter-cons-relevant}{
-      \tospecificevt[_{\trg{\bullet}}]{\event} = \specificev{\event} &
-      \tospecificevt[^*_{\trg{\bullet}}]{\trace} = \mstrace &
-      \specificev{\event} \not= \specificev{\emptyevent}
+      \tospecificevt[_{\trg{\bullet}}]{\event} = \trg{\event} &
+      \tospecificevt[^*_{\trg{\bullet}}]{\trace} = \trg{\trace} &
+      \trg{\event} \not= \trg{\emptyevent}
     }{
-      \tospecificevt[^*_{\trg{\bullet}}]{\event\cdot\trace} = \specificev{\event}\cdot\mstrace
+      \tospecificevt[^*_{\trg{\bullet}}]{\event\cdot\trace} = \trg{\event}\cdot\trg{\trace}
     }{trg-filter-cons-relevant}
     %
     \typerule{trg-filter-cons-relevant}{
-      \tospecificevt[_{\trg{\bullet}}]{\event} = \specificev{\emptyevent} &
-      \tospecificevt[^*_{\trg{\bullet}}]{\trace} = \mstrace
+      \tospecificevt[_{\trg{\bullet}}]{\event} = \trg{\emptyevent} &
+      \tospecificevt[^*_{\trg{\bullet}}]{\trace} = \trg{\trace}
     }{
-      \tospecificevt[^*_{\trg{\bullet}}]{\event\cdot\trace} = \mstrace
+      \tospecificevt[^*_{\trg{\bullet}}]{\event\cdot\trace} = \trg{\trace}
     }{trg-filter-cons}
   \end{center}
 }{wt-events-project-to-specific}{Filtering of $\mmlAt$ events, getting rid of unimportant ones.}

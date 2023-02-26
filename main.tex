@@ -722,9 +722,7 @@ Note that non-owned pointers and values may be freely duplicated and that we can
 
   \begin{center}
   \typerule{$t-\src{var}$}{
-  \src{\noptr{\Gamma_1}}&
-  \src{\noptr{x:\type,\hole{\cdot}}}&
-  \src{\noptr{\Gamma_2}}
+  \src{\noptr{\Gamma_1,x:\type,\Gamma_2}}
 	}{
     \typechecks{\Gamma_1,x:\type,\Gamma_2}{x}{\type}
 	}{t-var}
@@ -971,8 +969,8 @@ This is inspired by linear logic.
       \src{\library}=\src{\library_{ctx}\linker\library_{comp}} &
       \src{\library}\downarrow = \src{\Gamma_0} &
       \src{main}\in\operatorname{dom} \src{\Gamma_0} &
-      \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok} &
-      \typechecks{\Gamma_0}{call\ main\ 0}{\nat\to\bot}
+      \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok} \\
+      \typechecks{\Gamma_0}{call\ main\ 0}{\nat\to\nat}
     }{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\library},\operatorname{dom}\ \src{\library_{comp}}
     }{w-t-wprog}
@@ -986,7 +984,7 @@ This is inspired by linear logic.
     }{w-t-prog-runtime}
   \end{center}
 }{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
-Perhaps most interesting is \Cref{tr:w-t-prog} which generates a suitable typing context from the execution context.
+Perhaps most interesting is \Cref{tr:w-t-prog-runtime} which generates a suitable typing context from the execution context.
 \Cref{fig:store-ty} shows how this works exactly.
 
 \myfig{
@@ -1036,34 +1034,34 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   }{w-e-oplus}
   %
   \typerule{$e-\src{get}-\in$}{
-    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
-    \src{\loc}+\src{n}\in\text{dom }\src{H^{\sandboxtag}}
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc}+\src{n}\in\text{dom }\src{\memstate.H^{\sandboxtag}}
   }{
     \exprevals{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
   }{w-e-get-in}
   %
   \typerule{$e-\src{get}-\notin$}{
-    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
-    \src{\loc}\notin\text{dom }\src{H^{\sandboxtag}}
+    \src{\memstate.\Delta}=\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc+\src{n}}\notin\text{dom }\src{\memstate.H^{\sandboxtag}}
   }{
     \exprevals{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
   }{w-e-get-notin}
   %
-  \typerule{$e-\src{set}-\ctx$}{
-    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
-    \src{H^{\ctx'}} = \src{H^{\ctx}}(\src{\loc+n}\mapsto \src{v}) \\
-    \src{\memstate'}=\src{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2}
+  \typerule{$e-\src{set}-\in$}{
+    \src{\memstate.\Delta}=\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc+\src{n}}\in\operatorname{dom}\src{\memstate.H^{\sandboxtag}}\\
+    \src{H^{\sandboxtag}_1} = \src{\memstate.H^{\sandboxtag}}(\src{\loc+n}\mapsto \src{v}) &
+    \src{\memstate'}=\src{\memstate[H^{\sandboxtag}\leftarrow H^{\sandboxtag}_1]}
   }{
-    \exprevals{\cfstate;\ctx;\memstate}{x[n]\leftarrow v}{\cfstate;\ctx;\memstate'}{v}{Set\ \loc\ n\ v;\ctx}
-  }{w-e-set-ctx}
+    \exprevals{\cfstate;\sandboxtag_0;\memstate}{x[n]\leftarrow v}{\cfstate;\sandboxtag_0;\memstate'}{v}{Set\ \loc\ n\ v;\sandboxtag_0}
+  }{w-e-set-in}
   %
-  \typerule{$e-\src{set}-\comp$}{
-    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
-    \src{H^{\comp'}} = \src{H^{\comp}}(\src{\loc+n}\mapsto \src{v}) \\
-    \src{\memstate'}=\src{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2}
+  \typerule{$e-\src{set}-\notin$}{
+    \src{\memstate.\Delta}=\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc+\src{n}}\notin\operatorname{dom}\src{\memstate.H^{\sandboxtag}}
   }{
-    \exprevals{\cfstate;\comp;\memstate}{x[n]\leftarrow v}{\cfstate;\comp;\memstate'}{v}{Set\ \loc\ n\ v;\comp}
-  }{w-e-set-comp}
+    \exprevals{\cfstate;\sandboxtag_0;\memstate}{x[n]\leftarrow v}{\cfstate;\sandboxtag_0;\memstate'}{v}{Set\ \loc\ n\ v;\sandboxtag_0}
+  }{w-e-set-in}
   %
   \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
   }{
@@ -1077,23 +1075,14 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \exprevals{\cfstate;\sandboxtag;\memstate}{delete\ x}{\cfstate;\sandboxtag;\memstate'}{0}{Dealloc\ \loc;\sandboxtag}
   }{w-e-delete}
   %
-  \typerule{$e-\src{new}-ctx$}{
-    \fresh{\src{\Delta}}{\src{\loc}} &
-    \fresh{\src{\Delta}}{\src{z}} &
-    \src{H^{\ctx'}} = \src{H^{\ctx}} \ll \src{n} \\
-    \src{\memstate} = \src{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+  \typerule{$e-\src{new}$}{
+    \fresh{\src{\memstate.\Delta}}{\src{\loc}} &
+    \fresh{\src{\memstate.\Delta}}{\src{z}} &
+    \src{H^{\sandboxtag}_1} = \src{\memstate.H^{\sandboxtag}} \ll \src{n} \\
+    \src{\memstate'} = \src{\memstate[H^{\sandboxtag} \leftarrow H^{\sandboxtag}_1][\Delta \leftarrow z\mapsto(\loc,\sandboxtag,\poisonless;n),\memstate.\Delta]}
   }{
-    \exprevals{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;\memstate}{e[z/x]}{Alloc\ \loc\ n;\ctx}
+    \exprevals{\cfstate;\sandboxtag;\memstate}{let\ x=new\ n\ in\ e}{\cfstate;\sandboxtag;\memstate'}{e[z/x]}{Alloc\ \loc\ n;\sandboxtag}
   }{w-e-let-new-ctx}
-  %
-  \typerule{$e-\src{new}-comp$}{
-    \fresh{\src{\Delta}}{\src{\loc}} &
-    \fresh{\src{\Delta}}{\src{z}} &
-    \src{H^{\comp'}} = \src{H^{\comp}} \ll \src{n} \\
-    \src{\memstate} = \src{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
-  }{
-  \exprevals{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate}{e[z/x]}{Alloc\ \loc\ n;\comp}
-  }{w-e-let-new-comp}
   %
   \typerule{$e-\src{ifz}-$true}{
   }{
@@ -1211,7 +1200,7 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     %
     \typerule{$es-\text{refl}$}{
     }{
-      \execs{\configs}{\finalexpr}{\configs}{\finalexpr}{\hole{\cdot}}
+      \execs{\configs}{e}{\configs}{e}{\hole{\cdot}}
     }{ws-e-refl}
     \typerule{$es-\text{trans}-$important}{
       \execs[]{\configs}{e}{\configs'}{e'}{\event}&
@@ -1235,15 +1224,15 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     \typerule{$e-\text{wprog}$}{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
       \src{main}\notin\src{\commlib}\\
-      \execs{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+      \execs{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexprnoerr}{\trace}
     }{
-      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}
     }{ws-e-prog}
     %
     \typerule{$e-\text{wprog}-\lightning$}{
       \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
       \src{main}\notin\src{\commlib}\\
-      \execs{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+      \execs{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
     }{
       \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
     }{ws-e-prog-crash}
@@ -1267,7 +1256,7 @@ We also use it to project the call/return events onto it.
 
 \myfig{
   \begin{center}
-    \judgbox{\delta(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
+    \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
     \judgbox{\tospecificevs[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAs$ event to MS-specific events.''}
     %
     \typerule{filter-context}{
@@ -1660,7 +1649,12 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on \Cref{asm:tmssafe-tracetms:tms}.
+  Invert \Cref{asm:tmssafe-tracetms:tms}:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:tmssafe-tracetms:traceag} $\tmstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:tmssafe-tracetms:monstep} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:tmssafe-tracetms:monstep}.
 \end{proof}
 
 \begin{scontents}[store-env=buffer]
@@ -1771,7 +1765,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \bigskip
   \noindent\makebox[\textwidth]{%
     \typerulederiv{$\text{\Cref{tr:t-call}}$}{
-      \typerulederiv{$\text{\Cref{tr:t-var}}$}{}{\typechecks{z:\nat,\Gamma_0}{foo}{\nat}}&
+      \typerulederiv{$\text{\Cref{tr:t-var}}$}{}{\typechecks{z:\nat,\Gamma_0}{foo}{\nat\to\nat}}&
       \typerulederiv{$\text{\Cref{tr:t-nat}}$}{}{\typechecks{z:\nat,\Gamma_0}{42}{\nat}}&
       \typerulederiv{$\text{\Cref{tr:src-int-type-nat}}$}{}{\src{\nat}\ \operatorname{int}}
     }{
@@ -1801,8 +1795,9 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item $\typechecks{}{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot}^{\ctx};\hole{\cdot}^{\comp};\hole{\cdot}\triangleright call\ main\ 0}{\nat}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Use \Cref{tr:w-t-prog-runtime,tr:t-call,tr:t-var,tr:t-nat,tr:src-int-type-nat}.
+\end{proof}
 
 \begin{lemma}[Typed Linking Recomposition]\label{lem:typed:linking:recomposition}
   If
@@ -1831,8 +1826,23 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item $\typechecks{\Gamma}{e}{\type_{e}}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on K.
+\end{proof}
+\begin{lemma}[Typing Composition]\label{lem:ctxtyping:compos}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:ctxtyping:compos:K} $\typechecks{\Gamma}{K}{\type_{e}\to\type}$
+    \item $\typechecks{\Gamma}{e}{\type_{e}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{\Gamma}{K[e]}{\type}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:ctxtyping:compos:K}.
+\end{proof}
 
 \begin{lemma}[Store Agree Weaken]\label{lem:store-agree-weaken}
   If
@@ -1925,15 +1935,16 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[$\alpha$-conv. Typing]\label{lem:alpha-conv-typing}
   If
   \begin{assumptions}
-    \item $\typechecks{\Gamma}{e}{\type}$
+    \item\label[ass]{asm:alpha-conv-typing:typs} $\typechecks{\Gamma}{e}{\type}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{\Gamma[z:\type'/x:\type]}{e[z/x]}{\type}$
+    \item $\typechecks{\Gamma[z:\type'/x:\type']}{e[z/x]}{\type}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:alpha-conv-typing:typs}.
+\end{proof}
 
 \begin{lemma}[Substitution]\label{lem:substitution}
   If

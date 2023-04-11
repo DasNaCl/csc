@@ -1271,7 +1271,20 @@ Lemma rt_check_recompose (Ω : state) (K : evalctx) (e : expr) (τ : Ty) :
   rt_check Ω (insert K e) τ ->
   exists τ', ectx_rt_check Ω K τ' τ /\ rt_check Ω e τ'
 .
-Proof. Admitted.
+Proof.
+  intros H.
+  remember (insert K e).
+  destruct H.
+  induction H0.
+  - induction K; cbn in *; try congruence; subst.
+    exists τ; split; try easy; econstructor; eauto; econstructor; eauto.
+  - induction K; cbn in *; try congruence; subst.
+    exists Tℕ; split; try easy; econstructor; eauto; econstructor; eauto.
+  - induction K; cbn in *; try congruence; subst; exists Tℕ.
+    + split; try easy; econstructor; eauto; econstructor; eauto.
+    + split; inv Heqe0.
+      * econstructor; eauto. econstructor; eauto.
+Admitted.
 Lemma rt_check_decompose (Ω : state) (K : evalctx) (e : expr) (τ τ' : Ty) :
   ectx_rt_check Ω K τ' τ ->
   rt_check Ω e τ' ->
@@ -1389,6 +1402,27 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
   in
   isubst inn
 .
+
+Definition substτ (Γ : Gamma) (what fore : vart) :=
+  match Γ with
+  | mapNil _ _ => mapNil _ _
+  | mapCons x t Γ' =>
+    if vareq x what then
+      mapCons fore t Γ'
+    else
+      mapCons x t Γ'
+  end
+.
+
+Lemma substi Γ e x y t :
+  check Γ e t ->
+  check (substτ Γ x y) (subst x e (Fvar y)) t
+.
+Proof.
+  induction 1; cbn.
+  - destruct (eq_dec x x0); subst.
+    + rewrite String.eqb_refl. econstructor; eauto.
+Admitted.
 
 Inductive pstep : PrimStep :=
 | e_binop : forall (Ω : state) (n1 n2 n3 : nat) (b : binopsymb),

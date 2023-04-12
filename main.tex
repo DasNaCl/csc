@@ -5363,9 +5363,10 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Base SMS via Monitor]
   If
   \begin{assumptions}
+    \item $\exprevalt{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$
     \item $\trg{e}=\mmlAtmmlAtcomp{e_{0}}$
     \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-    \item\label[ass]{asm:basesmsviamonitor:step} $\exprevalt{\Omega}{e}{\Omega'}{e'}{\event}$
+    \item\label[ass]{asm:basesmsviamonitor:step} $\exect{\Omega}{e}{\Omega'}{e'}{\event}$
     \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
   \end{assumptions}
   Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
@@ -5376,7 +5377,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega'}.\trg{\Delta}}$
   \end{goals}
 \end{lemma}
-\begin{proof}
+\begin{incompleteproof}
   First note
   \begin{itemize}
     \item $\trg{\cfstate}=\trg{\commlib;\library;\kontstack}$
@@ -5716,6 +5717,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
         \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{z\mapsto(\loc;\comp;\poisonless;n),\Delta}}$
       \end{goals}
 
+      {\large\color{red} this does not work, let\ x=new\ n\ in\ e is never a result of the compiler}
+
       Choose ${\absevent}=\textbf{Alloc}\ \specificev{\loc}\ n$, $\delta_{\text{MS}}'=\delta_{\text{MS}}\cup\{\trg{\loc}\mapsto\specificev{\loc}\}$, and $\smsmonitor[']=\smsmonitor\cup\{(\specificev{\loc}, n)\}$.
 
       First goal is by transitivity, reflexivity, and the fact that the empty set subsets any other set.
@@ -5724,11 +5727,41 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       Third goal by \Cref{tr:sms-alloc}.
 
-      Fourth goal is a consequence of \Cref{asm:smssafepstep:storeagree:1} sing \Cref{tr:store-empty-agree,tr:store-cons-agree}.
+      Fourth goal is a consequence of \Cref{asm:smssafepstep:storeagree:1} using \Cref{tr:store-empty-agree,tr:store-cons-agree}.
 
-    \item {\large \color{red}CONTINUE}
+    \item $\trg{e}=\trg{x[n]}$\textbf{:}
+      If
+      \begin{passumptions}{H}
+        \item $\trg{x[n]}=\mmlAtmmlAtcomp{e_{0}}$
+        \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
+        \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc,\sandboxtag,\poison,n),\Delta_{2}}$
+        \item $\exprevalt{\Omega}{x[n]}{\Omega}{v}{Read\ \loc\ n;\comp}$
+        \item\label[ass]{asm:smssafepstep:storeagree:2} $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Delta}}$
+      \end{passumptions}
+      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{Read\ \loc\ n}}{\absevent}$
+        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Delta_{1},x\mapsto(\loc,\sandboxtag,\poison,n),\Delta_{2}}}$
+      \end{goals}
+
+
+
+      Choose $\absevent=\textbf{Read}\ \specificev{\loc}\ n$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
+
+      The first goal is easy by reflexivity.
+
+
+      The second goal
+
+      The third goal by \Cref{tr:sms-use}.
+
+
+
+
   \end{description}
-\end{proof}
+\end{incompleteproof}
 
 \cleardoublepage
 

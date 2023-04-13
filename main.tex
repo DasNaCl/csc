@@ -5276,6 +5276,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       &&\trg{else\ abort()} \\
     \mmlAtmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ x_{\texttt{SIZE}}=}\mmlAtmmlAtcomp{e_1}\trg{\ in\ }\\&&\trg{let\ x}\trg{=new\ x_{\texttt{SIZE}}}\trg{\ in\ }\mmlAtmmlAtcomp{e_2} \\
     \mmlAtmmlAtcomp{delete\ x} &\ = & \trg{delete\ x} \\
+    \mmlAtmmlAtcomp{x\ is\ \poisoned} &\ = & \trg{x\ is\ \poisoned} \\
+    \mmlAtmmlAtcomp{\lparen e_1;e_2\rparen} &\ = & \trg{\lparen}\mmlAtmmlAtcomp{e_1}\trg{;}\mmlAtmmlAtcomp{e_2}\trg{\rparen}\\
+    \mmlAtmmlAtcomp{\pi_1\ e} &\ = & \trg{\pi_1\ }\mmlAtmmlAtcomp{e}\\
+    \mmlAtmmlAtcomp{\pi_2\ e} &\ = & \trg{\pi_2\ }\mmlAtmmlAtcomp{e}\\
+    \mmlAtmmlAtcomp{e\ has\ \type} &\ = & \mmlAtmmlAtcomp{e}\ \trg{has\ \type}\\
     \mmlAtmmlAtcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \trg{ifz\ }\mmlAtmmlAtcomp{e_1}\\
                                                         &&\trg{then\ }\mmlAtmmlAtcomp{e_2} \\
                                                         &&\trg{else\ }\mmlAtmmlAtcomp{e_3} \\[0.5cm]
@@ -5363,10 +5368,10 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Base SMS via Monitor]
   If
   \begin{assumptions}
-    \item $\exprevalt{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$
+    \item\label[ass]{asm:basesmsviamonitor:step} $\exprevalt{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$
     \item $\trg{e}=\mmlAtmmlAtcomp{e_{0}}$
     \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-    \item\label[ass]{asm:basesmsviamonitor:step} $\exect{\Omega}{e}{\Omega'}{e'}{\event}$
+    \item\label[ass]{asm:basesmsviamonitor:comp:step} $\exect{\Omega}{e}{\Omega'}{e'}{\event}$
     \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
   \end{assumptions}
   Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
@@ -5383,14 +5388,15 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\trg{\cfstate}=\trg{\commlib;\library;\kontstack}$
     \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta}$
   \end{itemize}
-  Induction on $\exprevalt{\Omega}{e}{\Omega'}{e'}{\event}$.
+  Induction on $\exprevalt{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$ (\Cref{asm:basesmsviamonitor:step}).
   \begin{description}
     \item $\trg{e}=\trg{n_{1}\oplus n_{2}}$\textbf{:}
       If
       \begin{passumptions}{H}
         \item $\trg{n_{3}}=\trg{n_{1}}\oplus\trg{n_{2}}$
-        \item $\trg{n_{1}\oplus n_{2}}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega}{n_{3}}{\emptyevent}$
+        \item $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega'}{n_{3}}{\emptyevent}$
+        \item $\mmlAtmmlAtcomp{n_{1}\oplus n_{2}}=\trg{n_{1}\oplus n_{2}}$
+        \item $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega}{e'}{\emptyevent}$
         \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
       \end{passumptions}
       Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
@@ -5407,8 +5413,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\trg{e}=\trg{let\ x=\finalexprnoerr\ in\ e}$\textbf{:}
       If
       \begin{passumptions}{H}
-        \item $\trg{let\ x=\finalexprnoerr\ in\ e}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}$
+        \item $\exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega'}{e[\finalexprnoerr/x]}{\emptyevent}$
+        \item $\mmlAtmmlAtcomp{let\ x=\finalexprnoerr\ in\ e}=\trg{let\ x=\finalexprnoerr\ in\ }\mmlAtmmlAtcomp{e}$
+        \item $\exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ {\color{black}\mmlAtmmlAtcomp{e}}}{\Omega}{e'}{\emptyevent}$
         \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
       \end{passumptions}
       Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
@@ -5425,8 +5432,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\trg{e}=\trg{if\ 0\ then\ e_{1}\ else\ e_{2}}$\textbf{:}
       If
       \begin{passumptions}{H}
-        \item $\trg{if\ 0\ then\ e_{1}\ else\ e_{2}}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{if\ 0\ then\ e_{1}\ else\ e_{2}}{\Omega}{e_{1}}{\emptyevent}$
+        \item $\exprevalt{\Omega}{if\ 0\ then\ e_{1}\ else\ e_{2}}{\Omega'}{e_{1}}{\emptyevent}$
+        \item $\mmlAtmmlAtcomp{if\ 0\ then\ e_{1}\ else\ e_{2}}=\trg{if\ 0\ then\ }\mmlAtmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAtmmlAtcomp{e_{2}}$
+        \item $\exprevalt{\Omega}{if\ 0\ then\ {\color{black}\mmlAtmmlAtcomp{e_{1}}}\ else\ {\color{black}\mmlAtmmlAtcomp{e_{2}}}}{\Omega}{e'}{\emptyevent}$
         \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
       \end{passumptions}
       Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
@@ -5443,8 +5451,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\trg{e}=\trg{if\ S(n)\ then\ e_{1}\ else\ e_{2}}$\textbf{:}
       If
       \begin{passumptions}{H}
-        \item $\trg{if\ S(n)\ then\ e_{1}\ else\ e_{2}}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{if\ S(n)\ then\ e_{1}\ else\ e_{2}}{\Omega}{e_{2}}{\emptyevent}$
+        \item $\exprevalt{\Omega}{if\ S(n)\ then\ e_{1}\ else\ e_{2}}{\Omega'}{e_{2}}{\emptyevent}$
+        \item $\mmlAtmmlAtcomp{if\ S(n)\ then\ e_{1}\ else\ e_{2}}=\trg{if\ S(n)\ then\ }\mmlAtmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAtmmlAtcomp{e_{2}}$
+        \item $\exprevalt{\Omega}{if\ S(n)\ then\ {\color{black}\mmlAtmmlAtcomp{e_{1}}}\ else\ {\color{black}\mmlAtmmlAtcomp{e_{2}}}}{\Omega}{e'}{\emptyevent}$
         \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
       \end{passumptions}
       Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
@@ -5457,6 +5466,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
 
       All goals are completely straightforward.
+
+
+      {\huge\color{green}TODO: continue here}
 
     \item $\trg{e}=\trg{\pi_{2}\langle n_{1} ; n_{2} \rangle}$\textbf{:}
       If

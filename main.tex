@@ -5252,528 +5252,122 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \subsection{Robust SMS Preserving Compiler}
 
+For instrumented $\mmlAt$ code, we'll write $\mmlAtms$.
+The syntax and semantics are entirely identical.
+
 \subsubsection{Compiler}
 
 \myfig{
   \begin{center}
     \begin{gather*}
-    \judgbox{\mmlAtmmlAtcomp{e, M}=\trg{e'}}{,,Compile $\mmlAt$ expression $\trg{e}$ to $\mmlAt$ expression $\trg{e'}$.\\$\trg{M}$ maps variable names to sizes on heap.''}\\
-    \judgbox{\mmlAtmmlAtcomp{\left[\valueexpr / x\right]}=\trg{\left[\valueexpr' / x'\right]}}{,,Compile $\mmlAt$ substitution to $\mmlAt$ substitution.''} \\
-    \judgbox{\mmlAtmmlAtcomp{\commlib}=\trg{\commlib'}}{,,Compile $\mmlAt$ component library to $\mmlAt$ component library.''} \\
+    \judgbox{\mmlAtmmlAtmscomp{e}=\irl{e'}}{,,Compile $\mmlAt$ expression $\trg{e}$ to $\mmlAt$ expression $\irl{e'}$.''}\\
+    \judgbox{\mmlAtmmlAtmscomp{\left[\valueexpr / x\right]}=\irl{\left[\valueexpr' / x'\right]}}{,,Compile $\mmlAt$ substitution to $\mmlAtms$ substitution.''} \\
+    \judgbox{\mmlAtmmlAtmscomp{\commlib}=\irl{\commlib'}}{,,Compile $\mmlAt$ component library to $\mmlAtms$ component library.''} \\
     \end{gather*}
     $$
     \begin{array}{rll}
-    \mmlAtmmlAtcomp{\finalexpr} &\ = & \trg{\finalexpr} \\
-    \mmlAtmmlAtcomp{call\ foo\ e} &\ = & \trg{call\ }\mmlAtmmlAtcomp{foo}\ \mmlAtmmlAtcomp{e}\\
-    \mmlAtmmlAtcomp{return\ e} &\ = & \trg{return\ }\mmlAtmmlAtcomp{e}\\
-    \mmlAtmmlAtcomp{e_1\oplus e_2} &\ = & \mmlAtmmlAtcomp{e_1} \trg{\oplus} \mmlAtmmlAtcomp{e_2} \\
-      \mmlAtmmlAtcomp{x[e]} &\ = & \trg{let\ x_{ACCESS}=}\mmlAtmmlAtcomp{e}\trg{\ in\ }\\
-                                &&\trg{ifz\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\&&\ \ \trg{x[x_{ACCESS}]}\\
-                                && \trg{else\ abort()}\\
-    \mmlAtmmlAtcomp{let\ x= e_1\ in\ e_2} &\ = & \trg{let\ x=} \mmlAtmmlAtcomp{e_1}\trg{\ in\ }\mmlAtmmlAtcomp{e_2} \\
-      \mmlAtmmlAtcomp{x[e_1]\leftarrow e_2} &\ = & \trg{let\ x_{ACCESS}=}\mmlAtmmlAtcomp{e_1}\trg{\ in\ }\\
-      &&\trg{ifz\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\&&\ \ \trg{x[x_{ACCESS}]\leftarrow }\mmlAtmmlAtcomp{e_2} \\
-      &&\trg{else\ abort()} \\
-    \mmlAtmmlAtcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \trg{let\ x_{\texttt{SIZE}}=}\mmlAtmmlAtcomp{e_1}\trg{\ in\ }\\&&\trg{let\ x}\trg{=new\ x_{\texttt{SIZE}}}\trg{\ in\ }\mmlAtmmlAtcomp{e_2} \\
-    \mmlAtmmlAtcomp{delete\ x} &\ = & \trg{delete\ x} \\
-    \mmlAtmmlAtcomp{x\ is\ \poisoned} &\ = & \trg{x\ is\ \poisoned} \\
-    \mmlAtmmlAtcomp{\lparen e_1;e_2\rparen} &\ = & \trg{\lparen}\mmlAtmmlAtcomp{e_1}\trg{;}\mmlAtmmlAtcomp{e_2}\trg{\rparen}\\
-    \mmlAtmmlAtcomp{\pi_1\ e} &\ = & \trg{\pi_1\ }\mmlAtmmlAtcomp{e}\\
-    \mmlAtmmlAtcomp{\pi_2\ e} &\ = & \trg{\pi_2\ }\mmlAtmmlAtcomp{e}\\
-    \mmlAtmmlAtcomp{e\ has\ \type} &\ = & \mmlAtmmlAtcomp{e}\ \trg{has\ \type}\\
-    \mmlAtmmlAtcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \trg{ifz\ }\mmlAtmmlAtcomp{e_1}\\
-                                                        &&\trg{then\ }\mmlAtmmlAtcomp{e_2} \\
-                                                        &&\trg{else\ }\mmlAtmmlAtcomp{e_3} \\[0.5cm]
+    \mmlAtmmlAtmscomp{\finalexpr} &\ = & \irl{\finalexpr} \\
+    \mmlAtmmlAtmscomp{call\ foo\ e} &\ = & \irl{call\ }\mmlAtmmlAtmscomp{foo}\ \mmlAtmmlAtmscomp{e}\\
+    \mmlAtmmlAtmscomp{return\ e} &\ = & \irl{return\ }\mmlAtmmlAtmscomp{e}\\
+    \mmlAtmmlAtmscomp{e_1\oplus e_2} &\ = & \mmlAtmmlAtmscomp{e_1} \irl{\oplus} \mmlAtmmlAtmscomp{e_2} \\
+      \mmlAtmmlAtmscomp{x[e]} &\ = & \irl{let\ x_{ACCESS}=}\mmlAtmmlAtmscomp{e}\irl{\ in\ }\\
+                                &&\irl{ifz\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\&&\ \ \irl{x[x_{ACCESS}]}\\
+                                && \irl{else\ abort()}\\
+    \mmlAtmmlAtmscomp{let\ x= e_1\ in\ e_2} &\ = & \irl{let\ x=} \mmlAtmmlAtmscomp{e_1}\irl{\ in\ }\mmlAtmmlAtmscomp{e_2} \\
+      \mmlAtmmlAtmscomp{x[e_1]\leftarrow e_2} &\ = & \irl{let\ x_{ACCESS}=}\mmlAtmmlAtmscomp{e_1}\irl{\ in\ }\\
+      &&\irl{ifz\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\&&\ \ \irl{x[x_{ACCESS}]\leftarrow }\mmlAtmmlAtmscomp{e_2} \\
+      &&\irl{else\ abort()} \\
+    \mmlAtmmlAtmscomp{let\ x=new\ e_1\ in\ e_2} &\ = & \irl{let\ x_{\texttt{SIZE}}=}\mmlAtmmlAtmscomp{e_1}\irl{\ in\ }\\&&\irl{let\ x}\irl{=new\ x_{\texttt{SIZE}}}\irl{\ in\ }\mmlAtmmlAtmscomp{e_2} \\
+    \mmlAtmmlAtmscomp{delete\ x} &\ = & \irl{delete\ x} \\
+    \mmlAtmmlAtmscomp{x\ is\ \poisoned} &\ = & \irl{x\ is\ \poisoned} \\
+    \mmlAtmmlAtmscomp{\lparen e_1;e_2\rparen} &\ = & \irl{\lparen}\mmlAtmmlAtmscomp{e_1}\irl{;}\mmlAtmmlAtmscomp{e_2}\irl{\rparen}\\
+    \mmlAtmmlAtmscomp{\pi_1\ e} &\ = & \irl{\pi_1\ }\mmlAtmmlAtmscomp{e}\\
+    \mmlAtmmlAtmscomp{\pi_2\ e} &\ = & \irl{\pi_2\ }\mmlAtmmlAtmscomp{e}\\
+    \mmlAtmmlAtmscomp{e\ has\ \type} &\ = & \mmlAtmmlAtmscomp{e}\ \irl{has\ \type}\\
+    \mmlAtmmlAtmscomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \irl{ifz\ }\mmlAtmmlAtmscomp{e_1}\\
+                                                        &&\irl{then\ }\mmlAtmmlAtmscomp{e_2} \\
+                                                        &&\irl{else\ }\mmlAtmmlAtmscomp{e_3} \\[0.5cm]
     %
-    \mmlAtmmlAtcomp{\left[\trg{v}/\trg{x}\right]}&\ = & \trg{\left[\right.}\mmlAtmmlAtcomp{v}\trg{/}\mmlAtmmlAtcomp{x}\trg{\left.\right]} \\[0.5cm]
+    \mmlAtmmlAtmscomp{\left[\irl{v}/\irl{x}\right]}&\ = & \irl{\left[\right.}\mmlAtmmlAtmscomp{v}\irl{/}\mmlAtmmlAtmscomp{x}\irl{\left.\right]} \\[0.5cm]
     %
-    \mmlAtmmlAtcomp{\hole{\cdot}}&\ = & \trg{\hole{\cdot}} \\
-    \mmlAtmmlAtcomp{foo,\commlib}&\ = & \trg{foo,}\mmlAtmmlAtcomp{\commlib} \\
+    \mmlAtmmlAtmscomp{\hole{\cdot}}&\ = & \irl{\hole{\cdot}} \\
+    \mmlAtmmlAtmscomp{foo,\commlib}&\ = & \irl{foo,}\mmlAtmmlAtmscomp{\commlib} \\
     \end{array}
     $$
   \end{center}
-}{sms-pres-compiler}{Compiler from $\mmlAt$ to $\mmlAt$.}
+}{sms-pres-compiler}{Compiler from $\mmlAt$ to $\mmlAtms$.}
 \myfig{
   \begin{center}
     \begin{gather*}
-    \judgbox{\mmlAtmmlAtcomp{F}=\trg{F}}{,,Compile $\mmlAt$ procedures to $\mmlAt$ procedures.''}
+    \judgbox{\mmlAtmmlAtmscomp{F}=\irl{F}}{,,Compile $\mmlAt$ procedures to $\mmlAtms$ procedures.''}
     \end{gather*}
     $$
     \begin{array}{rll}
     %
-      \mmlAtmmlAtcomp{let\ foo\ x := e}&\ = & \trg{let\ foo\ x := }\mmlAtmmlAtcomp{e}\\
+      \mmlAtmmlAtmscomp{let\ foo\ x := e}&\ = & \irl{let\ foo\ x := }\mmlAtmmlAtmscomp{e}\\
     \end{array}
     $$
     \begin{gather*}
-    \judgbox{\mmlAtmmlAtcomp{\library}=\trg{\library}}{,,Compile $\mmlAt$ libraries to $\mmlAt$ libraries.''}
+    \judgbox{\mmlAtmmlAtmscomp{\library}=\irl{\library}}{,,Compile $\mmlAt$ libraries to $\mmlAtms$ libraries.''}
     \end{gather*}
     $$
     \begin{array}{rll}
-      \mmlAtmmlAtcomp{\hole{\cdot}}&\ = & \trg{\hole{\cdot}} \\
-      \mmlAtmmlAtcomp{F,\library}&\ = & \mmlAtmmlAtcomp{F}\trg{,}\mmlAtmmlAtcomp{\library} \\
+      \mmlAtmmlAtmscomp{\hole{\cdot}}&\ = & \irl{\hole{\cdot}} \\
+      \mmlAtmmlAtmscomp{F,\library}&\ = & \mmlAtmmlAtmscomp{F}\irl{,}\mmlAtmmlAtmscomp{\library} \\
     \end{array}
     $$
   \end{center}
-}{sms-pres-compiler-comp}{Compiler from $\mmlAt$ components to $\mmlAt$ components.}
+}{sms-pres-compiler-comp}{Compiler from $\mmlAt$ components to $\mmlAtms$ components.}
 \myfig{
   \begin{center}
     \begin{gather*}
-      \judgbox{\mmlAtmmlAtcomp{K}=\trg{K}}{,,Compile $\mmlAt$ evaluation contexts to $\mmlAt$ evaluation contexts.''}
+      \judgbox{\mmlAtmmlAtmscomp{K}=\irl{K}}{,,Compile $\mmlAt$ evaluation contexts to $\mmlAtms$ evaluation contexts.''}
     \end{gather*}
     $$
     \begin{array}{rll}
-      \mmlAtmmlAtcomp{\hole{\cdot}} &\ = & \trg{\hole{\cdot}} \\
-      \mmlAtmmlAtcomp{K \oplus e} &\ = & \mmlAtmmlAtcomp{K}\trg{\oplus}\mmlAtmmlAtcomp{e} \\
-      \mmlAtmmlAtcomp{\valueexpr \oplus K} &\ = & \mmlAtmmlAtcomp{\valueexpr}\trg{\oplus}\mmlAtmmlAtcomp{K} \\
-      \mmlAtmmlAtcomp{x[K]} &\ = & \trg{let\ x_{ACCESS}=}\mmlAtmmlAtcomp{K}\trg{\ in} \\
-                                &&\trg{if\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\
-                                &&\ \ \trg{x[x_{ACCESS}]}\\
-                                &&\trg{else\ abort()}\\
-      \mmlAtmmlAtcomp{let\ x\ = K\ in\ e} &\ = & \trg{let\ x\ = }\mmlAtmmlAtcomp{K}\trg{\ in\ }\mmlAtmmlAtcomp{e} \\
-      \mmlAtmmlAtcomp{x[K] \leftarrow e} &\ = & \trg{let\ x_{ACCESS} = }\mmlAtmmlAtcomp{K}\trg{\ in}\\
-                                &&\trg{if\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\
-      &&\ \ \trg{x[x_{ACCESS}]\leftarrow}\mmlAtmmlAtcomp{e} \\
-      &&\trg{else\ abort()} \\
-      \mmlAtmmlAtcomp{x[n] \leftarrow K} &\ = & \trg{if\ 0\le n<x_{SIZE}\ then}\\
-      &&\ \ \trg{x[n]\leftarrow }\mmlAtmmlAtcomp{K} \\
-      &&\trg{else\ abort()} \\
-      \mmlAtmmlAtcomp{let\ x\ = new\ K\ in\ e} &\ = & \trg{let\ x_{SIZE}=}\mmlAtmmlAtcomp{K}\trg{\ in\ }\\
-                                &&\trg{let\ x = new\ x_{SIZE}\ in\ }\mmlAtmmlAtcomp{e} \\
-      \mmlAtmmlAtcomp{ifz\ K\ then\ e_{1}\ else\ e_{2}} &\ = & \trg{ifz\ }\mmlAtmmlAtcomp{K}\trg{\ then\ }\\
-                               &&\ \ \mmlAtmmlAtcomp{e_{1}}\\
-                               &&\trg{else\ }\\
-                               &&\ \ \mmlAtmmlAtcomp{e_{2}} \\
-      \mmlAtmmlAtcomp{call\ foo\ K} &\ = & \trg{call\ foo\ }\mmlAtmmlAtcomp{K}\\
-      \mmlAtmmlAtcomp{return\ K} &\ = & \trg{return\ }\mmlAtmmlAtcomp{K}\\
+      \mmlAtmmlAtmscomp{\hole{\cdot}} &\ = & \irl{\hole{\cdot}} \\
+      \mmlAtmmlAtmscomp{K \oplus e} &\ = & \mmlAtmmlAtmscomp{K}\irl{\oplus}\mmlAtmmlAtmscomp{e} \\
+      \mmlAtmmlAtmscomp{\valueexpr \oplus K} &\ = & \mmlAtmmlAtmscomp{\valueexpr}\irl{\oplus}\mmlAtmmlAtmscomp{K} \\
+      \mmlAtmmlAtmscomp{x[K]} &\ = & \irl{let\ x_{ACCESS}=}\mmlAtmmlAtmscomp{K}\irl{\ in} \\
+                                &&\irl{if\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\
+                                &&\ \ \irl{x[x_{ACCESS}]}\\
+                                &&\irl{else\ abort()}\\
+      \mmlAtmmlAtmscomp{let\ x\ = K\ in\ e} &\ = & \irl{let\ x\ = }\mmlAtmmlAtmscomp{K}\irl{\ in\ }\mmlAtmmlAtmscomp{e} \\
+      \mmlAtmmlAtmscomp{x[K] \leftarrow e} &\ = & \irl{let\ x_{ACCESS} = }\mmlAtmmlAtmscomp{K}\irl{\ in}\\
+                                &&\irl{if\ 0\le x_{ACCESS}<x_{SIZE}\ then}\\
+      &&\ \ \irl{x[x_{ACCESS}]\leftarrow}\mmlAtmmlAtmscomp{e} \\
+      &&\irl{else\ abort()} \\
+      \mmlAtmmlAtmscomp{x[n] \leftarrow K} &\ = & \irl{if\ 0\le n<x_{SIZE}\ then}\\
+      &&\ \ \irl{x[n]\leftarrow }\mmlAtmmlAtmscomp{K} \\
+      &&\irl{else\ abort()} \\
+      \mmlAtmmlAtmscomp{let\ x\ = new\ K\ in\ e} &\ = & \irl{let\ x_{SIZE}=}\mmlAtmmlAtmscomp{K}\irl{\ in\ }\\
+                                &&\irl{let\ x = new\ x_{SIZE}\ in\ }\mmlAtmmlAtmscomp{e} \\
+      \mmlAtmmlAtmscomp{ifz\ K\ then\ e_{1}\ else\ e_{2}} &\ = & \irl{ifz\ }\mmlAtmmlAtmscomp{K}\irl{\ then\ }\\
+                               &&\ \ \mmlAtmmlAtmscomp{e_{1}}\\
+                               &&\irl{else\ }\\
+                               &&\ \ \mmlAtmmlAtmscomp{e_{2}} \\
+      \mmlAtmmlAtmscomp{call\ foo\ K} &\ = & \irl{call\ foo\ }\mmlAtmmlAtmscomp{K}\\
+      \mmlAtmmlAtmscomp{return\ K} &\ = & \irl{return\ }\mmlAtmmlAtmscomp{K}\\
     \end{array}
     $$
   \end{center}
-}{sms-pres-compiler-ctx}{Compiling $\mmlAt$ evaluation contexts to $\mmlAt$ evaluation contexts.}
+}{sms-pres-compiler-ctx}{Compiling $\mmlAt$ evaluation contexts to $\mmlAtms$ evaluation contexts.}
 
 \begin{lemma}[Injective Compiler]\label{lem:smscomp:inject}
   If
   \begin{assumptions}
-    \item $\mmlAtmmlAtcomp{e}=\trg{e_0}$
-    \item $\mmlAtmmlAtcomp{e}=\trg{e_1}$
+    \item $\mmlAtmmlAtmscomp{e}=\irl{e_0}$
+    \item $\mmlAtmmlAtmscomp{e}=\irl{e_1}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\trg{e_0}=\trg{e_1}$
+    \item $\irl{e_0}=\irl{e_1}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on $\trg{e}$.
+  Induction on $\irl{e}$.
 \end{proof}
 
-\begin{lemma}[Base SMS via Monitor]
-  If
-  \begin{assumptions}
-    \item\label[ass]{asm:basesmsviamonitor:step} $\exprevalt{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$
-    \item $\trg{e}=\mmlAtmmlAtcomp{e_{0}}$
-    \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-    \item\label[ass]{asm:basesmsviamonitor:comp:step} $\exect{\Omega}{e}{\Omega'}{e'}{\event}$
-    \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-  \end{assumptions}
-  Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-  \begin{goals}
-    \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-    \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\event}}{\absevent}$
-    \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-    \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega'}.\trg{\Delta}}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-  First note
-  \begin{itemize}
-    \item $\trg{\cfstate}=\trg{\commlib;\library;\kontstack}$
-    \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta}$
-  \end{itemize}
-  Induction on $\exprevalt{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$ (\Cref{asm:basesmsviamonitor:step}).
-  \begin{description}
-    \item $\trg{e}=\trg{n_{1}\oplus n_{2}}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{n_{3}}=\trg{n_{1}}\oplus\trg{n_{2}}$
-        \item $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega'}{n_{3}}{\emptyevent}$
-        \item $\mmlAtmmlAtcomp{n_{1}\oplus n_{2}}=\trg{n_{1}\oplus n_{2}}$
-        \item $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega}{e'}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{let\ x=\finalexprnoerr\ in\ e}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega'}{e[\finalexprnoerr/x]}{\emptyevent}$
-        \item $\mmlAtmmlAtcomp{let\ x=\finalexprnoerr\ in\ e}=\trg{let\ x=\finalexprnoerr\ in\ }\mmlAtmmlAtcomp{e}$
-        \item $\exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ {\color{black}\mmlAtmmlAtcomp{e}}}{\Omega}{e'}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{if\ 0\ then\ e_{1}\ else\ e_{2}}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\exprevalt{\Omega}{if\ 0\ then\ e_{1}\ else\ e_{2}}{\Omega'}{e_{1}}{\emptyevent}$
-        \item $\mmlAtmmlAtcomp{if\ 0\ then\ e_{1}\ else\ e_{2}}=\trg{if\ 0\ then\ }\mmlAtmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAtmmlAtcomp{e_{2}}$
-        \item $\exprevalt{\Omega}{if\ 0\ then\ {\color{black}\mmlAtmmlAtcomp{e_{1}}}\ else\ {\color{black}\mmlAtmmlAtcomp{e_{2}}}}{\Omega}{e'}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{if\ S(n)\ then\ e_{1}\ else\ e_{2}}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\exprevalt{\Omega}{if\ S(n)\ then\ e_{1}\ else\ e_{2}}{\Omega'}{e_{2}}{\emptyevent}$
-        \item $\mmlAtmmlAtcomp{if\ S(n)\ then\ e_{1}\ else\ e_{2}}=\trg{if\ S(n)\ then\ }\mmlAtmmlAtcomp{e_{1}}\trg{\ else\ }\mmlAtmmlAtcomp{e_{2}}$
-        \item $\exprevalt{\Omega}{if\ S(n)\ then\ {\color{black}\mmlAtmmlAtcomp{e_{1}}}\ else\ {\color{black}\mmlAtmmlAtcomp{e_{2}}}}{\Omega}{e'}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-
-      {\huge\color{green}TODO: continue here}
-
-    \item $\trg{e}=\trg{\pi_{2}\langle n_{1} ; n_{2} \rangle}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{\pi_{2}\langle n_{1} ; n_{2} \rangle}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{\pi_{1}\langle n_{1} ; n_{2} \rangle}{\Omega}{n_{2}}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{\pi_{1}\langle n_{1} ; n_{2} \rangle}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{\pi_{1}\langle n_{1} ; n_{2} \rangle}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{\pi_{1}\langle n_{1} ; n_{2} \rangle}{\Omega}{n_{1}}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{n\ has\ \nat}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{n\ has\ \nat}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{n\ has\ \nat}{\Omega}{0}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{x\ has\ \nat}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{x\ has\ \nat}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{x\ has\ \nat}{\Omega}{1}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{\langle n_{1} ; n_{2} \rangle\ has\ \nat}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{\langle n_{1} ; n_{2} \rangle\ has\ \nat}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{\langle n_{1} ; n_{2} \rangle\ has\ \nat}{\Omega}{1}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-
-    \item $\trg{e}=\trg{n\ has\ \nat\times\nat}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{n\ has\ \nat\times\nat}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{n\ has\ \nat\times\nat}{\Omega}{1}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{x\ has\ \nat\times\nat}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{x\ has\ \nat\times\nat}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{x\ has\ \nat\times\nat}{\Omega}{1}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{\langle n_{1} ; n_{2} \rangle\ has\ \nat\times\nat}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{\langle n_{1} ; n_{2} \rangle\ has\ \nat\times\nat}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{\langle n_{1} ; n_{2} \rangle\ has\ \nat\times\nat}{\Omega}{0}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-
-    \item $\trg{e}=\trg{abort()}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item\label[ass]{asm:abortnotcompiling} $\trg{abort()}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\exprevalt{\Omega}{abort()}{\Omega}{stuck}{\lightning}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\lightning}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-
-      This case is spurious, since $\trg{abort()}$ is never the result of compiling an $\mmlAt$ expression: \Cref{asm:abortnotcompiling}.
-
-
-    \item $\trg{e}=\trg{x\ is\ \poisoned}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{x\ is\ \poisoned}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-        \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta}$
-        \item $\trg{\Delta}=\trg{\Delta_{1},x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_{2}}$
-        \item $\exprevalt{\Omega}{x\ is\ \poisoned}{\Omega}{0}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{x\ is\ \poisoned}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{x\ is\ \poisoned}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-        \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta}$
-        \item $\trg{\Delta}=\trg{\Delta_{1},x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_{2}}$
-        \item $\exprevalt{\Omega}{x\ is\ \poisoned}{\Omega}{1}{\emptyevent}$
-        \item $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Omega}.\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{\emptyevent}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Omega}.\trg{\Delta}}$
-      \end{goals}
-      Choose $\absevent=\bm{\emptyevent}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      All goals are completely straightforward.
-
-    \item $\trg{e}=\trg{delete\ x}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{delete\ x}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-        \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poisonless;n),\Delta_{2}}$
-        \item $\trg{\Omega'}=\trg{\cfstate;\comp;\memstate'}$
-        \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poisoned;n),\Delta_{2}}$
-        \item $\exprevalt{\Omega}{delete\ x}{\Omega'}{0}{Dealloc\ \loc;\comp}$
-        \item\label[ass]{asm:smssafepstep:storeagree:0} $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Delta_{1},x\mapsto(\loc;\comp;\poisonless;n),\Delta_{2}}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{Dealloc\ \loc}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Delta_{1},x\mapsto(\loc;\comp;\poisoned;n),\Delta_{2}}}$
-      \end{goals}
-
-      Note that by \Cref{asm:smssafepstep:storeagree:0}, $\trg{\loc}\in \operatorname{dom}\delta_{MS}$, so let $\delta_{MS}(\trg{\loc})=\specificev{\loc}$ and also $(\specificev{\loc},m)\in\smsmonitor$.
-
-      Choose ${\absevent}=\textbf{Dealloc}\ \specificev{\loc}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor\setminus\{(\specificev{\loc}, m)\}$.
-
-      First goal is by reflexivity.
-
-      Second goal by \Cref{tr:sms-dealloc-auth}.
-
-      Third goal by \Cref{tr:sms-dealloc}.
-
-      Fourth goal is a consequence of \Cref{asm:smssafepstep:storeagree:0} using \Cref{tr:store-empty-agree,tr:store-cons-agree}.
-
-    \item $\trg{e}=\trg{let\ x=new\ n\ in\ e}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{let\ x=new\ n\ in\ e}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\fresh{\trg{\Delta}}{\trg{\loc}}$
-        \item $\fresh{\trg{\Delta}}{\trg{z}}$
-        \item $\trg{H^{\comp}{}'}=\trg{H^{\comp}}\ll\trg{n}$
-        \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-        \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta}$
-        \item $\trg{\Omega'}=\trg{\cfstate;\comp;\memstate'}$
-        \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp};z\mapsto(\loc;\ctx;\poisonless;n),\Delta}$
-        \item $\exprevalt{\Omega}{let\ x=new\ n\ in\ e}{\Omega'}{e[z/x]}{Alloc\ \loc\ n;\comp}$
-        \item\label[ass]{asm:smssafepstep:storeagree:1} $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{Alloc\ \loc\ n}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{z\mapsto(\loc;\comp;\poisonless;n),\Delta}}$
-      \end{goals}
-
-      {\large\color{red} this does not work, let\ x=new\ n\ in\ e is never a result of the compiler}
-
-      Choose ${\absevent}=\textbf{Alloc}\ \specificev{\loc}\ n$, $\delta_{\text{MS}}'=\delta_{\text{MS}}\cup\{\trg{\loc}\mapsto\specificev{\loc}\}$, and $\smsmonitor[']=\smsmonitor\cup\{(\specificev{\loc}, n)\}$.
-
-      First goal is by transitivity, reflexivity, and the fact that the empty set subsets any other set.
-
-      Second goal by \Cref{tr:sms-alloc-auth}.
-
-      Third goal by \Cref{tr:sms-alloc}.
-
-      Fourth goal is a consequence of \Cref{asm:smssafepstep:storeagree:1} using \Cref{tr:store-empty-agree,tr:store-cons-agree}.
-
-    \item $\trg{e}=\trg{x[n]}$\textbf{:}
-      If
-      \begin{passumptions}{H}
-        \item $\trg{x[n]}=\mmlAtmmlAtcomp{e_{0}}$
-        \item $\trg{\Omega}=\trg{\cfstate;\comp;\memstate}$
-        \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc,\sandboxtag,\poison,n),\Delta_{2}}$
-        \item $\exprevalt{\Omega}{x[n]}{\Omega}{v}{Read\ \loc\ n;\comp}$
-        \item\label[ass]{asm:smssafepstep:storeagree:2} $\storeagreesms[\delta_{\text{MS}}]{\smsmonitor}{\trg{\Delta}}$
-      \end{passumptions}
-      Then $\exists\ \absevent\ \delta_{\text{MS}}'\ \smsmonitor[']$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\smstraceagree{\tospecificevt[_{\delta_{\text{MS}}'}]{Read\ \loc\ n}}{\absevent}$
-        \item $\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\smsmonitor[']}{\trg{\Delta_{1},x\mapsto(\loc,\sandboxtag,\poison,n),\Delta_{2}}}$
-      \end{goals}
-
-
-
-      Choose $\absevent=\textbf{Read}\ \specificev{\loc}\ n$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\smsmonitor[']=\smsmonitor$.
-
-      The first goal is easy by reflexivity.
-
-
-      The second goal
-
-      The third goal by \Cref{tr:sms-use}.
-
-
-
-
-  \end{description}
-\end{incompleteproof}
 
 \cleardoublepage
 

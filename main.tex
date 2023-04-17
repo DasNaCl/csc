@@ -5139,7 +5139,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   We backtranslate:
   \begin{passumptions}{H}
     \setcounter{enumi}{4}
-    \item\label[ass]{asm:rtmsp:backtrans} $\mmlAmmlAtbackdetail[\emptyset;\emptyset]{\trg{\trace}}=\Game;\delta;\src{let\ main\ z\ := e},\src{\hole{\cdot}}$.
+    \item\label[ass]{asm:rtmsp:backtrans} $\mmlAmmlAtback[\emptyset;\emptyset]{\trg{\trace}}=\Game;\delta;\src{let\ main\ z\ := e},\src{\hole{\cdot}}$.
   \end{passumptions}
   Invert \Cref{asm:rtmsp:backtrans}, so we can decompose $\trg{\trace}$ into\\$\trg{Start\cdot\trace[^{ctx}_{0}]\cdot Call\ \ctxtocomp\ foo\ n\cdot\trace[^{comp}]\cdot Ret\ \comptoctx\ m\cdot\trace[^{ctx}_{1}]\cdot End\ n'}$ such that $\vdash\trg{\trace[^{comp}]}\ \operatorname{non-int-\trg{trace}}$, $\vdash\trg{\trace[^{ctx}_{0}]}\ \operatorname{non-int-\trg{trace}}$, and $\vdash\trg{\trace[^{ctx}_{1}]}\ \operatorname{non-int-\trg{trace}}$.\MK{use backtrans correctness!!}
 
@@ -5368,6 +5368,88 @@ The syntax and semantics are entirely identical.
   Induction on $\irl{e}$.
 \end{proof}
 
+\begin{lemma}[Prim-Step Backward Simulation]\label{lem:backwardsim:primstep}
+  If
+  \begin{assumptions}
+    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event}}$
+    \item $\vdash\irl{\event}\operatorname{non-int-\irl{\event}}$
+    \item $\irl{\event} = \trg{\event}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\expreval{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event}}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+
+\begin{lemma}[Ctx-Step Backward Simulation]\label{lem:backwardsim:ctxstep}
+  If
+  \begin{assumptions}
+    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event}}$
+    \item $\irl{\event} = \trg{\event}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\exec[]{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event}}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\begin{lemma}[Star-Step Backward Simulation]\label{lem:backwardsim:starstep}
+  If
+  \begin{assumptions}
+    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\trace}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\exec{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\trace}}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+
+\begin{lemma}[Top-Level Backward Simulation]\label{lem:backwardsim:toplevel}
+  If
+  \begin{assumptions}
+    \item $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\library_{comp}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
+    \item $\irl{\library_{ctx}}=\trg{\library_{ctx}}$
+    \item $\irl{\Omega}=\trg{\Omega}$
+    \item $\irl{\trace}=\trg{\trace}$
+    \item $\irl{\finalexprnoerr}=\trg{\finalexprnoerr}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\wexec{\trg{prog\ \library_{ctx}\ \library_{comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+
+\begin{scontents}[store-env=buffer]
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \trg{\library_{ctx}}\ \trg{\library_{comp}}\ \trg{\trace}\ \trg{\Omega}\ \trg{v}, \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}\rightarrow\tospecificevt[_{\delta_{MS}}]{\trace}\in\operatorname{smssafe}$
+  \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\library_{comp}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
+  \end{assumptions}
+  then $\exists \delta_{MS}',$
+  \begin{goals}
+    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{smssafe}$
+  \end{goals}
+\end{scontents}
+
+\realthm{thm:rsmsp}{5}{Robust \gls{sms} Preservation}
+\begin{proof}
+  Use \Thmref{lem:backwardsim:toplevel} on \Cref{asm:rsmsp:irlexec}: (remember that $\irl{\trace}=\trg{\trace}$, since $\mmlAtms=\mmlAt$)
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:rtsmsp:twprog} $\wexec{\trg{prog\ \library_{ctx}\ \library_{comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
+  \end{passumptions}
+  \Cref{asm:rsmsp:srcsms} solves our goal.
+\end{proof}
 
 \cleardoublepage
 

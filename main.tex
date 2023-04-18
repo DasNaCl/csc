@@ -25,6 +25,7 @@
 \usepackage{graphicx}
 \usepackage{adjustbox}
 \usepackage{scontents}
+\usepackage{comment}
 
 % workaround to use extpfeil and stmaryrd together.
 % see https://tex.stackexchange.com/questions/297108/
@@ -1630,6 +1631,14 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{itemize}
 \end{definition}
 
+\begin{definition}[Memory Safety]\label{def:memsafe}
+  We define the property $\operatorname{msafe}$ as follows for any given $\mstrace$
+  \begin{itemize}
+    \item $\mstrace\in\operatorname{tmsafe}$
+    \item $\mstrace\in\operatorname{smsafe}$
+  \end{itemize}
+\end{definition}
+
 \begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
   We say $\texttt{TMS}(\mstrace)$ iff $\exists \delta_{\text{tms}}\ \abstrace\ \tmsmonitor$ such that:
   \begin{itemize}
@@ -1682,7 +1691,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\tospecificevs[_{\delta_{ms}}]{\trace}\in\operatorname{tmssafe}$
+  \item $\tospecificevs[_{\delta_{ms}}]{\trace}\in\operatorname{tmsafe}$
   \end{goals}.
 \end{scontents}
 \mockthm{thm:mmlAs:tmssafe}{1}
@@ -5116,12 +5125,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:rtmsp:srctms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{tmssafe}$
+  \item\label[ass]{asm:rtmsp:srctms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{tmsafe}$
   \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ \library_{ctx}\ }\mmlAmmlAtcomp{\library_{comp}}}{\trg{\configt}}{\trg{\finalexpr}}{\trg{\trace}}$
   \end{assumptions}
   then $\exists \delta_{MS}',$
   \begin{goals}
-    \item\label[goal]{rtmsp:tms} $\tospecificevs[_{\delta_{MS}'}]{\trace}\in\operatorname{tmssafe}$
+    \item\label[goal]{rtmsp:tms} $\tospecificevs[_{\delta_{MS}'}]{\trace}\in\operatorname{tmsafe}$
   \end{goals}
 \end{scontents}
 
@@ -5368,31 +5377,61 @@ The syntax and semantics are entirely identical.
   Induction on $\irl{e}$.
 \end{proof}
 
+\begin{lemma}[Backtranslation Correctness]\label{lem:backtransms}
+  If
+  \begin{assumptions}
+    \item $\irl{\library}=\irl{\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}$
+    \item $\irl{\commlib}=\mmlAtmmlAtmscomp{\commlib}=\operatorname{dom}\mmlAtmmlAtmscomp{\library_{comp}}$
+    \item $\exec{\irl{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{call\ main\ 0}}{\irl{\commlib;\library;\kontstack;\ctx;H^{\ctx};H^{\comp};\Delta}}{\irl{\finalexprnoerr}}{\irl{\trace}}$
+    \item $\irl{\commlib}=\trg{\commlib}$
+  \end{assumptions}
+  Then $\exists \trg{\trace}\ \trg{\kontstack}\ \trg{H^{\ctx}}\ \trg{H^{\comp}}\ \trg{\Delta}$,
+  \begin{goals}
+    \item $\exec{\trg{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\trg{call\ main\ 0}}{\trg{\commlib;\library;\kontstack;\ctx;H^{\ctx};H^{\comp};\Delta}}{\trg{\finalexprnoerr}}{\trg{\trace}}$
+    \item $\irl{\kontstack}=\trg{\kontstack}$
+    \item $\irl{H^{\ctx}}=\trg{H^{\ctx}}$
+    \item $\irl{H^{\comp}}=\trg{H^{\comp}}$
+    \item $\irl{\Delta}=\trg{\Delta}$
+    \item $\irl{\trace}=\trg{\trace}$
+  \end{goals}
+\end{lemma}
+
+\begin{comment}
 \begin{lemma}[Prim-Step Backward Simulation]\label{lem:backwardsim:primstep}
   If
   \begin{assumptions}
-    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event}}$
-    \item $\vdash\irl{\event}\operatorname{non-int-\irl{\event}}$
-    \item $\irl{\event} = \trg{\event}$
+    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event;\sandboxtag}}$
+    \item\label[ass]{asm:backwardsim:primstep} $\vdash\irl{\event;\sandboxtag}\operatorname{non-int-\irl{\event}}$
+    \item $\irl{\event;\sandboxtag} = \trg{\event;\sandboxtag}$
+    \item $\irl{e}=\trg{e}$
   \end{assumptions}
-  Then
+  Then $\exists \trg{e'}$
   \begin{goals}
-    \item $\expreval{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event}}$
+    \item $\exec{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event;\sandboxtag}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  Induction on \Cref{asm:backwardsim:primstep}.
+  \begin{description}
+    \item $\irl{\event}=\irl{Alloc\ \loc\ n;\sandboxtag}$\textbf{:}
+    \item $\irl{\event}=\irl{Dealloc\ \loc;\sandboxtag}$\textbf{:}
+    \item $\irl{\event}=\irl{Get\ \loc\ n;\sandboxtag}$\textbf{:}
+    \item $\irl{\event}=\irl{Set\ \loc\ n;\sandboxtag}$\textbf{:}
+    \item $\irl{\event}=\irl{\lightning;\sandboxtag}$\textbf{:}
+          Here, $\irl{e}$ can be decomposed, such that $\irl{e}=\irl{K[abort()]}$.
+  \end{description}
 \end{incompleteproof}
 
 
 \begin{lemma}[Ctx-Step Backward Simulation]\label{lem:backwardsim:ctxstep}
   If
   \begin{assumptions}
-    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event}}$
-    \item $\irl{\event} = \trg{\event}$
+    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event;\sandboxtag}}$
+    \item $\irl{\event;\sandboxtag} = \trg{\event;\sandboxtag}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\exec[]{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event}}$
+    \item $\exec[]{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event;\sandboxtag}}$
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
@@ -5411,6 +5450,7 @@ The syntax and semantics are entirely identical.
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\end{comment}
 
 \begin{lemma}[Top-Level Backward Simulation]\label{lem:backwardsim:toplevel}
   If
@@ -5430,15 +5470,16 @@ The syntax and semantics are entirely identical.
 \end{incompleteproof}
 
 
+
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \trg{\library_{ctx}}\ \trg{\library_{comp}}\ \trg{\trace}\ \trg{\Omega}\ \trg{v}, \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}\rightarrow\tospecificevt[_{\delta_{MS}}]{\trace}\in\operatorname{smssafe}$
+  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \trg{\library_{ctx}}\ \trg{\library_{comp}}\ \trg{\trace}\ \trg{\Omega}\ \trg{v}, \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}\rightarrow\tospecificevt[_{\delta_{MS}}]{\trace}\in\operatorname{smsafe}$
   \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\library_{comp}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
   \end{assumptions}
   then $\exists \delta_{MS}',$
   \begin{goals}
-    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{smssafe}$
+    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{smsafe}$
   \end{goals}
 \end{scontents}
 
@@ -5449,6 +5490,22 @@ The syntax and semantics are entirely identical.
     \item\label[ass]{asm:rtsmsp:twprog} $\wexec{\trg{prog\ \library_{ctx}\ \library_{comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
   \end{passumptions}
   \Cref{asm:rsmsp:srcsms} solves our goal.
+\end{proof}
+
+\begin{scontents}[store-env=buffer]
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{msafe}$
+  \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\library_{comp}}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
+  \end{assumptions}
+  then $\exists \delta_{MS}',$
+  \begin{goals}
+    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{msafe}$
+  \end{goals}
+\end{scontents}
+\realthm{thm:rmsp}{6}{Robust Memory Safety Preservation}
+\begin{proof}
+  Immediate consequence of \Thmref{lem:seqcompo} using \Thmref{thm:rtmsp} and \Thmref{thm:rsmsp}.
 \end{proof}
 
 \cleardoublepage

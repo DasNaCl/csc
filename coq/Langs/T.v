@@ -2028,3 +2028,29 @@ Definition debug_eval (p : prog) :=
   let* (As, _) := wstepf p in
   Some(string_of_tracepref As)
 .
+
+Fixpoint comp (e : expr) : expr :=
+  match e with
+  | Xnew x e0 e1 => Xlet (String.append x "size"%string) (comp e0)
+                        (Xnew x (Fvar(String.append x "size"%string)) (comp e1))
+  | Xget x e => Xifz (Xbinop Bsub (Fvar(String.append x "size"%string)) (comp e))
+                    (Xget x (comp e))
+                    (Xabort)
+  | Xset x e0 e1 => Xifz (Xbinop Bsub (Fvar(String.append x "size"%string)) (comp e0))
+                        (Xset x (comp e0) (comp e1))
+                        (Xabort)
+  | _ => e
+  end
+.
+
+Lemma backwardsim_pstep Ω e (a : event) Ω' e' :
+  (Ω ▷ (comp e) ==[ a :: nil ]==>* Ω' ▷ e') ->
+  exists e'', (Ω ▷ e ==[ a :: nil ]==>* Ω' ▷ e'')
+.
+Proof.
+  induction a; intros.
+  - admit.
+  - admit.
+  - induction e; cbn in H. admit. admit. admit. admit. admit.
+    inv H.
+Qed.

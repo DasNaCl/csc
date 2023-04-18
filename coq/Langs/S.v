@@ -1419,9 +1419,6 @@ Lemma substi Γ e x y t :
   check (substτ Γ x y) (subst x e (Fvar y)) t
 .
 Proof.
-  induction 1; cbn.
-  - destruct (eq_dec x x0); subst.
-    + rewrite String.eqb_refl. econstructor; eauto.
 Admitted.
 
 Inductive pstep : PrimStep :=

@@ -5362,11 +5362,11 @@ The syntax and semantics are entirely identical.
   \end{center}
 }{sms-pres-compiler-ctx}{Compiling $\mmlAt$ evaluation contexts to $\mmlAtms$ evaluation contexts.}
 
-\begin{lemma}[Injective Compiler]\label{lem:smscomp:inject}
+\begin{lemma}[Injective Compiler (for values)]\label{lem:smscomp:inject}
   If
   \begin{assumptions}
-    \item $\mmlAtmmlAtmscomp{e}=\irl{e_0}$
-    \item $\mmlAtmmlAtmscomp{e}=\irl{e_1}$
+    \item $\mmlAtmmlAtmscomp{\finalexprnoerr}=\irl{e_0}$
+    \item $\mmlAtmmlAtmscomp{\finalexprnoerr}=\irl{e_1}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -5374,13 +5374,80 @@ The syntax and semantics are entirely identical.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on $\irl{e}$.
+  Case analysis on $\irl{\finalexprnoerr}$.
 \end{proof}
 
-\begin{lemma}[Backtranslation Correctness]\label{lem:backtransms}
+\begin{lemma}[Forward Simulation]\label{lem:sms:forwardsim}
+  If
+  \begin{assumptions}
+    \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
+    \item $\trg{\Omega}=\irl{\Omega}$
+  \end{assumptions}
+  Then $\exists \irl{\Omega'}\ \irl{\trace}$,
+  \begin{goals}
+    \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{\finalexprnoerr}}{\irl{\trace}}$
+    \item $\trg{\trace}=\irl{\trace}$
+    \item $\trg{\Omega'}=\irl{\Omega'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+  ...
+\end{incompleteproof}
+
+\begin{lemma}[Backward Simulation]\label{lem:sms:backwardsim}
+  If
+  \begin{assumptions}
+    \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{\finalexprnoerr}}{\irl{\trace}}$
+    \item $\trg{\Omega}=\irl{\Omega}$
+    \item $\trg{\trace}=\irl{\trace}$
+    \item $\trg{\Omega'}=\irl{\Omega'}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$\MK{substitutions}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Case analysis on wether $\exists \trg{\finalexprnoerr'},\exect{\Omega}{e}{\Omega'}{\finalexprnoerr'}{\trace}$ holds or not.
+  \begin{description}
+    \item \textbf{Case} $\exists \trg{\finalexprnoerr'},\exect{\Omega}{e}{\Omega'}{\finalexprnoerr'}{\trace}$\textbf{:}
+          By \Thmref{lem:sms:forwardsim} on what we assume in this case:
+          \begin{passumptions}{H}
+            \item\label[ass]{asm:sms:backwardsim:execms} $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{\finalexprnoerr'}}{\irl{\trace}}$
+            \item $\trg{\trace}=\irl{\trace}$
+            \item $\trg{\Omega'}=\irl{\Omega'}$
+          \end{passumptions}
+          By \Thmref{lem:determ:steps}:
+          \begin{passumptions}{H}
+            \setcounter{enumi}{3}
+            \item $\mmlAtmmlAtmscomp{\finalexprnoerr}=\mmlAtmmlAtmscomp{\finalexprnoerr'}$
+          \end{passumptions}
+          Subsequently, by \Thmref{lem:smscomp:inject}:
+          \begin{passumptions}{H}
+            \setcounter{enumi}{4}
+            \item\label[ass]{asm:sms:backwardsim:eq} $\trg{\finalexprnoerr}=\trg{\finalexprnoerr'}$
+          \end{passumptions}
+          Rewrite \Cref{asm:sms:backwardsim:execms} using \Cref{asm:sms:backwardsim:eq}, solving our goal.
+
+    \item \textbf{Case} $\neg(\exists\trg{\finalexprnoerr'},\exect{\Omega}{e}{\Omega'}{\finalexprnoerr'}{\trace})$\textbf{:}
+          We can rewrite the assumption done in this case as:
+          \begin{passumptions}{H}
+            \item\label[ass]{asm:sms:backwardsim:noex} $\forall\trg{\finalexprnoerr'},\exectn{\Omega}{e}{\Omega'}{\finalexprnoerr'}{\trace}$
+          \end{passumptions}
+          We prove the goal by contradiction, so we have to prove $\bot$, assuming:
+          \begin{passumptions}{H}
+            \setcounter{enumi}{1}
+            \item\label[ass]{asm:sms:backwardsim:ex2} $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
+          \end{passumptions}
+          \Cref{asm:sms:backwardsim:ex2} contradicts \Cref{asm:sms:backwardsim:noex}.
+  \end{description}
+\end{proof}
+
+\begin{lemma}[Top-Level Backward Simulation]\label{lem:backtransms}
   If
   \begin{assumptions}
     \item $\irl{\library}=\irl{\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}$
+    \item $\irl{\library_{ctx}}=\trg{\library_{ctx}}$
     \item $\irl{\commlib}=\mmlAtmmlAtmscomp{\commlib}=\operatorname{dom}\mmlAtmmlAtmscomp{\library_{comp}}$
     \item $\exec{\irl{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{call\ main\ 0}}{\irl{\commlib;\library;\kontstack;\ctx;H^{\ctx};H^{\comp};\Delta}}{\irl{\finalexprnoerr}}{\irl{\trace}}$
     \item $\irl{\commlib}=\trg{\commlib}$
@@ -5395,64 +5462,15 @@ The syntax and semantics are entirely identical.
     \item $\irl{\trace}=\trg{\trace}$
   \end{goals}
 \end{lemma}
-
-\begin{comment}
-\begin{lemma}[Prim-Step Backward Simulation]\label{lem:backwardsim:primstep}
-  If
-  \begin{assumptions}
-    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event;\sandboxtag}}$
-    \item\label[ass]{asm:backwardsim:primstep} $\vdash\irl{\event;\sandboxtag}\operatorname{non-int-\irl{\event}}$
-    \item $\irl{\event;\sandboxtag} = \trg{\event;\sandboxtag}$
-    \item $\irl{e}=\trg{e}$
-  \end{assumptions}
-  Then $\exists \trg{e'}$
-  \begin{goals}
-    \item $\exec{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event;\sandboxtag}}$
-  \end{goals}
-\end{lemma}
 \begin{incompleteproof}
-  Induction on \Cref{asm:backwardsim:primstep}.
-  \begin{description}
-    \item $\irl{\event}=\irl{Alloc\ \loc\ n;\sandboxtag}$\textbf{:}
-    \item $\irl{\event}=\irl{Dealloc\ \loc;\sandboxtag}$\textbf{:}
-    \item $\irl{\event}=\irl{Get\ \loc\ n;\sandboxtag}$\textbf{:}
-    \item $\irl{\event}=\irl{Set\ \loc\ n;\sandboxtag}$\textbf{:}
-    \item $\irl{\event}=\irl{\lightning;\sandboxtag}$\textbf{:}
-          Here, $\irl{e}$ can be decomposed, such that $\irl{e}=\irl{K[abort()]}$.
-  \end{description}
+  \MK{more detail}Suppose control is never handled over to $\mmlAtmmlAtmscomp{\library_{comp}}$; that is, there is no $\irl{Call\ ?\ foo\ n}$ in $\irl{\trace}$.
+  In this case, the goals follow easily, since the semantics of $\mmlAt$ and $\mmlAtms$ are identical and $\irl{\library_{ctx}}=\trg{\library_{ctx}}$.
+
+  If control is handled over, we have, at some point in the reduction by transitivty, $\exec{\irl{\Omega_{0}}}{\mmlAtmmlAtmscomp{e_{foo}}\irl{[\valueexpr/x]}}{\irl{\commlib;\library;\kontstack;\ctx;H^{\ctx};H^{\comp};\Delta}}{\irl{\finalexprnoerr}}{\irl{\trace}}$.
+  Thus, we can apply \Thmref{lem:sms:backwardsim} and are done.
 \end{incompleteproof}
 
-
-\begin{lemma}[Ctx-Step Backward Simulation]\label{lem:backwardsim:ctxstep}
-  If
-  \begin{assumptions}
-    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\event;\sandboxtag}}$
-    \item $\irl{\event;\sandboxtag} = \trg{\event;\sandboxtag}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $\exec[]{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\event;\sandboxtag}}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
-
-\begin{lemma}[Star-Step Backward Simulation]\label{lem:backwardsim:starstep}
-  If
-  \begin{assumptions}
-    \item $\exec{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\irl{e}}{\mmlAtmmlAtmscomp{\commlib}\irl{;\library_{ctx}\linker}\mmlAtmmlAtmscomp{\library_{comp}}\irl{;\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\irl{e'}}{\irl{\trace}}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $\exec{\trg{\commlib;\library_{ctx}\linker\library_{comp};\kontstack;\sandboxtag;H^{\ctx};H^{\comp};\Delta}}{\trg{e}}{\trg{\commlib;\library_{ctx}\linker;\library_{comp};\kontstack;\sandboxtag';H^{\ctx'};H^{\comp'};\Delta'}}{\trg{e'}}{\trg{\trace}}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
-
-\end{comment}
-
-\begin{lemma}[Top-Level Backward Simulation]\label{lem:backwardsim:toplevel}
+\begin{lemma}[Program Backward Simulation]\label{lem:backwardsim:toplevel}
   If
   \begin{assumptions}
     \item $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\library_{comp}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
@@ -5466,9 +5484,9 @@ The syntax and semantics are entirely identical.
     \item $\wexec{\trg{prog\ \library_{ctx}\ \library_{comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
-
+\begin{proof}
+  Immediate consequence of \Thmref{lem:backtransms}.
+\end{proof}
 
 
 \begin{scontents}[store-env=buffer]

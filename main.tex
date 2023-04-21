@@ -550,8 +550,8 @@ Now, we want to formalize this idea of ``being able to swap things around'' for 
       \path[->,very thick] (mmlAs) edge[sloped,above] node {TMS} (mmlAt);
       \path[->,dotted,very thick] (mmlAt) edge[sloped,above] node {SMS} (mmlAtmemsafe);
       \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=15] node {MS} (mmlAtmemsafe);
-      \path[->,very thick] (mmlAtmemsafe) edge[sloped,above] node {SS+MS} (asm);
-      \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=33] node {SS+MS} (asm);
+      \path[->,very thick] (mmlAtmemsafe) edge[sloped,above] node {\footnotesize CCT+MS} (asm);
+      \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=33] node {CCT+MS} (asm);
 
 
       \node[draw=none,right=3 of mmlAt] (legend0) {};
@@ -1677,12 +1677,21 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[$\texttt{SMS}(\mstrace)$ implies $\mstrace\in\operatorname{smsafe}$]\label{lem:smssafe-tracesms}
   If
   \begin{assumptions}
+    \item\label[ass]{asm:smssafe-tracesms:sms} $\texttt{SMS}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\mstrace\in\operatorname{smsafe}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:smssafe-tracesms:sms}:
+  \begin{passumptions}{H}
     \item\label[ass]{asm:smssafe-tracesms:traceag} $\smstraceagree{\mstrace}{\abstrace}$
     \item\label[ass]{asm:smssafe-tracesms:monstep} $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
-  \end{assumptions}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:smssafe-tracesms:monstep}.
+\end{proof}
 
 \begin{scontents}[store-env=buffer]
   If
@@ -1976,7 +1985,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[Substitution]\label{lem:substitution}
   If
   \begin{assumptions}
-    \item $\typechecks{x:\type',\Gamma_1}{e}{\type}$
+    \item\label[ass]{asm:substitution:typs} $\typechecks{x:\type',\Gamma_1}{e}{\type}$
     \item $\typechecks{\Gamma_2}{v}{\type'}$
     \item $\src{\Gamma_3}=\src{\Gamma_1}\circ\src{\Gamma_2}$
   \end{assumptions}
@@ -1985,14 +1994,15 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item $\typechecks{\Gamma_3}{e[v/x]}{\type}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  By induction on \Cref{asm:substitution:typs}.
+\end{proof}
 
 \begin{lemma}[Base Preservation]\label{lem:base-preservation}
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
+    \item\label[ass]{asm:basepres:step} $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
@@ -2000,49 +2010,53 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:basepres:step}.
+\end{proof}
 
 \begin{lemma}[Ctx Preservation]\label{lem:ctx-preservation}
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
+    \item\label[ass]{asm:ctxpres:step} $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
   \end{assumptions}
   Then
   \begin{goals}
     \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:ctxpres:step}.
+\end{proof}
 
 \begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
   If
   \begin{assumptions}
     \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item $\execs{\configs}{e}{\configs'}{e'}{\trace}$
+    \item\label[ass]{asm:starpres:step} $\execs{\configs}{e}{\configs'}{e'}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
     \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:starpres:step}.
+\end{proof}
 
 \begin{lemma}[Progress]\label{lem:progress}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item\label[ass]{asm:progress:typs} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\src{e}=\src{\finalexprnoerr}$ or $\exists \src{\Omega'}\ \src{\finalexprnoerr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\finalexprnoerr}{\trace}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Nested induction on \Cref{asm:progress:typs}.
+\end{proof}
 
 \begin{scontents}[store-env=buffer]
   If
@@ -2056,6 +2070,9 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{goals}.
 \end{scontents}
 \realthm{thm:mmlAs:typesafe}{3}{Type Safety}
+\begin{proof}
+  Easy consequence from \Cref{lem:progress,lem:steps-preservation}.
+\end{proof}
 
 \begin{lemma}[Top-Level Progress]\label{lem:toplevel:progress}
   If
@@ -2067,8 +2084,9 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \item $\exists \configs\ \src{\finalexprnoerr}\ \src{\trace}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexprnoerr}{\trace}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Immediate consequence of \Cref{lem:progress}.
+\end{proof}
 
 \begin{lemma}[Base \gls{tms} via Monitor]\label{lem:basetmsmonitor}
   If
@@ -2893,7 +2911,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\trg{v'}=\trg{v''}$
+  \item $\trg{v_{1}}=\trg{v_{2}}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\event_{1}}=\trg{\event_{2}}$
   \end{goals}
@@ -2905,13 +2923,14 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \begin{lemma}[Determinism of Ctx-Step]\label{lem:determ:ctxstep}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e}{\Omega'}{v_1}{\event}$
-  \item $\exect[]{\Omega}{e}{\Omega''}{v_2}{\event}$
+  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e}{\Omega'}{v_1}{\event_{2}}$
+  \item $\exect[]{\Omega}{e}{\Omega''}{v_2}{\event_{1}}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\trg{v'}=\trg{v''}$
+  \item $\trg{v_{1}}=\trg{v_{2}}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\event_{1}}=\trg{\event_{2}}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -2926,31 +2945,13 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\trg{v'}=\trg{v''}$
+  \item $\trg{v_{1}}=\trg{v_{2}}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\trace[_{1}]}=\trg{\trace[_{2}]}$
   \end{goals}
 \end{lemma}
 \begin{proof}
   By induction on \Cref{asm:determ:steps:a} making use of \Thmref{lem:determ:ctxstep}.
-\end{proof}
-
-\begin{definition}[Stuck Trace]\label{def:stuck:trgtrace}
-  A trace $\trg{\trace}$ is stuck if it ends with $\trg{\lightning}$.
-\end{definition}
-
-\begin{lemma}[Non-stuck Trace Generation]\label{lem:nonstuck:traces}
-  If
-  \begin{assumptions}
-  \item $\exect{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-  \item $\trg{\trace}$ is not stuck.
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Obvious.
 \end{proof}
 
 \subsection{Robust \gls*{tms} Preserving Compiler}
@@ -3405,19 +3406,6 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{cfstate-qe}
   \end{center}
 }{tms-pres-state-relations-second}{State Relation from $\mmlAt$ to $\mmlAs$. This is meant to relate the states whenever we are ,,inside'' a context.}
-
-\begin{lemma}[Trace Agreement with Filter]\label{lem:traceagreement:with:filter}
-  If
-  \begin{assumptions}
-    \item $\xlangtraceeq{\trace}{\trace}$
-  \end{assumptions}
-  Then $\exists \delta_{MS}$
-  \begin{goals}
-    \item $\tospecificevs[_{\delta_{MS}}]{\trace}=\tospecificevt[_{\delta\circ\delta_{MS}}]{\trace}$
-  \end{goals}
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
 
 \begin{lemma}[Compiler Injective]\label{lem:injective:comp}
   If
@@ -3918,7 +3906,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{proof}
-  We prove this by contradiction. So, we get the assumption:\MK{minor patches}
+  We prove this by contradiction. So, we get the assumption:
   \begin{passumptions}{I}
     \item\label[ass]{asm:exprcorr:toplevel} $\forall\delta'\ \src{\Omega'}\ \src{\trace},\delta'\subset\delta\vee\neg\left(\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}\right)\vee\xlangstateneq[\delta']{\Omega'}{\Omega'}\vee\xlangtraceneq[\delta']{\trace}{\trace}$
   \end{passumptions}
@@ -3936,7 +3924,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       Invert \Cref{asm:exprcorrect:exec1:trg} and proceed by case analysis:
       \begin{description}
-        \item \textbf{Case $\delta\subset\delta$:} Trivial.
+        \item \textbf{Case $\delta\subset\delta$:} Trivially false.
         \item \textbf{Case }$\neg\left(\execs{\Omega}{\valueexpr}{\Omega}{\valueexpr}{\hole{\cdot}}\right)$\textbf{:}
             Simply apply $\neg\left(\execs{\Omega}{\valueexpr}{\Omega}{\valueexpr}{\hole{\cdot}}\right)$ to the goal $\bot$ and use \Cref{tr:ws-e-refl}.
         \item \textbf{Case }$\xlangstateneq{\Omega}{\Omega}$\textbf{:}
@@ -4206,8 +4194,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\tospecificevt[_{\trg{\bullet}}]{\trace[_{1}]\cdot\trace[_{2}]}=\tospecificevt[_{\trg{\bullet}}]{\trace[_{1}]}\trg{\cdot}\tospecificevt[_{\trg{\bullet}}]{\trace[_{2}]}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on $\trg{\trace[_{1}]}$.
+\end{proof}
 
 \begin{lemma}[$\theta_{\trg{\bullet}}$ invert concrete]\label{lem:trgfilter:invert:concrete}
   If
@@ -4220,8 +4209,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\tospecificevt{\event}=\trg{\event}$
   \end{assumptions}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on $\trg{\trace[_{b}]}$.
+\end{proof}
 
 \begin{lemma}[$\xlangstateeq{\commlib;\library;\hole{\cdot}}{\commlib;\library;\hole{\cdot}}$ holds]\label{lem:cfeq:refl}
   If
@@ -4287,15 +4277,16 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   If
   \begin{assumptions}
     \item $\forall\src{\loc}\ \trg{\loc},\delta(\src{\loc})=\trg{\loc}\implies \delta_{MS}(\src{\loc})=\delta_{MS}(\delta^{-1}(\trg{\loc}))$
-    \item $\xlangtraceeq{\trace}{\trace}$
+    \item\label[ass]{asm:msfiltereq:eq} $\xlangtraceeq{\trace}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
     \item $\tospecificevs[_{\delta_{MS}}]{\trace}=\tospecificevt[_{\delta_{MS}'}]{\trace}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:msfiltereq:eq}.
+\end{proof}
 
 
 \begin{lemma}[Backtranslation for Non-Interacting Traces is Well-Typed]\label{lem:expr:backtranslation:welltyped}
@@ -5134,6 +5125,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{scontents}
 
+
+
+
 \realthm{thm:rtmsp}{4}{Robust \gls{tms} Preservation}
 \begin{proof}
   Suppose $\trg{\finalexpr}=\trg{\valueexpr}$.\MK{take care of fail}
@@ -5148,9 +5142,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   We backtranslate:
   \begin{passumptions}{H}
     \setcounter{enumi}{4}
-    \item\label[ass]{asm:rtmsp:backtrans} $\mmlAmmlAtback[\emptyset;\emptyset]{\trg{\trace}}=\Game;\delta;\src{let\ main\ z\ := e},\src{\hole{\cdot}}$.
+    \item\label[ass]{asm:rtmsp:backtrans} $\mmlAmmlAtback[\emptyset;\emptyset]{{\color{black}\theta_{{\trg{\bullet}}}(}{\trg{\trace}}{\color{black})}}=\Game;\delta;\src{let\ main\ z\ := e},\src{\hole{\cdot}}$.
   \end{passumptions}
   Invert \Cref{asm:rtmsp:backtrans}, so we can decompose $\trg{\trace}$ into\\$\trg{Start\cdot\trace[^{ctx}_{0}]\cdot Call\ \ctxtocomp\ foo\ n\cdot\trace[^{comp}]\cdot Ret\ \comptoctx\ m\cdot\trace[^{ctx}_{1}]\cdot End\ n'}$ such that $\vdash\trg{\trace[^{comp}]}\ \operatorname{non-int-\trg{trace}}$, $\vdash\trg{\trace[^{ctx}_{0}]}\ \operatorname{non-int-\trg{trace}}$, and $\vdash\trg{\trace[^{ctx}_{1}]}\ \operatorname{non-int-\trg{trace}}$.\MK{use backtrans correctness!!}
+
+
 
   By \Thmref{lem:mslocgen} using $\operatorname{dom}\delta$, there is a $\delta_{MS}:\src{\bullet}\to\specificev{\bullet}$ injective.
 
@@ -5376,6 +5372,73 @@ The syntax and semantics are entirely identical.
 \begin{proof}
   Case analysis on $\irl{\finalexprnoerr}$.
 \end{proof}
+
+\begin{lemma}[Prim. Forward Simulation]\label{lem:sms:ctxforwardsim}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:sms:ctxforwardsim:evalt} $\exprevalt{\Omega}{e}{\Omega'}{e'}{\event}$
+    \item $\trg{\Omega}=\irl{\Omega}$
+  \end{assumptions}
+  Then $\exists \irl{\Omega'}\ \irl{\event}$,
+  \begin{goals}
+    \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e'}}{\irl{\event}}$
+    \item $\trg{\event}=\irl{\event}$
+    \item $\trg{\Omega'}=\irl{\Omega'}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:sms:ctxforwardsim:evalt}.
+
+  \begin{description}
+    \item \textbf{Case} $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega}{n_{3}}{\emptyevent}$\textbf{:}
+          If
+          \begin{passumptions}{H}
+            \item $n_{3}=n_{1}\oplus n_{2}$
+            \item $\exprevalt{\Omega}{n_{1}+n_{2}}{\Omega}{n_{3}}{\emptyevent}$
+            \item $\trg{\Omega}=\irl{\Omega}$
+          \end{passumptions}
+          Then $\exists \irl{\Omega'}\ \irl{\event}$,
+          \begin{goals}
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{n_{1}\oplus n_{2}}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{n_{3}}}{\irl{\event}}$
+            \item $\irl{\Omega'}=\trg{\Omega}$
+          \end{goals}
+          Instantiate $\irl{\Omega'}=\trg{\Omega}$ and $\irl{\event}=\trg{\emptyevent}$.
+          Goals follow immediately from assumptions.
+
+    \item \textbf{Case} $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega}{n_{3}}{\emptyevent}$\textbf{:}
+          If
+          \begin{passumptions}{H}
+            \item $n_{3}=n_{1}\oplus n_{2}$
+            \item $\exprevalt{\Omega}{n_{1}+n_{2}}{\Omega}{n_{3}}{\emptyevent}$
+            \item $\trg{\Omega}=\irl{\Omega}$
+          \end{passumptions}
+          Then $\exists \irl{\Omega'}\ \irl{\event}$,
+          \begin{goals}
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{n_{1}\oplus n_{2}}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{n_{3}}}{\irl{\event}}$
+            \item $\irl{\Omega'}=\trg{\Omega}$
+          \end{goals}
+          Instantiate $\irl{\Omega'}=\trg{\Omega}$ and $\irl{\event}=\trg{\emptyevent}$.
+          Goals follow immediately from assumptions.
+
+  \end{description}
+
+\end{proof}
+
+\begin{lemma}[Ctx. Forward Simulation]\label{lem:sms:ctxforwardsim}
+  If
+  \begin{assumptions}
+    \item $\exect[]{\Omega}{e}{\Omega'}{\finalexprnoerr}{\trace}$
+    \item $\trg{\Omega}=\irl{\Omega}$
+  \end{assumptions}
+  Then $\exists \irl{\Omega'}\ \irl{\trace}$,
+  \begin{goals}
+    \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{\finalexprnoerr}}{\irl{\trace}}$
+    \item $\trg{\trace}=\irl{\trace}$
+    \item $\trg{\Omega'}=\irl{\Omega'}$
+  \end{goals}
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
 
 \begin{lemma}[Forward Simulation]\label{lem:sms:forwardsim}
   If

@@ -1581,6 +1581,88 @@ As before, we need a way to translate one set of actions to another:
   \end{center}
 }{sms-store-agreement}{Store Agreement.}
 
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{MS}(\trg{\loc})=\specificev{\loc}}{,,A map from $\mmlAt$ memory locations $\trg{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevt[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAt$ event to MS-specific events.''}
+    %
+    \typerule{t-filter-context}{
+      \trg{\event_b} \not= \trg{\lightning}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{t-filter-context}
+    %
+    \typerule{t-filter-comp-start}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Start;\comp} = \specificev{\emptyevent}
+    }{t-filter-comp-start}
+    %
+    \typerule{t-filter-comp-alloc}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
+      \specificev{n}=\trg{n}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n}
+    }{t-filter-comp-alloc}
+    %
+    \typerule{t-filter-comp-dealloc}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc}
+    }{t-filter-comp-dealloc}
+    %
+    \typerule{t-filter-comp-get}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
+      \specificev{n}=\trg{n}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+    }{t-filter-comp-get}
+    %
+    \typerule{t-filter-comp-set}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
+      \specificev{n}=\trg{n}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+    }{t-filter-comp-set}
+    %
+    \typerule{t-filter-comp-call}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{t-filter-comp-call}
+    %
+    \typerule{t-filter-comp-ret}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{t-filter-comp-ret}
+    %
+    \typerule{t-filter-abort}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+    }{t-filter-abort}
+    %
+    \judgbox{\tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAs$ trace to MS-specific traces.''}
+    %
+    \typerule{t-filter-empty}{
+    }{
+      \tospecificevt[^*_{\delta_{MS}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{t-filter-empty}
+    %
+    \typerule{t-filter-cons-relevant}{
+      \tospecificevt[_{\delta_{MS}}]{\event} = \specificev{\event} &
+      \tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace &
+      \specificev{\event} \not= \specificev{\emptyevent}
+    }{
+      \tospecificevt[^*_{\delta_{MS}}]{\event\cdot\trace} = \specificev{\event}\cdot\mstrace
+    }{t-filter-cons-relevant}
+    %
+    \typerule{t-filter-cons-relevant}{
+      \tospecificevt[_{\delta_{MS}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace
+    }{
+      \tospecificevt[^*_{\delta_{MS}}]{\event\cdot\trace} = \mstrace
+    }{t-filter-cons}
+  \end{center}
+}{wt-events-project-to-specific}{Projection of $\mmlAt$ events to \gls*{ms}-specific events.}
+
 
 \myfig{
   \begin{center}
@@ -5415,7 +5497,7 @@ The syntax and semantics are entirely identical.
   Induction on \Cref{asm:sms:ctxforwardsim:evalt}.
 
   \begin{description}
-    \item \textbf{Case} $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega}{n_{3}}{\emptyevent}$\textbf{:}
+    \item \textbf{Case} \ref{tr:tw-e-oplus}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $n_{3}=n_{1}\oplus n_{2}$
@@ -5423,6 +5505,7 @@ The syntax and semantics are entirely identical.
             \item $\trg{\Omega}=\irl{\Omega}$
             \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
             \item $\traceagree[]{\theta_{\delta}\left(\trg{\event}\right)}{\absevent}$
+            \item $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
           \end{passumptions}
           Then $\exists \irl{\Omega'}\ \irl{\event}$,
           \begin{goals}
@@ -5432,7 +5515,7 @@ The syntax and semantics are entirely identical.
           Instantiate $\irl{\Omega'}=\trg{\Omega}$ and $\irl{\event}=\trg{\emptyevent}$.
           Goals follow immediately from assumptions.
 
-    \item \textbf{Cases} \ref{tr:tw-e-get-in}\textbf{:}
+    \item \textbf{Case} \ref{tr:tw-e-get-in}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
@@ -5456,14 +5539,13 @@ The syntax and semantics are entirely identical.
             \item $\bm{n}<\bm{m}$
             \item $\bm{m}=\trg{m}$
           \end{passumptions}
+          Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{x[n]}=\irl{let\ x_{ACCESS}=}&\mmlAtmmlAtmscomp{n}\irl{\ in\ ifz\ 0\le x_{ACCESS}\le x_{SIZE}\ then}\\&\irl{\ x[x_{ACCESS}]\ else\ abort()}\end{array}$.
 
           From that, it's easy to conclude $\irl{x_{ACCESS}}=\trg{n}<\trg{m}=\irl{m}$.
-
-          Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{x[n]}=\irl{let\ x_{ACCESS}=}&\mmlAtmmlAtmscomp{n}\irl{\ in\ ifz\ 0\le x_{ACCESS}\le x_{SIZE}\ then}\\&\irl{\ x[x_{ACCESS}]\ else\ abort()}\end{array}$.
           Since $\irl{x_{SIZE}}=\irl{m}$\MK{why?}, we can execute to the desired state $\irl{\Omega'}$.
 
 
-    \item \textbf{Cases} \ref{tr:tw-e-get-notin}\textbf{:}
+    \item \textbf{Case} \ref{tr:tw-e-get-notin}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
@@ -5472,6 +5554,7 @@ The syntax and semantics are entirely identical.
             \item $\trg{\Omega}=\irl{\Omega}$
             \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
             \item\label[ass]{asm:sms:primforwardsim:storeagree:nget} $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
+            \item\label[ass]{asm:sms:primforwardsim:trace:nget} $\traceagree[]{\theta_{\delta}\left(\trg{Get\ \loc\ n;\comp}\right)}{\absevent}$
           \end{passumptions}
           Then $\exists \irl{\Omega'}\ \irl{\event}$,
           \begin{goals}
@@ -5480,6 +5563,96 @@ The syntax and semantics are entirely identical.
           \end{goals}
 
           Immediate contradiction of \Cref{asm:sms:primforwardsim:storeagree:nget,asm:sms:primforwardsim:notdom:nget}.
+
+    \item \textbf{Case} \ref{tr:tw-e-set-comp}\textbf{:}
+          If
+          \begin{passumptions}{H}
+            \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
+            \item $\trg{H^{\comp'}}=\trg{H^{\comp}}\left(\trg{\loc+n}\mapsto\trg{\valueexpr}\right)$
+            \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp'};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
+            \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]\leftarrow\valueexpr}{\cfstate;\comp;\memstate'}{\valueexpr}{Set\ \loc\ n\ \valueexpr;\comp}$
+            \item $\trg{\Omega}=\irl{\Omega}$
+            \item\label[ass]{asm:sms:primforwardsim:monitorstep:set} $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:trace:set} $\traceagree[]{\theta_{\delta}\left(\trg{Set\ \loc\ n\ \valueexpr;\comp}\right)}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:storeagree:set} $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
+          \end{passumptions}
+          Then $\exists \irl{\Omega'}\ \irl{\event}$,
+          \begin{goals}
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]\leftarrow\valueexpr}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{\valueexpr}}{\irl{\event}}$
+            \item $\irl{\Omega'}=\trg{\Omega}$
+          \end{goals}
+          Note that by inversion on \Cref{asm:sms:primforwardsim:trace:set,asm:sms:primforwardsim:monitorstep:set,asm:sms:primforwardsim:storeagree:set} we have:
+          \begin{passumptions}{H}
+            \item $\absevent=\bm{Use\ }\specificev{\loc}\bm{\ n}$
+            \item $\trg{n}=\bm{n}$
+            \item $(\specificev{\loc},\bm{m})\in\smsmonitor$
+            \item $\bm{n}<\bm{m}$
+            \item $\bm{m}=\trg{m}$
+          \end{passumptions}
+
+          Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{x[n]\leftarrow\valueexpr}=\irl{let\ x_{ACCESS}=}&\mmlAtmmlAtmscomp{n}\irl{\ in\ ifz\ 0\le x_{ACCESS}\le x_{SIZE}\ then}\\&\irl{\ x[x_{ACCESS}]\leftarrow}\mmlAtmmlAtmscomp{\valueexpr}\irl{\ else\ abort()}\end{array}$.
+
+          From that, it's easy to conclude $\irl{x_{ACCESS}}=\trg{n}<\trg{m}=\irl{m}$.
+
+          Since $\irl{x_{SIZE}}=\irl{m}$\MK{why?}, we can execute to the desired state $\irl{\Omega'}$.
+
+    \item \textbf{Case} \ref{tr:tw-e-let-new-comp}\textbf{:}
+          If
+          \begin{passumptions}{H}
+            \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta}$
+            \item $\fresh{\trg{\Delta}}{\trg{\loc}}$
+            \item $\fresh{\trg{\Delta}}{\trg{z}}$
+            \item $\trg{H^{\comp'}}=\trg{H^{\comp}}\ll\trg{n}$
+            \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp'};z\mapsto(\loc;\ctx;\poisonless;n),\Delta}$
+            \item $\exprevalt{\cfstate;\comp;\memstate}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate'}{e[z/x]}{Alloc\ \loc\ n;\comp}$
+            \item $\trg{\Omega}=\irl{\Omega}$
+            \item\label[ass]{asm:sms:primforwardsim:monitorstep:new} $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:trace:new} $\traceagree[]{\theta_{\delta}\left(\trg{Alloc\ \loc\ n;\comp}\right)}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:storeagree:new} $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
+          \end{passumptions}
+          Then $\exists \irl{\Omega'}\ \irl{\event}$,
+          \begin{goals}
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e[z/x]}}{\irl{\event}}$
+            \item $\irl{\Omega'}=\trg{\Omega}$
+          \end{goals}
+          Note that by inversion on \Cref{asm:sms:primforwardsim:trace:set,asm:sms:primforwardsim:monitorstep:set,asm:sms:primforwardsim:storeagree:set} we have:
+          \begin{passumptions}{H}
+            \item $\absevent=\bm{Alloc\ }\specificev{\loc}\bm{\ n}$
+            \item $\trg{n}=\bm{n}$
+            \item $\specificev{\loc}\notin\operatorname{dom}\smsmonitor$
+            \item $(\specificev{\loc},\bm{n})\in\smsmonitor'$
+          \end{passumptions}
+
+          Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}=&\irl{let\ x_{SIZE}=}\mmlAtmmlAtmscomp{n}\irl{\ in\ }\\&\irl{let\ x=new\ x_{SIZE}\ in\ }\mmlAtmmlAtmscomp{e}\end{array}$.
+
+          Now, it's easy to see that we can execute to the desired state $\irl{\Omega'}$.
+
+    \item \textbf{Cases} \ref{tr:tw-e-let-new-ctx} \textbf{and} \ref{tr:tw-e-set-ctx}\textbf{:}
+          Does not apply, since the sandboxtag is $\trg{\comp}$, but the rule requires $\trg{\ctx}$.
+
+    \item \textbf{Case} \ref{tr:tw-e-delete}\textbf{:}
+          If
+          \begin{passumptions}{H}
+            \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poisonless;m),\Delta_{2}}$
+            \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poisoned;m),\Delta_{2}}$
+            \item $\exprevalt{\cfstate;\comp;\memstate}{delete\ x}{\cfstate;\comp;\memstate'}{0}{Dealloc\ \loc;\comp}$
+            \item $\trg{\Omega}=\irl{\Omega}$
+            \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:storeagree:del} $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
+            \item\label[ass]{asm:sms:primforwardsim:trace:del} $\traceagree[]{\theta_{\delta}\left(\trg{Dealloc\ \loc;\comp}\right)}{\absevent}$
+          \end{passumptions}
+          Then $\exists \irl{\Omega'}\ \irl{\event}$,
+          \begin{goals}
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{delete\ x}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{0}}{\irl{\event}}$
+            \item $\irl{\Omega'}=\trg{\Omega}$
+          \end{goals}
+          Instantiate $\irl{\Omega'}=\trg{\Omega}$ and $\irl{\event}=\trg{Dealloc\ \loc;\comp}$.
+          Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial.
+
+    \item \textbf{Cases} \ref{tr:tw-e-let-x}, \ref{tr:tw-e-x-is-poisoned-yes}, \ref{tr:tw-e-x-is-poisoned-no}, \ref{tr:tw-e-proj1}, \ref{tr:tw-e-proj2}, \ref{tr:tw-e-x-hasnat}, \ref{tr:tw-e-n-hasnat}, \ref{tr:tw-e-pair-hasnat}, \ref{tr:tw-e-x-haspair}, \ref{tr:tw-e-n-haspair}, \ref{tr:tw-e-pair-haspair}, \ref{tr:tw-e-if-true} and \ref{tr:tw-e-if-false}\textbf{:}
+
+          All these cases are entirely similar to case \ref{tr:tw-e-delete} or \ref{tr:tw-e-oplus}.
+
   \end{description}
 
 \end{proof}

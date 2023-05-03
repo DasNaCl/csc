@@ -1556,6 +1556,31 @@ As before, we need a way to translate one set of actions to another:
   \end{center}
 }{sms-trace-agreement}{Trace Agreement.}
 
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{MS}(\trg{\loc})=\specificev{\loc}}{,,Map $\mmlAt$ locations $\trg{\loc}$ to abstract locations $\specificev{\loc}$.''}
+    \judgbox{\storeagreesms{\smsmonitor}{\trg{\Delta}}}{,,Abstract memory state $\tmsmonitor$ describes the concrete state $\trg{\Delta}$.''}
+    \typerule{SMS-Empty-Agree}{
+    }{
+      \storeagreesms{\emptyset}{\trg{\hole{\cdot}}}
+    }{sms-store-empty-agree}
+    %
+    \typerule{SMS-Cons-Agree}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc}&
+      \specificev{\loc}\notin\smsmonitor&
+      \storeagreesms{\smsmonitor}{\trg{\Delta}}
+    }{
+      \storeagreesms{\left\{\left(\specificev{\loc},\bm{m}\right)\right\}\cup \smsmonitor}{\trg{x\mapsto(\loc;\comp;\poison;n),\Delta}}
+    }{sms-store-cons-agree}
+    %
+    \typerule{SMS-Ignore-Agree}{
+      \storeagreesms{\smsmonitor}{\trg{\Delta}}
+    }{
+      \storeagreesms{\smsmonitor}{\trg{x\mapsto(\loc;\ctx;\poison;n),\Delta}}
+    }{sms-store-ignore-agree}
+  \end{center}
+}{sms-store-agreement}{Store Agreement.}
+
 
 \myfig{
   \begin{center}
@@ -2632,14 +2657,14 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{tw-e-oplus}
   %
   \typerule{$e-\trg{get}-\in$}{
-    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
     \trg{\loc}+\trg{n}\in\text{dom }\trg{H^{\sandboxtag}}
   }{
     \exprevalt{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
   }{tw-e-get-in}
   %
   \typerule{$e-\trg{get}-\notin$}{
-    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2} &
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
     \trg{\loc}\notin\text{dom }\trg{H^{\sandboxtag}}
   }{
     \exprevalt{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
@@ -5374,9 +5399,10 @@ The syntax and semantics are entirely identical.
   If
   \begin{assumptions}
     \item\label[ass]{asm:sms:ctxforwardsim:evalt} $\exprevalt{\Omega}{e}{\Omega'}{e'}{\event}$
-    \item $\trg{\Omega}=\irl{\Omega}$
+    \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
     \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
-    \item $\traceagree[]{\trg{\event}}{\absevent}$
+    \item $\traceagree[]{\theta_{\delta}\left(\trg{\event}\right)}{\absevent}$
+    \item $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
   \end{assumptions}
   Then $\exists \irl{\Omega'}\ \irl{\event}$,
   \begin{goals}
@@ -5395,6 +5421,8 @@ The syntax and semantics are entirely identical.
             \item $n_{3}=n_{1}\oplus n_{2}$
             \item $\exprevalt{\Omega}{n_{1}+n_{2}}{\Omega}{n_{3}}{\emptyevent}$
             \item $\trg{\Omega}=\irl{\Omega}$
+            \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
+            \item $\traceagree[]{\theta_{\delta}\left(\trg{\event}\right)}{\absevent}$
           \end{passumptions}
           Then $\exists \irl{\Omega'}\ \irl{\event}$,
           \begin{goals}
@@ -5404,21 +5432,54 @@ The syntax and semantics are entirely identical.
           Instantiate $\irl{\Omega'}=\trg{\Omega}$ and $\irl{\event}=\trg{\emptyevent}$.
           Goals follow immediately from assumptions.
 
-    \item \textbf{Case} $\exprevalt{\Omega}{n_{1}\oplus n_{2}}{\Omega}{n_{3}}{\emptyevent}$\textbf{:}
+    \item \textbf{Cases} \ref{tr:tw-e-get-in}\textbf{:}
           If
           \begin{passumptions}{H}
-            \item $n_{3}=n_{1}\oplus n_{2}$
-            \item $\exprevalt{\Omega}{n_{1}+n_{2}}{\Omega}{n_{3}}{\emptyevent}$
+            \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
+            \item $\trg{\loc}+\trg{n}\in\operatorname{dom}\trg{H^{\comp}}$
+            \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]}{\cfstate;\comp;\memstate}{H^{\comp}(\loc+n)}{Get\ \loc\ n;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}$
+            \item\label[ass]{asm:sms:primforwardsim:monitorstep:get} $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:trace:get} $\traceagree[]{\theta_{\delta}\left(\trg{Get\ \loc\ n;\comp}\right)}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:storeagree:get} $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
           \end{passumptions}
           Then $\exists \irl{\Omega'}\ \irl{\event}$,
           \begin{goals}
-            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{n_{1}\oplus n_{2}}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{n_{3}}}{\irl{\event}}$
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{H^{\comp}(\loc+n)}}{\irl{\event}}$
             \item $\irl{\Omega'}=\trg{\Omega}$
           \end{goals}
-          Instantiate $\irl{\Omega'}=\trg{\Omega}$ and $\irl{\event}=\trg{\emptyevent}$.
-          Goals follow immediately from assumptions.
+          Note that by inversion on \Cref{asm:sms:primforwardsim:trace:get,asm:sms:primforwardsim:monitorstep:get,asm:sms:primforwardsim:storeagree:get} we have:
+          \begin{passumptions}{H}
+            \item $\absevent=\bm{Use\ }\specificev{\loc}\bm{\ n}$
+            \item $\trg{n}=\bm{n}$
+            \item $(\specificev{\loc},\bm{m})\in\smsmonitor$
+            \item $\bm{n}<\bm{m}$
+            \item $\bm{m}=\trg{m}$
+          \end{passumptions}
 
+          From that, it's easy to conclude $\irl{x_{ACCESS}}=\trg{n}<\trg{m}=\irl{m}$.
+
+          Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{x[n]}=\irl{let\ x_{ACCESS}=}&\mmlAtmmlAtmscomp{n}\irl{\ in\ ifz\ 0\le x_{ACCESS}\le x_{SIZE}\ then}\\&\irl{\ x[x_{ACCESS}]\ else\ abort()}\end{array}$.
+          Since $\irl{x_{SIZE}}=\irl{m}$\MK{why?}, we can execute to the desired state $\irl{\Omega'}$.
+
+
+    \item \textbf{Cases} \ref{tr:tw-e-get-notin}\textbf{:}
+          If
+          \begin{passumptions}{H}
+            \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
+            \item\label[ass]{asm:sms:primforwardsim:notdom:nget} $\trg{\loc}+\trg{n}\notin\operatorname{dom}\trg{H^{\comp}}$
+            \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]}{\cfstate;\comp;\memstate}{H^{\comp}(\loc+n)}{Get\ \loc\ n;\comp}$
+            \item $\trg{\Omega}=\irl{\Omega}$
+            \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:storeagree:nget} $\storeagreesms[]{\smsmonitor}{\trg{\Omega}}$
+          \end{passumptions}
+          Then $\exists \irl{\Omega'}\ \irl{\event}$,
+          \begin{goals}
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{H^{\comp}(\loc+n)}}{\irl{\event}}$
+            \item $\irl{\Omega'}=\trg{\Omega}$
+          \end{goals}
+
+          Immediate contradiction of \Cref{asm:sms:primforwardsim:storeagree:nget,asm:sms:primforwardsim:notdom:nget}.
   \end{description}
 
 \end{proof}
@@ -5596,7 +5657,7 @@ The syntax and semantics are entirely identical.
 
 \begin{definition}[$\CCT$ security]
   Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
-  Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{\trace[_{B}]}$ we say $e_{1}$ is $\CRhash$-secure with respect to $\obj{\zeta}$ iff $(\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
+  Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{\trace[_{B}]}$ we say $e_{1}$ is $\CCT$-secure with respect to $\obj{\zeta}$ iff $(\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
 \end{definition}
 
 % \begin{definition}[$\CRhash$ security]

@@ -2738,6 +2738,12 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
     \exprevalt{\configt}{n_1\oplus n_2}{\configt}{n_3}{\emptyevent}
   }{tw-e-oplus}
   %
+  \typerule{$e-$subst}{
+    \text{substitute }\trg{x}\text{ for }\trg{\valueexpr}\text{ in }\trg{e}
+  }{
+    \exprevalt{\configt}{e[\valueexpr/x],\gamma}{\configt}{e'\gamma}{\emptyevent}
+  }{tw-e-subst}
+  %
   \typerule{$e-\trg{get}-\in$}{
     \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
     \trg{\loc}+\trg{n}\in\text{dom }\trg{H^{\sandboxtag}}
@@ -5462,6 +5468,50 @@ The syntax and semantics are entirely identical.
   \end{center}
 }{sms-pres-compiler-ctx}{Compiling $\mmlAt$ evaluation contexts to $\mmlAtms$ evaluation contexts.}
 
+\myfig{
+ \begin{center}
+    \typerule{$\irl{\gamma}$-$\irl{x_{SIZE}}$-preserve}{
+      \irl{\Delta_1,x\mapsto(\loc;\comp;\poison;m),\Delta_2} \Vdash \irl{\gamma}
+    }{
+      \irl{\Delta_1,x\mapsto(\loc;\comp;\poison;m),\Delta_2} \Vdash \irl{[x_{SIZE}/\valueexpr],\gamma}
+    }{gamma-xsize-preserve}
+    %
+    \typerule{$\irl{\gamma}$-$\irl{x_{SIZE}}$-skip}{
+      \irl{\Delta} \Vdash \irl{\gamma}
+    }{
+      \irl{\Delta} \Vdash \irl{[x/\valueexpr],\gamma}
+    }{gamma-xsize-skip}
+    %
+    \typerule{$\irl{\gamma}$-$\irl{x_{SIZE}}$-empty}{
+    }{
+      \irl{\Delta} \Vdash \irl{\hole{\cdot}}
+    }{gamma-xsize-empty}
+  \end{center}
+}{sms-well-formed-subst}{Well formed $\mmlAtms$ substitutions.}
+
+\myfig{
+  \begin{center}
+    \typerule{subst-subset-empy}{
+    }{
+      \trg{\hole{\cdot}}\prec\irl{\hole{\cdot}}
+    }{sms-subst-subset-empty}
+    %
+    \typerule{subst-subset-cons}{
+      \trg{x}=\irl{x} &
+      \trg{\valueexpr}=\irl{\valueexpr} &
+      \trg{\gamma}\prec\irl{\gamma}
+    }{
+      \trg{[\valueexpr/x],\gamma}\prec\irl{[\valueexpr/x],\gamma}
+    }{sms-subst-subset-cons}
+    %
+    \typerule{subst-subset-$\irl{x_{SIZE}}$}{
+      \trg{\gamma}\prec\irl{\gamma}
+    }{
+      \trg{\gamma}\prec\irl{[\valueexpr/x_{SIZE}],\gamma}
+    }{sms-subst-subset-xsize}
+  \end{center}
+}{sms-substs-subsets}{Cross-Language Substitutions subset.}
+
 \begin{lemma}[Injective Compiler (for values)]\label{lem:smscomp:inject}
   If
   \begin{assumptions}
@@ -5477,21 +5527,35 @@ The syntax and semantics are entirely identical.
   Case analysis on $\irl{\finalexprnoerr}$.
 \end{proof}
 
+\begin{lemma}[Subst $\mmlAtmmlAtmscomp{\bullet}$ Compatibility]\label{thm:mscomp:subst:compat}
+  $\;$
+  \begin{goals}
+    \item $\mmlAtmmlAtmscomp{e\gamma}=\mmlAtmmlAtmscomp{e}\mmlAtmmlAtmscomp{\gamma}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\trg{e}$.
+\end{proof}
+
 \begin{lemma}[Prim. Forward Simulation]\label{lem:sms:ctxforwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:sms:ctxforwardsim:evalt} $\exprevalt{\Omega}{e}{\Omega'}{e'}{\event}$
+    \item\label[ass]{asm:sms:ctxforwardsim:evalt} $\exprevalt{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
     \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
     \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
     \item $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
     \item $\traceagree[]{\theta_{\delta}\left(\trg{\event}\right)}{\absevent}$
     \item $\trg{\event}=\irl{\event}$
     \item $\trg{\Omega'}=\irl{\Omega'}$
+    \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+    \item $\trg{\gamma}\prec\irl{\gamma}$
   \end{assumptions}
-  Then
+  Then $\exists \irl{\gamma'}$,
   \begin{goals}
-    \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e'}}{\irl{\event}}$
+    \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}\irl{\gamma}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e'}\irl{\gamma'}}{\irl{\event}}$
     \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\Omega'}}$
+    \item $\irl{\Omega'.\Delta}\Vdash\irl{\gamma'}$
+    \item $\trg{\gamma'}\prec\irl{\gamma'}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -5502,37 +5566,51 @@ The syntax and semantics are entirely identical.
           If
           \begin{passumptions}{H}
             \item $n_{3}=n_{1}\oplus n_{2}$
+            \item $\trg{\gamma}=\trg{\gamma'}=\trg{\hole{\cdot}}$
             \item $\exprevalt{\Omega}{n_{1}+n_{2}}{\Omega}{n_{3}}{\emptyevent}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
             \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
             \item $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item $\trg{\emptyevent}=\irl{\event}$
             \item $\traceagree[]{\theta_{\delta}\left(\trg{\emptyevent}\right)}{\absevent}$
+            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then
+          Then $\exists \irl{\gamma'}$,
           \begin{goals}
-            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{n_{1}\oplus n_{2}}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{n_{3}}}{\irl{\event}}$
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{n_{1}\oplus n_{2}}\irl{\gamma}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{n_{3}}\irl{\gamma'}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\Omega}}$
+            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma'}$
+            \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
-          Goals follow immediately from assumptions.
+          Just instantiate $\irl{\gamma'}=\irl{\hole{\cdot}}$ and note that no substitutions are applicable to $\mmlAtmmlAtmscomp{n_{1}\oplus n_{2}}=\irl{n_{1}\oplus n_{2}}$ as well as $\mmlAtmmlAtmscomp{n_{3}}=\irl{n_{3}}$.
+          Induce on $\trg{\gamma}\prec\irl{\gamma}$ and apply \Cref{tr:tw-e-subst} in inductive case.
+          Now, all goals follow immediately from assumptions.
 
     \item \textbf{Case} \ref{tr:tw-e-get-in}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
             \item $\trg{\loc}+\trg{n}\in\operatorname{dom}\trg{H^{\comp}}$
+            \item $\trg{\gamma}=\trg{\gamma'}=\trg{\hole{\cdot}}$
             \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]}{\cfstate;\comp;\memstate}{H^{\comp}(\loc+n)}{Get\ \loc\ n;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
             \item\label[ass]{asm:sms:primforwardsim:monitorstep:get} $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
             \item\label[ass]{asm:sms:primforwardsim:storeagree:get} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item $\trg{Get\ \loc\ n;\comp}=\irl{\event}$
             \item\label[ass]{asm:sms:primforwardsim:trace:get} $\traceagree[]{\theta_{\delta}\left(\trg{Get\ \loc\ n;\comp}\right)}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:explicitsubst:get} $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then
+          Then $\exists \irl{\gamma'}$,
           \begin{goals}
-            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{H^{\comp}(\loc+n)}}{\irl{\event}}$
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]}\irl{\gamma}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{H^{\comp}(\loc+n)}\irl{\gamma'}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\Omega}}$
+            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
+          Instantiate $\irl{\gamma'}=\irl{\hole{\cdot}}$.
+
           Note that by inversion on \Cref{asm:sms:primforwardsim:trace:get,asm:sms:primforwardsim:monitorstep:get,asm:sms:primforwardsim:storeagree:get} we have:
           \begin{passumptions}{H}
             \item $\absevent=\bm{Use\ }\specificev{\loc}\bm{\ n}$
@@ -5542,16 +5620,24 @@ The syntax and semantics are entirely identical.
             \item $\bm{m}=\trg{m}$
             \item $\smsmonitor'=\smsmonitor$
           \end{passumptions}
+          From that, it's easy to conclude $\trg{n}<\trg{m}=\irl{m}$.
+
           Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{x[n]}=\irl{let\ x_{ACCESS}=}&\mmlAtmmlAtmscomp{n}\irl{\ in\ ifz\ 0\le x_{ACCESS}\le x_{SIZE}\ then}\\&\irl{\ x[x_{ACCESS}]\ else\ abort()}\end{array}$.
 
-          From that, it's easy to conclude $\irl{x_{ACCESS}}=\trg{n}<\trg{m}=\irl{m}$.
-          Since $\irl{x_{SIZE}}=\irl{m}$\MK{why?}, we can execute to the desired state $\irl{\Omega}$ with just $\irl{Get\ \loc\ n;\comp}$.
+          Induce on \Cref{asm:sms:primforwardsim:explicitsubst:get}. The base case is spurious, since we have at least $\irl{x\mapsto(\loc;\comp;\poison;m)}$ in $\irl{\Omega.\Delta}$.
+          The inductive case splits into two other cases: Either we have a substitution with $\irl{x_{SIZE}}$ or not.
+          If not, make use of the inductive hypothesis and \Cref{tr:tw-e-subst}.
+          If yes, then we know by definition that $\irl{x_{SIZE}=m}$.
+
+          Thus, we can execute to the desired state $\irl{\Omega}$ with just $\irl{Get\ \loc\ n;\comp}$.
+          The other goals follow by assumption or are an immediate consequence.
 
 
     \item \textbf{Case} \ref{tr:tw-e-get-notin}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
+            \item $\irl{\gamma}=\trg{\gamma}=\trg{\hole{\cdot}}$
             \item\label[ass]{asm:sms:primforwardsim:notdom:nget} $\trg{\loc}+\trg{n}\notin\operatorname{dom}\trg{H^{\comp}}$
             \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]}{\cfstate;\comp;\memstate}{H^{\comp}(\loc+n)}{Get\ \loc\ n;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
@@ -5559,11 +5645,15 @@ The syntax and semantics are entirely identical.
             \item\label[ass]{asm:sms:primforwardsim:storeagree:nget} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item $\trg{Get\ \loc\ n;\comp}=\irl{\event}$
             \item $\traceagree[]{\theta_{\delta}\left(\trg{Get\ \loc\ n;\comp}\right)}{\absevent}$
+            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then
+          Then $\exists \irl{\gamma}$,
           \begin{goals}
             \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{H^{\comp}(\loc+n)}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\Omega}}$
+            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma'}$
+            \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
 
           Immediate contradiction of \Cref{asm:sms:primforwardsim:storeagree:nget,asm:sms:primforwardsim:notdom:nget}.
@@ -5574,6 +5664,7 @@ The syntax and semantics are entirely identical.
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
             \item $\trg{H^{\comp'}}=\trg{H^{\comp}}\left(\trg{\loc+n}\mapsto\trg{\valueexpr}\right)$
             \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp'};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
+            \item $\irl{\gamma}=\trg{\gamma}=\trg{\hole{\cdot}}$
             \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]\leftarrow\valueexpr}{\cfstate;\comp;\memstate'}{\valueexpr}{Set\ \loc\ n\ \valueexpr;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
             \item\label[ass]{asm:sms:primforwardsim:monitorstep:set} $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
@@ -5581,12 +5672,18 @@ The syntax and semantics are entirely identical.
             \item\label[ass]{asm:sms:primforwardsim:storeagree:set} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item $\irl{\Omega'}=\trg{\cfstate;\comp;\memstate'}$
             \item $\irl{\event}=\trg{Set\ \loc\ n\ \valueexpr;\comp}$
+            \item\label[ass]{asm:sms:primforwardsim:storeagree:subst} $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then
+          Then $\exists \irl{\gamma}$,
           \begin{goals}
             \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]\leftarrow\valueexpr}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{\valueexpr}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\cfstate;\comp;\memstate'}}$
+            \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
+            \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
+          Instantiate $\irl{\gamma'}=\irl{\hole{\cdot}}$.
+
           Note that by inversion on \Cref{asm:sms:primforwardsim:trace:set,asm:sms:primforwardsim:monitorstep:set,asm:sms:primforwardsim:storeagree:set} we have:
           \begin{passumptions}{H}
             \item $\absevent=\bm{Use\ }\specificev{\loc}\bm{\ n}$
@@ -5596,12 +5693,15 @@ The syntax and semantics are entirely identical.
             \item $\bm{m}=\trg{m}$
             \item $\smsmonitor'=\smsmonitor$
           \end{passumptions}
+          From that, it's easy to conclude $\trg{n}<\trg{m}=\irl{m}$.
 
           Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{x[n]\leftarrow\valueexpr}=\irl{let\ x_{ACCESS}=}&\mmlAtmmlAtmscomp{n}\irl{\ in\ ifz\ 0\le x_{ACCESS}\le x_{SIZE}\ then}\\&\irl{\ x[x_{ACCESS}]\leftarrow}\mmlAtmmlAtmscomp{\valueexpr}\irl{\ else\ abort()}\end{array}$.
 
-          From that, it's easy to conclude $\irl{x_{ACCESS}}=\trg{n}<\trg{m}=\irl{m}$.
+          Induce on \Cref{asm:sms:primforwardsim:storeagree:subst}. The base case is spurious, since we have at least $\irl{x\mapsto(\loc;\comp;\poison;m)}$ in $\irl{\Omega.\Delta}$.
+          The inductive case splits into two other cases: Either we have a substitution with $\irl{x_{SIZE}}$ or not. If not, make use of the inductive hypothesis and \Cref{tr:tw-e-subst}. If yes, then we know by definition that $\irl{x_{SIZE}=m}$.
 
-          Since $\irl{x_{SIZE}}=\irl{m}$\MK{why?}, we can execute to the desired state $\irl{\Omega}$ with just $\irl{Set\ \loc\ n\ \valueexpr;\comp}$.
+          Thus, we can execute to the desired state $\irl{\Omega}$ with just $\irl{Set\ \loc\ n\ \valueexpr;\comp}$.
+          The other goals follow by assumption or are an immediate consequence.
 
     \item \textbf{Case} \ref{tr:tw-e-let-new-comp}\textbf{:}
           If
@@ -5632,6 +5732,8 @@ The syntax and semantics are entirely identical.
             \item $\smsmonitor=(\specificev{\loc},\bm{n})\cup\smsmonitor$
           \end{passumptions}
 
+          {\large\color{green}PATCH}
+
           Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}=&\irl{let\ x_{SIZE}=}\mmlAtmmlAtmscomp{n}\irl{\ in\ }\\&\irl{let\ x=new\ x_{SIZE}\ in\ }\mmlAtmmlAtmscomp{e}\end{array}$.
 
           Now, it's easy to see that we can execute to the desired state $\irl{\Omega'}$ with just $\irl{Alloc\ \loc\ n;\comp}$.
@@ -5659,7 +5761,29 @@ The syntax and semantics are entirely identical.
           \end{goals}
           Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial.
 
-    \item \textbf{Cases} \ref{tr:tw-e-let-x}, \ref{tr:tw-e-x-is-poisoned-yes}, \ref{tr:tw-e-x-is-poisoned-no}, \ref{tr:tw-e-proj1}, \ref{tr:tw-e-proj2}, \ref{tr:tw-e-x-hasnat}, \ref{tr:tw-e-n-hasnat}, \ref{tr:tw-e-pair-hasnat}, \ref{tr:tw-e-x-haspair}, \ref{tr:tw-e-n-haspair}, \ref{tr:tw-e-pair-haspair}, \ref{tr:tw-e-if-true} and \ref{tr:tw-e-if-false}\textbf{:}
+    \item \textbf{Case} \ref{tr:tw-e-let-x}\textbf{:}
+          If
+          \begin{passumptions}{H}
+            \item $\exprevalt{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\emptyevent;\comp}$
+            \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$
+            \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
+            \item\label[ass]{asm:sms:primforwardsim:storeagree:let} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
+            \item\label[ass]{asm:sms:primforwardsim:trace:let} $\traceagree[]{\theta_{\delta}\left(\trg{\emptyevent;\comp}\right)}{\absevent}$
+            \item $\irl{\event}=\trg{\emptyevent;\comp}$
+          \end{passumptions}
+          Then
+          \begin{goals}
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=\valueexpr\ in\ e}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{e[\valueexpr/x]}}{\irl{\event}}$
+            \item $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
+          \end{goals}
+          Note that $\mmlAtmmlAtmscomp{let\ x=\valueexpr\ in\ e}=\irl{let\ x=}\mmlAtmmlAtmscomp{\valueexpr}\irl{\ in\ }\mmlAtmmlAtmscomp{e}$.
+
+          Also by \Thmref{thm:mscomp:subst:compat}, $\mmlAtmmlAtmscomp{e[\valueexpr/x]}=\mmlAtmmlAtmscomp{e}\mmlAtmmlAtmscomp{[\valueexpr/x]}$.
+
+          Now, it is easy to see that we can execute to the desired term.
+
+
+    \item \textbf{Cases} \ref{tr:tw-e-x-is-poisoned-yes}, \ref{tr:tw-e-x-is-poisoned-no}, \ref{tr:tw-e-proj1}, \ref{tr:tw-e-proj2}, \ref{tr:tw-e-x-hasnat}, \ref{tr:tw-e-n-hasnat}, \ref{tr:tw-e-pair-hasnat}, \ref{tr:tw-e-x-haspair}, \ref{tr:tw-e-n-haspair}, \ref{tr:tw-e-pair-haspair}, \ref{tr:tw-e-if-true} and \ref{tr:tw-e-if-false}\textbf{:}
 
           All these cases are entirely similar to case \ref{tr:tw-e-delete} or \ref{tr:tw-e-oplus}.
 

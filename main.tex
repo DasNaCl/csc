@@ -5637,7 +5637,7 @@ The syntax and semantics are entirely identical.
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
-            \item $\irl{\gamma}=\trg{\gamma}=\trg{\hole{\cdot}}$
+            \item $\trg{\gamma}=\trg{\gamma'}=\trg{\hole{\cdot}}$
             \item\label[ass]{asm:sms:primforwardsim:notdom:nget} $\trg{\loc}+\trg{n}\notin\operatorname{dom}\trg{H^{\comp}}$
             \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]}{\cfstate;\comp;\memstate}{H^{\comp}(\loc+n)}{Get\ \loc\ n;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
@@ -5648,7 +5648,7 @@ The syntax and semantics are entirely identical.
             \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
             \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then $\exists \irl{\gamma}$,
+          Then $\exists \irl{\gamma'}$,
           \begin{goals}
             \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{H^{\comp}(\loc+n)}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\Omega}}$
@@ -5664,7 +5664,7 @@ The syntax and semantics are entirely identical.
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
             \item $\trg{H^{\comp'}}=\trg{H^{\comp}}\left(\trg{\loc+n}\mapsto\trg{\valueexpr}\right)$
             \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp'};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
-            \item $\irl{\gamma}=\trg{\gamma}=\trg{\hole{\cdot}}$
+            \item $\trg{\gamma}=\trg{\gamma'}=\trg{\hole{\cdot}}$
             \item $\exprevalt{\cfstate;\comp;\memstate}{x[n]\leftarrow\valueexpr}{\cfstate;\comp;\memstate'}{\valueexpr}{Set\ \loc\ n\ \valueexpr;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\memstate;\comp;\cfstate}$
             \item\label[ass]{asm:sms:primforwardsim:monitorstep:set} $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
@@ -5675,7 +5675,7 @@ The syntax and semantics are entirely identical.
             \item\label[ass]{asm:sms:primforwardsim:storeagree:subst} $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
             \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then $\exists \irl{\gamma}$,
+          Then $\exists \irl{\gamma'}$,
           \begin{goals}
             \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{x[n]\leftarrow\valueexpr}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{\valueexpr}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\cfstate;\comp;\memstate'}}$
@@ -5711,6 +5711,8 @@ The syntax and semantics are entirely identical.
             \item $\fresh{\trg{\Delta}}{\trg{z}}$
             \item $\trg{H^{\comp'}}=\trg{H^{\comp}}\ll\trg{n}$
             \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp'};z\mapsto(\loc;\ctx;\poisonless;n),\Delta}$
+            \item $\trg{\gamma}=\trg{\hole{\cdot}}$
+            \item $\trg{\gamma'}=\trg{[z/x],\hole{\cdot}}$
             \item $\exprevalt{\cfstate;\comp;\memstate}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate'}{e[z/x]}{Alloc\ \loc\ n;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}$
             \item\label[ass]{asm:sms:primforwardsim:monitorstep:new} $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
@@ -5718,11 +5720,15 @@ The syntax and semantics are entirely identical.
             \item\label[ass]{asm:sms:primforwardsim:storeagree:new} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item $\irl{\Omega'}=\trg{\cfstate;\comp;\memstate'}$
             \item $\irl{\event}=\trg{Alloc\ \loc\ n;\comp}$
+            \item\label[ass]{asm:sms:primforwardsim:subst:new} $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then
+          Then $\exists \irl{\gamma'}$,
           \begin{goals}
-            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e[z/x]}}{\irl{\event}}$
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}\irl{\gamma}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e[z/x]}\irl{\gamma'}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\cfstate;\comp;\memstate'}}$
+            \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
+            \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
           Note that by inversion on \Cref{asm:sms:primforwardsim:trace:set,asm:sms:primforwardsim:monitorstep:set,asm:sms:primforwardsim:storeagree:set} we have:
           \begin{passumptions}{H}
@@ -5732,11 +5738,20 @@ The syntax and semantics are entirely identical.
             \item $\smsmonitor=(\specificev{\loc},\bm{n})\cup\smsmonitor$
           \end{passumptions}
 
-          {\large\color{green}PATCH}
-
           Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}=&\irl{let\ x_{SIZE}=}\mmlAtmmlAtmscomp{n}\irl{\ in\ }\\&\irl{let\ x=new\ x_{SIZE}\ in\ }\mmlAtmmlAtmscomp{e}\end{array}$.
 
-          Now, it's easy to see that we can execute to the desired state $\irl{\Omega'}$ with just $\irl{Alloc\ \loc\ n;\comp}$.
+          Instantiate $\irl{\gamma'}=\irl{[}\mmlAtmmlAtmscomp{n}\irl{/x_{SIZE}],[z/x],\gamma}$ and let $\irl{n}=\mmlAtmmlAtmscomp{n}$.
+
+          We make use of compatibility of substitution with the compiler\MK{factor out as separate lemma}: $\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}\irl{\gamma}=\irl{let\ x_{SIZE}=n\ in\ let\ x=new\ n\ in\ (}\mmlAtmmlAtmscomp{e}\irl{\gamma)}$
+
+          Now observe that we can perform the steps: (abusing compatiblity of substitution on-the-fly)
+          \begin{itemize}
+            \item $\exec{\irl{\Omega}}{\irl{let\ x_{SIZE}=n\ in\ let\ x=new\ n\ in\ (}\mmlAtmmlAtmscomp{e}\irl{\gamma)}}{\irl{\Omega}}{\irl{let\ x=new\ n\ in\ (}\mmlAtmmlAtmscomp{e}\irl{[n/x_{SIZE}],\gamma)}}{\irl{\emptyevent;\comp}}$
+            \item $\exec{\irl{\Omega}}{\irl{let\ x=new\ n\ in\ (}\mmlAtmmlAtmscomp{e}\irl{[z/x],[n/x_{SIZE}],\gamma)}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e}\irl{\gamma'}}{\irl{Alloc\ \loc\ n;\comp}}$
+          \end{itemize}
+
+          So, it's easy to see that execute to the desired state $\irl{\Omega'}$ with just $\irl{Alloc\ \loc\ n;\comp}$.
+          The other goals are easy as well. For the last, make use of \Cref{tr:sms-subst-subset-cons,tr:sms-subst-subset-xsize}.
 
     \item \textbf{Cases} \ref{tr:tw-e-let-new-ctx} \textbf{and} \ref{tr:tw-e-set-ctx}\textbf{:}
           Does not apply, since the sandboxtag is $\trg{\comp}$, but the rule requires $\trg{\ctx}$.
@@ -5746,6 +5761,7 @@ The syntax and semantics are entirely identical.
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poisonless;m),\Delta_{2}}$
             \item $\trg{\memstate'}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poisoned;m),\Delta_{2}}$
+            \item $\trg{\gamma}=\trg{\gamma'}=\trg{\hole{\cdot}}$
             \item $\exprevalt{\cfstate;\comp;\memstate}{delete\ x}{\cfstate;\comp;\memstate'}{0}{Dealloc\ \loc;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$
             \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
@@ -5753,28 +5769,39 @@ The syntax and semantics are entirely identical.
             \item\label[ass]{asm:sms:primforwardsim:trace:del} $\traceagree[]{\theta_{\delta}\left(\trg{Dealloc\ \loc;\comp}\right)}{\absevent}$
             \item $\irl{\Omega'}=\trg{\Omega'}=\trg{\cfstate;\comp;\memstate'}$
             \item $\irl{\event}=\trg{Dealloc\ \loc;\comp}$
+            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then
+          Then $\exists \irl{\gamma'}$,
           \begin{goals}
             \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{delete\ x}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{0}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\Omega'}}$
+            \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
+            \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
           Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial.
+
+          {\color{green} patch. also add case for }\ref{tr:tw-e-subst}
 
     \item \textbf{Case} \ref{tr:tw-e-let-x}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $\exprevalt{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\emptyevent;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$
+            \item $\trg{\gamma}=\trg{\gamma'}=\trg{\hole{\cdot}}$
             \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
             \item\label[ass]{asm:sms:primforwardsim:storeagree:let} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item\label[ass]{asm:sms:primforwardsim:trace:let} $\traceagree[]{\theta_{\delta}\left(\trg{\emptyevent;\comp}\right)}{\absevent}$
             \item $\irl{\event}=\trg{\emptyevent;\comp}$
+            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
-          Then
+          Then $\exists \irl{\gamma'}$,
           \begin{goals}
             \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=\valueexpr\ in\ e}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{e[\valueexpr/x]}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
+            \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
+            \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
           Note that $\mmlAtmmlAtmscomp{let\ x=\valueexpr\ in\ e}=\irl{let\ x=}\mmlAtmmlAtmscomp{\valueexpr}\irl{\ in\ }\mmlAtmmlAtmscomp{e}$.
 

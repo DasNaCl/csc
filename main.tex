@@ -617,7 +617,8 @@ Now, we want to formalize this idea of ``being able to swap things around'' for 
   \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\kontstack}\hspace{0.5cm}
   \mi{Memory\ State}~\src{\memstate}\bnfdef\ \src{H^{\ctx};H^{\comp};\Delta} \\
   %
-  \mi{Programs}\ &\src{prog\ \library_{ctx}\ \library_{comp}} \\
+  \mi{Programs}\ &\src{prog\ \library_{ctx}\ \library_{comp}} \hspace{0.35cm}
+  \mi{Substitutions}~\src{\gamma} \bnfdef \src{[\valueexpr/x],\gamma}\ \vert\ \src{\hole{\cdot}} \\
   \end{aligned}
   \end{gather*}
 }{mmla-syntax}{Syntax of $\mmlAs$}
@@ -643,6 +644,7 @@ The state $\configs$ carries information on what the current context is and the 
 Continuations $\src{K}$ in the stack are annotated with the name of the function $\src{foo}$ the continuation originates from.
 Programs $\src{prog\ \library_{ctx}\ \library_{comp}}$ contain two lists of top-level definitions $\src{\library_{ctx}}$ and $\src{\library_{comp}}$.
 $\src{\library_{ctx}}$ takes the role as attacker code.
+We reason explicitly about substitutions in the dynamic semantics.
 
 \subsubsection{Static Semantics}
 \begin{definition}[NoOwnedPtr]
@@ -1026,13 +1028,19 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 }{w-events}{Events of $\mmlAs$.}
 
 \myfig{
-  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{\event}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
+  \judgbox{\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}}{,,Expression $\src{e}$ applied to substitutions $\src{\gamma}$ evaluates under\\configuration $\configs$ to $\src{e'}$ applied to substitutions $\src{\gamma'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
   %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}\oplus\src{n_2}=\src{n_3}
   }{
     \exprevals{\configs}{n_1 \oplus n_2}{\configs}{n_3}{\emptyevent}
   }{w-e-oplus}
+  %
+  \typerule{$e-$subst}{
+    \src{e'}=\text{substitute }\src{\valueexpr}\text{ for }\src{x}\text{ in }\src{e}
+  }{
+    \exprevals{\configs}{e[\valueexpr/x],\gamma}{\configs'}{e'\gamma}{\emptyevent}
+  }{w-e-subst}
   %
   \typerule{$e-\src{get}-\in$}{
     \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
@@ -1062,12 +1070,12 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \src{\loc+\src{n}}\notin\operatorname{dom}\src{\memstate.H^{\sandboxtag}}
   }{
     \exprevals{\cfstate;\sandboxtag_0;\memstate}{x[n]\leftarrow v}{\cfstate;\sandboxtag_0;\memstate'}{v}{Set\ \loc\ n\ v;\sandboxtag_0}
-  }{w-e-set-in}
+  }{w-e-set-notin}
   %
-  \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
+  \typerule{$e-\src{let}-\src{\valueexpr}$}{
   }{
-    \exprevals{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
-  }{w-e-let-x}
+    \exprevals{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\emptyevent}
+  }{w-e-let-v}
   %
   \typerule{$e-\src{delete}$}{
     \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
@@ -1109,13 +1117,20 @@ When generating the static context from the execution context, \Cref{tr:t-poison
 
 \myfig{
   \begin{center}
-    \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$,\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
+    \judgbox{\execs[]{\configs}{K[e]\gamma}{\configs'}{K'[e']\gamma'}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$\\and a substitution $\src{\gamma}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and substitution $\src{\gamma'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
     %
     \typerule{$e-\text{ctx}$}{
-      \exprevals{\Omega}{e}{\Omega'}{e'}{\event}
+      \exprevals{\Omega}{e}{\Omega'}{e'\gamma'}{\event}
     }{
-      \execs[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
+      \execs[]{\Omega}{K[e]}{\Omega'}{K[e']\gamma'}{\event}
     }{w-e-ectx}
+    %
+    \typerule{$e-\text{ctx}-\text{subst}$}{
+      \src{K'}=\text{substitute }\src{x}\text{ for }\src{\valueexpr}\text{ in }\src{K} &
+      \src{e'}=\text{substitute }\src{x}\text{ for }\src{\valueexpr}\text{ in }\src{e}
+    }{
+      \execs[]{\Omega}{K[e][\valueexpr/x],\gamma}{\Omega'}{K'[e']\gamma}{\emptyevent}
+    }{w-e-ectx-subst}
     %
     \typerule{$e-\text{ctx}-\src{stuck}$}{
       \exprevals{\Omega}{e}{\Omega'}{stuck}{\lightning}
@@ -1197,12 +1212,13 @@ When generating the static context from the execution context, \Cref{tr:t-poison
 }{w-expr-ctx-eval}{Contextual Evaluation of $\mmlAs$ expressions.}
 \myfig{
   \begin{center}
-    \judgbox{\execs{\configs}{e}{\configs'}{e'}{\trace}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
+    \judgbox{\execs{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}}{,,Expression $\src{e}$ applied to substitutions $\src{\gamma}$ evaluates under\\configuration $\configs$ to $\src{e'}$ with substitutions $\src{\gamma'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
     %
     \typerule{$es-\text{refl}$}{
     }{
       \execs{\configs}{e}{\configs}{e}{\hole{\cdot}}
     }{ws-e-refl}
+    %
     \typerule{$es-\text{trans}-$important}{
       \execs[]{\configs}{e}{\configs'}{e'}{\event}&
       \execs{\configs'}{e'}{\configs''}{e''}{\trace}&
@@ -1210,12 +1226,35 @@ When generating the static context from the execution context, \Cref{tr:t-poison
     }{
       \execs{\configs}{e}{\configs''}{e''}{\event \cdot \trace}
     }{ws-e-trans-important}
+    %
     \typerule{$es-\text{trans}-$unimportant}{
       \execs[]{\configs}{e}{\configs'}{e'}{\emptyevent}&
       \execs{\configs'}{e'}{\configs''}{e''}{\trace}&
     }{
       \execs{\configs}{e}{\configs''}{e''}{\trace}
     }{ws-e-trans-unimportant}
+    %
+    \judgbox{\execsn{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}}{,,Expression $\src{e}$ applied to substitutions $\src{\gamma}$ evaluates in $n$\\steps under configuration $\configs$ to $\src{e'}$ with substitutions $\src{\gamma'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
+    %
+    \typerule{$en-\text{refl}$}{
+    }{
+      \execsn[^0]{\configs}{e\gamma}{\configs}{e\gamma}{\emptyevent}
+    }{wsn-e-refl}
+    %
+    \typerule{$en-\text{trans}-$important}{
+      \execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event} &
+      \execsn[^n]{\configs'}{e'\gamma'}{\configs''}{e''\gamma''}{\trace} &
+      \src{\event}\not=\src{\emptyevent}
+    }{
+      \execsn[^{(n+1)}]{\configs}{e\gamma}{\configs''}{e''\gamma''}{\event\cdot\trace}
+    }{wsn-e-trans-important}
+    %
+    \typerule{$en-\text{trans}-$unimportant}{
+      \execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\emptyevent} &
+      \execsn[^n]{\configs'}{e'\gamma'}{\configs''}{e''\gamma''}{\trace} &
+    }{
+      \execsn[^{(n+1)}]{\configs}{e\gamma}{\configs''}{e''\gamma''}{\trace}
+    }{wsn-e-trans-important}
   \end{center}
 }{w-steps}{Trace prefix generation given a $\mmlAs$ program using the reflexive-transitive closure.}
 
@@ -1639,7 +1678,7 @@ As before, we need a way to translate one set of actions to another:
       \tospecificevt[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
     }{t-filter-abort}
     %
-    \judgbox{\tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAs$ trace to MS-specific traces.''}
+    \judgbox{\tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAt$ trace to MS-specific traces.''}
     %
     \typerule{t-filter-empty}{
     }{
@@ -1920,8 +1959,8 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
   Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Start;\comp}\cdot\src{Call\ !foo\ 42;\ctx}\cdot\src{Alloc\ \loc\ 42;\comp}\cdot\src{Get\ \loc\ 1337;\comp}\cdot\src{Dealloc\ \loc;\comp}\cdot\src{Ret\ ?1729;\comp}\cdot\src{End\ 1729;\ctx}$.
   We omit the precise derivation for brevity, but note that \thmref{lem:toplevel:progress} gives us the necessary execution.\\[0.3cm]
-  By \Cref{fig:w-events-project-to-specific}, $\tospecificevs{\trace}=\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}$.\\[0.3cm]
-  \Cref{def:spatmemsafe} requires $\specificev{Alloc\ \loc\ 42}\in\tospecificevs{\trace}$ and $\specificev{Use\ \loc\ 1337}\in\tospecificevs{\trace}$, which hold.\\[0.3cm]
+  By \Cref{fig:w-events-project-to-specific}, $\tospecificevs[^*]{\trace}=\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}$.\\[0.3cm]
+  \Cref{def:spatmemsafe} requires $\specificev{Alloc\ \loc\ 42}\in\tospecificevs[^*]{\trace}$ and $\specificev{Use\ \loc\ 1337}\in\tospecificevs[^*]{\trace}$, which hold.\\[0.3cm]
   But, ${1337}\not<{42}$, hence $\nrsat{\src{\library_{comp}}}{{smsafe}}$.
 \end{proof}
 
@@ -1970,7 +2009,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on K.
+  Induction on $\src{K}$.
 \end{proof}
 \begin{lemma}[Typing Composition]\label{lem:ctxtyping:compos}
   If
@@ -2005,12 +2044,12 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[Filter Weaken]\label{lem:filter-weaken}
   If
   \begin{assumptions}
-    \item $\theta_{\delta}\left(\src{\trace}\right) \not=\hole{\cdot}$
+    \item $\theta_{\delta}^{*}\left(\src{\trace}\right) \not=\hole{\cdot}$
     \item $\delta\subseteq\delta'$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\theta_{\delta}\left(\src{\trace}\right) = \theta_{\delta'}\left(\src{\trace}\right)$
+    \item $\theta_{\delta}^{*}\left(\src{\trace}\right) = \theta_{\delta'}^{*}\left(\src{\trace}\right)$
   \end{goals}
 \end{lemma}
 
@@ -2108,13 +2147,13 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[Base Preservation]\label{lem:base-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item\label[ass]{asm:basepres:step} $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:basepres:step} $\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
     \item $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
@@ -2124,27 +2163,42 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[Ctx Preservation]\label{lem:ctx-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item\label[ass]{asm:ctxpres:step} $\execs[]{\configs}{e}{\configs'}{e'}{\event}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:ctxpres:step} $\execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
   Induction on \Cref{asm:ctxpres:step}.
 \end{proof}
 
-\begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
+\begin{lemma}[N-Steps Preservation]\label{lem:nsteps-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item\label[ass]{asm:starpres:step} $\execs{\configs}{e}{\configs'}{e'}{\trace}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:npres:step} $\execsn{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'}{\src{\type}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:npres:step}.
+\end{proof}
+
+\begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:starpres:step} $\execs{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
@@ -2158,7 +2212,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\src{e}=\src{\finalexprnoerr}$ or $\exists \src{\Omega'}\ \src{\finalexprnoerr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\finalexprnoerr}{\trace}$
+  \item $\src{e}=\src{abort()}$ or $\exists \src{\Omega'}\ \src{\valueexpr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\valueexpr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
@@ -2170,25 +2224,27 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \begin{assumptions}
   \item $\typechecks{}{e}{\type}$
   \end{assumptions}
-  Then $\exists \src{\Omega}\ \src{\trace}\ \src{\finalexprnoerr}$,
+  Then $\exists \src{\Omega}\ \src{\trace}\ \src{\finalexpr}$,
   \begin{goals}
-  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{\finalexprnoerr}{\trace}$
+  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{\finalexpr}{\trace}$
   \item $\typechecks{}{\finalexprnoerr}{\type}$
   \end{goals}.
 \end{scontents}
-\realthm{thm:mmlAs:typesafe}{3}{Type Safety}
-\begin{proof}
-  Easy consequence from \Cref{lem:progress,lem:steps-preservation}.
-\end{proof}
+% \realthm{thm:mmlAs:typesafe}{3}{Type Safety}
+% \begin{proof}
+%   Easy consequence from \Cref{lem:progress,lem:steps-preservation}.
+% \end{proof}
 
 \begin{lemma}[Top-Level Progress]\label{lem:toplevel:progress}
   If
   \begin{assumptions}
     \item $\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\src{\commlib}$
   \end{assumptions}
-  Then
+  Then $\exists \configs\ \src{\finalexpr}\ \src{\trace}$,
   \begin{goals}
-  \item $\exists \configs\ \src{\finalexprnoerr}\ \src{\trace}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexprnoerr}{\trace}$
+  \item $\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}$
+  \item $\src{\Omega.\library}=\src{\library}$
+  \item $\src{\Omega.\commlib}=\src{\commlib}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
@@ -2198,8 +2254,8 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[Base \gls{tms} via Monitor]\label{lem:basetmsmonitor}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
-    \item $\exprevals{\configs}{e}{\configs'}{e'}{\event}$
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item $\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
     \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
   \end{assumptions}
   Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
@@ -2215,14 +2271,15 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \begin{itemize}
     \item $\src{\Omega}=\src{\cfstate;\sandboxtag;\memstate}$
     \item $\src{\cfstate}=\src{\commlib;\library;\kontstack}$
-    \item $\src{\memstate}=\src{H;\Delta}$
+    \item $\src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta}$
   \end{itemize}
-  Induction on $\exprevals{\configs}{e}{\configs'}{e'}{\event}$.
+  Induction on $\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$.
   \begin{description}
-    \item[$\src{e}=\src{delete\ x}$:]
+    \case{tr:w-e-delete}
       If
       \begin{passumptions}{H}
-        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H;\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}\triangleright \src{delete\ x}}{\type}$
         \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}}$
       \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
@@ -2249,10 +2306,10 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
       The inversion yields two cases:
       \begin{description}
-      \item[\Cref{tr:store-cons-agree}:] \ \\
+      \case{tr:store-cons-agree}
         If
         \begin{passumptions}{F}
-        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H;\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisonless;n),\src{\Delta_2}\triangleright \src{delete\ x}}}{\type}$
+        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisonless;n),\src{\Delta_2}\triangleright \src{delete\ x}}}{\type}$
         \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
         \item $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$
         \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -2269,10 +2326,10 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
         \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
 
-      \item[\Cref{tr:store-poison-agree}:] \ \\
+      \case{tr:store-poison-agree}
         If
         \begin{passumptions}{F}
-        \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{\cfstate;\sandboxtag;H;\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisoned;n)},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisoned;n)},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
         \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
         \item $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$
         \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
@@ -2299,6 +2356,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item[$\src{e}=\src{n_1+n_2}$:]
       If
       \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
         \item $\typechecks{}{\src{\Omega}\triangleright\src{n_1+n_2}}{\type}$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
       \end{passumptions}
@@ -2670,7 +2728,8 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \mi{Flow\ State}\ \trg{\cfstate} \bnfdef&\ \trg{\commlib;\library;\kontstack}\hspace{0.35cm}
   \mi{Memory\ State}\ \trg{\memstate} \bnfdef \trg{H^{\ctx};H^{\comp};\Delta}\\
   %
-  \mi{Programs}\ &\trg{prog\ \library_{ctx}\ \library_{comp}} \\
+  \mi{Programs}\ &\trg{prog\ \library_{ctx}\ \library_{comp}} \hspace{0.35cm}
+  \mi{Substitutions}~\trg{\gamma} \bnfdef \trg{[\valueexpr/x],\gamma}\ \vert\ \trg{\hole{\cdot}} \\
   \end{aligned}
   \end{gather*}
 }{mmlat-syntax}{Syntax of $\mmlAt$}
@@ -2730,7 +2789,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 }{tw-events}{Events of $\mmlAt$.}
 
 \myfig{
-  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{\event}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{\event}$.''}
+  \judgbox{\exprevalt{\configt}{e\gamma}{\configt'}{e'\gamma'}{\event}}{,,Expression $\trg{e}$ with substitutions $\trg{\gamma}$ evaluates under\\configuration $\configt$ to $\trg{e'}$ with substitutions $\trg{\gamma'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{\event}$.''}
   %
   \typerule{$e-\trg{\oplus}$}{
     \trg{n_1}\oplus\trg{n_2}=\trg{n_3}
@@ -2777,7 +2836,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
   }{
     \exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
-  }{tw-e-let-x}
+  }{tw-e-let-v}
   %
   \typerule{$e-\trg{delete}$}{
     \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
@@ -2878,9 +2937,14 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 }{tw-expr-eval-continued}{Evaluation of $\mmlAt$ expressions, continued.}
 
 
+For sake of readablity, we will omit $\trg{\gamma}=\trg{\hole{\cdot}}$ when writing down evaluation steps.
+That is, whenever we have $\exprevalt{\configt}{e\hole{\cdot}}{\configt'}{e'\hole{\cdot}}{\event}$, it's written $\exprevalt{\configt}{e}{\configt'}{e'}{\event}$.
+Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\triangleright$, so $\trg{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\trg{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
+
+
 \myfig{
   \begin{center}
-    \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression $\trg{e}$,\\it evaluates under configuration $\configt$ to $\trg{e'}$ and new\\configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
+    \judgbox{\exect[]{\configt}{K[e]\gamma}{\configt'}{K[e']\gamma'}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression\\ $\trg{e}$ and a substitution $\trg{\gamma}$, it evaluates under\\configuration $\configt$ to $\trg{e'}$ and substitution $\trg{\gamma'}$ and new\\configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
     %
     \typerule{$e-\text{ctx}$}{
       \exprevalt{\Omega}{e}{\Omega'}{e'}{\event}
@@ -3019,8 +3083,8 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \begin{lemma}[Determinism of Step]\label{lem:determ:step}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:step:a} $\exprevalt{\Omega}{e}{\Omega'}{v_1}{\event_{1}}$
-  \item $\exprevalt{\Omega}{e}{\Omega''}{v_2}{\event_{2}}$
+  \item\label[ass]{asm:determ:step:a} $\exprevalt{\Omega}{e\gamma}{\Omega'}{v_1}{\event_{1}}$
+  \item $\exprevalt{\Omega}{e\gamma}{\Omega''}{v_2}{\event_{2}}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -3036,8 +3100,8 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \begin{lemma}[Determinism of Ctx-Step]\label{lem:determ:ctxstep}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e}{\Omega'}{v_1}{\event_{2}}$
-  \item $\exect[]{\Omega}{e}{\Omega''}{v_2}{\event_{1}}$
+  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e\gamma}{\Omega'}{v_1}{\event_{2}}$
+  \item $\exect[]{\Omega}{e\gamma}{\Omega''}{v_2}{\event_{1}}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -3053,8 +3117,8 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 \begin{lemma}[Determinism of Steps]\label{lem:determ:steps}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:steps:a} $\exect{\Omega}{e}{\Omega'}{v_1}{\trace[_{1}]}$
-  \item $\exect{\Omega}{e}{\Omega''}{v_2}{\trace[_{2}]}$
+  \item\label[ass]{asm:determ:steps:a} $\exect{\Omega}{e\gamma}{\Omega'}{v_1}{\trace[_{1}]}$
+  \item $\exect{\Omega}{e\gamma}{\Omega''}{v_2}{\trace[_{2}]}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -3538,14 +3602,14 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Step Forward Simulation]\label{lem:step:forwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{e'}{\event}$
+    \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{e'\gamma}{\event}$
     \item $\xlangstateeq{\Omega}{\Omega}$
     \item\label[ass]{asm:step:forwardsim:srccheck} $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
     \item $\delta\subseteq\delta'$
-    \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}}{\trg{\event}}$
+    \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma}}{\trg{\event}}$
     \item $\xlangeventeq{\event}{\event}$
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
@@ -3602,7 +3666,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       First note that $\trg{\Omega}=\trg{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}$, because of \Cref{asm:step:forwardsim:case2:stateeq}.
 
-      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}$, and $\trg{\event}=\trg{Dealloc\ \loc;\sandboxtag'}$, so that what is left to prove is:
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}$, and $\trg{\event}=\trg{Dealloc\ \loc;\sandboxtag'}$ so that what is left to prove is:
       \begin{goals}
       \item\label[goal]{goal:step:forwardsim:case2:deltasubset} $\delta\subseteq\delta$
       \item\label[goal]{goal:step:forwardsim:case2:eval} $\expreval{\trg{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}}{\trg{delete\ x}}{\trg{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}{\trg{0}}{\trg{Dealloc\ \loc}}$
@@ -3621,7 +3685,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       $\mmlAmmlAtcomp{x}=\trg{x}$ follows by definition of the compiler, anything else follows immediately by inverting \Cref{asm:step:forwardsim:case2:stateeq} ,,suitably''.
 
-    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{x[n]}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp}\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{v}{Get\ \loc\ n;\sandboxtag'}$\textbf{:}
+    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{x[n]}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp}\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{\valueexpr}{Get\ \loc\ n;\sandboxtag'}$\textbf{:}
 
       If
       \begin{passumptions}{H}
@@ -3692,7 +3756,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
         \item $\delta\subseteq\delta'$
-        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{x[n]\leftarrow v}}{\trg{\Omega'}}{\mmlAmmlAtcomp{v}}{\trg{\event}}$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{x[n]\leftarrow v}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\valueexpr}}{\trg{\event}}$
         \item $\xlangeventeq{Set\ \loc\ n;\sandboxtag'}{\event}$
         \item $\xlangstateeq{\cfstate;\sandboxtag';H^{ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{\Omega'}$
       \end{goals}
@@ -3719,6 +3783,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
     \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta}{let\ x\ =\ new\ n\ in\ e}{\cfstate;\sandboxtag';H^{\ctx'};H^{\comp};z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}{e[z/x]}{Alloc\ \loc\ n;\sandboxtag}$\textbf{:}
           Similar to the following case.
+
     \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta}{let\ x\ =\ new\ n\ in\ e}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp'};z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}{e[z/x]}{Alloc\ \loc\ n;\sandboxtag}$\textbf{:}
 
       If
@@ -3730,7 +3795,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
         \item $\delta\subseteq\delta'$
-        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{let\ x\ =\ new\ n\ in\ e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e[z/x]}}{\trg{\event}}$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{let\ x\ =\ new\ n\ in\ e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{[z/x]}}{\trg{\event}}$
         \item $\xlangeventeq{Alloc\ \loc\ n;\sandboxtag'}{\event}$
         \item $\xlangstateeq{\cfstate;\sandboxtag';H^{\ctx};H^{\comp'};z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}{\Omega'}$
       \end{goals}
@@ -3771,17 +3836,17 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       Inverting \Cref{asm:step:forwardsim:case6:typechecks} yields a contradiction.
 
-    \item \textbf{Case $\exprevals{\Omega}{let\ x=y\ in\ e}{\Omega}{e[y/x]}{\varepsilon}$:}
+    \item \textbf{Case $\exprevals{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\varepsilon}$:}
 
       If
       \begin{passumptions}{H}
       \item\label[ass]{asm:step:forwardsim:case7:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \item $\typechecks{}{\Omega\triangleright let\ x\ = y\ in\ e}{\nat}$
+      \item $\typechecks{}{\Omega\triangleright let\ x\ = \valueexpr\ in\ e}{\nat}$
       \end{passumptions}
       Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
       \begin{goals}
         \item $\delta\subseteq\delta'$
-        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{let\ x\ = y\ in\ e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e[y/x]}}{\trg{\event}}$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{let\ x\ = \valueexpr\ in\ e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{[\valueexpr/x]}}{\trg{\event}}$
         \item $\xlangeventeq{\varepsilon}{\event}$
         \item $\xlangstateeq{\Omega}{\Omega'}$
       \end{goals}
@@ -3790,14 +3855,14 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \begin{goals}
         \item\label[goal]{goal:step:forwardsim:case7:deltasubset} $\delta\subseteq\delta$
-        \item\label[goal]{goal:step:forwardsim:case7:eval} $\expreval{\trg{\Omega}}{\trg{let\ x\ = y\ in\ }\mmlAmmlAtcomp{e}}{\trg{\Omega}}{\mmlAmmlAtcomp{e}\trg{[y/x]}}{\trg{\varepsilon}}$
+        \item\label[goal]{goal:step:forwardsim:case7:eval} $\expreval{\trg{\Omega}}{\trg{let\ x\ = \valueexpr\ in\ }\mmlAmmlAtcomp{e}}{\trg{\Omega}}{\mmlAmmlAtcomp{e}\trg{[\valueexpr/x]}}{\trg{\varepsilon}}$
         \item\label[goal]{goal:step:forwardsim:case7:eventeq} $\xlangeventeq{\varepsilon}{\varepsilon}$
         \item\label[goal]{goal:step:forwardsim:case7:stateeq} $\xlangstateeq{\Omega}{\Omega}$
       \end{goals}
 
       \Cref{goal:step:forwardsim:case7:deltasubset} follows by reflexivity of the subset relation.
 
-      \Cref{goal:step:forwardsim:case7:eval} follows by definition of \Cref{tr:tw-e-let-x}.
+      \Cref{goal:step:forwardsim:case7:eval} follows by definition of \Cref{tr:tw-e-let-v}.
 
       \Cref{goal:step:forwardsim:case7:eventeq} follows by definition of \Cref{tr:emptyevent-event-eq}.
 
@@ -4527,7 +4592,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{passumptions}{H}
     \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:execs0} $\execs[]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{let\ \_=42\ in\ e_{main}}{Start;\comp}$
   \end{passumptions}
-  On \Cref{asm:exprbacktranslation:vbeg:wrapper:correct:execs0} apply \Cref{tr:w-e-ectx,tr:w-e-let-x}
+  On \Cref{asm:exprbacktranslation:vbeg:wrapper:correct:execs0} apply \Cref{tr:w-e-ectx,tr:w-e-let-v}
   \begin{passumptions}{H}
     \setcounter{enumi}{1}
     \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:execs1} $\execs[]{\commlib;\library;(\hole{\cdot},main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{let\ \_{=42\ in\ e_{main}}}{\commlib;\library;(\hole{\cdot},main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}}{\emptyevent}$
@@ -4602,7 +4667,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs0a} $\execs[]{\commlib;\library;(K;foo),\kontstack;\comp;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\ctx;\memstate}{n;delete\ z;K[n]}{Ret\ \comptoctx\ n}$
   \end{passumptions}
   This works, because of \Cref{asm:exprbacktranslation:beg:wrapper:correct:fooinlibctx}, then $\rho(\src{\comp})=\src{\comptoctx}$.
-  Note, \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0a}, continue with \Cref{tr:w-e-ectx,tr:w-e-let-x}:
+  Note, \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0a}, continue with \Cref{tr:w-e-ectx,tr:w-e-let-v}:
   \begin{passumptions}{H}
     \setcounter{enumi}{7}
     \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs1} $\execs[]{\commlib;\library;\kontstack;\ctx;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\ctx;\memstate}{delete\ z;K[n]}{\emptyevent}$
@@ -4878,7 +4943,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item\label[ass]{asm:exprbacktranslation:vend:wrapper:correct:execs0} $\exec{\src{\Omega}}{\src{K[let\ z = new\ 42\ in\ delete\ z; return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\ctx;\ \memstate_{\poisonless}}}{\src{K[delete\ z; return\ \valueexpr]}}{\src{Alloc\ \loc\ 42;\ctx}}$
   \end{passumptions}
 
-  Next, use \Cref{tr:w-e-ectx,tr:w-e-delete,tr:w-e-let-x} on \Cref{asm:exprbacktranslation:vend:wrapper:correct:execs0}:
+  Next, use \Cref{tr:w-e-ectx,tr:w-e-delete,tr:w-e-let-v} on \Cref{asm:exprbacktranslation:vend:wrapper:correct:execs0}:
 
   \begin{passumptions}{H}
     \setcounter{enumi}{10}
@@ -5783,7 +5848,7 @@ The syntax and semantics are entirely identical.
 
           Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial up to an induction on \Cref{asm:sms:primforwardsim:subst:del}, applying \Cref{tr:tw-e-subst} in the inductive case.
 
-    \item \textbf{Case} \ref{tr:tw-e-let-x}\textbf{:}
+    \item \textbf{Case} \ref{tr:tw-e-let-v}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$

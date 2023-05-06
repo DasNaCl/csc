@@ -5725,7 +5725,7 @@ The syntax and semantics are entirely identical.
           \end{passumptions}
           Then $\exists \irl{\gamma'}$,
           \begin{goals}
-            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}\irl{\gamma}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e[z/x]}\irl{\gamma'}}{\irl{\event}}$
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=new\ n\ in\ e}\irl{\gamma}}{\irl{\Omega'}}{\mmlAtmmlAtmscomp{e}\irl{\gamma'}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor'}{\trg{\cfstate;\comp;\memstate'}}$
             \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
             \item $\trg{\gamma'}\prec\irl{\gamma'}$
@@ -5769,7 +5769,7 @@ The syntax and semantics are entirely identical.
             \item\label[ass]{asm:sms:primforwardsim:trace:del} $\traceagree[]{\theta_{\delta}\left(\trg{Dealloc\ \loc;\comp}\right)}{\absevent}$
             \item $\irl{\Omega'}=\trg{\Omega'}=\trg{\cfstate;\comp;\memstate'}$
             \item $\irl{\event}=\trg{Dealloc\ \loc;\comp}$
-            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item\label[ass]{asm:sms:primforwardsim:subst:del} $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
             \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
           Then $\exists \irl{\gamma'}$,
@@ -5779,35 +5779,42 @@ The syntax and semantics are entirely identical.
             \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
             \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
-          Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial.
+          Just pick $\irl{\gamma'}=\irl{\hole{\cdot}}$.
 
-          {\color{green} patch. also add case for }\ref{tr:tw-e-subst}
+          Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial up to an induction on \Cref{asm:sms:primforwardsim:subst:del}, applying \Cref{tr:tw-e-subst} in the inductive case.
 
     \item \textbf{Case} \ref{tr:tw-e-let-x}\textbf{:}
           If
           \begin{passumptions}{H}
-            \item $\exprevalt{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\emptyevent;\comp}$
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$
-            \item $\trg{\gamma}=\trg{\gamma'}=\trg{\hole{\cdot}}$
+            \item $\trg{\gamma}=\trg{\hole{\cdot}}$
+            \item $\trg{\gamma'}=\trg{[\valueexpr/x],\hole{\cdot}}$
+            \item $\exprevalt{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\emptyevent;\comp}$
             \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
             \item\label[ass]{asm:sms:primforwardsim:storeagree:let} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item\label[ass]{asm:sms:primforwardsim:trace:let} $\traceagree[]{\theta_{\delta}\left(\trg{\emptyevent;\comp}\right)}{\absevent}$
             \item $\irl{\event}=\trg{\emptyevent;\comp}$
-            \item $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
+            \item\label[ass]{asm:sms:primforwardsim:subst:let} $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
             \item $\trg{\gamma}\prec\irl{\gamma}$
           \end{passumptions}
           Then $\exists \irl{\gamma'}$,
           \begin{goals}
-            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=\valueexpr\ in\ e}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{e[\valueexpr/x]}}{\irl{\event}}$
+            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{let\ x=\valueexpr\ in\ e}\irl{\gamma}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}\irl{\gamma'}}{\irl{\event}}$
             \item $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
             \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
             \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
+          Let $\irl{\valueexpr}=\mmlAtmmlAtmscomp{\valueexpr}$.
+          Pick $\irl{\gamma}=\irl{[\valueexpr/x],\hole{\cdot}}$.
+
           Note that $\mmlAtmmlAtmscomp{let\ x=\valueexpr\ in\ e}=\irl{let\ x=}\mmlAtmmlAtmscomp{\valueexpr}\irl{\ in\ }\mmlAtmmlAtmscomp{e}$.
 
-          Also by \Thmref{thm:mscomp:subst:compat}, $\mmlAtmmlAtmscomp{e[\valueexpr/x]}=\mmlAtmmlAtmscomp{e}\mmlAtmmlAtmscomp{[\valueexpr/x]}$.
+          Induce on \Cref{asm:sms:primforwardsim:subst:let}.
+          In the base-case, we can immediately step to the desired term and all goals go through trivially.
+          In the inductive case, make use of \Cref{tr:tw-e-subst}, the other goals also go through easily.
 
-          Now, it is easy to see that we can execute to the desired term.
+    \item \textbf{Case} \ref{tr:tw-e-subst}\textbf{:}
+          {\color{green}\large TODO}
 
 
     \item \textbf{Cases} \ref{tr:tw-e-x-is-poisoned-yes}, \ref{tr:tw-e-x-is-poisoned-no}, \ref{tr:tw-e-proj1}, \ref{tr:tw-e-proj2}, \ref{tr:tw-e-x-hasnat}, \ref{tr:tw-e-n-hasnat}, \ref{tr:tw-e-pair-hasnat}, \ref{tr:tw-e-x-haspair}, \ref{tr:tw-e-n-haspair}, \ref{tr:tw-e-pair-haspair}, \ref{tr:tw-e-if-true} and \ref{tr:tw-e-if-false}\textbf{:}

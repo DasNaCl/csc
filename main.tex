@@ -1072,10 +1072,10 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \exprevals{\cfstate;\sandboxtag_0;\memstate}{x[n]\leftarrow v}{\cfstate;\sandboxtag_0;\memstate'}{v}{Set\ \loc\ n\ v;\sandboxtag_0}
   }{w-e-set-notin}
   %
-  \typerule{$e-\src{let}-\src{\valueexpr}$}{
+  \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
   }{
-    \exprevals{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\emptyevent}
-  }{w-e-let-v}
+    \exprevals{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
+  }{w-e-let-f}
   %
   \typerule{$e-\src{delete}$}{
     \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
@@ -1091,7 +1091,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
     \src{\memstate'} = \src{\memstate[H^{\sandboxtag} \leftarrow H^{\sandboxtag}_1][\Delta \leftarrow z\mapsto(\loc,\sandboxtag,\poisonless;n),\memstate.\Delta]}
   }{
     \exprevals{\cfstate;\sandboxtag;\memstate}{let\ x=new\ n\ in\ e}{\cfstate;\sandboxtag;\memstate'}{e[z/x]}{Alloc\ \loc\ n;\sandboxtag}
-  }{w-e-let-new-ctx}
+  }{w-e-let-new}
   %
   \typerule{$e-\src{ifz}-$true}{
   }{
@@ -2353,7 +2353,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
       But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
       \end{description}
 
-    \item[$\src{e}=\src{n_1+n_2}$:]
+    \case{tr:w-e-oplus}
       If
       \begin{passumptions}{H}
         \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
@@ -2371,9 +2371,11 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
       All goals are completely trivial.
 
-    \item[$\src{e}=\src{let\ x=\finalexprnoerr\ in\ e'}$:]
+    \case{tr:w-e-let-f}
       If
       \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\hole{\cdot}}$
+        \item $\src{\gamma'}=\src{[\finalexprnoerr/x],\hole{\cdot}}$
         \item $\typechecks{}{\src{\Omega}\triangleright\src{let\ x=\finalexprnoerr\ in\ e'}}{\type}$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
       \end{passumptions}
@@ -2388,9 +2390,29 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
       All goals are completely trivial.
 
-    \item[$\src{e}=\src{ifz\ 0\ then\ e_1\ else\ e_2}$:]
+
+    \case{tr:w-e-subst}
       If
       \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{[\finalexprnoerr/x],\gamma'}$
+        \item $\typechecks{}{\src{\Omega}\triangleright\src{e}\gamma}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree{\specificev{\varepsilon}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega}}$
+      \end{goals}
+      Choose $\absevent=\bm{\varepsilon}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+
+      All goals are completely trivial.
+
+    \case{tr:w-e-if-true}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
         \item $\typechecks{}{\src{\Omega}\triangleright\src{ifz\ 0\ then\ e_1\ else\ e_2}}{\type}$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
       \end{passumptions}
@@ -2405,9 +2427,10 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
       All goals are completely trivial.
 
-    \item[$\src{e}=\src{ifz\ S(n)\ then\ e_1\ else\ e_2}$:]
+    \case{tr:w-e-if-false}
       If
       \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
         \item $\typechecks{}{\src{\Omega}\triangleright\src{ifz\ S(n)\ then\ e_1\ else\ e_2}}{\type}$
         \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
       \end{passumptions}
@@ -2422,14 +2445,16 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
       All goals are completely trivial.
 
-    \item[$\src{e}=\src{let\ x=new\ n\ in\ e'}$:]
+    \case{tr:w-e-let-new}
       If
       \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\hole{\cdot}}$
+        \item $\src{\gamma'}=\src{[z/x],\hole{\cdot}}$
         \item $\typechecks{}{\src{\Omega}}{\type}$
         \item\label[ass]{asm:basetmsmonitor:case4:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
         \item $\fresh{\src{\Delta}}{\src{\loc}}$
         \item $\fresh{\src{\Delta}}{\src{z}}$
-        \item $\src{H'}=\src{H}\ll\src{n}$
+        \item $\src{H^{\sandboxtag'}}=\src{H^{\sandboxtag}}\ll\src{n}$
       \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
       \begin{goals}
@@ -2456,13 +2481,15 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 
       \Cref{goal:basetmsmonitor:case4:storeagree} follows by \Cref{tr:store-cons-agree}.
 
-    \item[$\src{e}=\src{x[n]}$:]
+    \case{tr:w-e-get-in}
+    \case{tr:w-e-get-notin}
       If
       \begin{passumptions}{H}
-        \item $\typechecks{}{\src{\cfstate};\sandboxtag;\src{H};\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}\triangleright\src{x[n]}}{\type}$
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\cfstate};\sandboxtag;\src{H^{\ctx}};\src{H^{\comp}};\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}\triangleright\src{x[n]}}{\type}$
         \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
-        \item $\src{\loc}\in\operatorname{dom}\src{H}\implies \src{v}=\src{H}\left(\src{\loc+n}\right)$
-        \item $\src{\loc}\not\in\operatorname{dom}\src{H}\implies \src{v}=\src{1729}$
+        \item $\src{\loc}\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{v}=\src{H^{\sandboxtag}}\left(\src{\loc+n}\right)$
+        \item $\src{\loc}\not\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{v}=\src{1729}$
       \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
       \begin{goals}
@@ -2490,12 +2517,15 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
       \end{goals}
       All goals follow easy.
 
-    \item[$\src{e}=\src{x[n]\leftarrow\valueexpr}$:]
+    \case{tr:w-e-set-in}
+    \case{tr:w-e-set-notin}
       If
       \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
         \item $\typechecks{}{\src{\cfstate};\sandboxtag;\src{H};\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}\triangleright\src{x[n]}}{\type}$
         \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
-        \item $\src{H'}=\src{H}\left(\src{\loc+n}\mapsto\src{\valueexpr}\right)$
+        \item $\src{\loc+n}\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{H^{\sandboxtag'}}=\src{H^{\sandboxtag}}\left(\src{\loc+n}\mapsto\src{\valueexpr}\right)$
+        \item $\src{\loc+n}\not\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{H^{\sandboxtag'}}=\src{H^{\sandboxtag}}$
       \end{passumptions}
       Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
       \begin{goals}
@@ -2836,7 +2866,7 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
   }{
     \exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
-  }{tw-e-let-v}
+  }{tw-e-let-f}
   %
   \typerule{$e-\trg{delete}$}{
     \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
@@ -3862,7 +3892,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \Cref{goal:step:forwardsim:case7:deltasubset} follows by reflexivity of the subset relation.
 
-      \Cref{goal:step:forwardsim:case7:eval} follows by definition of \Cref{tr:tw-e-let-v}.
+      \Cref{goal:step:forwardsim:case7:eval} follows by definition of \Cref{tr:tw-e-let-f}.
 
       \Cref{goal:step:forwardsim:case7:eventeq} follows by definition of \Cref{tr:emptyevent-event-eq}.
 
@@ -4592,7 +4622,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{passumptions}{H}
     \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:execs0} $\execs[]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{let\ \_=42\ in\ e_{main}}{Start;\comp}$
   \end{passumptions}
-  On \Cref{asm:exprbacktranslation:vbeg:wrapper:correct:execs0} apply \Cref{tr:w-e-ectx,tr:w-e-let-v}
+  On \Cref{asm:exprbacktranslation:vbeg:wrapper:correct:execs0} apply \Cref{tr:w-e-ectx,tr:w-e-let-f}
   \begin{passumptions}{H}
     \setcounter{enumi}{1}
     \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:execs1} $\execs[]{\commlib;\library;(\hole{\cdot},main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{let\ \_{=42\ in\ e_{main}}}{\commlib;\library;(\hole{\cdot},main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}}{\emptyevent}$
@@ -4667,7 +4697,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs0a} $\execs[]{\commlib;\library;(K;foo),\kontstack;\comp;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\ctx;\memstate}{n;delete\ z;K[n]}{Ret\ \comptoctx\ n}$
   \end{passumptions}
   This works, because of \Cref{asm:exprbacktranslation:beg:wrapper:correct:fooinlibctx}, then $\rho(\src{\comp})=\src{\comptoctx}$.
-  Note, \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0a}, continue with \Cref{tr:w-e-ectx,tr:w-e-let-v}:
+  Note, \Cref{asm:exprbacktranslation:beg:wrapper:correct:execs0a}, continue with \Cref{tr:w-e-ectx,tr:w-e-let-f}:
   \begin{passumptions}{H}
     \setcounter{enumi}{7}
     \item\label[ass]{asm:exprbacktranslation:beg:wrapper:correct:execs1} $\execs[]{\commlib;\library;\kontstack;\ctx;\memstate}{K_{component}\hole{return\ n}}{\commlib;\library;\kontstack;\ctx;\memstate}{delete\ z;K[n]}{\emptyevent}$
@@ -4943,7 +4973,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item\label[ass]{asm:exprbacktranslation:vend:wrapper:correct:execs0} $\exec{\src{\Omega}}{\src{K[let\ z = new\ 42\ in\ delete\ z; return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\ctx;\ \memstate_{\poisonless}}}{\src{K[delete\ z; return\ \valueexpr]}}{\src{Alloc\ \loc\ 42;\ctx}}$
   \end{passumptions}
 
-  Next, use \Cref{tr:w-e-ectx,tr:w-e-delete,tr:w-e-let-v} on \Cref{asm:exprbacktranslation:vend:wrapper:correct:execs0}:
+  Next, use \Cref{tr:w-e-ectx,tr:w-e-delete,tr:w-e-let-f} on \Cref{asm:exprbacktranslation:vend:wrapper:correct:execs0}:
 
   \begin{passumptions}{H}
     \setcounter{enumi}{10}
@@ -5848,7 +5878,7 @@ The syntax and semantics are entirely identical.
 
           Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial up to an induction on \Cref{asm:sms:primforwardsim:subst:del}, applying \Cref{tr:tw-e-subst} in the inductive case.
 
-    \item \textbf{Case} \ref{tr:tw-e-let-v}\textbf{:}
+    \item \textbf{Case} \ref{tr:tw-e-let-f}\textbf{:}
           If
           \begin{passumptions}{H}
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$

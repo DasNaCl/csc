@@ -1114,6 +1114,10 @@ The intuitive solution, removing the mapping on deletion, doesn't allow to run p
 However, we want to model memory effects and show that such situations never happen, even though they {\em could}.
 Given a poisoned location, we can still do everything with it: reading, writing, or deletion.
 When generating the static context from the execution context, \Cref{tr:t-poison-store} allows us to disregard deleted locations which will help us reason that the given execution could not have been happening if the program was well-typed to begin with.
+For sake of readablity, we will omit $\trg{\gamma}=\trg{\hole{\cdot}}$ when writing down evaluation steps.
+That is, whenever we have $\exprevalt{\configt}{e\hole{\cdot}}{\configt'}{e'\hole{\cdot}}{\event}$, it's written $\exprevalt{\configt}{e}{\configt'}{e'}{\event}$.
+Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\triangleright$, so $\trg{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\trg{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
+
 
 \myfig{
   \begin{center}
@@ -3113,12 +3117,12 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
 \begin{lemma}[Determinism of Step]\label{lem:determ:step}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:step:a} $\exprevalt{\Omega}{e\gamma}{\Omega'}{v_1}{\event_{1}}$
-  \item $\exprevalt{\Omega}{e\gamma}{\Omega''}{v_2}{\event_{2}}$
+  \item\label[ass]{asm:determ:step:a} $\exprevalt{\Omega}{e\gamma}{\Omega'}{e_1}{\event_{1}}$
+  \item $\exprevalt{\Omega}{e\gamma}{\Omega''}{e_2}{\event_{2}}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\trg{v_{1}}=\trg{v_{2}}$
+  \item $\trg{e_{1}}=\trg{e_{2}}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\event_{1}}=\trg{\event_{2}}$
   \end{goals}
@@ -3130,18 +3134,35 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
 \begin{lemma}[Determinism of Ctx-Step]\label{lem:determ:ctxstep}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e\gamma}{\Omega'}{v_1}{\event_{2}}$
-  \item $\exect[]{\Omega}{e\gamma}{\Omega''}{v_2}{\event_{1}}$
+  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e\gamma}{\Omega'}{e_1}{\event_{2}}$
+  \item $\exect[]{\Omega}{e\gamma}{\Omega''}{e_2}{\event_{1}}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\trg{v_{1}}=\trg{v_{2}}$
+  \item $\trg{e_{1}}=\trg{e_{2}}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\event_{1}}=\trg{\event_{2}}$
   \end{goals}
 \end{lemma}
 \begin{proof}
   By induction on \Cref{asm:determ:ctxstep:a} making use of \Thmref{lem:determ:step}.
+\end{proof}
+
+\begin{lemma}[Determinism of $n$-Steps]\label{lem:determ:nsteps}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:determ:steps:a} $\exectN{\Omega}{e\gamma}{\Omega'}{e_1}{\trace[_{1}]}$
+  \item $\exectN{\Omega}{e\gamma}{\Omega''}{e_2}{\trace[_{2}]}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{e_{1}}=\trg{e_{2}}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\trace[_{1}]}=\trg{\trace[_{2}]}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  By induction on \Cref{asm:determ:steps:a} making use of \Thmref{lem:determ:ctxstep}.
 \end{proof}
 
 \begin{lemma}[Determinism of Steps]\label{lem:determ:steps}

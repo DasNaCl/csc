@@ -1103,10 +1103,10 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \exprevals{\Omega}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\emptyevent}
   }{w-e-if-false}
   %
-%  \typerule{$e-\src{abort}$}{
-%  }{
-%    \exprevals{\Omega}{abort()}{\Omega}{stuck}{\lightning}
-%  }{w-e-abort}
+  \typerule{$e-\src{abort}$}{
+  }{
+    \exprevals{\Omega}{abort()}{\Omega}{stuck}{\lightning}
+  }{w-e-abort}
 }{w-expr-prim-eval}{Primitive Evaluation of $\mmlAs$ expressions.}
 Evaluation is mostly straightforward, the only interesting cases involve the pointers.
 Specifically, \Cref{tr:w-e-delete} demonstrates why we need the poison-tag on the locations: Regardless of the current tag, emit a $\src{Dealloc\ \loc}$ event and mark $\src{\loc}$ as poisoned ($\src{\poisoned}$).
@@ -3650,17 +3650,34 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Simple induction on $\src{e}$.
 \end{proof}
 
+
+\begin{lemma}[Substitution Commutes with $\mmlAmmlAtcomp{\bullet}$]\label{lem:subst:commute:comp}
+  \begin{assumptions}
+    \item $\mmlAmmlAtcomp{e} = \trg{e}$
+    \item $\src{e'} = \text{substitute }\src{x}\text{ with }\src{\valueexpr}\text{ in }\src{e}$
+    \item $\trg{e'} = \text{substitute }\mmlAmmlAtcomp{x}\text{ with }\mmlAmmlAtcomp{\valueexpr}\text{ in }\trg{e}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\trg{e'}=\mmlAmmlAtcomp{e'}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\src{e}$.
+\end{proof}
+
+
 \begin{lemma}[Step Forward Simulation]\label{lem:step:forwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e}{\Omega'}{e'\gamma}{\event}$
+    \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
     \item $\xlangstateeq{\Omega}{\Omega}$
     \item\label[ass]{asm:step:forwardsim:srccheck} $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
     \item $\delta\subseteq\delta'$
-    \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma}}{\trg{\event}}$
+    \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma'}}{\trg{\event}}$
     \item $\xlangeventeq{\event}{\event}$
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
@@ -3668,10 +3685,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{proof}
   We proceed by induction on \Cref{asm:step:forwardsim:srcstep}.
   \begin{description}
-    \item \textbf{Case $\exprevals{\Omega}{n_1+n_2}{\Omega}{n_3}{\varepsilon}$:}
+    \case{tr:w-e-oplus}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
       \item\label[ass]{asm:step:forwardsim:case1:stateeq} $\xlangstateeq{\Omega}{\Omega}$
       \item $\typechecks{}{\Omega\triangleright n_1+n_2}{\nat}$
       \item\label[ass]{asm:step:forwardsim:case1:additioneq} $n_3=n_1+n_2$
@@ -3700,10 +3718,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \Cref{goal:step:forwardsim:case1:stateeq} follows using \Cref{asm:step:forwardsim:case1:stateeq}.
 
-    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}{delete\ x}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}{0}{Dealloc\ \loc;\sandboxtag'}$\textbf{:}
+    \case{tr:w-e-delete}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
       \item\label[ass]{asm:step:forwardsim:case2:stateeq} $\xlangstateeq{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}{\trg{\Omega}}$
       \item $\typechecks{}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2\triangleright delete\ x}{\nat}$
       \end{passumptions}
@@ -3736,10 +3755,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       $\mmlAmmlAtcomp{x}=\trg{x}$ follows by definition of the compiler, anything else follows immediately by inverting \Cref{asm:step:forwardsim:case2:stateeq} ,,suitably''.
 
-    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{x[n]}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp}\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{\valueexpr}{Get\ \loc\ n;\sandboxtag'}$\textbf{:}
+    \case{tr:w-e-get-in}
+    \case{tr:w-e-get-notin}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
       \item\label[ass]{asm:step:forwardsim:case3:stateeq} $\xlangstateeq{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{\Omega}$
       \item $\typechecks{}{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2\triangleright x[n]}{\nat}$
       \item\label[ass]{asm:step:forwardsim:case3:dom1} $\src{\loc}\in\operatorname{dom} \src{H^{\sandboxtag'}}\implies\src{v}=\src{H^{\sandboxtag'}}(\src{\loc+n})$
@@ -3792,14 +3813,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
           Since $\trg{v}=\mmlAmmlAtcomp{v}$, $\trg{v}=\mmlAmmlAtcomp{1729}=\trg{1729}$, done.
       \end{description}
 
-    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison,n'),\Delta_2}{x[n]\leftarrow v}{\cfstate;\sandboxtag';H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{v}{Set\ \loc\ n\ m;\sandboxtag'}$\textbf{:}
-
-      This case is completely analogous to the next case.
-
-    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison,n'),\Delta_2}{x[n]\leftarrow v}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{v}{Set\ \loc\ n\ m;\sandboxtag'}$\textbf{:}
+    \case{tr:w-e-set-in}
+    \case{tr:w-e-set-notin}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
       \item\label[ass]{asm:step:forwardsim:case4:stateeq} $\xlangstateeq{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2}{\Omega}$
       \item $\typechecks{}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n'),\Delta_2\triangleright x[n]}{\nat}$
       \item\label[ass]{asm:step:forwardsim:case4:update} $\src{H'}=\src{H}(\src{\loc+n}\mapsto\src{v})$
@@ -3832,13 +3851,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \Cref{goal:step:forwardsim:case4:stateeq} is assumed in \Cref{asm:step:forwardsim:case4:stateeq}.
 
-    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta}{let\ x\ =\ new\ n\ in\ e}{\cfstate;\sandboxtag';H^{\ctx'};H^{\comp};z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}{e[z/x]}{Alloc\ \loc\ n;\sandboxtag}$\textbf{:}
-          Similar to the following case.
-
-    \item \textbf{Case }$\exprevals{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta}{let\ x\ =\ new\ n\ in\ e}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp'};z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}{e[z/x]}{Alloc\ \loc\ n;\sandboxtag}$\textbf{:}
+      \case{tr:w-e-let-new}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\hole{\cdot}}$
+      \item $\src{\gamma'}=\src{[z/x]}$
       \item\label[ass]{asm:step:forwardsim:case5:stateeq} $\xlangstateeq{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta}{\Omega}$
       \item $\typechecks{}{\cfstate;\sandboxtag';H^{\ctx};H^{\comp};\Delta\triangleright let\ x\ =\ new\ n\ in\ e}{\nat}$
       \item\label[ass]{asm:step:forwardsim:case5:update} $\src{H^{\sandboxtag'}}=\src{H^{\sandboxtag'}}\ll\src{n}$
@@ -3870,10 +3888,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       Apply \Cref{tr:state-eq,tr:ctx-cons-memstate-eq,tr:comp-cons-memstate-eq} depending on the shape of $\sandboxtag$ on \Cref{goal:step:forwardsim:case5:stateeq}, what is left to show is $\mmlAmmlAtcomp{x}=\trg{x}$, follows immediately by definition of the compiler, and $(\delta\cup\left\{\src{\loc}\mapsto\trg{\loc}\right\})(\src{\loc})=\trg{\loc}$, which follows by definition.
 
-    \item \textbf{Case }$\exprevals{\Omega}{abort()}{\lightning}{stuck}{\lightning;\sandboxtag}$\textbf{:}
+    \case{tr:w-e-abort}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
       \item\label[ass]{asm:step:forwardsim:case6:stateeq} $\xlangstateeq{\Omega}{\Omega}$
       \item\label[ass]{asm:step:forwardsim:case6:typechecks} $\typechecks{}{\Omega\triangleright abort()}{\nat}$
       \end{passumptions}
@@ -3887,10 +3906,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       Inverting \Cref{asm:step:forwardsim:case6:typechecks} yields a contradiction.
 
-    \item \textbf{Case $\exprevals{\Omega}{let\ x=\valueexpr\ in\ e}{\Omega}{e[\valueexpr/x]}{\varepsilon}$:}
+    \case{tr:w-e-let-f}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\hole{\cdot}}$
+      \item $\src{\gamma'}=\src{[\valueexpr/x]}$
       \item\label[ass]{asm:step:forwardsim:case7:stateeq} $\xlangstateeq{\Omega}{\Omega}$
       \item $\typechecks{}{\Omega\triangleright let\ x\ = \valueexpr\ in\ e}{\nat}$
       \end{passumptions}
@@ -3919,10 +3940,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \Cref{goal:step:forwardsim:case7:stateeq} follows by \Cref{asm:step:forwardsim:case7:stateeq}.
 
-    \item \textbf{Case $\exprevals{\Omega}{ifz\ 0\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\varepsilon}$:}
+    \case{tr:w-e-if-true}
 
       If
       \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
       \item\label[ass]{asm:step:forwardsim:case9:stateeq} $\xlangstateeq{\Omega}{\Omega}$
       \item $\typechecks{}{\Omega\triangleright ifz\ 0\ then\ e_1\ else\ e_2}{\nat}$
       \end{passumptions}
@@ -3951,13 +3973,45 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       \Cref{goal:step:forwardsim:case9:stateeq} follows by \Cref{asm:step:forwardsim:case9:stateeq}.
 
-    \item \textbf{Case $\exprevals{\Omega}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\varepsilon}$:}
+    \case{tr:w-e-if-false}
 
       This case is completely analogous to the previous case, the only difference is the use of \Cref{tr:tw-e-if-false} instead of \Cref{tr:tw-e-if-true}.
 
+    \case{tr:w-e-subst}
+
+      If
+      \begin{passumptions}{H}
+      \item $\src{\gamma}=\src{[\valueexpr/x],\gamma'}$
+      \item\label[ass]{asm:step:forwardsim:case10:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \item $\typechecks{}{\Omega\triangleright e\gamma}{\nat}$
+      \end{passumptions}
+      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
+      \begin{goals}
+        \item $\delta\subseteq\delta'$
+        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma'}}{\trg{\event}}$
+        \item $\xlangeventeq{\varepsilon}{\event}$
+        \item $\xlangstateeq{\Omega}{\Omega'}$
+      \end{goals}
+
+      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\Omega}$, and $\trg{\event}=\trg{\varepsilon}$, so that what is left to prove is:
+
+      \begin{goals}
+        \item\label[goal]{goal:step:forwardsim:case10:deltasubset} $\delta\subseteq\delta$
+        \item\label[goal]{goal:step:forwardsim:case10:eval} $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}\trg{[\valueexpr/x],}\mmlAmmlAtcomp{\gamma'}}{\trg{\Omega}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma'}}{\trg{\varepsilon;\sandboxtag}}$
+        \item\label[goal]{goal:step:forwardsim:case10:eventeq} $\xlangeventeq{\varepsilon}{\varepsilon}$
+        \item\label[goal]{goal:step:forwardsim:case10:stateeq} $\xlangstateeq{\Omega}{\Omega}$
+      \end{goals}
+
+      \Cref{goal:step:forwardsim:case10:deltasubset} follows by reflexivity of the subset relation.
+
+      \Cref{goal:step:forwardsim:case10:eval} follows by \Thmref{lem:subst:commute:comp} and \Cref{tr:tw-e-subst}.
+
+      \Cref{goal:step:forwardsim:case10:eventeq} follows by definition of \Cref{tr:emptyevent-event-eq}.
+
+      \Cref{goal:step:forwardsim:case10:stateeq} follows by \Cref{asm:step:forwardsim:case10:stateeq}.
+
   \end{description}
 \end{proof}
-
 
 \begin{lemma}[Ctx Step Forward Simulation]\label{lem:ctxstep:forwardsim}
   If

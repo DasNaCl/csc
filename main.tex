@@ -1028,19 +1028,13 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 }{w-events}{Events of $\mmlAs$.}
 
 \myfig{
-  \judgbox{\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}}{,,Expression $\src{e}$ applied to substitutions $\src{\gamma}$ evaluates under\\configuration $\configs$ to $\src{e'}$ applied to substitutions $\src{\gamma'}$ and new\\configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
+  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{\event}}{,,Expression $\src{e}$ applied evaluates under configuration $\configs$\\to $\src{e'}$ and new configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
   %
   \typerule{$e-\src{\oplus}$}{
     \src{n_1}\oplus\src{n_2}=\src{n_3}
   }{
     \exprevals{\configs}{n_1 \oplus n_2}{\configs}{n_3}{\emptyevent}
   }{w-e-oplus}
-  %
-  \typerule{$e-$subst}{
-    \src{e'}=\text{substitute }\src{\valueexpr}\text{ for }\src{x}\text{ in }\src{e}
-  }{
-    \exprevals{\configs}{e[\valueexpr/x],\gamma}{\configs}{e'\gamma}{\emptyevent}
-  }{w-e-subst}
   %
   \typerule{$e-\src{get}-\in$}{
     \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
@@ -1114,27 +1108,20 @@ The intuitive solution, removing the mapping on deletion, doesn't allow to run p
 However, we want to model memory effects and show that such situations never happen, even though they {\em could}.
 Given a poisoned location, we can still do everything with it: reading, writing, or deletion.
 When generating the static context from the execution context, \Cref{tr:t-poison-store} allows us to disregard deleted locations which will help us reason that the given execution could not have been happening if the program was well-typed to begin with.
-For sake of readablity, we will omit $\trg{\gamma}=\trg{\hole{\cdot}}$ when writing down evaluation steps.
-That is, whenever we have $\exprevalt{\configt}{e\hole{\cdot}}{\configt'}{e'\hole{\cdot}}{\event}$, it's written $\exprevalt{\configt}{e}{\configt'}{e'}{\event}$.
-Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\triangleright$, so $\trg{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\trg{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
+For sake of readablity, we will omit $\src{\gamma}=\src{\hole{\cdot}}$ when writing down evaluation steps.
+That is, whenever we have $\exprevals{\configs}{e\hole{\cdot}}{\configs'}{e'\hole{\cdot}}{\event}$, it's written $\exprevals{\configs}{e}{\configs'}{e'}{\event}$.
+Moreover, $\src{\gamma}$ as postfix binds anything before it up to $\triangleright$, so $\src{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\src{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
 
 
 \myfig{
   \begin{center}
-    \judgbox{\execs[]{\configs}{K[e]\gamma}{\configs'}{K'[e']\gamma'}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$\\and a substitution $\src{\gamma}$, it evaluates under\\configuration $\configs$ to $\src{e'}$ and substitution $\src{\gamma'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
+    \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K'[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
     %
     \typerule{$e-\text{ctx}$}{
       \exprevals{\Omega}{e}{\Omega'}{e'\gamma'}{\event}
     }{
       \execs[]{\Omega}{K[e]}{\Omega'}{K[e']\gamma'}{\event}
     }{w-e-ectx}
-    %
-    \typerule{$e-\text{ctx}-\text{subst}$}{
-      \src{K'}=\text{substitute }\src{x}\text{ for }\src{\valueexpr}\text{ in }\src{K} &
-      \src{e'}=\text{substitute }\src{x}\text{ for }\src{\valueexpr}\text{ in }\src{e}
-    }{
-      \execs[]{\Omega}{K[e][\valueexpr/x],\gamma}{\Omega'}{K'[e']\gamma}{\emptyevent}
-    }{w-e-ectx-subst}
     %
     \typerule{$e-\text{ctx}-\src{stuck}$}{
       \exprevals{\Omega}{e}{\Omega'}{stuck}{\lightning}
@@ -1216,7 +1203,7 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
 }{w-expr-ctx-eval}{Contextual Evaluation of $\mmlAs$ expressions.}
 \myfig{
   \begin{center}
-    \judgbox{\execs{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}}{,,Expression $\src{e}$ applied to substitutions $\src{\gamma}$ evaluates under\\configuration $\configs$ to $\src{e'}$ with substitutions $\src{\gamma'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
+    \judgbox{\execs{\configs}{e}{\configs'}{e'}{\trace}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
     %
     \typerule{$es-\text{refl}$}{
     }{
@@ -1242,22 +1229,22 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
     %
     \typerule{$en-\text{refl}$}{
     }{
-      \execsn[^0]{\configs}{e\gamma}{\configs}{e\gamma}{\emptyevent}
+      \execsn[^0]{\configs}{e}{\configs}{e}{\emptyevent}
     }{wsn-e-refl}
     %
     \typerule{$en-\text{trans}-$important}{
-      \execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event} &
-      \execsn[^n]{\configs'}{e'\gamma'}{\configs''}{e''\gamma''}{\trace} &
+      \execs[]{\configs}{e}{\configs'}{e'}{\event} &
+      \execsn[^n]{\configs'}{e'}{\configs''}{e''}{\trace} &
       \src{\event}\not=\src{\emptyevent}
     }{
-      \execsn[^{(n+1)}]{\configs}{e\gamma}{\configs''}{e''\gamma''}{\event\cdot\trace}
+      \execsn[^{(n+1)}]{\configs}{e}{\configs''}{e''}{\event\cdot\trace}
     }{wsn-e-trans-important}
     %
     \typerule{$en-\text{trans}-$unimportant}{
-      \execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\emptyevent} &
-      \execsn[^n]{\configs'}{e'\gamma'}{\configs''}{e''\gamma''}{\trace} &
+      \execs[]{\configs}{e}{\configs'}{e'}{\emptyevent} &
+      \execsn[^n]{\configs'}{e'}{\configs''}{e''}{\trace} &
     }{
-      \execsn[^{(n+1)}]{\configs}{e\gamma}{\configs''}{e''\gamma''}{\trace}
+      \execsn[^{(n+1)}]{\configs}{e}{\configs''}{e''}{\trace}
     }{wsn-e-trans-unimportant}
   \end{center}
 }{w-steps}{Trace prefix generation given a $\mmlAs$ program using the reflexive-transitive closure.}

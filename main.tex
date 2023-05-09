@@ -1039,7 +1039,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   \typerule{$e-$subst}{
     \src{e'}=\text{substitute }\src{\valueexpr}\text{ for }\src{x}\text{ in }\src{e}
   }{
-    \exprevals{\configs}{e[\valueexpr/x],\gamma}{\configs'}{e'\gamma}{\emptyevent}
+    \exprevals{\configs}{e[\valueexpr/x],\gamma}{\configs}{e'\gamma}{\emptyevent}
   }{w-e-subst}
   %
   \typerule{$e-\src{get}-\in$}{
@@ -1220,7 +1220,7 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
     %
     \typerule{$es-\text{refl}$}{
     }{
-      \execs{\configs}{e}{\configs}{e}{\hole{\cdot}}
+      \execs{\configs}{\finalexprnoerr}{\configs}{\finalexprnoerr}{\hole{\cdot}}
     }{ws-e-refl}
     %
     \typerule{$es-\text{trans}-$important}{
@@ -2212,11 +2212,11 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{lemma}[Progress]\label{lem:progress}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:progress:typs} $\typechecks{}{\src{\Omega}\triangleright e}{\src{\type}}$
+    \item\label[ass]{asm:progress:typs} $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\src{e}=\src{abort()}$ or $\exists \src{\Omega'}\ \src{\valueexpr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\valueexpr}{\trace}$
+  \item $\exists \src{\Omega'}\ \src{\finalexpr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\finalexpr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
@@ -3652,6 +3652,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 
 \begin{lemma}[Substitution Commutes with $\mmlAmmlAtcomp{\bullet}$]\label{lem:subst:commute:comp}
+  If
   \begin{assumptions}
     \item $\mmlAmmlAtcomp{e} = \trg{e}$
     \item $\src{e'} = \text{substitute }\src{x}\text{ with }\src{\valueexpr}\text{ in }\src{e}$
@@ -3672,14 +3673,14 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \begin{assumptions}
     \item\label[ass]{asm:step:forwardsim:srcstep} $\exprevals{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
     \item $\xlangstateeq{\Omega}{\Omega}$
-    \item\label[ass]{asm:step:forwardsim:srccheck} $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item\label[ass]{asm:step:forwardsim:srccheck} $\typechecks{}{\Omega\triangleright e\gamma}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
     \item $\delta\subseteq\delta'$
     \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma'}}{\trg{\event}}$
-    \item $\xlangeventeq{\event}{\event}$
-    \item $\xlangstateeq{\Omega'}{\Omega'}$
+    \item $\xlangeventeq[\delta']{\event}{\event}$
+    \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -3904,7 +3905,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
         \item $\xlangstateeq{\lightning}{\Omega'}$
       \end{goals}
 
-      Inverting \Cref{asm:step:forwardsim:case6:typechecks} yields a contradiction.
+          Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\lightning}$, and $\trg{\event}=\trg{\lightning;\sandboxtag}$.
+          All goals go through easily.
 
     \case{tr:w-e-let-f}
 
@@ -4016,14 +4018,14 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Ctx Step Forward Simulation]\label{lem:ctxstep:forwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:ctxstep:forwardsim:srcstep} $\execs[]{\Omega}{e}{\Omega'}{e'}{\event}$
+    \item\label[ass]{asm:ctxstep:forwardsim:srcstep} $\execs[]{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
     \item\label[ass]{asm:ctxstep:forwardsim:staterel} $\xlangstateeq{\Omega}{\Omega}$
-    \item\label[ass]{asm:ctxstep:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item\label[ass]{asm:ctxstep:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e\gamma}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
   \begin{goals}
     \item $\delta\subseteq\delta'$
-    \item $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}}{\trg{\event}}$
+    \item $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e\gamma}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'\gamma'}}{\trg{\event}}$
     \item $\xlangeventeq{\event}{\event}$
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
@@ -4077,14 +4079,14 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Forward Simulation]\label{lem:forwardsim}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:forwardsim:starstep} $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+    \item\label[ass]{asm:forwardsim:starstep} $\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr\gamma'}{\trace}$
     \item\label[ass]{asm:forwardsim:staterel} $\xlangstateeq{\Omega}{\Omega}$
-    \item\label[ass]{asm:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
+    \item\label[ass]{asm:forwardsim:typechecks} $\typechecks{}{\Omega\triangleright e\gamma}{\nat}$
   \end{assumptions}
   Then $\exists\delta'\ \trg{\Omega'}\ \trg{\trace}$,
   \begin{goals}
     \item $\delta\subseteq\delta'$
-    \item $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
+    \item $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}\mmlAmmlAtcomp{\gamma'}}{\trg{\trace}}$
     \item $\xlangtraceeq[\delta']{\trace}{\trace}$
     \item $\xlangstateeq[\delta']{\Omega'}{\Omega'}$
   \end{goals}
@@ -4092,51 +4094,66 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{proof}
   Induction on \Cref{asm:forwardsim:starstep}.
   \begin{description}
-    \item \textbf{Case }$\execs{\Omega}{\finalexpr}{\Omega}{\finalexpr}{\hole{\cdot}}$\textbf{:}
+    \case{tr:ws-e-refl}
           Trivial. Witnesses are $\delta, \trg{\Omega}$, and $\trg{\hole{\cdot}}$, goals follow immediately by reflexivity of the respective relation.
 
-    \item \textbf{Cases }$\execs{\Omega}{e}{\Omega}{\finalexpr}{\event\cdot\trace}$ (\Cref{tr:ws-e-trans-important})\textbf{ and }\\$\execs{\Omega}{e}{\Omega}{\finalexpr}{\trace}$ (\Cref{tr:ws-e-trans-unimportant})\textbf{:}
+    \case{tr:ws-e-trans-important}
+    \case{tr:ws-e-trans-unimportant}
           \begin{passumptions}{H}
-            \item\label[ass]{asm:forwardsim:evnoteps} $\src{a}\not=\src{\varepsilon}$ (provided only in the case of \Cref{tr:ws-e-trans-important})
-            \item\label[ass]{asm:forwardsim:ctxstep} $\execs[]{\Omega}{e}{\Omega_{0}}{e_0}{\event}$
-            \item $\execs{\Omega_{0}}{e_0}{\Omega'}{\finalexpr}{\trace}$
+            \item\label[ass]{asm:forwardsim:ctxstep} $\execs[]{\Omega}{e\gamma}{\Omega_{0}}{e_0\gamma_{0}}{\event}$
+            \item $\execs{\Omega_{0}}{e_0\gamma_{0}}{\Omega'}{\finalexpr\gamma'}{\trace}$
           \end{passumptions}
-          With the inductive hypothesis: $\forall\delta_{\forall}\ \trg{\Omega_{\forall}},\exists \delta_{\IH}\ \trg{\Omega_{\IH}}\ \trg{\trace[_{\IH}]},$
+          With the inductive hypothesis: $\forall\delta_{\forall}\ \trg{\Omega_{\forall}}$,
+          If
+          \begin{passumptions}{\IH^{(as)}}
+            \item $\xlangstateeq[\delta_{\forall}]{\Omega_{0}}{\Omega_{\forall}}$
+            \item $\typechecks{}{\Omega_{0}\triangleright e_{0}\gamma_{0}}{\nat}$
+          \end{passumptions}
+          Then $\exists \delta_{\IH}\ \trg{\Omega_{\IH}}\ \trg{\trace[_{\IH}]},$
           \begin{passumptions}{\IH}
             \item $\delta_{\forall}\subseteq\delta_{\IH}$
-            \item $\exec{\trg{\Omega_{\forall}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega_{{\IH}}}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace[_{{\IH}}]}}$
+            \item $\exec{\trg{\Omega_{\forall}}}{\mmlAmmlAtcomp{e_{0}}\mmlAmmlAtcomp{\gamma_{0}}}{\trg{\Omega_{{\IH}}}}{\mmlAmmlAtcomp{\finalexpr}\mmlAmmlAtcomp{\gamma'}}{\trg{\trace[_{{\IH}}]}}$
             \item\label[ass]{asm:forwardsim:justraceeq} $\xlangtraceeq[\delta_{\IH}]{\trace}{\trace[_{\IH}]}$
-            \item $\xlangstateeq[\delta_{\IH}]{\Omega_{0}}{\Omega_{\IH}}$
+            \item $\xlangstateeq[\delta_{\IH}]{\Omega'}{\Omega_{\IH}}$
           \end{passumptions}
 
           Now apply \Thmref{lem:ctxstep:forwardsim} on \Cref{asm:forwardsim:ctxstep} using \Cref{asm:forwardsim:staterel,asm:forwardsim:typechecks},
           giving us witnesses $\delta_0\ \trg{\Omega_{0}}\ \trg{\event}$,
           \begin{passumptions}{F}
             \item\label[ass]{asm:forwardsim:deltasubset0} $\delta\subseteq\delta_{0}$
-            \item\label[ass]{asm:forwardsim:thectxstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\event}}$
+            \item\label[ass]{asm:forwardsim:thectxstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}\mmlAmmlAtcomp{\gamma_{0}}}{\trg{\event}}$
             \item\label[ass]{asm:forwardsim:eventeq} $\xlangeventeq[\delta_{0}]{\event}{\event}$
-            \item $\xlangstateeq[\delta_{0}]{\Omega_{0}}{\Omega_{0}}$
+            \item\label[ass]{asm:forwardsim:stateeq0} $\xlangstateeq[\delta_{0}]{\Omega_{0}}{\Omega_{0}}$
           \end{passumptions}
 
-          Instantiate the inductive hypothesis with $\delta_{\forall}=\delta_{0}$ and $\trg{\Omega_{\forall}}=\trg{\Omega_{0}}$ and obtain witnesses
+          Apply \Thmref{lem:ctx-preservation} on \Cref{asm:forwardsim:ctxstep,asm:forwardsim:typechecks}:
+          \begin{passumptions}{F}
+            \setcounter{enumi}{4}
+            \item\label[ass]{asm:forwardsim:e0typs} $\typechecks{}{\Omega_{0}\triangleright e_{0}\gamma_{0}}{\nat}$
+          \end{passumptions}
+
+          Instantiate the inductive hypothesis with $\delta_{\forall}=\delta_{0}$ and $\trg{\Omega_{\forall}}=\trg{\Omega_{0}}$, provide \Cref{asm:forwardsim:stateeq0} and \Cref{asm:forwardsim:e0typs}, and obtain witnesses
           $\delta_{\IH}, \trg{\Omega_{\IH}}$, and $\trg{\trace[_{\IH}]}$ such that:
           \begin{passumptions}{\IH'}
             \item\label[ass]{asm:forwardsim:deltasubset:IH} $\delta_{0}\subseteq\delta_{\IH}$
-            \item\label[ass]{asm:forwardsim:steps} $\exec{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega_{{\IH}}}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace[_{{\IH}}]}}$
+            \item\label[ass]{asm:forwardsim:steps} $\exec{\trg{\Omega_{0}}}{\mmlAmmlAtcomp{e_{0}}\mmlAmmlAtcomp{\gamma_{0}}}{\trg{\Omega_{{\IH}}}}{\mmlAmmlAtcomp{\finalexpr}\mmlAmmlAtcomp{\gamma'}}{\trg{\trace[_{{\IH}}]}}$
             \item $\xlangtraceeq[\delta_{\IH}]{\trace}{\trace[_{\IH}]}$
-            \item $\xlangstateeq[\delta_{\IH}]{\Omega_{0}}{\Omega_{\IH}}$
+            \item $\xlangstateeq[\delta_{\IH}]{\Omega'}{\Omega_{\IH}}$
           \end{passumptions}
+
+          Our goal looks as follows: $\exists \delta'\ \trg{\Omega'}\ \trg{\trace[']}$,
+          \begin{goals}
+            \item\label[goal]{goal:forwardsim:deltasubset} $\delta\subseteq\delta'$
+            \item\label[goal]{goal:forwardsim:steps} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
+            \item\label[goal]{goal:forwardsim:traceeq} $\xlangtraceeq{\event\cdot\trace}{\trace[']}$
+            \item\label[goal]{goal:forwardsim:staterel} $\xlangstateeq{\Omega'}{\Omega'}$
+          \end{goals}
 
           \begin{description}
             \item \textbf{Case $\src{\event}\not=\src{\varepsilon}$:}
-                Our goal looks as follows: $\exists \delta'\ \trg{\Omega'}\ \trg{\trace}$,
-                \begin{goals}
-                  \item\label[goal]{goal:forwardsim:deltasubset} $\delta\subseteq\delta'$
-                  \item\label[goal]{goal:forwardsim:steps} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
-                  \item\label[goal]{goal:forwardsim:traceeq} $\xlangtraceeq{\event\cdot\trace}{\trace'}$
-                  \item\label[goal]{goal:forwardsim:staterel} $\xlangstateeq{\Omega'}{\Omega'}$
-                \end{goals}
-
+                \begin{passumptions}{H}
+                  \item\label[ass]{asm:forwardsim:evnoteps} $\src{a}\not=\src{\varepsilon}$
+                \end{passumptions}
                 Instantiate the goal with $\delta_{\IH}, \trg{\Omega_{\IH}}, \trg{\event\cdot\trace}$.
                 Note that $\delta\subseteq\delta_{\IH}$ (\Cref{goal:forwardsim:deltasubset}) follows by transitivity using \Cref{asm:forwardsim:deltasubset0,asm:forwardsim:deltasubset:IH}.
                 Similarily for \Cref{goal:forwardsim:staterel}.
@@ -4153,7 +4170,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
                 \Cref{goal:forwardsim:noeps:ctxstep} is proven by \Cref{asm:forwardsim:thectxstep}.
                 \Cref{goal:forwardsim:noeps:steps} is proven by \Cref{asm:forwardsim:steps}.
             \item \textbf{Case $\src{\event}=\src{\varepsilon}$:}
-                Similar to the other case, but make use of \Cref{asm:forwardsim:evnoteps}.
+                  Similar to the other case, but instantiate with $\trg{\trace[_{\IH}]}$ instead of $\trg{\event\cdot\trace[_{\IH}]}$ and use \Cref{tr:wt-e-trans-unimportant}
           \end{description}
   \end{description}
 \end{proof}
@@ -4161,29 +4178,29 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{lemma}[Different Reduction]\label{lem:differentreduction}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:differentreduction:nored} $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$
-    \item\label[ass]{asm:differentreduction:red} $\execs{\Omega}{e}{\Omega'}{\valueexpr'}{\trace}$
+    \item\label[ass]{asm:differentreduction:nored} $\neg\left(\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr}{\trace}\right)$
+    \item\label[ass]{asm:differentreduction:red} $\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr'}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\src{\valueexpr}\not=\src{\valueexpr'}$
+    \item $\src{\finalexpr}\not=\src{\finalexpr'}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Assume $\src{v}=\src{v'}$, apply \Cref{asm:differentreduction:nored} to the goal $\bot$, rewrite in the goal using $\src{v}=\src{v'}$ and solve the goal by \Cref{asm:differentreduction:red}.
+  Assume $\src{\finalexpr}=\src{\finalexpr'}$, apply \Cref{asm:differentreduction:nored} to the goal $\bot$, rewrite in the goal using $\src{\finalexpr}=\src{\finalexpr'}$ and solve the goal by \Cref{asm:differentreduction:red}.
 \end{proof}
 
 \begin{lemma}[Expression Correctness]\label{lem:expression:correctness}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace}}$
+  \item\label[ass]{asm:exprcorrect:exec1:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega'}}{\mmlAmmlAtcomp{\finalexpr}\mmlAmmlAtcomp{\gamma'}}{\trg{\trace}}$
   \item\label[ass]{asm:exprcorrect:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-  \item\label[ass]{asm:expr:corr:typechecks} $\typechecks{}{\Omega\triangleright e}{\nat}$
+  \item\label[ass]{asm:expr:corr:typechecks} $\typechecks{}{\Omega\triangleright e\gamma}{\nat}$
   \end{assumptions}
   Then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$,
   \begin{goals}
   \item $\delta\subseteq\delta'$
-  \item $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+  \item $\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr\gamma'}{\trace}$
   \item $\xlangstateeq[\delta';\src{L}]{\Omega'}{\Omega'}$
   \item $\xlangtraceeq[\delta';\src{X}]{\trace}{\trace}$
   \end{goals}
@@ -4191,85 +4208,64 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \begin{proof}
   We prove this by contradiction. So, we get the assumption:
   \begin{passumptions}{I}
-    \item\label[ass]{asm:exprcorr:toplevel} $\forall\delta'\ \src{\Omega'}\ \src{\trace},\delta'\subset\delta\vee\neg\left(\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}\right)\vee\xlangstateneq[\delta']{\Omega'}{\Omega'}\vee\xlangtraceneq[\delta']{\trace}{\trace}$
+    \item\label[ass]{asm:exprcorr:toplevel} $\forall\delta'\ \src{\Omega'}\ \src{\trace},\delta'\subset\delta\vee\neg\left(\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr\gamma'}{\trace}\right)\vee\xlangstateneq[\delta']{\Omega'}{\Omega'}\vee\xlangtraceneq[\delta']{\trace}{\trace}$
   \end{passumptions}
   and need to prove $\bot$.
   Apply \Thmref{lem:progress} on \Cref{asm:expr:corr:typechecks}, so:
   \begin{passumptions}{I}
     \setcounter{enumi}{1}
-    \item\label[ass]{asm:exprcorr:progressor} $\src{e}=\src{\valueexpr}$ or $\exists\src{\Omega'}\ \src{\valueexpr}\ \src{\trace},\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}$
+    \item\label[ass]{asm:exprcorr:progressor} $\exists\src{\Omega'}\ \src{\finalexpr}\ \src{\trace},\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr}{\trace}$
   \end{passumptions}
-  Proceed by case anaylsis on \Cref{asm:exprcorr:progressor}.
-  \begin{description}
-    \item \textbf{Case $\src{e}=\src{\valueexpr}$:}
-      Specialize \Cref{asm:exprcorr:toplevel} for $\delta'=\delta$, $\src{\Omega'}=\src{\Omega},$ and $\src{\trace}=\src{\hole{\cdot}}$.
-      We proceed by case analysis:
+    First extract the witnesses and obtain:
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:exprcorr:ereduce} $\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr'}{\trace}$
+    \end{passumptions}
 
-      Invert \Cref{asm:exprcorrect:exec1:trg} and proceed by case analysis:
-      \begin{description}
-        \item \textbf{Case $\delta\subset\delta$:} Trivially false.
-        \item \textbf{Case }$\neg\left(\execs{\Omega}{\valueexpr}{\Omega}{\valueexpr}{\hole{\cdot}}\right)$\textbf{:}
-            Simply apply $\neg\left(\execs{\Omega}{\valueexpr}{\Omega}{\valueexpr}{\hole{\cdot}}\right)$ to the goal $\bot$ and use \Cref{tr:ws-e-refl}.
-        \item \textbf{Case }$\xlangstateneq{\Omega}{\Omega}$\textbf{:}
-            Apply $\xlangstateneq{\Omega}{\Omega}$ to the goal $\bot$ and use \Cref{asm:exprcorrect:stateeq}.
-        \item \textbf{Case }$\xlangtraceneq{\hole{\cdot}}{\hole{\cdot}}$\textbf{:}
-            Apply $\xlangtraceneq{\hole{\cdot}}{\hole{\cdot}}$ to the goal $\bot$, use \Cref{tr:empty-trace-eq}.
-      \end{description}
+    Apply \Thmref{lem:forwardsim} to \Cref{asm:exprcorr:ereduce} with \Cref{asm:exprcorrect:stateeq,asm:expr:corr:typechecks} to get:
+    \begin{passumptions}{F}
+      \item\label[ass]{asm:exprcorrect:deltavsubset} $\delta\subseteq\delta_{v}$
+      \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega_{v}'}}{\mmlAmmlAtcomp{\finalexpr'}}{\trg{\trace[_{v}]}}$
+      \item\label[ass]{asm:exprcorrect:stateeq2} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega_{v}'}$
+      \item\label[ass]{asm:exprcorrect:traceeq2} $\xlangtraceeq[\delta_{v}]{\trace}{\trace[_{v}]}$
+    \end{passumptions}
 
-    \item \textbf{Case }$\exists\src{\Omega'}\ \src{\valueexpr}\ \src{\trace},\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$\textbf{:}
-          First extract the witnesses and obtain:
-          \begin{passumptions}{H}
-            \item\label[ass]{asm:exprcorr:ereduce} $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
-          \end{passumptions}
+    Use \Thmref{lem:determ:steps} on \Cref{asm:exprcorrect:exec1:trg,asm:exprcorrect:exec2:trg}, giving us:
+    \begin{passumptions}{K}
+      \item\label[ass]{asm:exprcorrect:compiledvalueseq} $\mmlAmmlAtcomp{\finalexpr}=\mmlAmmlAtcomp{\finalexpr'}$
+      \item\label[ass]{asm:exprcorrect:stateequal} $\trg{\Omega'}=\trg{\Omega_{v}'}$
+      \item\label[ass]{asm:exprcorrect:traceequal} $\trg{\trace}=\trg{\trace[_{v}]}$
+    \end{passumptions}
+    Rewrite using \Cref{asm:exprcorrect:stateequal} in \Cref{asm:exprcorrect:stateeq2}, similarily \Cref{asm:exprcorrect:traceequal} in \Cref{asm:exprcorrect:traceeq2}:
+    \begin{passumptions}{F'}
+      \setcounter{enumi}{2}
+      \item\label[ass]{asm:exprcorrect:stateeq3} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega'}$
+      \item\label[ass]{asm:exprcorrect:traceeq3} $\xlangtraceeq[\delta_{v}]{\trace}{\trace}$
+    \end{passumptions}
+    Specialize \Cref{asm:exprcorr:toplevel} for $\delta'=\delta_{v}$, $\src{\Omega'}=\src{\Omega'},$ and $\src{\trace}=\src{\trace}$.
+    We proceed by case analysis:
+    \begin{description}
+      \item \textbf{Case $\neg\left(\delta\subseteq\delta_{v}\right)$:} Apply $\neg\left(\delta\subseteq\delta_{v}\right)$ on our goal $\bot$, then $\delta\subseteq\delta_{v}$ immediately follows from \Cref{asm:exprcorrect:deltavsubset}.
 
+      \item \textbf{Case }$\neg\left(\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr}{\trace}\right)$\textbf{:}
+        Using \Cref{asm:exprcorr:ereduce} and the assumption $\neg\left(\execs{\Omega}{e\gamma}{\Omega'}{\finalexpr'}{\trace}\right)$, we conclude $\src{\finalexpr}\not=\src{\finalexpr'}$ using \Thmref{lem:differentreduction}.
+        Apply \Thmref{lem:injective:comp} on \Cref{asm:exprcorrect:compiledvalueseq}, so $\src{\finalexpr}=\src{\finalexpr'}$, contradicting the above.
 
-          Apply \Thmref{lem:forwardsim} to \Cref{asm:exprcorr:ereduce} with \Cref{asm:exprcorrect:stateeq,asm:expr:corr:typechecks} to get:
-          \begin{passumptions}{F}
-            \item\label[ass]{asm:exprcorrect:deltavsubset} $\delta\subseteq\delta_{v}$
-            \item\label[ass]{asm:exprcorrect:exec2:trg} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_{v}'}}{\mmlAmmlAtcomp{\valueexpr}}{\trg{\trace[_{v}]}}$
-            \item\label[ass]{asm:exprcorrect:stateeq2} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega_{v}'}$
-            \item\label[ass]{asm:exprcorrect:traceeq2} $\xlangtraceeq[\delta_{v}]{\trace}{\trace[_{v}]}$
-          \end{passumptions}
-
-
-          Use \Thmref{lem:determ:steps} on \Cref{asm:exprcorrect:exec1:trg,asm:exprcorrect:exec2:trg}, giving us:
-          \begin{passumptions}{K}
-            \item\label[ass]{asm:exprcorrect:compiledvalueseq} $\mmlAmmlAtcomp{v}=\mmlAmmlAtcomp{f}$
-            \item\label[ass]{asm:exprcorrect:stateequal} $\trg{\Omega'}=\trg{\Omega_{v}'}$
-            \item\label[ass]{asm:exprcorrect:traceequal} $\trg{\trace}=\trg{\trace[_{v}]}$
-          \end{passumptions}
-          Rewrite using \Cref{asm:exprcorrect:stateequal} in \Cref{asm:exprcorrect:stateeq2}, similarily \Cref{asm:exprcorrect:traceequal} in \Cref{asm:exprcorrect:traceeq2}:
-          \begin{passumptions}{F'}
-            \setcounter{enumi}{2}
-            \item\label[ass]{asm:exprcorrect:stateeq3} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega'}$
-            \item\label[ass]{asm:exprcorrect:traceeq3} $\xlangtraceeq[\delta_{v}]{\trace}{\trace}$
-          \end{passumptions}
-      Specialize \Cref{asm:exprcorr:toplevel} for $\delta'=\delta_{v}$, $\src{\Omega'}=\src{\Omega'},$ and $\src{\trace}=\src{\trace}$.
-      We proceed by case analysis:
-      \begin{description}
-        \item \textbf{Case $\neg\left(\delta\subseteq\delta_{v}\right)$:} Apply $\neg\left(\delta\subseteq\delta_{v}\right)$ on our goal $\bot$, then $\delta\subseteq\delta_{v}$ immediately follows from \Cref{asm:exprcorrect:deltavsubset}.
-
-        \item \textbf{Case }$\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$\textbf{:}
-          Using \Cref{asm:exprcorr:ereduce} and the assumption $\neg\left(\execs{\Omega}{e}{\Omega'}{\valueexpr}{\trace}\right)$, we conclude $\src{\valueexpr}\not=\src{f}$ using \Thmref{lem:differentreduction}.
-          Apply \Thmref{lem:injective:comp} on \Cref{asm:exprcorrect:compiledvalueseq}, so $\src{\valueexpr}=\src{f}$, contradicting the above.
-
-        \item \textbf{Case }$\xlangstateneq[\delta_{v}]{\Omega'}{\Omega'}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:stateeq3}.
-        \item \textbf{Case }$\xlangtraceneq[\delta_{v}]{\trace}{\trace}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:traceeq3}.
-      \end{description}
-  \end{description}
+      \item \textbf{Case }$\xlangstateneq[\delta_{v}]{\Omega'}{\Omega'}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:stateeq3}.
+      \item \textbf{Case }$\xlangtraceneq[\delta_{v}]{\trace}{\trace}$\textbf{:} Immediate contradiction with \Cref{asm:exprcorrect:traceeq3}.
+    \end{description}
 \end{proof}
 
 \begin{lemma}[Component Correctness]\label{lem:component:correctness}
   If
   \begin{assumptions}
-    \item $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\trg{K[return\ \valueexpr]}}{\trg{\trace}}$
+    \item $\execN{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega'}}{\trg{K[return\ \valueexpr]}}{\trg{\trace}}$
     \item $\xlangstateeq{\Omega}{\Omega}$
     \item $\typechecks{}{\Omega\triangleright e}{\nat}$
   \end{assumptions}
   Then $\exists \delta'\ \src{\Omega'}\ \src{\trace}$
   \begin{goals}
     \item $\delta\subseteq\delta'$
-    \item $\execs{\Omega}{e}{\Omega'}{K[return\ \valueexpr]}{\trace}$
+    \item $\exectN{\Omega}{e}{\Omega'}{K[return\ \valueexpr]}{\trace}$
     \item $\xlangstateeq{\Omega'}{\Omega'}$
     \item $\xlangtraceeq{\trace}{\trace}$
   \end{goals}

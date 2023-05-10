@@ -1741,10 +1741,10 @@ As before, we need a way to translate one set of actions to another:
       \bm{\varepsilon} \prec \bm{\varepsilon}
     }{aagree-empty}
     %
-    \typerule{abstract-agree-empty}{
+    \typerule{abstract-agree-abort}{
     }{
       \bm{\lightning} \prec \bm{\lightning}
-    }{aagree-empty}
+    }{aagree-abort}
     %
     \typerule{abstract-agree-dealloc}{
     }{
@@ -3480,10 +3480,10 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \tospecificevt[_{\trg{\bullet}}]{\event_b;\ctx} = \trg{\emptyevent}
     }{trg-filter-context}
     %
-    \typerule{trg-filter-empty}{
+    \typerule{trg-filter-unimportant}{
     }{
       \tospecificevt[_{\trg{\bullet}}]{\emptyevent} = \trg{\emptyevent}
-    }{trg-filter-empty}
+    }{trg-filter-unimportant}
     %
     \typerule{trg-filter-comp-start}{
     }{
@@ -3502,12 +3502,12 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{trg-filter-comp-get}{
     }{
-      \tospecificevt[_{\trg{\bullet}}]{Get\ \loc\ n;\comp} = \trg{Use\ \loc\ n}
+      \tospecificevt[_{\trg{\bullet}}]{Get\ \loc\ n;\comp} = \trg{Get\ \loc\ n}
     }{trg-filter-comp-get}
     %
     \typerule{trg-filter-comp-set}{
     }{
-      \tospecificevt[_{\trg{\bullet}}]{Set\ \loc\ n\ \valueexpr;\comp} = \trg{Use\ \loc\ n}
+      \tospecificevt[_{\trg{\bullet}}]{Set\ \loc\ n\ \valueexpr;\comp} = \trg{Set\ \loc\ n\ \valueexpr}
     }{trg-filter-comp-set}
     %
     \typerule{trg-filter-comp-call}{
@@ -3548,7 +3548,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \tospecificevt[^*_{\trg{\bullet}}]{\event\cdot\trace} = \trg{\trace}
     }{trg-filter-cons}
   \end{center}
-}{wt-events-project-to-specific}{Filtering of $\mmlAt$ events, getting rid of unimportant ones.}
+}{wt-events-filter-for-BT}{Filtering of $\mmlAt$ events, getting rid of unimportant ones, for backtranslation.}
 
 \myfig{
   \begin{center}
@@ -3623,9 +3623,10 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{set-event-eq}{
       \mmlAmmlAtcomp{n} = \trg{n} &
+      \mmlAmmlAtcomp{\valueexpr} = \trg{\valueexpr} &
       \delta(\src{\loc}) = \trg{\loc}
     }{
-      \xlangeventeq{Set\ \loc\ n}{Set\ \loc\ n}
+      \xlangeventeq{Set\ \loc\ n\ \valueexpr}{Set\ \loc\ n\ \valueexpr}
     }{set-event-eq}
     %
     \typerule{call-event-eq}{
@@ -3647,6 +3648,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \xlangeventeq{\emptyevent}{\emptyevent}
     }{emptyevent-event-eq}
+    %
+    \typerule{$\src{\lightning}$-event-eq}{
+    }{
+      \xlangeventeq{\lightning}{\lightning}
+    }{abort-event-eq}
     $\;$\\
     %
     \judgbox{\src{\comm} = \trg{\comm}}{,,Communications are equal.''} \\
@@ -3682,6 +3688,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{
       \xlangstateeq{\Omega}{\Omega}
     }{state-eq}
+    %
+    \typerule{abort-state-eq}{
+    }{
+      \xlangstateeq{\lightning}{\lightning}
+    }{abort-eq}
     %
     \judgbox{\xlangstateeq{\memstate}{\memstate}}{,,The $\mmlAs$ memory-state $\src{\memstate}$ agrees with $\mmlAt$ one $\trg{\memstate}$. $\src{L}$ contains locations\\introduced by the backtranslation wrapper.''}\\
     %
@@ -4501,7 +4512,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \typerule{backtrans-set}{
       \mmlAmmlAtbackdetail[]{\trg{\trace}}=\src{e}
     }{
-      \mmlAmmlAtbackdetail[]{\trg{Set\ \loc\ n;\sandboxtag}\cdot\trg{\trace}}=\src{e}
+      \mmlAmmlAtbackdetail[]{\trg{Set\ \loc\ n\ \valueexpr;\sandboxtag}\cdot\trg{\trace}}=\src{e}
     }{backtrans-set}
     \typerule{backtrans-get}{
       \mmlAmmlAtbackdetail[]{\trg{\trace}}=\src{e}

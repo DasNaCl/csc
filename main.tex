@@ -1099,7 +1099,7 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
   %
   \typerule{$e-\src{abort}$}{
   }{
-    \exprevals{\Omega}{abort()}{\Omega}{stuck}{\lightning}
+    \exprevals{\Omega}{abort()}{\lightning}{stuck}{\lightning}
   }{w-e-abort}
 }{w-expr-prim-eval}{Primitive Evaluation of $\mmlAs$ expressions.}
 Evaluation is mostly straightforward, the only interesting cases involve the pointers.
@@ -1118,9 +1118,9 @@ Moreover, $\src{\gamma}$ as postfix binds anything before it up to $\trianglerig
     \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K'[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
     %
     \typerule{$e-\text{ctx}$}{
-      \exprevals{\Omega}{e}{\Omega'}{e'\gamma'}{\event}
+      \exprevals{\Omega}{e}{\Omega'}{e'}{\event}
     }{
-      \execs[]{\Omega}{K[e]}{\Omega'}{K[e']\gamma'}{\event}
+      \execs[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
     }{w-e-ectx}
     %
     \typerule{$e-\text{ctx}-\src{stuck}$}{
@@ -1167,13 +1167,13 @@ Moreover, $\src{\gamma}$ as postfix binds anything before it up to $\trianglerig
       \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
       \rho\left(\src{\sandboxtag}\right) = \src{\comm}
     }{
-      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \comm\ \valueexpr;\sandboxtag}}
+      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\valueexpr]}}{\src{Ret\ \comm\ \valueexpr;\sandboxtag}}
     }{w-e-ectx-ret-notsame}
     %
     \typerule{$e-\text{ctx}-\src{return}-\text{same}$}{
       \src{foo}\in_{\src{\sandboxtag}}\src{\commlib}
     }{
-      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\finalexprnoerr]}}{\src{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
+      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\valueexpr]}}{\src{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
     }{w-e-ectx-ret-same}
     %
     \judgbox{\rho(\src{\sandboxtag})=\src{\comm}}{,,Returns either $\src{\ctxtocomp}$ or $\src{\comptoctx}$ depending on $\src{\sandboxtag}$.''}\\
@@ -1270,7 +1270,7 @@ Moreover, $\src{\gamma}$ as postfix binds anything before it up to $\trianglerig
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 
-\subsubsection{\gls*{ms}-Specific Events}
+\subsubsection{Specification Events}
 We introduce another set of actions that allows us to abstract over reading or writing at a certain location.
 
 \myfig{
@@ -1396,6 +1396,11 @@ As before, when doing structural induction over primitive steps (\Cref{fig:w-exp
       \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{\varepsilon}}
     }{tms-uninteresting}
     %
+    \typerule{TMS-Abort}{
+    }{
+      \monitorcheck[]{\tmsmonitor}{\emptyset}{\bm{\lightning}}
+    }{tms-abort}
+    %
     \typerule{TMS-Use}{
       \specificev{\loc}\in \tmsmonitor
     }{
@@ -1456,6 +1461,11 @@ As before, we need a way to translate one set of actions to another:
       \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}}
     }{tms-use-auth}
     %
+    \typerule{TMS-Abort-Authentic}{
+    }{
+      \tmstraceagree{\specificev{\lightning}}{\bm{\lightning}}
+    }{tms-abort-auth}
+    %
     \typerule{TMS-None-Authentic}{
     }{
       \tmstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
@@ -1483,6 +1493,11 @@ As before, we need a way to translate one set of actions to another:
     }{
       \storeagreetms{\emptyset}{\src{\hole{\cdot}}}
     }{store-empty-agree}
+    %
+    \typerule{Abort-Agree}{
+    }{
+      \storeagreetms{\emptyset}{\src{\lightning}}
+    }{store-abort-agree}
     %
     \typerule{Cons-Agree}{
       \delta_{MS}(\src{\loc})=\specificev{\loc}&
@@ -1516,6 +1531,16 @@ As before, we need a way to translate one set of actions to another:
   \begin{center}
     \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\absevent$.''}
     \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    %
+    \typerule{sms-None}{
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\bm{\varepsilon}}
+    }{sms-none}
+    %
+    \typerule{sms-Abort}{
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\bm{\lightning}}
+    }{sms-abort}
     %
     \typerule{sms-Use}{
       (\specificev{\loc},m) \in \smsmonitor&
@@ -1572,6 +1597,16 @@ As before, we need a way to translate one set of actions to another:
       \smstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
     }{sms-use-auth}
     %
+    \typerule{SMS-None-Authentic}{
+    }{
+      \smstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
+    }{sms-none-auth}
+    %
+    \typerule{SMS-Abort-Authentic}{
+    }{
+      \smstraceagree{\specificev{\lightning}}{\bm{\lightning}}
+    }{sms-abort-auth}
+    %
     \typerule{SMS-Refl-Authentic}{
     }{
       \smstraceagree{\hole{\cdot}}{\hole{\cdot}}
@@ -1594,6 +1629,11 @@ As before, we need a way to translate one set of actions to another:
     }{
       \storeagreesms{\emptyset}{\trg{\hole{\cdot}}}
     }{sms-store-empty-agree}
+    %
+    \typerule{SMS-Abort-Agree}{
+    }{
+      \storeagreesms{\emptyset}{\trg{\lightning}}
+    }{sms-store-abort-agree}
     %
     \typerule{SMS-Cons-Agree}{
       \delta_{MS}(\trg{\loc})=\specificev{\loc}&
@@ -1696,6 +1736,16 @@ As before, we need a way to translate one set of actions to another:
 
 \myfig{
   \begin{center}
+    \typerule{abstract-agree-empty}{
+    }{
+      \bm{\varepsilon} \prec \bm{\varepsilon}
+    }{aagree-empty}
+    %
+    \typerule{abstract-agree-empty}{
+    }{
+      \bm{\lightning} \prec \bm{\lightning}
+    }{aagree-empty}
+    %
     \typerule{abstract-agree-dealloc}{
     }{
     \textbf{Dealloc}\ \specificev{\loc} \prec \textbf{Dealloc}\ \specificev{\loc}
@@ -2045,6 +2095,34 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \end{lemma}
 \begin{proof}
   Induction on \Cref{asm:ctxtyping:compos:K}.
+\end{proof}
+\begin{lemma}[Runtime Typing Decomposition]\label{lem:rtctxtyping:plugged}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\Omega \triangleright K[e]}{\type}$
+  \end{assumptions}
+  Then $\exists \src{\type_{e}}$,
+  \begin{goals}
+    \item $\typechecks{}{\Omega \triangleright K}{\type_{e}\to\type}$
+    \item $\typechecks{}{\Omega \triangleright e}{\type_{e}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Use \Cref{lem:ctxtyping:plugged}.
+\end{proof}
+\begin{lemma}[Runtime Typing Composition]\label{lem:rtctxtyping:compos}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\Omega \triangleright K}{\type_{e}\to\type}$
+    \item $\typechecks{}{\Omega \triangleright e}{\type_{e}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\Omega \triangleright K[e]}{\type}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Use \Cref{lem:ctxtyping:compos}.
 \end{proof}
 
 \begin{lemma}[Store Agree Weaken]\label{lem:store-agree-weaken}
@@ -2412,24 +2490,6 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
       All goals are completely trivial.
 
 
-    \case{tr:w-e-subst}
-      If
-      \begin{passumptions}{H}
-        \item $\src{\gamma}=\src{[\finalexprnoerr/x],\gamma'}$
-        \item $\typechecks{}{\src{\Omega}\triangleright\src{e}\gamma}{\type}$
-        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
-      \end{passumptions}
-      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
-      \begin{goals}
-        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
-        \item $\traceagree{\specificev{\varepsilon}}{\absevent}$
-        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega}}$
-      \end{goals}
-      Choose $\absevent=\bm{\varepsilon}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
-
-      All goals are completely trivial.
-
     \case{tr:w-e-if-true}
       If
       \begin{passumptions}{H}
@@ -2463,6 +2523,24 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
         \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega}}$
       \end{goals}
       Choose $\absevent=\bm{\emptyevent}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+
+      All goals are completely trivial.
+
+    \case{tr:w-e-abort}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\Omega}\triangleright\src{abort()}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree[]{\specificev{\lightning}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\lightning}}$
+      \end{goals}
+      Choose $\absevent=\bm{\lightning}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\emptyset$.
 
       All goals are completely trivial.
 
@@ -2590,24 +2668,123 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
     \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
   \end{goals}.
 \end{lemma}
-\begin{incompleteproof}
-% Induction on \Cref{asm:ctxtmsmonitor:ctxstep}.
-% \begin{passumptions}{H}
-%   \item $\src{\Omega}\not=\src{\lightning}$
-%   \item $\src{e_0}=\src{K}[\src{e}]$
-%   \item $\src{e_0'}=\src{K}[\src{e'}]$
-%   \item\label[ass]{asm:ctxtmsmonitor:step} $\exprevals{\Omega}{e_0}{\Omega'}{e_0'}{a}$
-% \end{passumptions}
+\begin{proof}
+  Induction on \Cref{asm:ctxtmsmonitor:ctxstep}.
+  \begin{description}
+    \case{tr:w-e-ectx}
+    \case{tr:w-e-ectx-stuck}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typ0} $\src{e\gamma}=\src{K[e_{0}]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typ1} $\src{e'\gamma'}=\src{K[e_{0}']}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:exec} $\exprevals{\configs}{e_{0}}{\configs'}{e_{0}'}{\event}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{\event}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+    Rewrite \Cref{asm:ctxtmsmonitor:ctxstep:case0:typs} using \Cref{asm:ctxtmsmonitor:ctxstep:case0:typ0}:
+    \begin{passumptions}{H}
+      \setcounter{enumi}{5}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typsrw} $\typechecks{}{\Omega\triangleright K[e_{0}]}{\type}$
+    \end{passumptions}
+    Apply \Thmref{lem:rtctxtyping:plugged} on \Cref{asm:ctxtmsmonitor:ctxstep:case0:typsrw}:
+    \begin{passumptions}{H}
+      \setcounter{enumi}{6}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:Krttyps} $\typechecks{}{\Omega\triangleright K}{\type_{e}\to\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:e0rttyps} $\typechecks{}{\Omega\triangleright e_{0}}{\type_{e}}$
+    \end{passumptions}
 
-% Use \Cref{asm:ctxtmsmonitor:step} and \Cref{asm:ctxtmsmonitor:typechecks,asm:ctxtmsmonitor:storeagree} for \Thmref{lem:basetmsmonitor}:
-% \begin{passumptions}{F}
-%   \item $\delta_{\text{tms}}\subseteq\delta_{\text{tms}}'$
-%   \item $\tmstraceagree[\delta']{\tospecificevs{\event}}{\absevent}$
-%   \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
-%   \item $\storeagreetms[\delta']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
-% \end{passumptions}
-% These premises solve our goal immediately.
-\end{incompleteproof}
+    Apply \Thmref{lem:basetmsmonitor} on \Cref{asm:ctxtmsmonitor:ctxstep:case0:monrel,asm:ctxtmsmonitor:ctxstep:case0:exec,asm:ctxtmsmonitor:ctxstep:case0:e0rttyps}, giving us exactly the assumptions necessary to prove the goals.
+
+    \case{tr:w-e-ectx-call-main}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:typ0} $\src{e\gamma}=\src{K[call\ main\ 0]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:typ1} $\src{\gamma'}=\src{[0/x]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{Start;\ctx}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{Start;\ctx}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+
+    \case{tr:w-e-ectx-call-same}
+    \case{tr:w-e-ectx-call-notsame}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typ0} $\src{e\gamma}=\src{K[call\ foo\ \valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typ1} $\src{\gamma'}=\src{[\valueexpr/x]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{Call\ \comm\ foo\ \valueexpr;\sandboxtag}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{Call\ \comm\ foo\ \valueexpr;\sandboxtag}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ and $\src{\sandboxtag}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+
+    \case{tr:w-e-ectx-ret-main}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:typ0} $\src{e\gamma}=\src{K[return\ \valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:typ1} $\src{e'\gamma'}=\src{v}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{End\ \valueexpr;\ctx}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{End\ \valueexpr;\ctx}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+
+    \case{tr:w-e-ectx-ret-same}
+    \case{tr:w-e-ectx-ret-notsame}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typ0} $\src{e\gamma}=\src{K'[return\ \valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typ1} $\src{e\gamma'}=\src{K[\valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{Ret\ \comm\ \valueexpr;\sandboxtag}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{Ret\ \comm\ \valueexpr;\sandboxtag}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ and $\src{\sandboxtag}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+  \end{description}
+\end{proof}
 
 \begin{lemma}[Steps \gls{tms} via Monitor]\label{lem:generaltms:monitor}
   If

@@ -1225,7 +1225,7 @@ Moreover, $\src{\gamma}$ as postfix binds anything before it up to $\trianglerig
       \execs{\configs}{e}{\configs''}{e''}{\trace}
     }{ws-e-trans-unimportant}
     %
-    \judgbox{\execsn{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}}{,,Expression $\src{e}$ applied to substitutions $\src{\gamma}$ evaluates in $n$\\steps under configuration $\configs$ to $\src{e'}$ with substitutions $\src{\gamma'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
+    \judgbox{\execsn{\configs}{e}{\configs'}{e'}{\trace}}{,,Expression $\src{e}$ evaluates in $n$ steps under configuration $\configs$ to $\src{e'}$\\and new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
     %
     \typerule{$en-\text{refl}$}{
     }{
@@ -3017,19 +3017,13 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
 }{tw-events}{Events of $\mmlAt$.}
 
 \myfig{
-  \judgbox{\exprevalt{\configt}{e\gamma}{\configt'}{e'\gamma'}{\event}}{,,Expression $\trg{e}$ with substitutions $\trg{\gamma}$ evaluates under\\configuration $\configt$ to $\trg{e'}$ with substitutions $\trg{\gamma'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{\event}$.''}
+  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{\event}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{\event}$.''}
   %
   \typerule{$e-\trg{\oplus}$}{
     \trg{n_1}\oplus\trg{n_2}=\trg{n_3}
   }{
     \exprevalt{\configt}{n_1\oplus n_2}{\configt}{n_3}{\emptyevent}
   }{tw-e-oplus}
-  %
-  \typerule{$e-$subst}{
-    \text{substitute }\trg{x}\text{ for }\trg{\valueexpr}\text{ in }\trg{e}
-  }{
-    \exprevalt{\configt}{e[\valueexpr/x],\gamma}{\configt}{e'\gamma}{\emptyevent}
-  }{tw-e-subst}
   %
   \typerule{$e-\trg{get}-\in$}{
     \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
@@ -3164,15 +3158,12 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{tw-e-x-haspair}
 }{tw-expr-eval-continued}{Evaluation of $\mmlAt$ expressions, continued.}
 
-
-For sake of readablity, we will omit $\trg{\gamma}=\trg{\hole{\cdot}}$ when writing down evaluation steps.
-That is, whenever we have $\exprevalt{\configt}{e\hole{\cdot}}{\configt'}{e'\hole{\cdot}}{\event}$, it's written $\exprevalt{\configt}{e}{\configt'}{e'}{\event}$.
-Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\triangleright$, so $\trg{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\trg{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
+$\trg{\gamma}$ acts as postfix and binds anything before it up to $\triangleright$, so $\trg{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\trg{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
 
 
 \myfig{
   \begin{center}
-    \judgbox{\exect[]{\configt}{K[e]\gamma}{\configt'}{K[e']\gamma'}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression\\ $\trg{e}$ and a substitution $\trg{\gamma}$, it evaluates under\\configuration $\configt$ to $\trg{e'}$ and substitution $\trg{\gamma'}$ and new\\configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
+    \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression\\ $\trg{e}$, it evaluates under configuration $\configt$ to $\trg{e'}$ and new\\configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
     %
     \typerule{$e-\text{ctx}$}{
       \exprevalt{\Omega}{e}{\Omega'}{e'}{\event}
@@ -3280,6 +3271,29 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
     }{
       \exect{\configt}{e}{\configt''}{e''}{\trace}
     }{wt-e-trans-unimportant}
+    %
+    %
+    \judgbox{\exectN{\configt}{e}{\configt'}{e'}{\trace}}{,,Expression $\trg{e}$ evaluates in $n$ steps under configuration $\configt$ to\\$\trg{e'}$ and new configuration $\trg{\configt'}$, emitting list of events $\trg{\trace}$.''}
+    %
+    \typerule{$en-\text{refl}$}{
+    }{
+      \exectN[^0]{\configt}{e}{\configt}{e}{\emptyevent}
+    }{wtn-e-refl}
+    %
+    \typerule{$en-\text{trans}-$important}{
+      \exect[]{\configt}{e}{\configt'}{e'}{\event} &
+      \exectN[^n]{\configt'}{e'}{\configt''}{e''}{\trace} &
+      \trg{\event}\not=\trg{\emptyevent}
+    }{
+      \exectN[^{(n+1)}]{\configt}{e}{\configt''}{e''}{\event\cdot\trace}
+    }{wtn-e-trans-important}
+    %
+    \typerule{$en-\text{trans}-$unimportant}{
+      \exect[]{\configt}{e}{\configt'}{e'}{\emptyevent} &
+      \exectN[^n]{\configt'}{e'}{\configt''}{e''}{\trace} &
+    }{
+      \exectN[^{(n+1)}]{\configt}{e}{\configt''}{e''}{\trace}
+    }{wtn-e-trans-unimportant}
   \end{center}
 }{wt-steps}{Trace prefix generation given a $\mmlAt$ program using the reflexive-transitive closure.}
 
@@ -3311,12 +3325,13 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
 \begin{lemma}[Determinism of Step]\label{lem:determ:step}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:step:a} $\exprevalt{\Omega}{e\gamma}{\Omega'}{e_1}{\event_{1}}$
-  \item $\exprevalt{\Omega}{e\gamma}{\Omega''}{e_2}{\event_{2}}$
+  \item\label[ass]{asm:determ:step:a} $\exprevalt{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\event_{1}}$
+  \item $\exprevalt{\Omega}{e\gamma}{\Omega''}{e_2\gamma''}{\event_{2}}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\trg{e_{1}}=\trg{e_{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\event_{1}}=\trg{\event_{2}}$
   \end{goals}
@@ -3328,12 +3343,13 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
 \begin{lemma}[Determinism of Ctx-Step]\label{lem:determ:ctxstep}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e\gamma}{\Omega'}{e_1}{\event_{2}}$
-  \item $\exect[]{\Omega}{e\gamma}{\Omega''}{e_2}{\event_{1}}$
+  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\event_{2}}$
+  \item $\exect[]{\Omega}{e\gamma}{\Omega''}{e_2\gamma''}{\event_{1}}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\trg{e_{1}}=\trg{e_{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\event_{1}}=\trg{\event_{2}}$
   \end{goals}
@@ -3345,12 +3361,13 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
 \begin{lemma}[Determinism of $n$-Steps]\label{lem:determ:nsteps}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:steps:a} $\exectN{\Omega}{e\gamma}{\Omega'}{e_1}{\trace[_{1}]}$
-  \item $\exectN{\Omega}{e\gamma}{\Omega''}{e_2}{\trace[_{2}]}$
+  \item\label[ass]{asm:determ:steps:a} $\exectN{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\trace[_{1}]}$
+  \item $\exectN{\Omega}{e\gamma}{\Omega''}{e_2\gamma''}{\trace[_{2}]}$
   \end{assumptions}
   Then
   \begin{goals}
   \item $\trg{e_{1}}=\trg{e_{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\trace[_{1}]}=\trg{\trace[_{2}]}$
   \end{goals}
@@ -3362,12 +3379,13 @@ Moreover, $\trg{\gamma}$ as postfix binds anything before it up to $\trianglerig
 \begin{lemma}[Determinism of Steps]\label{lem:determ:steps}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:steps:a} $\exect{\Omega}{e\gamma}{\Omega'}{v_1}{\trace[_{1}]}$
-  \item $\exect{\Omega}{e\gamma}{\Omega''}{v_2}{\trace[_{2}]}$
+  \item\label[ass]{asm:determ:steps:a} $\exect{\Omega}{e\gamma}{\Omega'}{\finalexpr^1\gamma'}{\trace[_{1}]}$
+  \item $\exect{\Omega}{e\gamma}{\Omega''}{\finalexpr^2\gamma''}{\trace[_{2}]}$
   \end{assumptions}
   Then
   \begin{goals}
-  \item $\trg{v_{1}}=\trg{v_{2}}$
+  \item $\trg{\finalexpr^{1}}=\trg{\finalexpr^{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
   \item $\trg{\Omega'}=\trg{\Omega''}$
   \item $\trg{\trace[_{1}]}=\trg{\trace[_{2}]}$
   \end{goals}
@@ -3482,7 +3500,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     %
     \typerule{trg-filter-unimportant}{
     }{
-      \tospecificevt[_{\trg{\bullet}}]{\emptyevent} = \trg{\emptyevent}
+      \tospecificevt[_{\trg{\bullet}}]{\emptyevent;\sandboxtag} = \trg{\emptyevent}
     }{trg-filter-unimportant}
     %
     \typerule{trg-filter-comp-start}{
@@ -3534,9 +3552,8 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{trg-filter-empty}
     %
     \typerule{trg-filter-cons-relevant}{
-      \tospecificevt[_{\trg{\bullet}}]{\event} = \trg{\event} &
-      \tospecificevt[^*_{\trg{\bullet}}]{\trace} = \trg{\trace} &
-      \trg{\event} \not= \trg{\emptyevent}
+      \tospecificevt[_{\trg{\bullet}}]{\event} = \trg{\event} \not= \trg{\emptyevent} &
+      \tospecificevt[^*_{\trg{\bullet}}]{\trace} = \trg{\trace}
     }{
       \tospecificevt[^*_{\trg{\bullet}}]{\event\cdot\trace} = \trg{\event}\cdot\trg{\trace}
     }{trg-filter-cons-relevant}
@@ -3596,9 +3613,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     }{start-event-eq}
     %
     \typerule{end-event-eq}{
-      \src{\interfacevalue} = \mmlAmmlAtbackv{\interfacevalue}
+      \src{\valueexpr} = \mmlAmmlAtbackv{\valueexpr}
     }{
-      \xlangeventeq{End\ \interfacevalue}{End\ \interfacevalue}
+      \xlangeventeq{End\ \valueexpr}{End\ \valueexpr}
     }{end-event-eq}
     %
     \typerule{alloc-event-eq}{
@@ -3821,6 +3838,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \xlangbackstateeq{\Omega}{\Omega}
     }{state-qe}
     %
+    \typerule{abort-state-qe}{
+    }{
+      \xlangbackstateeq{\lightning}{\lightning}
+    }{abort-qe}
+    %
     \judgbox{\xlangbackstateeq{\memstate}{\memstate}}{,,The $\mmlAs$ memory-state $\src{\memstate}$ agrees with $\mmlAt$ one $\trg{\memstate}$. $\src{L}$ contains locations\\introduced by the backtranslation wrapper.''}\\
     %
     \typerule{memstate-qe}{
@@ -3856,16 +3878,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \end{proof}
 
 
-\begin{lemma}[Substitution Commutes with $\mmlAmmlAtcomp{\bullet}$]\label{lem:subst:commute:comp}
-  If
-  \begin{assumptions}
-    \item $\mmlAmmlAtcomp{e} = \trg{e}$
-    \item $\src{e'} = \text{substitute }\src{x}\text{ with }\src{\valueexpr}\text{ in }\src{e}$
-    \item $\trg{e'} = \text{substitute }\mmlAmmlAtcomp{x}\text{ with }\mmlAmmlAtcomp{\valueexpr}\text{ in }\trg{e}$
-  \end{assumptions}
-  Then
+\begin{lemma}[Substitution Commutes with $\mmlAmmlAtcomp{\bullet}$]\label{lem:subst:commute:comp}$\;$
   \begin{goals}
-    \item $\trg{e'}=\mmlAmmlAtcomp{e'}$
+    \item $\mmlAmmlAtcomp{e[\valueexpr/x]}=\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{[\valueexpr/x]}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -4184,39 +4199,6 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
       This case is completely analogous to the previous case, the only difference is the use of \Cref{tr:tw-e-if-false} instead of \Cref{tr:tw-e-if-true}.
 
-    \case{tr:w-e-subst}
-
-      If
-      \begin{passumptions}{H}
-      \item $\src{\gamma}=\src{[\valueexpr/x],\gamma'}$
-      \item\label[ass]{asm:step:forwardsim:case10:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \item $\typechecks{}{\Omega\triangleright e\gamma}{\nat}$
-      \end{passumptions}
-      Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
-      \begin{goals}
-        \item $\delta\subseteq\delta'$
-        \item $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}\mmlAmmlAtcomp{\gamma}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma'}}{\trg{\event}}$
-        \item $\xlangeventeq{\varepsilon}{\event}$
-        \item $\xlangstateeq{\Omega}{\Omega'}$
-      \end{goals}
-
-      Instantiate the goal with $\delta'=\delta,\ \trg{\Omega'}=\trg{\Omega}$, and $\trg{\event}=\trg{\varepsilon}$, so that what is left to prove is:
-
-      \begin{goals}
-        \item\label[goal]{goal:step:forwardsim:case10:deltasubset} $\delta\subseteq\delta$
-        \item\label[goal]{goal:step:forwardsim:case10:eval} $\expreval{\trg{\Omega}}{\mmlAmmlAtcomp{e}\trg{[\valueexpr/x],}\mmlAmmlAtcomp{\gamma'}}{\trg{\Omega}}{\mmlAmmlAtcomp{e'}\mmlAmmlAtcomp{\gamma'}}{\trg{\varepsilon;\sandboxtag}}$
-        \item\label[goal]{goal:step:forwardsim:case10:eventeq} $\xlangeventeq{\varepsilon}{\varepsilon}$
-        \item\label[goal]{goal:step:forwardsim:case10:stateeq} $\xlangstateeq{\Omega}{\Omega}$
-      \end{goals}
-
-      \Cref{goal:step:forwardsim:case10:deltasubset} follows by reflexivity of the subset relation.
-
-      \Cref{goal:step:forwardsim:case10:eval} follows by \Thmref{lem:subst:commute:comp} and \Cref{tr:tw-e-subst}.
-
-      \Cref{goal:step:forwardsim:case10:eventeq} follows by definition of \Cref{tr:emptyevent-event-eq}.
-
-      \Cref{goal:step:forwardsim:case10:stateeq} follows by \Cref{asm:step:forwardsim:case10:stateeq}.
-
   \end{description}
 \end{proof}
 
@@ -4235,51 +4217,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\xlangstateeq{\Omega'}{\Omega'}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-% Induction on \Cref{asm:ctxstep:forwardsim:srcstep}:
-
-% If
-% \begin{passumptions}{H}
-%   \item\label[ass]{asm:ctxstep:forwardsim:nocrash} $\src{\Omega}\not=\src{\lightning}$
-%   \item\label[ass]{asm:ctxstep:forwardsim:simplestep} $\exprevals{\Omega}{e_{0}}{\Omega'}{e_{0}'}{\event}$
-% \end{passumptions}
-% Then $\exists\delta'\ \trg{\Omega'}\ \trg{\event}$,
-% \begin{goals}
-%   \item $\delta\subseteq\delta'$
-%   \item $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{K[e_{0}]}}{\trg{\Omega'}}{\mmlAmmlAtcomp{K[e_{0}']}}{\trg{\event}}$
-%   \item $\xlangeventeq{\event}{\event}$
-%   \item $\xlangstateeq{\Omega'}{\Omega'}$
-% \end{goals}
-
-% We augment \Cref{asm:ctxstep:forwardsim:typechecks} using \Thmref{lem:ctxtyping:plugged}.
-% \begin{passumptions}{H}
-%   \setcounter{enumi}{2}
-%   \item\label[ass]{asm:ctxstep:forwardsim:e0typechecks} $\typechecks{}{\Omega\triangleright e_{0}}{\nat}$
-% \end{passumptions}
-% Withg \Cref{asm:ctxstep:forwardsim:simplestep,asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:e0typechecks} use \Thmref{lem:step:forwardsim} to get witnesses $\delta', \trg{\Omega'},$ and $\trg{\event}$ such that:
-
-% \begin{passumptions}{F}
-%   \item\label[ass]{asm:ctxstep:forwardsim:f1} $\delta\subseteq\delta'$
-%   \item\label[ass]{asm:ctxstep:forwardsim:trgstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e_{0}'}}{\trg{\event}}$
-%   \item\label[ass]{asm:ctxstep:forwardsim:f3} $\xlangeventeq{\event}{\event}$
-%   \item\label[ass]{asm:ctxstep:forwardsim:f4} $\xlangstateeq{\Omega'}{\Omega'}$
-% \end{passumptions}
-
-% Immediately instantiate our goal with those witnesses and use \Cref{asm:ctxstep:forwardsim:f1,asm:ctxstep:forwardsim:f3,asm:ctxstep:forwardsim:f4}.
-% What is left to prove is
-% \begin{goals}
-%   \setcounter{enumi}{1}
-%   \item $\exec[]{\trg{\Omega}}{\trg{K[}\mmlAmmlAtcomp{e_{0}}\trg{]}}{\trg{\Omega'}}{\trg{K[}\mmlAmmlAtcomp{e_{0}'}\trg{]}}{\trg{\event}}$
-% \end{goals}
-% Use \Cref{tr:tw-e-ectx}, what is left to show is
-% \begin{goals}
-%   \setcounter{enumi}{4}
-%   \item\label[ass]{goal:ctxstep:forwardsim:nocrash} $\trg{\Omega}\not=\trg{\lightning}$
-%   \item\label[goal]{goal:ctxstep:forwardsim:trgstep} $\exec[]{\trg{\Omega}}{\mmlAmmlAtcomp{e_{0}}}{\trg{\Omega'}}{\mmlAmmlAtcomp{e_{0}'}}{\trg{\event}}$
-% \end{goals}
-% \Cref{goal:ctxstep:forwardsim:trgstep} follows immediately by \Cref{asm:ctxstep:forwardsim:trgstep}.
-% For \Cref{goal:ctxstep:forwardsim:nocrash}, we can use \Thmref{lem:relatednoncrash} relying on \Cref{asm:ctxstep:forwardsim:staterel,asm:ctxstep:forwardsim:nocrash}.
-\end{incompleteproof}
+\begin{proof}
+  Induction on \Cref{asm:ctxstep:forwardsim:srcstep}.
+\end{proof}
 
 \begin{lemma}[Forward Simulation]\label{lem:forwardsim}
   If
@@ -5604,20 +5544,48 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Lastly, \Cref{goal:backtrans:correct:traceeq} by transitivity, making use of \Cref{asm:backtrans:ttraceeq0,asm:backtrans:ttraceeq1,asm:backtrans:ttraceeq2,asm:backtrans:ttraceeq3,asm:backtrans:ttraceeq4,asm:backtrans:ttraceeq5,asm:backtrans:ttraceeq6}.
 \end{proof}
 
+\begin{definition}[$\mmlAs$ Robust Satisfaction]
+  We write $\src{\library_{ctx}}\vDash_{R}\pi$ for
+  $$
+    \forall \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{\finalexpr}, \wexecs{prog\ \library_{\ctx}\ \library_{\comp}}{\Omega}{\finalexpr}{\trace} \implies \exists \delta_{MS}, \tospecificevs[_{\delta_{MS}}]{\trace}\in\pi
+  $$
+\end{definition}
+
+\begin{definition}[$\mmlAt$ Robust Satisfaction]
+  We write $\trg{\library_{ctx}}\vDash_{R}\pi$ for
+  $$
+    \forall \trg{\library_{comp}}\ \trg{\trace}\ \trg{\Omega}\ \trg{\finalexpr}, \wexect{prog\ \library_{\ctx}\ \library_{\comp}}{\Omega}{\finalexpr}{\trace} \implies \exists \delta_{MS}, \tospecificevt[_{\delta_{MS}}]{\trace}\in\pi
+  $$
+\end{definition}
+
 \begin{scontents}[store-env=buffer]
-  If
-  \begin{assumptions}
-  \item\label[ass]{asm:rtmsp:srctms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{tmsafe}$
-  \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ \library_{ctx}\ }\mmlAmmlAtcomp{\library_{comp}}}{\trg{\configt}}{\trg{\finalexpr}}{\trg{\trace}}$
-  \end{assumptions}
-  then $\exists \delta_{MS}',$
+  $\;$\\
+%  If
+%  \begin{assumptions}
+%  \item\label[ass]{asm:rtmsp:srctms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{tmsafe}$
+%  \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ \library_{ctx}\ }\mmlAmmlAtcomp{\library_{comp}}}{\trg{\configt}}{\trg{\finalexpr}}{\trg{\trace}}$
+%  \end{assumptions}
+%  then
   \begin{goals}
-    \item\label[goal]{rtmsp:tms} $\tospecificevs[_{\delta_{MS}'}]{\trace}\in\operatorname{tmsafe}$
+    \item $\vdash\mmlAmmlAtcomp{\bullet}:\lceil\operatorname{tmssafe}\rceil$
+%    \item $\mmlAmmlAtcomp{\library_{\ctx}}\vDash_{R}\pi$
+%    \item\label[goal]{rtmsp:tms} $\tospecificevt[_{\delta_{MS}'}]{\trace}\in\operatorname{tmsafe}$
   \end{goals}
 \end{scontents}
 
 \realthm{thm:rtmsp}{4}{Robust \gls{tms} Preservation}
 \begin{proof}
+  Unfolding the definition:
+  If
+  \begin{assumptions}
+    \item $\pi\in\lceil\operatorname{tmssafe}\rceil$
+    \item $\src{\library_{ctx}}\vDash_{R}\pi$
+  \end{assumptions}
+  then
+  \begin{goals}
+    \item $\mmlAmmlAtcomp{\library_{\ctx}}\vDash_{R}\pi$
+  \end{goals}
+  \MK{rework}
   Suppose $\trg{\finalexpr}=\trg{\valueexpr}$.\MK{take care of fail}
   Invert \Cref{asm:rtmsp:trgexec}:
   \begin{passumptions}{H}
@@ -5940,7 +5908,7 @@ The syntax and semantics are entirely identical.
   Induction on \Cref{asm:sms:ctxforwardsim:evalt}.
 
   \begin{description}
-    \item \textbf{Case} \ref{tr:tw-e-oplus}\textbf{:}
+    \case{tr:tw-e-oplus}
           If
           \begin{passumptions}{H}
             \item $n_{3}=n_{1}\oplus n_{2}$
@@ -5962,10 +5930,10 @@ The syntax and semantics are entirely identical.
             \item $\trg{\gamma'}\prec\irl{\gamma'}$
           \end{goals}
           Just instantiate $\irl{\gamma'}=\irl{\hole{\cdot}}$ and note that no substitutions are applicable to $\mmlAtmmlAtmscomp{n_{1}\oplus n_{2}}=\irl{n_{1}\oplus n_{2}}$ as well as $\mmlAtmmlAtmscomp{n_{3}}=\irl{n_{3}}$.
-          Induce on $\trg{\gamma}\prec\irl{\gamma}$ and apply \Cref{tr:tw-e-subst} in inductive case.
+          Induce on $\trg{\gamma}\prec\irl{\gamma}$ and see that no substitution changes the expression.
           Now, all goals follow immediately from assumptions.
 
-    \item \textbf{Case} \ref{tr:tw-e-get-in}\textbf{:}
+    \case{tr:tw-e-get-in}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
@@ -6011,7 +5979,7 @@ The syntax and semantics are entirely identical.
           The other goals follow by assumption or are an immediate consequence.
 
 
-    \item \textbf{Case} \ref{tr:tw-e-get-notin}\textbf{:}
+    \case{tr:tw-e-get-notin}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
@@ -6036,7 +6004,7 @@ The syntax and semantics are entirely identical.
 
           Immediate contradiction of \Cref{asm:sms:primforwardsim:storeagree:nget,asm:sms:primforwardsim:notdom:nget}.
 
-    \item \textbf{Case} \ref{tr:tw-e-set-comp}\textbf{:}
+    \case{tr:tw-e-set-comp}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;m),\Delta_{2}}$
@@ -6081,7 +6049,7 @@ The syntax and semantics are entirely identical.
           Thus, we can execute to the desired state $\irl{\Omega}$ with just $\irl{Set\ \loc\ n\ \valueexpr;\comp}$.
           The other goals follow by assumption or are an immediate consequence.
 
-    \item \textbf{Case} \ref{tr:tw-e-let-new-comp}\textbf{:}
+    \case{tr:tw-e-let-new-comp}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta}$
@@ -6131,10 +6099,11 @@ The syntax and semantics are entirely identical.
           So, it's easy to see that execute to the desired state $\irl{\Omega'}$ with just $\irl{Alloc\ \loc\ n;\comp}$.
           The other goals are easy as well. For the last, make use of \Cref{tr:sms-subst-subset-cons,tr:sms-subst-subset-xsize}.
 
-    \item \textbf{Cases} \ref{tr:tw-e-let-new-ctx} \textbf{and} \ref{tr:tw-e-set-ctx}\textbf{:}
+    \case{tr:tw-e-let-new-ctx}
+    \case{tr:tw-e-set-ctx}
           Does not apply, since the sandboxtag is $\trg{\comp}$, but the rule requires $\trg{\ctx}$.
 
-    \item \textbf{Case} \ref{tr:tw-e-delete}\textbf{:}
+    \case{tr:tw-e-delete}
           If
           \begin{passumptions}{H}
             \item $\trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poisonless;m),\Delta_{2}}$
@@ -6161,7 +6130,7 @@ The syntax and semantics are entirely identical.
 
           Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial up to an induction on \Cref{asm:sms:primforwardsim:subst:del}, applying \Cref{tr:tw-e-subst} in the inductive case.
 
-    \item \textbf{Case} \ref{tr:tw-e-let-f}\textbf{:}
+    \case{tr:tw-e-let-f}
           If
           \begin{passumptions}{H}
             \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$
@@ -6191,38 +6160,20 @@ The syntax and semantics are entirely identical.
           In the base-case, we can immediately step to the desired term and all goals go through trivially.
           In the inductive case, make use of \Cref{tr:tw-e-subst}, the other goals also go through easily.
 
-    \item \textbf{Case} \ref{tr:tw-e-subst}\textbf{:}
-          If
-          \begin{passumptions}{H}
-            \item $\trg{\Omega}=\irl{\Omega}=\trg{\cfstate;\comp;\memstate}$
-            \item $\trg{\gamma}=\trg{[\valueexpr/x],\gamma'}$
-            \item $\exprevalt{\Omega}{e[\valueexpr/x],\gamma'}{\Omega}{e\gamma'}{\emptyevent;\comp}$
-            \item $\monitorcheck[]{\smsmonitor}{\smsmonitor'}{\absevent}$
-            \item\label[ass]{asm:sms:primforwardsim:storeagree:subst} $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
-            \item\label[ass]{asm:sms:primforwardsim:trace:subst} $\traceagree[]{\theta_{\delta}\left(\trg{\emptyevent;\comp}\right)}{\absevent}$
-            \item $\irl{\event}=\trg{\emptyevent;\comp}$
-            \item\label[ass]{asm:sms:primforwardsim:subst:subst} $\irl{\Omega.\Delta}\Vdash\irl{\gamma}$
-            \item\label[ass]{asm:sms:primforwardsim:subst:prec} $\trg{\gamma}\prec\irl{\gamma}$
-          \end{passumptions}
-          Then $\exists \irl{\gamma'}$,
-          \begin{goals}
-            \item $\exec{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}\irl{\gamma}}{\irl{\Omega}}{\mmlAtmmlAtmscomp{e}\irl{\gamma'}}{\irl{\event}}$
-            \item $\storeagreesms[\delta]{\smsmonitor}{\trg{\Omega}}$
-            \item $\irl{\gamma'}\Vdash\irl{\Omega.\Delta}$
-            \item $\trg{\gamma'}\prec\irl{\gamma'}$
-          \end{goals}
 
-          From \Cref{asm:sms:primforwardsim:subst:prec}, we can deduce that
-          \begin{passumptions}{H}
-            \item $\irl{\gamma}=\irl{\gamma_{0},[\valueexpr/x],\gamma_{1}}$
-            \item $\irl{\gamma_{0}}=\irl{\hole{\cdot}}$ or for any $\irl{s}\in\irl{\gamma_{0}},\exists \irl{\valueexpr'\ y_{SIZE}}, \irl{s}=\irl{[\valueexpr'/y_{SIZE}]}$
-          \end{passumptions}
-          Induce on $\irl{y_{0}}$. In the base case, the goals easily go through.
-          For the inductive case, we can just apply \Cref{tr:tw-e-subst}.
-
-
-    \item \textbf{Cases} \ref{tr:tw-e-x-is-poisoned-yes}, \ref{tr:tw-e-x-is-poisoned-no}, \ref{tr:tw-e-proj1}, \ref{tr:tw-e-proj2}, \ref{tr:tw-e-x-hasnat}, \ref{tr:tw-e-n-hasnat}, \ref{tr:tw-e-pair-hasnat}, \ref{tr:tw-e-x-haspair}, \ref{tr:tw-e-n-haspair}, \ref{tr:tw-e-pair-haspair}, \ref{tr:tw-e-if-true} and \ref{tr:tw-e-if-false}\textbf{:}
-
+      \case{tr:tw-e-abort} \MK{maybe do this case}
+      \case{tr:tw-e-x-is-poisoned-yes}
+      \case{tr:tw-e-x-is-poisoned-no}
+      \case{tr:tw-e-proj1}
+      \case{tr:tw-e-proj2}
+      \case{tr:tw-e-x-hasnat}
+      \case{tr:tw-e-n-hasnat}
+      \case{tr:tw-e-pair-hasnat}
+      \case{tr:tw-e-x-haspair}
+      \case{tr:tw-e-n-haspair}
+      \case{tr:tw-e-pair-haspair}
+      \case{tr:tw-e-if-true}
+      \case{tr:tw-e-if-false}
           All these cases are entirely similar to case \ref{tr:tw-e-delete} or \ref{tr:tw-e-oplus}.
 
   \end{description}
@@ -6364,21 +6315,39 @@ The syntax and semantics are entirely identical.
   Immediate consequence of \Thmref{lem:backtransms}.
 \end{proof}
 
+\begin{definition}[$\mmlAtms$ Robust Satisfaction]
+  We write $\irl{\library_{ctx}}\vDash_{R}\pi$ for
+  $$
+    \forall \irl{\library_{comp}}\ \irl{\trace}\ \irl{\Omega}\ \irl{\finalexpr}, \wexect{\irl{prog\ \library_{\ctx}\ \library_{\comp}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}} \implies \exists \delta_{MS}, \tospecificevt[_{\delta_{MS}}]{\irl{\trace}}\in\pi
+  $$
+\end{definition}
 
 \begin{scontents}[store-env=buffer]
-  If
-  \begin{assumptions}
-  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \trg{\library_{ctx}}\ \trg{\library_{comp}}\ \trg{\trace}\ \trg{\Omega}\ \trg{v}, \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}\rightarrow\tospecificevt[_{\delta_{MS}}]{\trace}\in\operatorname{smsafe}$
-  \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\library_{comp}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
-  \end{assumptions}
-  then $\exists \delta_{MS}',$
+  $\;$\\
+% If
+% \begin{assumptions}
+% \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \trg{\library_{ctx}}\ \trg{\library_{comp}}\ \trg{\trace}\ \trg{\Omega}\ \trg{v}, \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}\rightarrow\tospecificevt[_{\delta_{MS}}]{\trace}\in\operatorname{smsafe}$
+% \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\library_{comp}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
+% \end{assumptions}
+% then $\exists \delta_{MS}',$
   \begin{goals}
-    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{smsafe}$
+%    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{smsafe}$
+    \item\label[ass]{asm:rsmsp:comp} $\vdash\mmlAtmmlAtmscomp{\bullet}:\lceil\operatorname{smsafe}\rceil$
   \end{goals}
 \end{scontents}
 
 \realthm{thm:rsmsp}{5}{Robust \gls{sms} Preservation}
 \begin{proof}
+  Unfold \Cref{asm:rsmsp:comp}, so if:
+  \begin{passumptions}{H}
+    \item $\pi\in\lceil\operatorname{smsafe}\rceil$
+    \item\label[ass]{asm:rsmsp:srcsms} $\trg{\library_{\ctx}}\vDash_{R}\pi$
+  \end{passumptions}
+  then
+  \begin{goals}
+    \item $\mmlAtmmlAtmscomp{\library_{\ctx}}\vDash_{R}\pi$
+  \end{goals}
+  \MK{unfold goal etc etc}
   Use \Thmref{lem:backwardsim:toplevel} on \Cref{asm:rsmsp:irlexec}: (remember that $\irl{\trace}=\trg{\trace}$, since $\mmlAtms=\mmlAt$)
   \begin{passumptions}{H}
     \item\label[ass]{asm:rtsmsp:twprog} $\wexec{\trg{prog\ \library_{ctx}\ \library_{comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
@@ -6387,19 +6356,62 @@ The syntax and semantics are entirely identical.
 \end{proof}
 
 \begin{scontents}[store-env=buffer]
-  If
-  \begin{assumptions}
-  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{msafe}$
-  \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\library_{comp}}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
-  \end{assumptions}
-  then $\exists \delta_{MS}',$
+  $\;$\\
+%  If
+%  \begin{assumptions}
+%  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{msafe}$
+%  \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\library_{comp}}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
+%  \end{assumptions}
   \begin{goals}
-    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{msafe}$
+%    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{msafe}$
+    \item $\vdash\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\bullet}}:\lceil\operatorname{msafe}\rceil$
   \end{goals}
 \end{scontents}
 \realthm{thm:rmsp}{6}{Robust Memory Safety Preservation}
 \begin{proof}
-  Immediate consequence of \Thmref{lem:seqcompo} using \Thmref{thm:rtmsp} and \Thmref{thm:rsmsp}.
+  Note from \Thmref{thm:rtmsp} and \Thmref{thm:rsmsp}:
+  \begin{passumptions}{H}
+    \item\label[ass]{ass:msmsp:tms} $\rtp{\mmlAmmlAtcomp{\bullet}}{\lceil\operatorname{tmsafe}\rceil}$
+    \item\label[ass]{ass:msmsp:sms} $\rtp{\mmlAtmmlAtmscomp{\bullet}}{\lceil\operatorname{smsafe}\rceil}$
+  \end{passumptions}
+  By \Thmref{lem:seqcompo} using \Cref{ass:msmsp:tms,ass:msmsp:sms}, we have:
+  \begin{passumptions}{H}
+    \item $\rtp{\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\bullet}}}{\lceil\operatorname{tmsafe}\rceil\cap\lceil\operatorname{smsafe}\rceil}$
+  \end{passumptions}
+  This is exactly what we want to prove here, since by \Cref{def:memsafe}, $\operatorname{msafe}=\operatorname{tmsafe}\cap\operatorname{smsafe}$, noting that the powerset is closed under intersection.
+\end{proof}
+\begin{proof}[Proof (Alternative)]
+  By definition, if
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:rmtsp:pi:msafe} $\pi\in\lceil\operatorname{msafe}\rceil$
+    \item\label[ass]{asm:rmtsp:srcrsat} $\src{\library_{\ctx}}\vDash_{R}\pi$
+  \end{passumptions}
+  Then
+  \begin{goals}
+    \item\label[goal]{goal:rmtsp:rsat} $\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\library_{\ctx}}}\vDash_{R}\pi$
+  \end{goals}
+
+  By \Cref{def:memsafe}, we have $\operatorname{msafe}=\operatorname{tmsafe}\cap\operatorname{smsafe}$.
+
+  So, since powerset is closed under intersection, we can split \Cref{asm:rmtsp:pi:msafe} into:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:rmtsp:pi:tmsafe} $\pi\in\lceil\operatorname{tmsafe}\rceil$
+    \item\label[ass]{asm:rmtsp:pi:smsafe} $\pi\in\lceil\operatorname{smsafe}\rceil$
+  \end{passumptions}
+
+  With \Cref{asm:rmtsp:pi:tmsafe,asm:rmtsp:srcrsat} we use \Thmref{thm:rtmsp}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{4}
+    \item\label[ass]{asm:rmtsp:trgrsat} $\mmlAmmlAtcomp{\library_{\ctx}}\vDash_{R}\pi$
+  \end{passumptions}
+
+  With \Cref{asm:rmtsp:pi:smsafe,asm:rmtsp:trgrsat} we use \Thmref{thm:rsmsp}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{5}
+    \item\label[ass]{asm:rmtsp:smsrsat} $\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\library_{\ctx}}}\vDash_{R}\pi$
+  \end{passumptions}
+  This solves \Cref{goal:rmtsp:rsat}.
 \end{proof}
 
 \subsection{Robustly Preserving $\CCT$}

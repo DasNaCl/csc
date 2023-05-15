@@ -570,6 +570,413 @@ Now, we want to formalize this idea of ``being able to swap things around'' for 
 }{outline-sketch}{Compilation Pipeline}
 
 
+\subsection{Specification Language}
+
+We introduce a set of actions that allows us to describe properties abstractly instead of a language specific manner.
+
+\myfig{
+  \begin{gather*}
+  \begin{aligned}
+    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning} |\ \specificev{Branch\ b} \mid \specificev{Binop\ \oplus} \\
+                                  &\text{Hereby, }n\in\mathbb{N}\text{ and }b\in\mathbb{B}
+  \end{aligned}
+  \end{gather*}
+}{w-specific-events}{\gls*{ms}-Specific Events.}
+
+\subsection{\gls*{tms} Monitor}
+In order to just talk about temporal memory safety, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
+
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ Store}~\tmsmonitor =&\{A : \specificev{L}, F : \specificev{L}\} \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \specificev{\loc} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc} \mid \abstermination\\[0.3cm]
+      \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
+      \absevent\in \tmsmonitor['] &\text{ iff } \absevent \in {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
+      \absevent\notin \tmsmonitor['] &\text{ iff } \absevent \notin {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
+      \{\specificev{\loc}\}\cup \tmsmonitor &= \{A : \{\specificev{\loc}\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
+      \tmsmonitor\setminus\{\specificev{\loc}\} &= \{A : \tmsmonitor[.A]\setminus\{\specificev{\loc}\}, F : \tmsmonitor[.F]\cup\left\{\specificev{\loc}\right\}\}\\
+      \tmsmonitor\cup \tmsmonitor' &= \{A : \tmsmonitor[.A]\cup \tmsmonitor['.A], F : \tmsmonitor[.F]\cup \tmsmonitor['.F]\}\\
+    \end{aligned}
+  \end{gather*}
+}{tms-monitor}{\gls{tms} Monitor.}
+
+As before, when doing structural induction over primitive steps (\Cref{fig:w-expr-prim-eval}) we may encounter the $\src{\emptyevent}$, for which $\tospecificevs{\emptyevent}=\specificev{\emptyevent}$, which needs a ,,partner'' in the abstract events as defined in \Cref{fig:tms-monitor}: $\bm{\varepsilon}$.
+
+\myfig{
+  \begin{center}
+    \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}}{,,Given abstract state $\tmsmonitor$, step to abstract state $\tmsmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    \typerule{TMS-Uninteresting}{
+    }{
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{\varepsilon}}
+    }{tms-uninteresting}
+    %
+    \typerule{TMS-Abort}{
+    }{
+      \monitorcheck[]{\tmsmonitor}{\emptyset}{\bm{\lightning}}
+    }{tms-abort}
+    %
+    \typerule{TMS-Use}{
+      \specificev{\loc}\in \tmsmonitor
+    }{
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \specificev{\loc}}
+    }{tms-use}
+    %
+    \typerule{TMS-Alloc}{
+      \tmsmonitor[']=\left\{\specificev{\loc}\right\}\cup\tmsmonitor&
+      \specificev{\loc}\notin \tmsmonitor
+    }{
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}}
+    }{tms-alloc}
+    %
+    \typerule{TMS-Dealloc}{
+      \specificev{\loc}\in \tmsmonitor &
+      \tmsmonitor[']=\tmsmonitor\setminus\left\{\specificev{\loc}\right\}
+    }{
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
+    }{tms-dealloc}
+    %
+    \typerule{TMS-Refl}{
+    }{
+      \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}}
+    }{tms-refl}
+    %
+    \typerule{TMS-Trans}{
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}&
+      \monitorcheck{\tmsmonitor[']}{\tmsmonitor['']}{\abstrace}&
+    }{
+      \monitorcheck{\tmsmonitor}{\tmsmonitor['']}{\absevent\cdot\abstrace}
+    }{tms-trans}
+  \end{center}
+}{tms-step}{Steps of \gls{tms} Monitor.}
+
+The monitor-state contains two sets of locations that represent the ones that are active and the ones that have been deallocated, respectively.
+As seen in \Cref{tr:tms-dealloc}, the monitor only steps if the intuitive condition is true: a location can only be deallocated if it is part of the set of allocated locations.
+\Cref{tr:tms-use} ensures that only allocated locations occur in events representing usage, the monitor cannot step if the location has been deallocated before.
+
+As before, we need a way to translate one set of actions to another:
+
+\myfig{
+  \begin{center}
+    \judgbox{\tmstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
+    \judgbox{\tmstraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    %
+    \typerule{TMS-Alloc-Authentic}{
+    }{
+      \tmstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}}
+    }{tms-alloc-auth}
+    %
+    \typerule{TMS-Dealloc-Authentic}{
+    }{
+      \tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
+    }{tms-dealloc-auth}
+    %
+    \typerule{TMS-Use-Authentic}{
+    }{
+      \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}}
+    }{tms-use-auth}
+    %
+    \typerule{TMS-Abort-Authentic}{
+    }{
+      \tmstraceagree{\specificev{\lightning}}{\bm{\lightning}}
+    }{tms-abort-auth}
+    %
+    \typerule{TMS-None-Authentic}{
+    }{
+      \tmstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
+    }{tms-none-auth}
+    %
+    \typerule{TMS-Branch-Authentic}{
+    }{
+      \tmstraceagree{\specificev{Branch\ b}}{\bm{\varepsilon}}
+    }{tms-branch-auth}
+    %
+    \typerule{TMS-Binop-Authentic}{
+    }{
+      \tmstraceagree{\specificev{Binop\ \oplus}}{\bm{\varepsilon}}
+    }{tms-binop-auth}
+    %
+    \typerule{TMS-Refl-Authentic}{
+    }{
+      \tmstraceagree[^*]{\hole{\cdot}}{\hole{\cdot}}
+    }{tms-refl-auth}
+    %
+    \typerule{TMS-Trans-Authentic}{
+      \tmstraceagree{\msevent}{\absevent} &
+      \tmstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \tmstraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
+    }{tms-trans-auth}
+  \end{center}
+}{tms-trace-agreement}{Trace Agreement.}
+
+\subsubsection{\gls*{sms} Monitor}
+
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon}\mid \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
+    \end{aligned}
+  \end{gather*}
+}{sms-monitor}{\gls{sms} Monitor.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    %
+    \typerule{sms-None}{
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\bm{\varepsilon}}
+    }{sms-none}
+    %
+    \typerule{sms-Abort}{
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\bm{\lightning}}
+    }{sms-abort}
+    %
+    \typerule{sms-Use}{
+      (\specificev{\loc},m) \in \smsmonitor&
+      n < m
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ \bm{n}}
+    }{sms-use}
+    %
+    \typerule{sms-Alloc}{
+      \specificev{\loc} \notin \text{dom }\smsmonitor&
+      \smsmonitor[']=\smsmonitor \cup \left\{(\specificev{\loc},n)\right\}
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
+    }{sms-alloc}
+    %
+    \typerule{sms-Dealloc}{
+      (\specificev{\loc},m) \in \smsmonitor &
+      \smsmonitor[']=\smsmonitor\setminus\left\{(\specificev{\loc},m)\right\}
+    }{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
+    }{sms-dealloc}
+    %
+    \typerule{sms-Refl}{
+    }{
+      \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
+    }{sms-refl}
+    %
+    \typerule{sms-Trans}{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}&
+      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\abstrace}
+    }{
+      \monitorcheck{\smsmonitor}{\smsmonitor['']}{\absevent\cdot\abstrace}
+    }{sms-trans}
+  \end{center}
+}{sms-step}{Steps of \gls{sms} Monitor.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\smstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
+    \judgbox{\smstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    %
+    \typerule{SMS-Alloc-Authentic}{
+    }{
+      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
+    }{sms-alloc-auth}
+    %
+    \typerule{SMS-Dealloc-Authentic}{
+    }{
+      \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
+    }{sms-dealloc-auth}
+    %
+    \typerule{SMS-Use-Authentic}{
+    }{
+      \smstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
+    }{sms-use-auth}
+    %
+    \typerule{SMS-None-Authentic}{
+    }{
+      \smstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
+    }{sms-none-auth}
+    %
+    \typerule{SMS-Branch-Authentic}{
+    }{
+      \smstraceagree{\specificev{Branch\ b}}{\bm{\varepsilon}}
+    }{sms-branch-auth}
+    %
+    \typerule{SMS-Binop-Authentic}{
+    }{
+      \smstraceagree{\specificev{Binop\ \oplus}}{\bm{\varepsilon}}
+    }{sms-binop-auth}
+    %
+    \typerule{SMS-Abort-Authentic}{
+    }{
+      \smstraceagree{\specificev{\lightning}}{\bm{\lightning}}
+    }{sms-abort-auth}
+    %
+    \typerule{SMS-Refl-Authentic}{
+    }{
+      \smstraceagree{\hole{\cdot}}{\hole{\cdot}}
+    }{sms-refl-auth}
+    %
+    \typerule{SMS-Trans-Authentic}{
+      \smstraceagree{\msevent}{\absevent} &
+      \smstraceagree{\mstrace}{\abstrace}
+    }{
+      \smstraceagree{\msevent \cdot \mstrace}{\absevent \cdot \abstrace}
+    }{sms-trans-auth}
+  \end{center}
+}{sms-trace-agreement}{Trace Agreement.}
+
+
+\myfig{
+  \begin{center}
+    \typerule{abstract-agree-empty}{
+    }{
+      \bm{\varepsilon} \prec \bm{\varepsilon}
+    }{aagree-empty}
+    %
+    \typerule{abstract-agree-abort}{
+    }{
+      \bm{\lightning} \prec \bm{\lightning}
+    }{aagree-abort}
+    %
+    \typerule{abstract-agree-dealloc}{
+    }{
+    \textbf{Dealloc}\ \specificev{\loc} \prec \textbf{Dealloc}\ \specificev{\loc}
+    }{aagree-dealloc}
+    %
+    \typerule{abstract-agree-alloc}{
+    }{
+    \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \prec \textbf{Alloc}\ \specificev{\loc}
+    }{aagree-alloc}
+    %
+    \typerule{abstract-agree-use}{
+    }{
+    \textbf{Use}\ \specificev{\loc}\ \bm{n} \prec \textbf{Use}\ \specificev{\loc}
+    }{use-dealloc}
+    %
+    \typerule{tms-sms-E}{
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absevent} &
+      \absevent\prec \absevent['] &
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absevent[']} &
+    T = \tmsmonitor\times\smsmonitor
+    }{
+      \monitorcheck[]{T}{T}{\absevent}
+    }{tms-sms-empty}
+    %
+    \typerule{tms-sms-Refl}{
+    }{
+      \monitorcheck{T}{T}{\hole{\cdot}}
+    }{tms-sms-refl}
+    %
+    \typerule{tms-sms-Trans}{
+      \monitorcheck[]{T}{T'}{\absevent}&
+      \monitorcheck{T'}{T''}{\abstrace}&
+    }{
+      \monitorcheck{T}{T''}{\absevent\cdot\abstrace}
+    }{tms-sms-trans}
+  \end{center}
+}{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
+
+
+We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
+
+\begin{definition}[Once]
+  Given an event $\msevent$ and a trace $\mstrace$, we say $\msevent$ appears exactly once in the trace, written $\msevent\in_{!}\mstrace$, iff
+
+  If $n\in\nat$ such that $\trace{[n]}=\msevent$, then for any $m\in\nat$ such that $\trace{[m]}=\msevent$ we have $n = m$.
+\end{definition}
+
+\begin{definition}[Before]
+  Given two events $\msevent[_0],\msevent[_1]$ and a trace $\mstrace$, event $\msevent[_0]$ occurs before $\msevent[_1]$ in $\mstrace$, written
+  $\event{_0}\le_{\trace}\event{_1}$, iff
+
+  If $n\in\nat$ such that $\mstrace{[n]} = \msevent[_{0}]$, then $\exists m\in\nat, \mstrace{[m]} = \msevent[_1] \wedge n< m$
+\end{definition}
+
+\begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
+  We define the property $\operatorname{tmsafe}$ as a conjunction of the following conditions for any given $\mstrace$:
+  \begin{itemize}
+    \item $\specificev{Alloc\ \loc\ s}\le_{{\mstrace}}\specificev{Dealloc\ \loc}$
+    \item $\neg(\specificev{Use\ \loc\ n}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s})$
+    \item $\neg(\specificev{Dealloc\ \loc}\le_{{\mstrace}}\specificev{Use\ \loc\ n})$
+    \item $\specificev{Alloc\ \loc\ s}\in_{!}\mstrace$
+    \item $\specificev{Dealloc\ \loc}\in_{!}\mstrace$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
+  We define the property $\operatorname{smsafe}$ as follows for any given $\mstrace$:
+  \begin{itemize}
+    \item If $\specificev{Alloc\ \loc\ s}\in{\mstrace}$ and $\specificev{Use\ \loc\ n}\in{\mstrace}$, then ${n}<{s}$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}[Memory Safety]\label{def:memsafe}
+  We define the property $\operatorname{msafe}$ as follows for any given $\mstrace$
+  \begin{itemize}
+    \item $\mstrace\in\operatorname{tmsafe}$
+    \item $\mstrace\in\operatorname{smsafe}$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
+  We say $\texttt{TMS}(\mstrace)$ iff $\exists \delta_{\text{tms}}\ \abstrace\ \tmsmonitor$ such that:
+  \begin{itemize}
+    \item $\tmstraceagree{\mstrace}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
+  \end{itemize}
+\end{definition}
+
+\begin{lemma}[$\texttt{TMS}(\mstrace)$ implies $\mstrace\in\operatorname{tmsafe}$]\label{lem:tmssafe-tracetms}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:tmssafe-tracetms:tms} $\texttt{TMS}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\mstrace\in\operatorname{tmsafe}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:tmssafe-tracetms:tms}:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:tmssafe-tracetms:traceag} $\tmstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:tmssafe-tracetms:monstep} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:tmssafe-tracetms:monstep}.
+\end{proof}
+
+\begin{definition}[Trace is spatial memory safe via monitor.]\label{def:src:trace:sms}
+  We say $\texttt{SMS}(\mstrace)$ iff $\exists \delta_{\text{sms}}\ \abstrace\ \smsmonitor$ such that:
+  \begin{itemize}
+    \item $\smstraceagree{\mstrace}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
+  \end{itemize}
+\end{definition}
+
+\begin{lemma}[$\texttt{SMS}(\mstrace)$ implies $\mstrace\in\operatorname{smsafe}$]\label{lem:smssafe-tracesms}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:smssafe-tracesms:sms} $\texttt{SMS}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\mstrace\in\operatorname{smsafe}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:smssafe-tracesms:sms}:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:smssafe-tracesms:traceag} $\smstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:smssafe-tracesms:monstep} $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:smssafe-tracesms:monstep}.
+\end{proof}
+
+\subsubsection{\gls*{cct} Monitor}
+\MK{todo}
+
+
 \subsection{Source Language}
 \subsubsection{Syntax}
 
@@ -1270,17 +1677,8 @@ Moreover, $\src{\gamma}$ as postfix binds anything before it up to $\trianglerig
   \end{center}
 }{wprog-run}{Running a whole $\mmlAs$ program.}
 
-\subsubsection{Specification Events}
-We introduce another set of actions that allows us to abstract over reading or writing at a certain location.
-
-\myfig{
-  \begin{gather*}
-  \begin{aligned}
-    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning}
-  \end{aligned}
-  \end{gather*}
-}{w-specific-events}{\gls*{ms}-Specific Events.}
-In addition to the actions, we also need a way to translate from concrete actions, as emitted by a program's execution, to these more abstract actions.
+\subsubsection{Translation to Specification Events}
+We need a way to translate from concrete actions, as emitted by a program's execution, to abstract actions.
 The translation is, however, standard.
 The empty action $\specificev{\emptyevent}$ is necessary. When proving lemmas by structural induction on the primitive steps (\Cref{fig:w-expr-prim-eval}), we get a concrete event $\src{\emptyevent}$ that needs to be related to some $\msevent$. The natural candidate is $\specificev{\emptyevent}$.
 We also use it to project the call/return events onto it.
@@ -1367,124 +1765,6 @@ We also use it to project the call/return events onto it.
   \end{center}
 }{w-events-project-to-specific}{Projection of $\mmlAs$ events to \gls*{ms}-specific events.}
 
-\subsubsection{\gls*{tms} Monitor}
-In order to just talk about temporal memory safety, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
-
-\myfig{
-  \begin{gather*}
-    \begin{aligned}
-      \mi{Abstract\ Store}~\tmsmonitor =&\{A : \specificev{L}, F : \specificev{L}\} \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \specificev{\loc} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc} \mid \abstermination\\[0.3cm]
-      \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
-      \absevent\in \tmsmonitor['] &\text{ iff } \absevent \in {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
-      \absevent\notin \tmsmonitor['] &\text{ iff } \absevent \notin {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
-      \{\specificev{\loc}\}\cup \tmsmonitor &= \{A : \{\specificev{\loc}\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
-      \tmsmonitor\setminus\{\specificev{\loc}\} &= \{A : \tmsmonitor[.A]\setminus\{\specificev{\loc}\}, F : \tmsmonitor[.F]\cup\left\{\specificev{\loc}\right\}\}\\
-      \tmsmonitor\cup \tmsmonitor' &= \{A : \tmsmonitor[.A]\cup \tmsmonitor['.A], F : \tmsmonitor[.F]\cup \tmsmonitor['.F]\}\\
-    \end{aligned}
-  \end{gather*}
-}{tms-monitor}{\gls{tms} Monitor.}
-
-As before, when doing structural induction over primitive steps (\Cref{fig:w-expr-prim-eval}) we may encounter the $\src{\emptyevent}$, for which $\tospecificevs{\emptyevent}=\specificev{\emptyevent}$, which needs a ,,partner'' in the abstract events as defined in \Cref{fig:tms-monitor}: $\bm{\varepsilon}$.
-
-\myfig{
-  \begin{center}
-    \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}}{,,Given abstract state $\tmsmonitor$, step to abstract state $\tmsmonitor'$\\ emitting an abstract event $\absevent$.''}
-    \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
-    \typerule{TMS-Uninteresting}{
-    }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{\varepsilon}}
-    }{tms-uninteresting}
-    %
-    \typerule{TMS-Abort}{
-    }{
-      \monitorcheck[]{\tmsmonitor}{\emptyset}{\bm{\lightning}}
-    }{tms-abort}
-    %
-    \typerule{TMS-Use}{
-      \specificev{\loc}\in \tmsmonitor
-    }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \specificev{\loc}}
-    }{tms-use}
-    %
-    \typerule{TMS-Alloc}{
-      \tmsmonitor[']=\left\{\specificev{\loc}\right\}\cup\tmsmonitor&
-      \specificev{\loc}\notin \tmsmonitor
-    }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}}
-    }{tms-alloc}
-    %
-    \typerule{TMS-Dealloc}{
-      \specificev{\loc}\in \tmsmonitor &
-      \tmsmonitor[']=\tmsmonitor\setminus\left\{\specificev{\loc}\right\}
-    }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
-    }{tms-dealloc}
-    %
-    \typerule{TMS-Refl}{
-    }{
-      \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}}
-    }{tms-refl}
-    %
-    \typerule{TMS-Trans}{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}&
-      \monitorcheck{\tmsmonitor[']}{\tmsmonitor['']}{\abstrace}&
-    }{
-      \monitorcheck{\tmsmonitor}{\tmsmonitor['']}{\absevent\cdot\abstrace}
-    }{tms-trans}
-  \end{center}
-}{tms-step}{Steps of \gls{tms} Monitor.}
-
-The monitor-state contains two sets of locations that represent the ones that are active and the ones that have been deallocated, respectively.
-As seen in \Cref{tr:tms-dealloc}, the monitor only steps if the intuitive condition is true: a location can only be deallocated if it is part of the set of allocated locations.
-\Cref{tr:tms-use} ensures that only allocated locations occur in events representing usage, the monitor cannot step if the location has been deallocated before.
-
-As before, we need a way to translate one set of actions to another:
-
-\myfig{
-  \begin{center}
-    \judgbox{\tmstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\tmstraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
-    %
-    \typerule{TMS-Alloc-Authentic}{
-    }{
-      \tmstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}}
-    }{tms-alloc-auth}
-    %
-    \typerule{TMS-Dealloc-Authentic}{
-    }{
-      \tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
-    }{tms-dealloc-auth}
-    %
-    \typerule{TMS-Use-Authentic}{
-    }{
-      \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}}
-    }{tms-use-auth}
-    %
-    \typerule{TMS-Abort-Authentic}{
-    }{
-      \tmstraceagree{\specificev{\lightning}}{\bm{\lightning}}
-    }{tms-abort-auth}
-    %
-    \typerule{TMS-None-Authentic}{
-    }{
-      \tmstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
-    }{tms-none-auth}
-    %
-    \typerule{TMS-Refl-Authentic}{
-    }{
-      \tmstraceagree[^*]{\hole{\cdot}}{\hole{\cdot}}
-    }{tms-refl-auth}
-    %
-    \typerule{TMS-Trans-Authentic}{
-      \tmstraceagree{\msevent}{\absevent} &
-      \tmstraceagree[^*]{\mstrace}{\abstrace}
-    }{
-      \tmstraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
-    }{tms-trans-auth}
-  \end{center}
-}{tms-trace-agreement}{Trace Agreement.}
-
 \myfig{
   \begin{center}
     \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,Map $\mmlAs$ locations $\src{\loc}$ to abstract locations $\specificev{\loc}$.''}
@@ -1515,111 +1795,6 @@ As before, we need a way to translate one set of actions to another:
     }{store-poison-agree}
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
-
-\subsubsection{\gls*{sms} Monitor}
-
-\myfig{
-  \begin{gather*}
-    \begin{aligned}
-      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon}\mid \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
-    \end{aligned}
-  \end{gather*}
-}{sms-monitor}{\gls{sms} Monitor.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Given abstract state $\smsmonitor$, step to abstract state $\smsmonitor'$\\ emitting an abstract event $\absevent$.''}
-    \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
-    %
-    \typerule{sms-None}{
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\bm{\varepsilon}}
-    }{sms-none}
-    %
-    \typerule{sms-Abort}{
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\bm{\lightning}}
-    }{sms-abort}
-    %
-    \typerule{sms-Use}{
-      (\specificev{\loc},m) \in \smsmonitor&
-      n < m
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ \bm{n}}
-    }{sms-use}
-    %
-    \typerule{sms-Alloc}{
-      \specificev{\loc} \notin \text{dom }\smsmonitor&
-      \smsmonitor[']=\smsmonitor \cup \left\{(\specificev{\loc},n)\right\}
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
-    }{sms-alloc}
-    %
-    \typerule{sms-Dealloc}{
-      (\specificev{\loc},m) \in \smsmonitor &
-      \smsmonitor[']=\smsmonitor\setminus\left\{(\specificev{\loc},m)\right\}
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
-    }{sms-dealloc}
-    %
-    \typerule{sms-Refl}{
-    }{
-      \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
-    }{sms-refl}
-    %
-    \typerule{sms-Trans}{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}&
-      \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\abstrace}
-    }{
-      \monitorcheck{\smsmonitor}{\smsmonitor['']}{\absevent\cdot\abstrace}
-    }{sms-trans}
-  \end{center}
-}{sms-step}{Steps of \gls{sms} Monitor.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\smstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\smstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
-    %
-    \typerule{SMS-Alloc-Authentic}{
-    }{
-      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
-    }{sms-alloc-auth}
-    %
-    \typerule{SMS-Dealloc-Authentic}{
-    }{
-      \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
-    }{sms-dealloc-auth}
-    %
-    \typerule{SMS-Use-Authentic}{
-    }{
-      \smstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
-    }{sms-use-auth}
-    %
-    \typerule{SMS-None-Authentic}{
-    }{
-      \smstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
-    }{sms-none-auth}
-    %
-    \typerule{SMS-Abort-Authentic}{
-    }{
-      \smstraceagree{\specificev{\lightning}}{\bm{\lightning}}
-    }{sms-abort-auth}
-    %
-    \typerule{SMS-Refl-Authentic}{
-    }{
-      \smstraceagree{\hole{\cdot}}{\hole{\cdot}}
-    }{sms-refl-auth}
-    %
-    \typerule{SMS-Trans-Authentic}{
-      \smstraceagree{\msevent}{\absevent} &
-      \smstraceagree{\mstrace}{\abstrace}
-    }{
-      \smstraceagree{\msevent \cdot \mstrace}{\absevent \cdot \abstrace}
-    }{sms-trans-auth}
-  \end{center}
-}{sms-trace-agreement}{Trace Agreement.}
 
 \myfig{
   \begin{center}
@@ -1732,153 +1907,6 @@ As before, we need a way to translate one set of actions to another:
     }{t-filter-cons}
   \end{center}
 }{wt-events-project-to-specific}{Projection of $\mmlAt$ events to \gls*{ms}-specific events.}
-
-
-\myfig{
-  \begin{center}
-    \typerule{abstract-agree-empty}{
-    }{
-      \bm{\varepsilon} \prec \bm{\varepsilon}
-    }{aagree-empty}
-    %
-    \typerule{abstract-agree-abort}{
-    }{
-      \bm{\lightning} \prec \bm{\lightning}
-    }{aagree-abort}
-    %
-    \typerule{abstract-agree-dealloc}{
-    }{
-    \textbf{Dealloc}\ \specificev{\loc} \prec \textbf{Dealloc}\ \specificev{\loc}
-    }{aagree-dealloc}
-    %
-    \typerule{abstract-agree-alloc}{
-    }{
-    \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \prec \textbf{Alloc}\ \specificev{\loc}
-    }{aagree-alloc}
-    %
-    \typerule{abstract-agree-use}{
-    }{
-    \textbf{Use}\ \specificev{\loc}\ \bm{n} \prec \textbf{Use}\ \specificev{\loc}
-    }{use-dealloc}
-    %
-    \typerule{tms-sms-E}{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absevent} &
-      \absevent\prec \absevent['] &
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absevent[']} &
-    T = \tmsmonitor\times\smsmonitor
-    }{
-      \monitorcheck[]{T}{T}{\absevent}
-    }{tms-sms-empty}
-    %
-    \typerule{tms-sms-Refl}{
-    }{
-      \monitorcheck{T}{T}{\hole{\cdot}}
-    }{tms-sms-refl}
-    %
-    \typerule{tms-sms-Trans}{
-      \monitorcheck[]{T}{T'}{\absevent}&
-      \monitorcheck{T'}{T''}{\abstrace}&
-    }{
-      \monitorcheck{T}{T''}{\absevent\cdot\abstrace}
-    }{tms-sms-trans}
-  \end{center}
-}{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
-
-
-We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
-
-\begin{definition}[Once]
-  Given an event $\msevent$ and a trace $\mstrace$, we say $\msevent$ appears exactly once in the trace, written $\msevent\in_{!}\mstrace$, iff
-
-  If $n\in\nat$ such that $\trace{[n]}=\msevent$, then for any $m\in\nat$ such that $\trace{[m]}=\msevent$ we have $n = m$.
-\end{definition}
-
-\begin{definition}[Before]
-  Given two events $\msevent[_0],\msevent[_1]$ and a trace $\mstrace$, event $\msevent[_0]$ occurs before $\msevent[_1]$ in $\mstrace$, written
-  $\event{_0}\le_{\trace}\event{_1}$, iff
-
-  If $n\in\nat$ such that $\mstrace{[n]} = \msevent[_{0}]$, then $\exists m\in\nat, \mstrace{[m]} = \msevent[_1] \wedge n< m$
-\end{definition}
-
-\begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
-  We define the property $\operatorname{tmsafe}$ as a conjunction of the following conditions for any given $\mstrace$:
-  \begin{itemize}
-    \item $\specificev{Alloc\ \loc\ s}\le_{{\mstrace}}\specificev{Dealloc\ \loc}$
-    \item $\neg(\specificev{Use\ \loc\ n}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s})$
-    \item $\neg(\specificev{Dealloc\ \loc}\le_{{\mstrace}}\specificev{Use\ \loc\ n})$
-    \item $\specificev{Alloc\ \loc\ s}\in_{!}\mstrace$
-    \item $\specificev{Dealloc\ \loc}\in_{!}\mstrace$
-  \end{itemize}
-\end{definition}
-
-\begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\operatorname{smsafe}$ as follows for any given $\mstrace$:
-  \begin{itemize}
-    \item If $\specificev{Alloc\ \loc\ s}\in{\mstrace}$ and $\specificev{Use\ \loc\ n}\in{\mstrace}$, then ${n}<{s}$
-  \end{itemize}
-\end{definition}
-
-\begin{definition}[Memory Safety]\label{def:memsafe}
-  We define the property $\operatorname{msafe}$ as follows for any given $\mstrace$
-  \begin{itemize}
-    \item $\mstrace\in\operatorname{tmsafe}$
-    \item $\mstrace\in\operatorname{smsafe}$
-  \end{itemize}
-\end{definition}
-
-\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
-  We say $\texttt{TMS}(\mstrace)$ iff $\exists \delta_{\text{tms}}\ \abstrace\ \tmsmonitor$ such that:
-  \begin{itemize}
-    \item $\tmstraceagree{\mstrace}{\abstrace}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
-  \end{itemize}
-\end{definition}
-
-\begin{lemma}[$\texttt{TMS}(\mstrace)$ implies $\mstrace\in\operatorname{tmsafe}$]\label{lem:tmssafe-tracetms}
-  If
-  \begin{assumptions}
-    \item\label[ass]{asm:tmssafe-tracetms:tms} $\texttt{TMS}(\mstrace)$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $\mstrace\in\operatorname{tmsafe}$
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Invert \Cref{asm:tmssafe-tracetms:tms}:
-  \begin{passumptions}{H}
-    \item\label[ass]{asm:tmssafe-tracetms:traceag} $\tmstraceagree{\mstrace}{\abstrace}$
-    \item\label[ass]{asm:tmssafe-tracetms:monstep} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
-  \end{passumptions}
-  The proof follows with an induction on \Cref{asm:tmssafe-tracetms:monstep}.
-\end{proof}
-
-\begin{definition}[Trace is spatial memory safe via monitor.]\label{def:src:trace:sms}
-  We say $\texttt{SMS}(\mstrace)$ iff $\exists \delta_{\text{sms}}\ \abstrace\ \smsmonitor$ such that:
-  \begin{itemize}
-    \item $\smstraceagree{\mstrace}{\abstrace}$
-    \item and $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
-  \end{itemize}
-\end{definition}
-
-\begin{lemma}[$\texttt{SMS}(\mstrace)$ implies $\mstrace\in\operatorname{smsafe}$]\label{lem:smssafe-tracesms}
-  If
-  \begin{assumptions}
-    \item\label[ass]{asm:smssafe-tracesms:sms} $\texttt{SMS}(\mstrace)$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $\mstrace\in\operatorname{smsafe}$
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Invert \Cref{asm:smssafe-tracesms:sms}:
-  \begin{passumptions}{H}
-    \item\label[ass]{asm:smssafe-tracesms:traceag} $\smstraceagree{\mstrace}{\abstrace}$
-    \item\label[ass]{asm:smssafe-tracesms:monstep} $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
-  \end{passumptions}
-  The proof follows with an induction on \Cref{asm:smssafe-tracesms:monstep}.
-\end{proof}
 
 \begin{scontents}[store-env=buffer]
   If
@@ -5545,17 +5573,27 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 \end{proof}
 
 \begin{definition}[$\mmlAs$ Robust Satisfaction]
-  We write $\src{\library_{ctx}}\vDash_{R}\pi$ for
-  $$
-    \forall \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{\finalexpr}, \wexecs{prog\ \library_{\ctx}\ \library_{\comp}}{\Omega}{\finalexpr}{\trace} \implies \exists \delta_{MS}, \tospecificevs[_{\delta_{MS}}]{\trace}\in\pi
-  $$
+  We write $\src{\library_{\comp}}\vDash_{R}\pi$ for
+  If
+  \begin{assumptions}
+    \item $\wexecs{prog\ \library_{\ctx}\ \library_{\comp}}{\Omega}{\finalexpr}{\trace}$
+  \end{assumptions}
+  Then $\exists \delta_{MS}$
+  \begin{goals}
+    \item $\tospecificevs[_{\delta_{MS}}]{\trace}\in\pi$
+  \end{goals}
 \end{definition}
 
 \begin{definition}[$\mmlAt$ Robust Satisfaction]
-  We write $\trg{\library_{ctx}}\vDash_{R}\pi$ for
-  $$
-    \forall \trg{\library_{comp}}\ \trg{\trace}\ \trg{\Omega}\ \trg{\finalexpr}, \wexect{prog\ \library_{\ctx}\ \library_{\comp}}{\Omega}{\finalexpr}{\trace} \implies \exists \delta_{MS}, \tospecificevt[_{\delta_{MS}}]{\trace}\in\pi
-  $$
+  We write $\trg{\library_{\comp}}\vDash_{R}\pi$ for
+  If
+  \begin{assumptions}
+    \item $\wexect{prog\ \library_{\ctx}\ \library_{\comp}}{\Omega}{\finalexpr}{\trace}$
+  \end{assumptions}
+  Then $\exists \delta_{MS}$
+  \begin{goals}
+    \item $\tospecificevt[_{\delta_{MS}}]{\trace}\in\pi$
+  \end{goals}
 \end{definition}
 
 \begin{scontents}[store-env=buffer]
@@ -5827,13 +5865,13 @@ The syntax and semantics are entirely identical.
     \typerule{$\irl{\gamma}$-$\irl{x_{SIZE}}$-preserve}{
       \irl{\Delta_1,x\mapsto(\loc;\comp;\poison;m),\Delta_2} \Vdash \irl{\gamma}
     }{
-      \irl{\Delta_1,x\mapsto(\loc;\comp;\poison;m),\Delta_2} \Vdash \irl{[x_{SIZE}/\valueexpr],\gamma}
+      \irl{\Delta_1,x\mapsto(\loc;\comp;\poison;m),\Delta_2} \Vdash \irl{[m/x_{SIZE}],\gamma}
     }{gamma-xsize-preserve}
     %
     \typerule{$\irl{\gamma}$-$\irl{x_{SIZE}}$-skip}{
       \irl{\Delta} \Vdash \irl{\gamma}
     }{
-      \irl{\Delta} \Vdash \irl{[x/\valueexpr],\gamma}
+      \irl{\Delta} \Vdash \irl{[\valueexpr/x],\gamma}
     }{gamma-xsize-skip}
     %
     \typerule{$\irl{\gamma}$-$\irl{x_{SIZE}}$-empty}{
@@ -6447,6 +6485,15 @@ The syntax and semantics are entirely identical.
 %   Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
 %   Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{c,\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{c',\trace[_{B}]}$ we say $e_{1}$ is $\CRhash$-secure with respect to $\obj{\zeta}$ iff $(\obj{c},\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\obj{c'},\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
 % \end{definition}
+
+Problems:
+\begin{itemize}
+\item branching or predicated execution
+\item comparisons are an issue: can only get the content of special flag register by branching
+  \item timing of loads/stores changes
+  \item mult/div is problematic. mult is safe on modern procs, but not on microprocs
+  \item bitshifts may translate into loops (unless bitshift by constant)
+\end{itemize}
 
 \cleardoublepage
 

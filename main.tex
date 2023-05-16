@@ -1046,12 +1046,12 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     %
     \typerule{CCT-Branch-Authentic}{
     }{
-      \ccttraceagree{\specificev{Branch\ n}}{\bm{\varepsilon}}
+      \ccttraceagree{\specificev{Branch\ n}}{\textbf{Branch\ n}}
     }{cct-branch-auth}
     %
     \typerule{CCT-Binop-Authentic}{
     }{
-      \ccttraceagree{\specificev{Binop\ n}}{\bm{\varepsilon}}
+      \ccttraceagree{\specificev{Binop\ n}}{\textbf{Binop\ n}}
     }{cct-binop-auth}
     %
     \typerule{CCT-Refl-Authentic}{
@@ -6573,19 +6573,75 @@ The syntax and semantics are entirely identical.
   Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{\trace[_{B}]}$ we say $e_{1}$ is $\CCT$-secure with respect to $\obj{\zeta}$ iff $(\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
 \end{definition}
 
-% \begin{definition}[$\CRhash$ security]
-%   Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
-%   Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{c,\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{c',\trace[_{B}]}$ we say $e_{1}$ is $\CRhash$-secure with respect to $\obj{\zeta}$ iff $(\obj{c},\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\obj{c'},\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
-% \end{definition}
-
-Problems:
+CCT-Problems:
 \begin{itemize}
-\item branching or predicated execution
-\item comparisons are an issue: can only get the content of special flag register by branching
+  \item branching or predicated execution
+  \item comparisons are an issue: can only get the content of special flag register by branching
   \item timing of loads/stores changes
   \item mult/div is problematic. mult is safe on modern procs, but not on microprocs
   \item bitshifts may translate into loops (unless bitshift by constant)
 \end{itemize}
+
+To remedy most of these real-world problems, which are dependent on the hardware, we introduce another language which has $\CCT$-hardened instructions.
+That is, we assume there exists an $\hat{\oplus}$ which behaves similarily to $\oplus$, but without leaking timing information.
+Moreover, we also assume that there are $\CCT$-versions of reading and writing.
+If the instruction set architecture does not support these, we argue that there is some encoding that can be done in the style of FaCT that the compiler would have to do.
+For example, to circumvent loading/storing and ensure $\CCT$-versions, the register allocator could ensure that this variable stays in a register. Whenever this is not possible, one could spill and, prior to re-loading the variable, invalidate the caches. Another option is to simply load the whole array sequentially and select the relevant entry using a bitmask operation.
+
+We consider arbitrary lists of public identifiers $\obj{\zeta}$ and harden the program component against any such list.
+The underlying assumption the programmer does in any other language we've seen before, that is, $\mmlAs$, $\mmlAt$, or $\mmlAtms$, is that they are writing $\CCT$ code.
+The upcoming compilation pass makes sure this assumption is actually true.
+
+\myfig{
+	\vspace{-1em}
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Final\ Result}\ \obj{\finalexprnoerr} \bnfdef&\ \obj{\valueexpr} \mid \obj{x} \hspace{0.5cm}
+  \mi{May\ be\ a\ Result}\ \obj{\finalexpr} \bnfdef\ \obj{\finalexprnoerr} \mid \obj{stuck} \\
+  %
+  \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{e_{1} \widehat{\oplus} e_{2}} \mid \obj{load\ x\ e} \mid \obj{\widehat{load}\ x\ e} \\
+  & \mid \obj{let\ x = e_{1}\ in\ e_{2}} \mid \obj{write\ x\ e_{1}\ e_{2}} \mid \obj{\widehat{write}\ x\ e_{1}\ e_{2}} \\
+  & \mid \obj{alloc\ x\ e_{1}\ e_{2}} \mid \obj{\widehat{alloc}\ x\ e_{1}\ e_{2}} \mid \obj{delete\ x} \mid \obj{\widehat{delete}\ x}\\
+  & \mid \obj{return\ e} \mid \obj{call\ foo\ e} \\
+  & \mid \obj{ifz\ e_1\ then\ e_2\ else\ e_3} \hspace{0.5cm} \text{where } \obj{\oplus}\in\{\obj{+},\obj{-},\obj{\times},\obj{<}\}\\
+  %
+  \mi{Functions}~\obj{\asymbol} \bnfdef&\ \obj{let\ foo\ x:= e} \hspace{0.25cm}
+  %
+  \mi{Values}~\obj{\valueexpr} \bnfdef\ \obj{n}\in\obj{\nat} \\
+  %
+  \mi{References}~\obj{\loc}\in\obj{\nat} \\
+  \mi{Eval. Ctx.}~\obj{K}\bnfdef &\ \obj{\hole{\cdot}}\mid \obj{K\oplus e}\mid \obj{v\oplus K}\mid \obj{x[K]}\mid \obj{let\ x=K\ in\ e}\\
+                     &\ \mid\obj{x[K]\leftarrow e}\mid \obj{x[v]\leftarrow K}\mid \obj{let\ x=new\ K\ in\ e} \\
+                     &\ \mid\obj{ifz\ K\ then\ e_1\ else\ e_2} \mid \obj{call\ foo\ K}\mid \obj{return\ K} \\
+  %
+  \mi{Variables}~\ &\obj{x} \mid \obj{y} \mid \obj{foo} \mid \dots \hspace{0.5cm}
+  %
+  \mi{Poison}~\ \obj{\poison}~\bnfdef\ \obj{\poisonless} \mid \obj{\poisoned}\\
+  \mi{Sandbox\ Tag}~&\ \obj{\sandboxtag}~\bnfdef\ \obj{\ctx} \mid \obj{\comp}\\
+  %
+  \mi{Typing. Env.}~\obj{\Gamma} \bnfdef&\ \obj{\hole{\cdot}} \mid \obj{\Gamma,x:\type}\hspace{0.5cm}
+  \mi{Store}~\obj{\Delta} \bnfdef\ \obj{\hole{\cdot}} \mid \obj{x\mapsto(\loc;\sandboxtag;\poison;n),\Delta}\\
+  %
+  \mi{Communication}~\obj{\comm} \bnfdef&\ \obj{\ctxtocomp} \mid \obj{\comptoctx} \mid \obj{\nocomm} \hspace{0.5cm}
+  \mi{Heaps}~\obj{H} \bnfdef\ \obj{\hole{\cdot}} \mid \obj{H}::\obj{n} \\
+  %
+  \mi{Cont.\ Stack}~\obj{\kontstack} \bnfdef&\ \obj{\hole{\cdot}} \mid (\obj{K};\obj{foo}),\obj{\kontstack} \hspace{0.5cm}
+  \mi{Library}~\obj{\library} \bnfdef\ \obj{\hole{\cdot}} \mid \obj{\asymbol},\obj{\library} \\
+  \mi{Relevant}\ \obj{\commlib} \bnfdef& \obj{\hole{\cdot}} \mid \obj{foo},\obj{\commlib}\hspace{0.5cm}
+  \mi{State}~\config\ \bnfdef\ \obj{\cfstate;\sandboxtag;\memstate}\\
+  \mi{Flow\ State}~\obj{\cfstate}\bnfdef&\ \obj{\commlib;\library;\kontstack}\hspace{0.5cm}
+  \mi{Memory\ State}~\obj{\memstate}\bnfdef\ \obj{H^{\ctx};H^{\comp};\Delta} \\
+  %
+  \mi{Programs}\ &\obj{prog\ \library_{ctx}\ \library_{comp}} \hspace{0.35cm}
+  \mi{Substitutions}~\obj{\gamma} \bnfdef \obj{[\valueexpr/x],\gamma}\ \vert\ \obj{\hole{\cdot}} \\
+  \end{aligned}
+  \end{gather*}
+}{mmlao-syntax}{Syntax of $\mmlAo$}
+
+% \begin{definition}[$\CRhash$ security]
+%   Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
+%   Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{c,\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{c',\trace[_{B}]}$ we say $e_{1}$ is $\CRhash$-secure with respect to $\obj{\zeta}$ iff $(\obj{c},\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\obj{c'},\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
+% \end{definition}
 
 \cleardoublepage
 

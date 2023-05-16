@@ -577,8 +577,7 @@ We introduce a set of actions that allows us to describe properties abstractly i
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning} |\ \specificev{Branch\ b} \mid \specificev{Binop\ \oplus} \\
-                                  &\text{Hereby, }n\in\mathbb{N}\text{ and }b\in\mathbb{B}
+    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning} |\ \specificev{Branch\ n} \mid \specificev{Binop\ n} \\
   \end{aligned}
   \end{gather*}
 }{w-specific-events}{\gls*{ms}-Specific Events.}
@@ -689,12 +688,12 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{TMS-Branch-Authentic}{
     }{
-      \tmstraceagree{\specificev{Branch\ b}}{\bm{\varepsilon}}
+      \tmstraceagree{\specificev{Branch\ n}}{\bm{\varepsilon}}
     }{tms-branch-auth}
     %
     \typerule{TMS-Binop-Authentic}{
     }{
-      \tmstraceagree{\specificev{Binop\ \oplus}}{\bm{\varepsilon}}
+      \tmstraceagree{\specificev{Binop\ n}}{\bm{\varepsilon}}
     }{tms-binop-auth}
     %
     \typerule{TMS-Refl-Authentic}{
@@ -799,12 +798,12 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{SMS-Branch-Authentic}{
     }{
-      \smstraceagree{\specificev{Branch\ b}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{Branch\ n}}{\bm{\varepsilon}}
     }{sms-branch-auth}
     %
     \typerule{SMS-Binop-Authentic}{
     }{
-      \smstraceagree{\specificev{Binop\ \oplus}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{Binop\ n}}{\bm{\varepsilon}}
     }{sms-binop-auth}
     %
     \typerule{SMS-Abort-Authentic}{
@@ -974,7 +973,46 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \end{proof}
 
 \subsubsection{\gls*{cct} Monitor}
-\MK{todo}
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon}\mid \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination \mid \textbf{Branch}\ \bm{n}\\
+      &\mid \textbf{Binop}\ \bm{n}\ \bm{m}\\
+    \end{aligned}
+  \end{gather*}
+}{cct-monitor}{\gls{cct} Monitor.}
+The CCT monitor serves as an overapproximation for cryptographic constant-time code.
+Here, any event whatsoever is considered bad, since this leaks information by means of a sidechannel.
+
+\myfig{
+  \begin{center}
+    \judgbox{\monitorcheck[]{\cctmonitor}{\cctmonitor[']}{\absevent}}{,,Given abstract state $\cctmonitor$, step to abstract state $\cctmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\cctmonitor}{\cctmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    %
+    \typerule{cct-None}{
+    }{
+      \monitorcheck[]{\cctmonitor}{\cctmonitor}{\bm{\varepsilon}}
+    }{cct-none}
+    %
+    \typerule{cct-Abort}{
+    }{
+      \monitorcheck[]{\cctmonitor}{\cctmonitor}{\bm{\lightning}}
+    }{cct-abort}
+    %
+    \typerule{cct-Refl}{
+    }{
+      \monitorcheck{\cctmonitor}{\cctmonitor}{\hole{\cdot}}
+    }{cct-refl}
+    %
+    \typerule{cct-Trans}{
+      \monitorcheck[]{\cctmonitor}{\cctmonitor[']}{\absevent}&
+      \monitorcheck{\cctmonitor[']}{\cctmonitor['']}{\abstrace}
+    }{
+      \monitorcheck{\cctmonitor}{\cctmonitor['']}{\absevent\cdot\abstrace}
+    }{cct-trans}
+  \end{center}
+}{cct-step}{Steps of \gls{cct} Monitor.}
 
 
 \subsection{Source Language}

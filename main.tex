@@ -6601,14 +6601,16 @@ The upcoming compilation pass makes sure this assumption is actually true.
   %
   \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{e_{1} \widehat{\oplus} e_{2}} \mid \obj{load\ x\ e} \mid \obj{\widehat{load}\ x\ e} \\
   & \mid \obj{let\ x = e_{1}\ in\ e_{2}} \mid \obj{write\ x\ e_{1}\ e_{2}} \mid \obj{\widehat{write}\ x\ e_{1}\ e_{2}} \\
-  & \mid \obj{alloc\ x\ e_{1}\ e_{2}} \mid \obj{\widehat{alloc}\ x\ e_{1}\ e_{2}} \mid \obj{delete\ x} \mid \obj{\widehat{delete}\ x}\\
+  & \mid \obj{alloc\ x\ e_{1}\ e_{2}} \mid \obj{delete\ x} \\
   & \mid \obj{return\ e} \mid \obj{call\ foo\ e} \mid \obj{ifz\ e_{1}\ then\ e_{2}\ else\ e_{3}} \\
-  & \mid \obj{\widehat{ifz}\ e_1\ then\ e_2\ else\ e_3} \\
+  & \mid \obj{\widehat{ifz}\ e_1\ then\ e_2\ else\ e_3} \mid \obj{abort()} \mid \obj{x\ is\ \poisoned} \\
+  & \mid \obj{\langle n_{1},n_{2}\rangle} \mid \obj{\pi_{1} e} \mid \obj{\pi_{2} e} \mid \obj{e\ has\ \type} \\
    &\text{where } \obj{\oplus}\in\{\obj{+},\obj{-},\obj{\times},\obj{\widehat{\times}},\obj{<},\obj{\widehat{<}},\obj{/},\obj{\widehat{/}}\}\\
   %
   \mi{Functions}~\obj{\asymbol} \bnfdef&\ \obj{let\ foo\ x:= e} \hspace{0.25cm}
+  \mi{Types}~\obj{\type} \bnfdef\ \obj{\nat} \mid \obj{\nat\times\nat} \\
   %
-  \mi{Values}~\obj{\valueexpr} \bnfdef\ \obj{n}\in\obj{\nat} \\
+  \mi{Values}~\obj{\valueexpr} \bnfdef&\ \obj{n}\in\obj{\nat} \hspace{0.25cm}
   %
   \mi{References}~\obj{\loc}\in\obj{\nat} \\
   \mi{Eval. Ctx.}~\obj{K}\bnfdef &\ \obj{\hole{\cdot}}\mid \obj{K\oplus e}\mid \obj{v\oplus K}\mid \obj{x[K]}\mid \obj{let\ x=K\ in\ e}\\
@@ -6638,11 +6640,298 @@ The upcoming compilation pass makes sure this assumption is actually true.
   \end{aligned}
   \end{gather*}
 }{mmlao-syntax}{Syntax of $\mmlAo$}
+.\MK{patch eval ctx}
+
+\subsubsection{Dynamic Semantics}
+
+\myfig{
+  \judgbox{\operatorname{dom}\ \obj{\library}=\obj{foo},\dots,\obj{bar}}{,,Collect function names.''}$\;$\\
+  \begin{center}
+    \typerule{$\obj{\library}$-dom-$\obj{\hole{\cdot}}$}{
+    }{
+      \operatorname{dom}\ \obj{\hole{\cdot}} = \obj{\hole{\cdot}}
+    }{wo-lib-dom-empty}
+    %
+    \typerule{$\obj{\library}$-dom-cons}{
+      \operatorname{dom}\ \obj{\library} = \obj{D}
+    }{
+      \operatorname{dom}\ (\obj{let\ foo\ x : \type}_\lambda\obj{:= e})\obj{,\library} = \obj{foo},\obj{D}
+    }{wo-lib-dom-cons}
+  \end{center}
+  \begin{center}
+    \judgbox{\obj{\library}\equiv\obj{\library_1}\cup\obj{\library_2}}{,,Merging $\mmlAo$ libraries.''}$\;$\\
+    \typerule{lib-merge-empty}{
+      \obj{\library}=\obj{\library_1}
+    }{
+      \obj{\library}\equiv\obj{\library_1}\cup\obj{\hole{\cdot}}
+    }{obj-lib-merge-empty}
+    %
+    \typerule{lib-merge-cons}{
+      \obj{\library}\equiv\obj{\library_1}\cup\obj{\library_2}
+    }{
+      \obj{\asymbol,\library}\equiv\obj{\library_1}\cup\obj{\asymbol,\library_2}
+    }{obj-lib-merge-cons}
+
+    \judgbox{\obj{\library_1\linker\library_2}=\obj{\library}}{,,Syntactically linking $\mmlAo$ libraries.''}$\;$\\
+    \typerule{syntactic-plugging}{
+      \operatorname{dom}\obj{\library_1}\cap\operatorname{dom}\obj{\library_2} = \emptyset &
+      \obj{\library}\equiv\obj{\library_1}\cup\obj{\library_2}
+    }{
+      \obj{\library_1\linker\library_2} = \obj{\library}
+    }{obj-plugging}
+  \end{center}
+}{w-plugging-o}{$\mmlAo$ plugging of libraries and collecting of function names.}
+
+
+\myfig{
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Base~Events}~\obj{\event_{b}} \bnfdef&\ \obj{Alloc\ \loc\ \valueexpr} \mid \obj{Dealloc\ \loc} \mid \obj{Get\ \loc\ \valueexpr} \mid \obj{Set\ \loc\ \valueexpr\ \valueexpr'} \mid \obj{\lightning}\\
+                                           & \mid \obj{Call\ \comm\ foo\ \valueexpr} \mid \obj{Ret\ \comm\ \valueexpr} \mid \obj{Start} \mid \obj{End\ \valueexpr} \\
+                                           & \mid \obj{Branch\ n} \mid \obj{Binop\ n\ m} \\
+    & \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr'} \\
+  \mi{Events}~\obj{\event} \bnfdef&\ \obj{\emptyevent} \mid \obj{\event_{b};\sandboxtag}
+  \end{aligned}
+  \end{gather*}
+}{to-events}{Events of $\mmlAo$.}
+
+\myfig{
+  \judgbox{\exprevalo{\Omega}{e}{\Omega'}{e'}{\event}}{,,Expression $\obj{e}$ evaluates under Omegauration $\Omega$ to $\obj{e'}$ and\\new Omegauration $\obj{\Omega'}$, emitting event $\obj{\event}$.''}
+  %
+  \typerule{$e-\obj{\oplus}-$noleak}{
+    \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
+    \obj{\oplus}\notin\{\obj{*},\obj{/},\obj{<}\}
+  }{
+    \exprevalo{\Omega}{n_1\oplus n_2}{\Omega}{n_3}{\emptyevent}
+  }{to-e-oplus-noleak}
+  %
+  \typerule{$e-\obj{\oplus}-$leak}{
+    \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
+    \obj{\oplus}\in\{\obj{*},\obj{/},\obj{<}\}
+  }{
+    \exprevalo{\Omega}{n_1\oplus n_2}{\Omega}{n_3}{Binop\ n_1\ n_2}
+  }{to-e-oplus-leak}
+  %
+  \typerule{$e-\obj{get}-\in$}{
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}}
+  }{
+    \exprevalo{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
+  }{to-e-get-in}
+  %
+  \typerule{$e-\obj{get}-\notin$}{
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \obj{\loc}\notin\text{dom }\obj{H^{\sandboxtag}}
+  }{
+    \exprevalo{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
+  }{to-e-get-notin}
+  %
+  \typerule{$e-\obj{set}-\ctx$}{
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+    \obj{H^{\ctx'}} = \obj{H^{\ctx}}(\obj{\loc+n}\mapsto \obj{v}) \\
+    \obj{\memstate'}=\obj{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2}
+  }{
+    \exprevalo{\cfstate;\ctx;\memstate}{x[n]\leftarrow v}{\cfstate;\ctx;\memstate'}{v}{Set\ \loc\ n\ v;\ctx}
+  }{to-e-set-ctx}
+  %
+  \typerule{$e-\obj{set}-\comp$}{
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+    \obj{H^{\comp'}} = \obj{H^{\comp}}(\obj{\loc+n}\mapsto \obj{v}) \\
+    \obj{\memstate'}=\obj{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2}
+  }{
+    \exprevalo{\cfstate;\comp;\memstate}{x[n]\leftarrow v}{\cfstate;\comp;\memstate'}{v}{Set\ \loc\ n\ v;\comp}
+  }{to-e-set-comp}
+  %
+  \typerule{$e-\obj{let}-\obj{\finalexprnoerr}$}{
+  }{
+    \exprevalo{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
+  }{to-e-let-f}
+  %
+  \typerule{$e-\obj{delete}$}{
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
+  }{
+    \exprevalo{\cfstate;\sandboxtag;\memstate}{delete\ x}{\cfstate;\sandboxtag;\memstate'}{0}{Dealloc\ \loc;\sandboxtag}
+  }{to-e-delete}
+  %
+  \typerule{$e-\obj{new}-ctx$}{
+    \fresh{\obj{\Delta}}{\obj{\loc}} &
+    \fresh{\obj{\Delta}}{\obj{z}} &
+    \obj{H^{\ctx'}} = \obj{H^{\ctx}} \ll \obj{n} \\
+    \obj{\memstate} = \obj{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+  }{
+    \exprevalo{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;\memstate}{e[z/x]}{Alloc\ \loc\ n;\ctx}
+  }{to-e-let-new-ctx}
+  %
+  \typerule{$e-\obj{new}-comp$}{
+    \fresh{\obj{\Delta}}{\obj{\loc}} &
+    \fresh{\obj{\Delta}}{\obj{z}} &
+    \obj{H^{\comp'}} = \obj{H^{\comp}} \ll \obj{n} \\
+    \obj{\memstate} = \obj{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+  }{
+    \exprevalo{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate}{e[z/x]}{Alloc\ \loc\ n;\comp}
+  }{to-e-let-new-comp}
+  %
+  \typerule{$e-\obj{ifz}-$true}{
+  }{
+    \exprevalo{\cfstate;\sandboxtag;\memstate}{ifz\ 0\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;\memstate}{e_1}{Branch\ 0;\sandboxtag}
+  }{to-e-if-true}
+  %
+  \typerule{$e-\obj{ifz}-$false}{
+  }{
+    \exprevalo{\cfstate;\sandboxtag;\memstate}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;\memstate}{e_2}{Branch\ S(n);\sandboxtag}
+  }{to-e-if-false}
+  %
+  \typerule{$e-\obj{abort}$}{
+  }{
+    \exprevalo{\Omega}{abort()}{\Omega}{stuck}{\lightning}
+  }{to-e-abort}
+  %
+}{to-expr-eval}{Evaluation of $\mmlAo$ expressions.}
+.\MK{add evals for cct versions}
+
+\myfig{
+  \typerule{$e-\obj{\pi_1}$}{
+  }{
+    \exprevalo{\Omega}{\pi_1\langle n_1;n_2\rangle}{\Omega}{n_1}{\emptyevent}
+  }{to-e-proj1}
+  %
+  \typerule{$e-\obj{\pi_2}$}{
+  }{
+    \exprevalo{\Omega}{\pi_2\langle n_1;n_2\rangle}{\Omega}{n_2}{\emptyevent}
+  }{to-e-proj2}
+  %
+  \typerule{$e-\obj{x\ is\ \poisoned}-$yes}{
+    \obj{\memstate}=\obj{H;\Delta} &
+    \obj{\Delta}=\obj{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
+  }{
+    \exprevalo{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{0}{\emptyevent}
+  }{to-e-x-is-poisoned-yes}
+  %
+  \typerule{$e-\obj{x\ is\ \poisoned}-$no}{
+    \obj{\memstate}=\obj{H;\Delta} &
+    \obj{\Delta}=\obj{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2}
+  }{
+    \exprevalo{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{1}{\emptyevent}
+  }{to-e-x-is-poisoned-no}
+  %
+  \typerule{$e-\obj{n\ has\ \nat}$}{
+  }{
+    \exprevalo{\Omega}{n\ has\ \nat}{\Omega}{0}{\emptyevent}
+  }{to-e-n-hasnat}
+  %
+  \typerule{$e-pair-\obj{has\ \nat}$}{
+  }{
+    \exprevalo{\Omega}{\langle n_1,n_2\rangle\ has\ \nat}{\Omega}{1}{\emptyevent}
+  }{to-e-pair-hasnat}
+  %
+  \typerule{$e-\obj{x\ has\ \nat}$}{
+  }{
+    \exprevalo{\Omega}{x\ has\ \nat}{\Omega}{1}{\emptyevent}
+  }{to-e-x-hasnat}
+  %
+  \typerule{$e-\obj{n\ has\ \nat\times\nat}$}{
+  }{
+    \exprevalo{\Omega}{n\ has\ \nat\times\nat}{\Omega}{1}{\emptyevent}
+  }{to-e-n-haspair}
+  %
+  \typerule{$e-pair-\obj{has\ \nat\times\nat}$}{
+  }{
+    \exprevalo{\Omega}{\langle n_1,n_2\rangle\ has\ \nat\times\nat}{\Omega}{0}{\emptyevent}
+  }{to-e-pair-haspair}
+  %
+  \typerule{$e-\obj{x\ has\ \nat\times\nat}$}{
+  }{
+    \exprevalo{\Omega}{x\ has\ \nat\times\nat}{\Omega}{1}{\emptyevent}
+  }{to-e-x-haspair}
+}{to-expr-eval-continued}{Evaluation of $\mmlAo$ expressions, continued.}
 
 % \begin{definition}[$\CRhash$ security]
 %   Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
 %   Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{c,\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{c',\trace[_{B}]}$ we say $e_{1}$ is $\CRhash$-secure with respect to $\obj{\zeta}$ iff $(\obj{c},\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\obj{c'},\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
 % \end{definition}
+%
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{MS}(\obj{\loc})=\specificev{\loc}}{,,A map from $\mmlAo$ memory locations $\obj{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevo[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAo$ event to MS-specific events.''}
+    %
+    \typerule{filter-context}{
+      \obj{\event_b} \not= \obj{\lightning}
+    }{
+      \tospecificevo[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{filter-context}
+    %
+    \typerule{filter-comp-start}{
+    }{
+      \tospecificevo[_{\delta_{MS}}]{Start;\comp} = \specificev{\emptyevent}
+    }{filter-comp-start}
+    %
+    \typerule{filter-comp-alloc}{
+      \delta_{MS}(\obj{\loc})=\specificev{\loc} &
+      \specificev{n}=\obj{n}
+    }{
+      \tospecificevo[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n}
+    }{filter-comp-alloc}
+    %
+    \typerule{filter-comp-dealloc}{
+      \delta_{MS}(\obj{\loc})=\specificev{\loc}
+    }{
+      \tospecificevo[_{\delta_{MS}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc}
+    }{filter-comp-dealloc}
+    %
+    \typerule{filter-comp-get}{
+      \delta_{MS}(\obj{\loc})=\specificev{\loc} &
+      \specificev{n}=\obj{n}
+    }{
+      \tospecificevo[_{\delta_{MS}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+    }{filter-comp-get}
+    %
+    \typerule{filter-comp-set}{
+      \delta_{MS}(\obj{\loc})=\specificev{\loc} &
+      \specificev{n}=\obj{n}
+    }{
+      \tospecificevo[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+    }{filter-comp-set}
+    %
+    \typerule{filter-comp-call}{
+    }{
+      \tospecificevo[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{filter-comp-call}
+    %
+    \typerule{filter-comp-ret}{
+    }{
+      \tospecificevo[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{filter-comp-ret}
+    %
+    \typerule{filter-abort}{
+    }{
+      \tospecificevo[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+    }{filter-abort}
+    %
+    \judgbox{\tospecificevo[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAo$ trace to MS-specific traces.''}
+    %
+    \typerule{filter-empty}{
+    }{
+      \tospecificevo[^*_{\delta_{MS}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{filter-empty}
+    %
+    \typerule{filter-cons-relevant}{
+      \tospecificevo[_{\delta_{MS}}]{\event} = \specificev{\event} &
+      \tospecificevo[^*_{\delta_{MS}}]{\trace} = \mstrace &
+      \specificev{\event} \not= \specificev{\emptyevent}
+    }{
+      \tospecificevo[^*_{\delta_{MS}}]{\event\cdot\trace} = \specificev{\event}\cdot\mstrace
+    }{filter-cons-relevant}
+    %
+    \typerule{filter-cons-relevant}{
+      \tospecificevo[_{\delta_{MS}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevo[^*_{\delta_{MS}}]{\trace} = \mstrace
+    }{
+      \tospecificevo[^*_{\delta_{MS}}]{\event\cdot\trace} = \mstrace
+    }{filter-cons}
+  \end{center}
+}{w-events-project-to-specific}{Projection of $\mmlAo$ events to \gls*{ms}-specific events.}
 
 \cleardoublepage
 

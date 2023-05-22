@@ -7104,14 +7104,275 @@ The upcoming compilation pass makes sure this assumption is actually true.
   \end{center}
 }{wo-cct-events-project-to-specific}{Projection of $\mmlAo$ events to \gls*{cct}-specific events.}
 
+\myfig{
+  \begin{center}
+    \judgbox{\delta(\irl{\loc})=\obj{\loc}}{,,Map from $\mmlAtms$ locations $\irl{\loc}$ to $\mmlAtcct$ locations $\obj{\loc}$.''} \\
+    \judgbox{\xlangtraceeqc{\trace}{\trace}}{,,The $\mmlAtms$ trace $\irl{\trace}$ describes the same actions as $\mmlAtcct$ trace $\obj{\trace}$.''} \\
+    \typerule{cct-empty-trace-eq}{
+    }{
+      \xlangtraceeqc{\hole{\cdot}}{\hole{\cdot}}
+    }{cct-empty-trace-eq}
+    %
+    \typerule{cct-cons-trace-eq}{
+      \irl{\sandboxtag}=\obj{\sandboxtag} &
+      \xlangeventeqc{\event_{b}}{\event_{b}} &
+      \xlangtraceeqc{\trace}{\trace}
+    }{
+      \xlangtraceeqc{\event_{b};\sandboxtag\cdot\trace}{\event_{b};\sandboxtag\cdot\trace}
+    }{cct-cons-trace-eq}
+    %
+    \judgbox{\xlangeventeqc{\event_{b}}{\event_{b}}}{,,The $\mmlAtms$ event $\irl{\event_b}$ describes the same action as $\mmlAtms$ event $\obj{\event_b}$.''} \\
+    %
+    \typerule{cct-start-event-eq}{
+    }{
+      \xlangeventeqc{Start}{Start}
+    }{cct-start-event-eq}
+    %
+    \typerule{cct-end-event-eq}{
+      \mmlAtmsmmlAtcctcomp{\valueexpr} = \obj{\valueexpr}
+    }{
+      \xlangeventeqc{End\ \valueexpr}{End\ \valueexpr}
+    }{cct-end-event-eq}
+    %
+    \typerule{cct-alloc-event-eq}{
+      \mmlAtmsmmlAtcctcomp{n}=\obj{n} &
+      \delta(\irl{\loc})=\obj{\loc}
+    }{
+      \xlangeventeqc{Alloc\ \loc\ n}{Alloc\ \loc\ n}
+    }{cct-alloc-event-eq}
+    %
+    \typerule{cct-dealloc-event-eq}{
+      \delta(\irl{\loc})=\obj{\loc}
+    }{
+      \xlangeventeqc{Dealloc\ \loc}{Dealloc\ \loc}
+    }{cct-dealloc-event-eq}
+    %
+    \typerule{cct-get-event-eq-noleak}{
+      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+      \delta(\irl{\loc}) = \obj{\loc}
+    }{
+      \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{\widehat{Get}\ \loc\ n}
+    }{cct-get-event-eq-noleak}
+    %
+    \typerule{cct-get-event-eq-leak}{
+      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+      \delta(\irl{\loc}) = \obj{\loc}
+    }{
+      \xlangeventeqc{Get\ \loc\ n}{Get\ \loc\ n}
+    }{cct-get-event-eq-leak}
+    %
+    \typerule{cct-set-event-eq-leak}{
+      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+      \mmlAtmsmmlAtcctcomp{\valueexpr} = \obj{\valueexpr} &
+      \delta(\irl{\loc}) = \obj{\loc}
+    }{
+      \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{Set\ \loc\ n\ \valueexpr}
+    }{cct-set-event-eq-leak}
+    %
+    \typerule{cct-set-event-eq-noleak}{
+      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+      \mmlAtmsmmlAtcctcomp{\valueexpr} = \obj{\valueexpr} &
+      \delta(\irl{\loc}) = \obj{\loc}
+    }{
+      \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{\widehat{Set}\ \loc\ n\ \valueexpr}
+    }{cct-set-event-eq-noleak}
+    %
+    \typerule{cct-call-event-eq}{
+      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+      \mmlAtmsmmlAtcctcomp{foo} = \obj{foo} &
+      \irl{\comm} = \obj{\comm}
+    }{
+      \xlangeventeqc{Call\ \comm\ foo\ n}{Call\ \comm\ foo\ n}
+    }{cct-call-event-eq}
+    %
+    \typerule{cct-ret-event-eq}{
+      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+      \irl{\comm} = \obj{\comm}
+    }{
+      \xlangeventeqc{Ret\ \comm\ n}{Ret\ \comm\ n}
+    }{cct-ret-event-eq}
+    %
+    \typerule{cct-$\irl{\emptyevent}$-event-eq}{
+    }{
+      \xlangeventeqc{\emptyevent}{\emptyevent}
+    }{cct-emptyevent-event-eq}
+    %
+    \typerule{cct-$\irl{\lightning}$-event-eq}{
+    }{
+      \xlangeventeqc{\lightning}{\lightning}
+    }{cct-abort-event-eq}
+    %
+    \typerule{cct-binop-event-eq-leak}{
+    }{
+      \xlangeventeqc{\emptyevent}{Binop\ n_1\ n_2}
+    }{cct-binop-event-eq-leak}
+    %
+    \typerule{cct-binop-event-eq-leak}{
+    }{
+      \xlangeventeqc{\emptyevent}{Branch\ n}
+    }{cct-branch-event-eq-leak}
+    $\;$\\
+    %
+    \judgbox{\irl{\comm} = \obj{\comm}}{,,Communications are equal.''} \\
+    %
+    \typerule{$\irl{\ctxtocomp}=\obj{\ctxtocomp}$}{
+    }{
+      \irl{\ctxtocomp}=\obj{\ctxtocomp}
+    }{cct-sctxtocomp-eq-tctxtocomp}
+    %
+    \typerule{$\irl{\comptoctx}=\obj{\comptoctx}$}{
+    }{
+      \irl{\comptoctx}=\obj{\comptoctx}
+    }{cct-scomptoctx-eq-tcomptoctx}
+    %
+    \typerule{$\irl{\nocomm}=\obj{\nocomm}$}{
+    }{
+      \irl{\nocomm}=\obj{\nocomm}
+    }{cct-snocomm-eq-tnocomm}
+  \end{center}
+}{cct-pres-trace-relation}{Trace Relation from $\mmlAtms$ to $\mmlAtcct$.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\delta(\irl{\loc})=\obj{\loc}}{,,The $\mmlAtms$ memory location $\irl{\loc}$ corresponds to\\the $\mmlAtcct$ memory location $\obj{\loc}$.''} \\
+    \judgbox{\xlangstateeqc{\Omega}{\Omega}}{,,The $\mmlAtms$ state $\irl{\Omega}$ agrees with $\mmlAtms$ state $\obj{\Omega}$.''} \\
+    %
+    \typerule{cct-state-eq}{
+      \irl{\Omega}=\irl{\cfstate;\sandboxtag;\memstate} &
+      \obj{\Omega}=\obj{\cfstate;\sandboxtag;\memstate} &
+      \irl{\sandboxtag} = \obj{\sandboxtag} \\
+      \xlangstateeqc[]{\cfstate}{\cfstate} &
+      \xlangstateeqc{\memstate}{\memstate}
+    }{
+      \xlangstateeqc{\Omega}{\Omega}
+    }{cct-state-eq}
+    %
+    \typerule{cct-abort-state-eq}{
+    }{
+      \xlangstateeqc{\lightning}{\lightning}
+    }{cct-abort-eq}
+    %
+    \judgbox{\xlangstateeqc{\memstate}{\memstate}}{,,The $\mmlAtms$ memory-state $\irl{\memstate}$ agrees with $\mmlAtcct$ one $\obj{\memstate}$. $\irl{L}$ contains locations\\introduced by the backtranslation wrapper.''}\\
+    %
+    \typerule{cct-empty-memstate-eq}{
+    }{
+      \xlangstateeqc{\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\hole{\cdot};\hole{\cdot};\hole{\cdot}}
+    }{cct-empty-memstate-eq}
+    %
+    \typerule{cct-comp-cons-memstate-eq}{
+      \irl{\loc}\not\in\irl{L} &
+      \irl{n}=\obj{n} &
+      \irl{\poison}=\obj{\poison} &
+      \delta\left(\irl{\loc}\right)=\obj{\loc} \\
+      \irl{\loc},\irl{n}\vdash_{\delta}\irl{H^{\comp}}\approx\obj{H^{\comp}} &
+      \xlangstateeqc{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta_{1},\Delta_{2}}
+    }{
+      \xlangstateeqc{H^{\ctx};H^{\comp};x\mapsto(\loc;\comp;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;n),\Delta_{2}}
+    }{cct-comp-cons-memstate-eq}
+    %
+    \typerule{cct-ctx-cons-memstate-eq}{
+      \irl{\loc}\not\in\irl{L} &
+      \xlangstateeqc{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{
+      \xlangstateeqc{H^{\ctx};H^{\comp};x\mapsto(\loc;\ctx;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{cct-ctx-cons-memstate-eq}
+    %
+    \typerule{cct-whatever-cons-memstate-eq}{
+      \irl{\loc}\in\irl{L} &
+      \xlangstateeqc{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{
+      \xlangstateeqc{H^{\ctx};H^{\comp};x\mapsto(\loc;\sandboxtag;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta}
+    }{cct-whatever-cons-memstate-eq}
+    %
+    %
+    \judgbox{\irl{\loc},\irl{n}\vdash_{\delta}\irl{H^{\comp}}\approx\obj{H^{\comp}}}{,,The heaps $\irl{H^{\comp}}$ and $\obj{H^{\comp}}$ are related at $\irl{\loc}$ for\\$\irl{n}$ memory cells.''}
+    %
+    \typerule{cct-heap-related}{
+      \mmlAtmsmmlAtcctcomp{n}=\obj{n} &
+      \delta(\irl{\loc}) = \obj{\loc} \\
+      \forall \irl{0}\le\irl{m}<\irl{n},\ \obj{0}\le\obj{m}<\obj{n},\irl{H^{\comp}}\left(\irl{\loc} + \irl{m}\right)=\obj{H^{\comp}}\left(\obj{\loc} + \obj{m}\right)
+    }{
+      \irl{\loc},\irl{n}\vdash_{\delta}\irl{H^{\comp}}\approx\obj{H^{\comp}}
+    }{cct-heap-related}
+    %
+    \judgbox{\xlangstateeqc[]{\cfstate}{\cfstate}}{,,The $\mmlAtms$ control-flow-state $\irl{\cfstate}$ agrees with $\mmlAtcct$ one $\obj{\cfstate}$.''} \\
+    %
+    \typerule{cct-cfstate-eq}{
+      \irl{\cfstate}=\irl{\commlib;\library;\kontstack} &
+      \obj{\cfstate}=\obj{\commlib;\library;\kontstack} \\
+      \xlangstateeqc[]{\library}{\library} &
+      \xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack} &
+      \obj{\commlib}=\mmlAtmsmmlAtcctcomp{\commlib}
+    }{
+      \xlangstateeqc[]{\cfstate}{\cfstate}
+    }{cct-cfstate-eq}$\;$\\
+    %
+    %
+    \judgbox{\irl{\poison}=\obj{\poison}}{,,$\mmlAtms$ poison equals $\mmlAtcct$ one $\obj{\poison}$.''} \\
+    %
+    \typerule{$\poisoned$-equal}{
+    }{
+      \irl{\poisoned}=\obj{\poisoned}
+    }{cct-poisoned-equal}
+    %
+    \typerule{$\poisonless$-equal}{
+    }{
+      \irl{\poisonless}=\obj{\poisonless}
+    }{cct-poisonless-equal}
+  \end{center}
+}{cct-pres-state-relations-first}{State Relation from $\mmlAtms$ to $\mmlAtcct$. This is meant to relate the states whenever we are ,,inside'' a component.}
+
+\myfig{
+  \begin{center}
+    %
+    \judgbox{\xlangstateeqc[]{\library}{\library}}{,,The procedures of $\mmlAtms$ agree with $\mmlAtcct$ ones.''} \\
+    %
+    \typerule{cct-empty-commlib-lib-eq}{
+    }{
+      \xlangstateeqc[]{\hole{\cdot}}{\library}
+    }{cct-empty-commlib-eq}
+    %
+    \typerule{cct-cons-commlib-eq}{
+      \mmlAtmsmmlAtcctcomp{let\ foo\ x:\type_{\color{black}\lambda} := e} = \obj{let\ foo\ x := e} &
+      \xlangstateeqc[]{\library}{\library_1,\library_2}
+    }{
+      \xlangstateeqc[]{(let\ foo\ x:\type_{\color{black}\lambda} := e),\library}{\library_1,(let\ foo\ x := e),\library_2}
+    }{cct-cons-commlib-eq}
+    %
+    %
+    \judgbox{\xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack}}{,,The stack of $\mmlAtms$ continuations $\irl{\kontstack}$ agrees with $\mmlAtcct$ one $\obj{\kontstack}$.\\Only checks $\irl{foo}\in\irl{\commlib}$''} \\
+    %
+    \typerule{cct-empty-kontstack-eq}{
+    }{
+      \xlangstateeqc[\irl{\commlib}]{\hole{\cdot}}{\hole{\cdot}}
+    }{cct-empty-kontstack-eq}
+    %
+    \typerule{cct-ign-cons-kontstack-eq}{
+      \irl{foo}\notin\irl{\commlib} &
+      \obj{foo}=\mmlAtmsmmlAtcctcomp{foo} &
+      \xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack}
+    }{
+      \xlangstateeqc[\irl{\commlib}]{\kontstack}{(K;foo),\kontstack}
+    }{cct-ign-cons-kontstack-eq}
+    %
+    \typerule{cons-kontstack-eq}{
+      \irl{foo}\in\irl{\commlib} &
+      \irl{foo}=\obj{foo} &
+      \xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack}
+    }{
+      \xlangstateeqc[\irl{\commlib}]{(K;foo),\kontstack}{(K;foo),\kontstack}
+    }{cct-cons-kontstack-eq}
+  \end{center}
+}{cct-pres-memstate-relations}{Memory-State Relations from $\mmlAtms$ to $\mmlAtcct$.}
+
 \subsubsection{Compiler}
 
 \myfig{
   \begin{center}
     \begin{gather*}
-    \judgbox{\mmlAtmsmmlAtcctcomp{e}=\obj{e'}}{,,Compile $\mmlAt$ expression $\trg{e}$ to $\mmlAt$ expression $\obj{e'}$.''}\\
-    \judgbox{\mmlAtmsmmlAtcctcomp{\left[\valueexpr / x\right]}=\obj{\left[\valueexpr / x\right]}}{,,Compile $\mmlAt$ substitution to $\mmlAtms$ substitution.''} \\
-    \judgbox{\mmlAtmsmmlAtcctcomp{\commlib}=\obj{\commlib'}}{,,Compile $\mmlAt$ component library to $\mmlAtms$ component library.''} \\
+    \judgbox{\mmlAtmsmmlAtcctcomp{e}=\obj{e'}}{,,Compile $\mmlAtms$ expression $\irl{e}$ to $\mmlAtcct$ expression $\obj{e'}$.''}\\
+    \judgbox{\mmlAtmsmmlAtcctcomp{\left[\valueexpr / x\right]}=\obj{\left[\valueexpr / x\right]}}{,,Compile $\mmlAtms$ substitution to $\mmlAtcct$ substitution.''} \\
+    \judgbox{\mmlAtmsmmlAtcctcomp{\commlib}=\obj{\commlib'}}{,,Compile $\mmlAtms$ component library to $\mmlAtcct$ component library.''} \\
     \end{gather*}
     $$
     \begin{array}{rll}
@@ -7167,7 +7428,67 @@ The upcoming compilation pass makes sure this assumption is actually true.
 \cleardoublepage
 
 \begin{lemma}[Primitive Forward Simulation]\label{lem:prim:forwardsim:cct}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:prim:forwardsim:cct:execi} $\exprevali{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
+    \item $\monitorcheck[]{\cctmonitor}{\cctmonitor'}{\absevent}$
+    \item $\theta_{\delta}(\irl{\event})=\absevent$
+    \item $\xlangstateeqc{\Omega}{\Omega}$
+    \item $\storeagreecct{\cctmonitor}{\obj{\Omega}}$
+  \end{assumptions}
+  Then $\exists \delta_{cct}'\ \obj{\event}\ \obj{\Omega'}$,
+  \begin{goals}
+    \item $\exprevalo{\Omega}{\color{black}\mmlAtmsmmlAtcctcomp{e}\mmlAtmsmmlAtcctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtcctcomp{e'}\mmlAtmsmmlAtcctcomp{\gamma'}}{\event}$
+    \item $\xlangeventeqc[\delta_{cct}']{\event}{\event}$
+    \item $\xlangstateeqc[\delta_{cct}']{\Omega'}{\Omega'}$
+    \item $\theta_{\delta_{cct}'}(\obj{\event})=\absevent$
+  \end{goals}
 \end{lemma}
+\begin{proof}
+  Case analysis on \Cref{asm:prim:forwardsim:cct:execi}.
+\end{proof}
+
+\begin{lemma}[Contextual Forward Simulation]\label{lem:ctx:forwardsim:cct}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:ctx:forwardsim:cct:execi} $\exectms[]{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
+    \item $\monitorcheck[]{\cctmonitor}{\cctmonitor'}{\absevent}$
+    \item $\theta_{\delta}(\irl{\event})=\absevent$
+    \item $\xlangstateeqc{\Omega}{\Omega}$
+    \item $\storeagreecct{\cctmonitor}{\obj{\Omega}}$
+  \end{assumptions}
+  Then $\exists \delta_{cct}'\ \obj{\event}\ \obj{\Omega'}$,
+  \begin{goals}
+    \item $\execo[]{\Omega}{\color{black}\mmlAtmsmmlAtcctcomp{e}\mmlAtmsmmlAtcctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtcctcomp{e'}\mmlAtmsmmlAtcctcomp{\gamma'}}{\event}$
+    \item $\xlangeventeqc[\delta_{cct}']{\event}{\event}$
+    \item $\xlangstateeqc[\delta_{cct}']{\Omega'}{\Omega'}$
+    \item $\theta_{\delta_{cct}'}(\obj{\event})=\absevent$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Case analysis on \Cref{asm:ctx:forwardsim:cct:execi} and using \Thmref{lem:prim:forwardsim:cct}.
+\end{proof}
+
+\begin{lemma}[Forward Simulation]\label{lem:steps:forwardsim:cct}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:steps:forwardsim:cct:execi} $\exectms{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
+    \item $\monitorcheck[]{\cctmonitor}{\cctmonitor'}{\absevent}$
+    \item $\theta_{\delta}(\irl{\event})=\absevent$
+    \item $\xlangstateeqc{\Omega}{\Omega}$
+    \item $\storeagreecct{\cctmonitor}{\obj{\Omega}}$
+  \end{assumptions}
+  Then $\exists \delta_{cct}'\ \obj{\event}\ \obj{\Omega'}$,
+  \begin{goals}
+    \item $\execo{\Omega}{\color{black}\mmlAtmsmmlAtcctcomp{e}\mmlAtmsmmlAtcctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtcctcomp{e'}\mmlAtmsmmlAtcctcomp{\gamma'}}{\event}$
+    \item $\xlangeventeqc[\delta_{cct}']{\event}{\event}$
+    \item $\xlangstateeqc[\delta_{cct}']{\Omega'}{\Omega'}$
+    \item $\theta_{\delta_{cct}'}(\obj{\event})=\absevent$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Case analysis on \Cref{asm:steps:forwardsim:cct:execi} and using \Thmref{lem:ctx:forwardsim:cct}.
+\end{proof}
 
 \begin{lemma}[Backward Simulation]
 \end{lemma}

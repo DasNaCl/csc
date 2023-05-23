@@ -3607,13 +3607,13 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \judgbox{\tospecificevt[_{\trg{\bullet}}]{\event} = \trg{\event}}{,,Filter an $\mmlAt$ event.''}
     %
     \typerule{trg-filter-context}{
-      \trg{\event_b} \not= \trg{\lightning} &
-      \trg{\event_b} \not= \trg{Alloc\ \loc\ n} &
-      \trg{\event_b} \not= \trg{Dealloc\ \loc} \\
-      \trg{\event_b} \not= \trg{Get\ \loc\ n} &
-      \trg{\event_b} \not= \trg{Set\ \loc\ n\ m} \\
-      \trg{\event_b} \not= \trg{Call\ \emptyset\ foo\ n} &
-      \trg{\event_b} \not= \trg{Ret\ \emptyset\ n} &
+      \trg{\event_b} = \trg{\lightning} \vee
+      \trg{\event_b} = \trg{Alloc\ \loc\ n} \vee 
+      \trg{\event_b} = \trg{Dealloc\ \loc} \vee\\
+      \trg{\event_b} = \trg{Get\ \loc\ n} \vee
+      \trg{\event_b} = \trg{Set\ \loc\ n\ m} \vee\\
+      \trg{\event_b} = \trg{Call\ \emptyset\ foo\ n} \vee
+      \trg{\event_b} = \trg{Ret\ \emptyset\ n} 
     }{
       \tospecificevt[_{\trg{\bullet}}]{\event_b;\ctx} = \trg{\emptyevent}
     }{trg-filter-context}
@@ -7425,7 +7425,7 @@ The upcoming compilation pass makes sure this assumption is actually true.
   \end{center}
 }{scct-pres-compiler-comp}{Compiler from $\mmlAtms$ components to $\mmlAtscct$ components.}
 
-\cleardoublepage
+\subsubsection{Proofs and Auxiliary Lemmas}
 
 \begin{lemma}[Primitive Forward Simulation]\label{lem:prim:forwardsim:scct}
   If
@@ -7487,6 +7487,7 @@ The upcoming compilation pass makes sure this assumption is actually true.
   Case analysis on \Cref{asm:steps:forwardsim:scct:execi} and using \Thmref{lem:ctx:forwardsim:scct}.
 \end{proof}
 
+
 \begin{lemma}[Backward Simulation]
   If
   \begin{assumptions}
@@ -7506,6 +7507,311 @@ The upcoming compilation pass makes sure this assumption is actually true.
 \begin{proof}
   Follows from \Cref{lem:steps:forwardsim:scct} and determinism.
 \end{proof}
+
+\subsubsection{Backtranslation}
+
+\myfig{
+  \begin{center}
+    \judgbox{\tospecificevo[_{\obj{\bullet}}]{\event} = \obj{\event}}{,,Filter an $\mmlAtscct$ event.''}
+    %
+    \typerule{obj-filter-context}{
+      \obj{\event_b} = \obj{Alloc\ \loc\ n} \vee
+      \obj{\event_b} = \obj{Dealloc\ \loc} \vee\\
+      \obj{\event_b} = \obj{Get\ \loc\ n} \vee
+      \obj{\event_b} = \obj{Set\ \loc\ n\ m} \vee\\
+      \obj{\event_b} = \obj{Call\ \emptyset\ foo\ n} \vee
+      \obj{\event_b} = \obj{Ret\ \emptyset\ n}\vee\\
+      \obj{\event_b} = \obj{\widehat{Get}\ \loc\ n} \vee
+      \obj{\event_b} = \obj{\widehat{Set}\ \loc\ n\ m} \vee\\
+      \obj{\event_b} = \obj{Branch\ n}\vee
+      \obj{\event_b} = \obj{Binop\ n_1\ n_2}
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{\event_b;\ctx} = \obj{\emptyevent}
+    }{obj-filter-context}
+    %
+    \typerule{obj-filter-unimportant}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{\emptyevent;\sandboxtag} = \obj{\emptyevent}
+    }{obj-filter-unimportant}
+    %
+    \typerule{obj-filter-comp-start}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Start;\comp} = \obj{\emptyevent}
+    }{obj-filter-comp-start}
+    %
+    \typerule{obj-filter-comp-alloc}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Alloc\ \loc\ n;\comp} = \obj{Alloc\ \loc\ n}
+    }{obj-filter-comp-alloc}
+    %
+    \typerule{obj-filter-comp-dealloc}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Dealloc\ \loc;\comp} = \obj{Dealloc\ \loc}
+    }{obj-filter-comp-dealloc}
+    %
+    \typerule{obj-filter-comp-get-noleak}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{\widehat{Get}\ \loc\ n;\comp} = \obj{\widehat{Get}\ \loc\ n}
+    }{obj-filter-comp-get-noleak}
+    %
+    \typerule{obj-filter-comp-set-noleak}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp} = \obj{\widehat{Set}\ \loc\ n\ \valueexpr}
+    }{obj-filter-comp-set-noleak}
+    %
+    \typerule{obj-filter-comp-get-leak}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Get\ \loc\ n;\comp} = \obj{Get\ \loc\ n}
+    }{obj-filter-comp-get-leak}
+    %
+    \typerule{obj-filter-comp-set-leak}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Set\ \loc\ n\ \valueexpr;\comp} = \obj{Set\ \loc\ n\ \valueexpr}
+    }{obj-filter-comp-set-leak}
+    %
+    \typerule{obj-filter-comp-call}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Call\ \comm\ foo\ \valueexpr;\sandboxtag} = \obj{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
+    }{obj-filter-comp-call}
+    %
+    \typerule{obj-filter-comp-ret}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Ret\ \comm\ \valueexpr;\sandboxtag} = \obj{Ret\ \comm\ \valueexpr;\sandboxtag}
+    }{obj-filter-comp-ret}
+    %
+    \typerule{obj-filter-branch}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Branch\ n;\comp} = \obj{Branch\ n}
+    }{obj-filter-branch-leak}
+    %
+    \typerule{obj-filter-binop}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{Binop\ n_1\ n_2;\comp} = \obj{Binop\ n_1\ n_2}
+    }{obj-filter-binop}
+    %
+    \typerule{obj-filter-abort}{
+    }{
+      \tospecificevo[_{\obj{\bullet}}]{\lightning;\sandboxtag} = \obj{\lightning}
+    }{obj-filter-abort}
+    %
+    %
+    \judgbox{\tospecificevo[^*_{\obj{\bullet}}]{\trace} = \obj{\trace'}}{,,Filter an $\mmlAtscct$ trace.''}
+    %
+    \typerule{obj-filter-empty}{
+    }{
+      \tospecificevo[^*_{\obj{\bullet}}]{\hole{\cdot}} = \obj{\hole{\cdot}}
+    }{obj-filter-empty}
+    %
+    \typerule{obj-filter-cons-relevant}{
+      \tospecificevo[_{\obj{\bullet}}]{\event} = \obj{\event} \not= \obj{\emptyevent} &
+      \tospecificevo[^*_{\obj{\bullet}}]{\trace} = \obj{\trace}
+    }{
+      \tospecificevo[^*_{\obj{\bullet}}]{\event\cdot\trace} = \obj{\event}\cdot\obj{\trace}
+    }{obj-filter-cons-relevant}
+    %
+    \typerule{obj-filter-cons-relevant}{
+      \tospecificevo[_{\obj{\bullet}}]{\event} = \obj{\emptyevent} &
+      \tospecificevo[^*_{\obj{\bullet}}]{\trace} = \obj{\trace}
+    }{
+      \tospecificevo[^*_{\obj{\bullet}}]{\event\cdot\trace} = \obj{\trace}
+    }{obj-filter-cons}
+  \end{center}
+}{scct-events-filter-for-BT}{Filtering of $\mmlAtscct$ events, getting rid of unimportant ones, for backtranslation.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAtmsmmlAtscctv[]{\valueexpr} = \irl{\valueexpr}}{,,Map an $\mmlAtscct$ value to an $\mmlAtms$ value.''}$\;$\\
+    \typerule{scct-backtrans-value}{
+    }{
+      \mmlAtmsmmlAtscctv[]{n} = \irl{n}
+    }{scct-backtrans-value}
+  \end{center}
+}{scct-backtrans-values}{Backtranslation of $\mmlAtscct$ values to $\mmlAtms$ values.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAtmsmmlAtscctdetail[]{\trace}=\irl{e}}{,,Backtranslate a non-interface trace $\obj{\trace}$ to an $\mmlAtms$ expression.''}
+    %
+    \typerule{scct-backtrans-empty}{
+    }{
+      \mmlAtmsmmlAtscctdetail[]{\hole{\cdot}}=\irl{42}
+    }{scct-backtrans-empty}
+    \typerule{scct-backtrans-alloc}{
+      \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
+    }{
+      \mmlAtmsmmlAtscctdetail[]{\obj{Alloc\ \loc\ s;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+    }{scct-backtrans-alloc}
+    \typerule{scct-backtrans-dealloc}{
+      \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
+    }{
+      \mmlAtmsmmlAtscctdetail[]{\obj{Dealloc\ \loc;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+    }{scct-backtrans-dealloc}
+    \typerule{scct-backtrans-set}{
+      \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
+    }{
+      \mmlAtmsmmlAtscctdetail[]{\obj{Set\ \loc\ n\ \valueexpr;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+    }{scct-backtrans-set}
+    \typerule{scct-backtrans-get}{
+      \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
+    }{
+      \mmlAtmsmmlAtscctdetail[]{\obj{Get\ \loc\ n;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+    }{scct-backtrans-get}
+    \typerule{scct-backtrans-abort}{
+    }{
+      \mmlAtmsmmlAtscctdetail[]{\lightning;\sandboxtag}=\irl{abort()}
+    }{scct-backtrans-abort}
+    %
+  \end{center}
+}{scct-pres-backtrans}{Trace-Based Backtranslation from memory-specific $\mmlAtscct$ events to $\mmlAtms$ terms.}
+\myfig{
+  \begin{center}
+    \judgbox{\Game\left(\obj{\loc}\right)=\irl{x}}{,,Map an $\mmlAtscct$ location to an $\mmlAtms$ identifier.''}
+    \judgbox{\mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\irl{\overline{\loc}}]{\event}=\irl{\overline{\loc'}};\irl{e}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\irl{\overline{\loc}}$, yield\\another stack of locations $\irl{\overline{\loc'}}$, and an $\mmlAtms$\\expression from target $\comptoctx$-interaction-event $\irl{\event}$.''}
+    %
+    \typerule{scct-backtrans-start}{
+    }{
+      \mmlAtmsmmlAtscctcomptoctx[\emptyset;\emptyset;\obj{\hole{\cdot}}]{\obj{Start}} = \obj{\hole{\cdot}};\irl{42}
+    }{scct-backtrans-start}
+    %
+%   \typerule{scct-backtrans-call-comptoctx}{
+%   }{
+%     \mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\obj{\overline{\loc}}]{\obj{Call\ \comptoctx\ foo\ \interfacevalue}}=\obj{\overline{\loc}};\irl{42}
+%   }{scct-backtrans-call-comptoctx}
+    %
+    \typerule{scct-backtrans-ret-comptoctx}{
+%     \delta(\irl{\loc})=\obj{\loc} &
+%     \irl{z}=\Game(\irl{\loc}) &
+%     \irl{e}=\irl{delete\ z}
+    }{
+%     \mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\obj{\loc,\overline{\loc}}]{\obj{Ret\ \comptoctx\ \valueexpr}}=\obj{\overline{\loc}};\irl{e;}\mmlAtmsmmlAtscctv[]{\valueexpr}
+      \mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\obj{\overline{\loc}}]{\obj{Ret\ \comptoctx\ \valueexpr}}=\obj{\overline{\loc}};\irl{e;}\mmlAtmsmmlAtscctv[]{\valueexpr}
+    }{scct-backtrans-ret-comptoctx}
+    %
+    %
+    \judgbox{\mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc}}]{\event}=\Game';\delta';\obj{\overline{\loc'}};\irl{e}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\obj{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\ a $\delta'$, another stack of locations $\obj{\overline{\loc'}}$, and an $\mmlAtscct$\\expression from target $\ctxtocomp$-interaction-event $\obj{\event}$.''}
+    %
+    \typerule{scct-backtrans-call-ctxtocomp}{
+%     \fresh{\Game,\delta}{\irl{\loc}}&
+%     \fresh{\Game}{\irl{z}}&
+%     \fresh{\delta}{\obj{\loc}}\\
+%     \Game_z=\Game\cup\{\irl{\loc}\mapsto\irl{z}\} &
+%     \delta'=\delta\cup\{\irl{\loc}\mapsto\obj{\loc}\}\\
+%     \irl{e}=\irl{let\ z = new\ 42\ in\ call\ }\mmlAtmsmmlAtscctdetail[]{foo}\ \mmlAtmsmmlAtscctv[]{\valueexpr}
+    }{
+%     \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc}}]{\obj{Call\ \ctxtocomp\ foo\ \valueexpr}}=\Game_z;\delta';\obj{\loc,\overline{\loc}};\irl{e}
+      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc}}]{\obj{Call\ \ctxtocomp\ foo\ \valueexpr}}=\Game_z;\delta;\obj{\overline{\loc}};\irl{e}
+    }{scct-backtrans-call-ctxtocomp}
+    %
+%   \typerule{scct-backtrans-ret-ctxtocomp}{
+%     \fresh{\Game}{\irl{x}}
+%   }{
+%     \mmlAtmsmmlAtscctctxtocomp[\Game,\obj{\overline{\loc}}]{\obj{Ret\ \ctxtocomp\ \interfacevalue}}=\Game,\obj{\overline{\loc}},\irl{let\ x = new\ 1\ in\ delete\ x;return\ }\mmlAtmsmmlAtscctv{\interfacevalue}
+%   }{scct-backtrans-ret-ctxtocomp}
+    %
+    \typerule{scct-backtrans-end-ctxtocomp}{
+%     \fresh{\Game,\delta}{\irl{\loc}}&
+%     \fresh{\Game}{\irl{z}}&
+%     \fresh{\delta}{\obj{\loc}}\\
+%     \Game_z=\Game\cup\{\irl{\loc}\mapsto\irl{z}\} &
+%     \delta'=\delta\cup\{\irl{\loc}\mapsto\obj{\loc}\}\\
+%     \irl{e}=\irl{let\ z=new\ 42\ in\ delete\ z;return\ }\mmlAtmsmmlAtscctv[]{\valueexpr}
+    }{
+%     \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\hole{\cdot}}]{\obj{End\ \valueexpr}}=\Game_z;\delta';\obj{\hole{\cdot}};\irl{e}
+      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\hole{\cdot}}]{\obj{End\ \valueexpr}}=\Game_z;\delta;\obj{\hole{\cdot}};\irl{e}
+    }{scct-backtrans-end-ctxtocomp}
+  \end{center}
+}{scct-pres-backtrans-interact}{scct-backtranslation of interaction-events from memory-specific $\mmlAtscct$ events to $\mmlAtms$ terms.}
+.\MK{get rid of wrapper. what's the point of wrapping if we don't really need it}\\
+\myfig{
+  \begin{center}
+    \typerule{scct-non-interface-$\obj{\varepsilon}$}{
+    }{
+      \vdash \obj{\varepsilon} \operatorname{non-int-\obj{\event}}
+    }{scct-non-interface-epsilon}
+    %
+    \typerule{scct-non-interface-$\obj{Alloc}$}{
+    }{
+      \vdash \obj{Alloc\ \loc\ n;\sandboxtag} \operatorname{non-int-\obj{\event}}
+    }{scct-non-interface-alloc}
+    %
+    \typerule{scct-non-interface-$\obj{Dealloc}$}{
+    }{
+      \vdash \obj{Dealloc\ \loc;\sandboxtag} \operatorname{non-int-\obj{\event}}
+    }{scct-non-interface-dealloc}
+    %
+    \typerule{scct-non-interface-$\obj{Get}$}{
+    }{
+      \vdash \obj{Get\ \loc\ n;\sandboxtag} \operatorname{non-int-\obj{\event}}
+    }{scct-non-interface-get}
+    %
+    \typerule{scct-non-interface-$\obj{Set}$}{
+    }{
+      \vdash \obj{Set\ \loc\ n;\sandboxtag} \operatorname{non-int-\obj{\event}}
+    }{scct-non-interface-set}
+    %
+    \typerule{scct-non-interface-$\obj{\lightning}$}{
+    }{
+      \vdash \obj{\lightning;\sandboxtag} \operatorname{non-int-\obj{\event}}
+    }{scct-non-interface-abort}
+    %
+    \typerule{scct-non-interface-trace-empty}{
+    }{
+      \vdash \obj{\hole{\cdot}} \operatorname{non-int-\obj{\trace}}
+    }{scct-non-interface-trace-empty}
+    %
+    \typerule{scct-non-interface-trace-cons}{
+      \vdash \obj{\event} \operatorname{non-int-\obj{\trace}} &
+      \vdash \obj{\trace} \operatorname{non-int-\obj{\trace}}
+    }{
+      \vdash \obj{\event\cdot\trace} \operatorname{non-int-\obj{\trace}}
+    }{scct-non-interface-trace-cons}
+  \end{center}
+}{scct-non-interfacing-events}{Non-Interfacing events.}
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAtmsmmlAtscctsubtop[\Game;\delta; \obj{\overline{\loc}}]{\event[_1]\cdot\trace\cdot\event[_2]}=\Game';\delta';\obj{\overline{\loc'}};\irl{e_1};\irl{e_2};\irl{e_3}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\obj{\overline{\loc}}$,\\construct a \varmapbacktransds $\Game'$, a $\delta'$, another\\stack of locations $\obj{\overline{\loc'}}$, and an $\mmlAtms$\\ensemble of expressions from target-\\trace $\obj{\mstrace}$ which starts with a $\ctxtocomp$ event\\and ends in a $\comptoctx$.''}
+    %
+    \typerule{scct-subtoplevel-backtrans}{
+      \vdash \obj{\trace} \operatorname{non-int-\obj{\trace}}\\
+      \mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\obj{\overline{\loc}}]{\obj{\event[_1]}}=\obj{\overline{\loc'}};\irl{e_1} &
+      \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e_2} &
+      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc'}}]{\obj{\event[_2]}}=\Game';\delta';\obj{\overline{\loc''}};\irl{e_3} \\
+    }{
+      \mmlAtmsmmlAtscctsubtop[\Game;\delta;\obj{\overline{\loc}}]{\obj{\event[_1]\cdot\trace\cdot\event[_2]}}=\Game';\delta';\obj{\overline{\loc''}}; \irl{e_1}; \irl{e_2}; \irl{e_3}
+    }{scct-subtoplevel-backtrans}
+    %
+%   \typerule{subtoplevel-backtrans-indu}{
+%     \obj{\trace[_1]}=\obj{\event[^A_1]\cdot\trace[^A]\cdot\event[^A_2]} &
+%     \vdash\obj{\trace[^A]}\ \operatorname{non-int-\obj{\trace}} \\
+%     \mmlAtmsmmlAtscctcomptoctx[\Game,\obj{\overline{\loc}}]{\obj{\event[^A_1]}}=\Game',\obj{\overline{\loc'}},\irl{e_1^A} &
+%     \mmlAtmsmmlAtscctdetail[\Game',\obj{\overline{\loc'}}]{\obj{\trace^A}}=\Game'',\obj{\overline{\loc''}}, \irl{e_2^A} \\
+%     \mmlAtmsmmlAtscctctxtocomp[\Game'',\obj{\overline{\loc''}}]{\obj{\event[^A_2]}}=\Game''',\obj{\overline{\loc'''}},\irl{let\ x_0=new\ n_0\ in\ e_3^A} \\
+%     \mmlAtmsmmlAtscctsubtop[\Game''',\obj{\overline{\loc'''}}]{\trace[_2]} = \Game'''',\obj{\overline{\loc''''}},\irl{e_1^B},\irl{e_2^B},\irl{e_3^B} \\
+%     \irl{e^A}=\irl{e^A_1;e^A_2;let\ x_0=new\ n_0\ in\ (e_3^A;e_1^B)}
+%   }{
+%     \mmlAtmsmmlAtscctsubtop[\Game,\obj{\overline{\loc}}]{\obj{\trace[_1]\cdot\trace[_2]}}=\Game'''',\obj{\overline{\loc''''}},\irl{e^A},\irl{e^B_2},\irl{e^B_3}
+%   }{subtoplevel-backtrans-indu}
+  \end{center}
+}{scct-pres-subtop-backtrans}{Interaction-Trace-Based Backtranslation from memory-specific $\mmlAtscct$ events to $\mmlAtms$ terms.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\mmlAtmsmmlAtscct[\Game;\delta]{\mstrace} = \Game';\delta;\irl{\library}}{,,Top-Level backtranslation of $\obj{\trace}$ to $\mmlAtms$ library $\irl{\library}$.''}
+    %
+    \typerule{scct-backtrans-top-level}{
+      \obj{\trace}=\obj{\trace[_0]\cdot\trace[^{comp}]\cdot\trace[_1]} &
+      \vdash \obj{\trace[^{comp}]} \operatorname{non-int-\obj{\trace}} \\
+      \obj{\trace[_0]}=\obj{Start\cdot\trace[_0']\cdot Call\ \ctxtocomp\ foo\ \interfacevalue_1} &
+      \obj{\trace[_1]}=\obj{Ret\ \comptoctx\ \interfacevalue_2\cdot\trace[_0']\cdot End\ \interfacevalue_3}\\
+      \mmlAtmsmmlAtscctsubtop[\emptyset;\emptyset;\obj{\hole{\cdot}}]{\color{black}\tospecificevo[^*_\obj{\bullet}]{\trace[_0]}} = \Game; \delta; \obj{\overline{\loc}}; \irl{e_0};\irl{e_0'};\irl{let\ x_0 = new\ n_0\ in\ e_0''} \\
+      \mmlAtmsmmlAtscctsubtop[\Game;\delta;\obj{\overline{\loc}}]{\color{black}\tospecificevo[^*_\obj{\bullet}]{\trace[_1]}} = \Game'; \delta'; \obj{\hole{\cdot}}; \irl{e_1};\irl{e_1'};\irl{e_1''} \\
+      \irl{e} = \irl{e_0;e_0';let\ x_0 = new\ n_0\ in\ (e_0'';e_1);e_1';e_1''}
+    }{
+      \mmlAtmsmmlAtscct[\emptyset;\emptyset]{\trace} = \Game';\delta'; \irl{let\ main\ x : \nat\to\nat := e, \hole{\cdot}}
+    }{scct-backtrans-top-level}
+  \end{center}
+}{scct-pres-top-level-backtrans}{Top-Level trace-based Backtranslation from $\mmlAtscct$ trace $\obj{\trace}$ to $\mmlAtms$ context $\irl{\library}$.}
+
 
 \begin{scontents}[store-env=buffer]
   $\;$\\

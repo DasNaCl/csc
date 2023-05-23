@@ -550,8 +550,8 @@ Now, we want to formalize this idea of ``being able to swap things around'' for 
       \path[->,very thick] (mmlAs) edge[sloped,above] node {TMS} (mmlAt);
       \path[->,dotted,very thick] (mmlAt) edge[sloped,above] node {SMS} (mmlAtmemsafe);
       \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=15] node {MS} (mmlAtmemsafe);
-      \path[->,very thick] (mmlAtmemsafe) edge[sloped,above] node {\footnotesize CCT+MS} (asm);
-      \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=33] node {CCT+MS} (asm);
+      \path[->,very thick] (mmlAtmemsafe) edge[sloped,above] node {\footnotesize \sCCT+MS} (asm);
+      \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=33] node {\sCCT+MS} (asm);
 
 
       \node[draw=none,right=3 of mmlAt] (legend0) {};
@@ -972,7 +972,7 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   The proof follows with an induction on \Cref{asm:smssafe-tracesms:monstep}.
 \end{proof}
 
-\subsubsection{\gls*{cct} Monitor}
+\subsubsection{\gls*{scct} Monitor}
 \myfig{
   \begin{gather*}
     \begin{aligned}
@@ -981,92 +981,92 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
       &\mid \textbf{Binop}\\
     \end{aligned}
   \end{gather*}
-}{cct-monitor}{\gls{cct} Monitor.}
-The CCT monitor serves as an overapproximation for cryptographic constant-time code.
+}{scct-monitor}{\gls{scct} Monitor.}
+The \sCCT monitor serves as an overapproximation for cryptographic constant-time code.
 Here, any event whatsoever is considered bad, since this leaks information by means of a sidechannel.
 
 \myfig{
   \begin{center}
-    \judgbox{\monitorcheck[]{\cctmonitor}{\cctmonitor[']}{\absevent}}{,,Given abstract state $\cctmonitor$, step to abstract state $\cctmonitor'$\\ emitting an abstract event $\absevent$.''}
-    \judgbox{\monitorcheck{\cctmonitor}{\cctmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    \judgbox{\monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absevent}}{,,Given abstract state $\scctmonitor$, step to abstract state $\scctmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\scctmonitor}{\scctmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
     %
-    \typerule{cct-None}{
+    \typerule{scct-None}{
     }{
-      \monitorcheck[]{\cctmonitor}{\cctmonitor}{\bm{\varepsilon}}
-    }{cct-none}
+      \monitorcheck[]{\scctmonitor}{\scctmonitor}{\bm{\varepsilon}}
+    }{scct-none}
     %
-    \typerule{cct-Abort}{
+    \typerule{scct-Abort}{
     }{
-      \monitorcheck[]{\cctmonitor}{\cctmonitor}{\bm{\lightning}}
-    }{cct-abort}
+      \monitorcheck[]{\scctmonitor}{\scctmonitor}{\bm{\lightning}}
+    }{scct-abort}
     %
-    \typerule{cct-Refl}{
+    \typerule{scct-Refl}{
     }{
-      \monitorcheck{\cctmonitor}{\cctmonitor}{\hole{\cdot}}
-    }{cct-refl}
+      \monitorcheck{\scctmonitor}{\scctmonitor}{\hole{\cdot}}
+    }{scct-refl}
     %
-    \typerule{cct-Trans}{
-      \monitorcheck[]{\cctmonitor}{\cctmonitor[']}{\absevent}&
-      \monitorcheck{\cctmonitor[']}{\cctmonitor['']}{\abstrace}
+    \typerule{scct-Trans}{
+      \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absevent}&
+      \monitorcheck{\scctmonitor[']}{\scctmonitor['']}{\abstrace}
     }{
-      \monitorcheck{\cctmonitor}{\cctmonitor['']}{\absevent\cdot\abstrace}
-    }{cct-trans}
+      \monitorcheck{\scctmonitor}{\scctmonitor['']}{\absevent\cdot\abstrace}
+    }{scct-trans}
   \end{center}
-}{cct-step}{Steps of \gls{cct} Monitor.}
+}{scct-step}{Steps of \gls{scct} Monitor.}
 
 \myfig{
   \begin{center}
-    \judgbox{\ccttraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\ccttraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    \judgbox{\sccttraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
+    \judgbox{\sccttraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
-    \typerule{CCT-Alloc-Authentic}{
+    \typerule{\sCCT-Alloc-Authentic}{
     }{
-      \ccttraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}}
-    }{cct-alloc-auth}
+      \sccttraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}}
+    }{scct-alloc-auth}
     %
-    \typerule{CCT-Dealloc-Authentic}{
+    \typerule{\sCCT-Dealloc-Authentic}{
     }{
-      \ccttraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}}
-    }{cct-dealloc-auth}
+      \sccttraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}}
+    }{scct-dealloc-auth}
     %
-    \typerule{CCT-Use-Authentic}{
+    \typerule{\sCCT-Use-Authentic}{
     }{
-      \ccttraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}}
-    }{cct-use-auth}
+      \sccttraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}}
+    }{scct-use-auth}
     %
-    \typerule{CCT-Abort-Authentic}{
+    \typerule{\sCCT-Abort-Authentic}{
     }{
-      \ccttraceagree{\specificev{\lightning}}{\bm{\lightning}}
-    }{cct-abort-auth}
+      \sccttraceagree{\specificev{\lightning}}{\bm{\lightning}}
+    }{scct-abort-auth}
     %
-    \typerule{CCT-None-Authentic}{
+    \typerule{\sCCT-None-Authentic}{
     }{
-      \ccttraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
-    }{cct-none-auth}
+      \sccttraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
+    }{scct-none-auth}
     %
-    \typerule{CCT-Branch-Authentic}{
+    \typerule{\sCCT-Branch-Authentic}{
     }{
-      \ccttraceagree{\specificev{Branch\ n}}{\textbf{Branch}}
-    }{cct-branch-auth}
+      \sccttraceagree{\specificev{Branch\ n}}{\textbf{Branch}}
+    }{scct-branch-auth}
     %
-    \typerule{CCT-Binop-Authentic}{
+    \typerule{\sCCT-Binop-Authentic}{
     }{
-      \ccttraceagree{\specificev{Binop\ n}}{\textbf{Binop}}
-    }{cct-binop-auth}
+      \sccttraceagree{\specificev{Binop\ n}}{\textbf{Binop}}
+    }{scct-binop-auth}
     %
-    \typerule{CCT-Refl-Authentic}{
+    \typerule{\sCCT-Refl-Authentic}{
     }{
-      \ccttraceagree[^*]{\hole{\cdot}}{\hole{\cdot}}
-    }{cct-refl-auth}
+      \sccttraceagree[^*]{\hole{\cdot}}{\hole{\cdot}}
+    }{scct-refl-auth}
     %
-    \typerule{CCT-Trans-Authentic}{
-      \ccttraceagree{\msevent}{\absevent} &
-      \ccttraceagree[^*]{\mstrace}{\abstrace}
+    \typerule{\sCCT-Trans-Authentic}{
+      \sccttraceagree{\msevent}{\absevent} &
+      \sccttraceagree[^*]{\mstrace}{\abstrace}
     }{
-      \ccttraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
-    }{cct-trans-auth}
+      \sccttraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
+    }{scct-trans-auth}
   \end{center}
-}{cct-trace-agreement}{Trace Agreement.}
+}{scct-trace-agreement}{Trace Agreement.}
 
 
 \subsection{Source Language}
@@ -6562,18 +6562,18 @@ The syntax and semantics are entirely identical.
   This solves \Cref{goal:rmtsp:rsat}.
 \end{proof}
 
-\subsection{Robustly Preserving $\CCT$}
+\subsection{Robustly Preserving $\sCCT$}
 
 \begin{definition}[Indistinguishability of States]
   Two states $\obj{\Omega_{1}},\obj{\Omega_{2}}$ are indistinguishable with respect to a list $\obj{\zeta}$ of public identifiers (written $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$) iff for any public identifier $\obj{x}\in\obj{\zeta}$, we have $\obj{\Omega_{1}}[\obj{x}]=\obj{\Omega_{2}}[\obj{x}]$.
 \end{definition}
 
-\begin{definition}[$\CCT$ security]
+\begin{definition}[$\sCCT$ security]
   Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
-  Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{\trace[_{B}]}$ we say $e_{1}$ is $\CCT$-secure with respect to $\obj{\zeta}$ iff $(\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
+  Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{\trace[_{B}]}$ we say $e_{1}$ is $\sCCT$-secure with respect to $\obj{\zeta}$ iff $(\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
 \end{definition}
 
-CCT-Problems:
+\sCCT-Problems:
 \begin{itemize}
   \item branching or predicated execution
   \item comparisons are an issue: can only get the content of special flag register by branching
@@ -6582,14 +6582,14 @@ CCT-Problems:
   \item bitshifts may translate into loops (unless bitshift by constant)
 \end{itemize}
 
-To remedy most of these real-world problems, which are dependent on the hardware, we introduce another language which has $\CCT$-hardened instructions.
+To remedy most of these real-world problems, which are dependent on the hardware, we introduce another language which has $\sCCT$-hardened instructions.
 That is, we assume there exists an $\hat{\oplus}$ which behaves similarily to $\oplus$, but without leaking timing information.
-Moreover, we also assume that there are $\CCT$-versions of reading and writing.
+Moreover, we also assume that there are $\sCCT$-versions of reading and writing.
 If the instruction set architecture does not support these, we argue that there is some encoding that can be done in the style of FaCT that the compiler would have to do.
-For example, to circumvent loading/storing and ensure $\CCT$-versions, the register allocator could ensure that this variable stays in a register. Whenever this is not possible, one could spill and, prior to re-loading the variable, invalidate the caches. Another option is to simply load the whole array sequentially and select the relevant entry using a bitmask operation.
+For example, to circumvent loading/storing and ensure $\sCCT$-versions, the register allocator could ensure that this variable stays in a register. Whenever this is not possible, one could spill and, prior to re-loading the variable, invalidate the caches. Another option is to simply load the whole array sequentially and select the relevant entry using a bitmask operation.
 
 We consider arbitrary lists of public identifiers $\obj{\zeta}$ and harden the program component against any such list.
-The underlying assumption the programmer does in any other language we've seen before, that is, $\mmlAs$, $\mmlAt$, or $\mmlAtms$, is that they are writing $\CCT$ code.
+The underlying assumption the programmer does in any other language we've seen before, that is, $\mmlAs$, $\mmlAt$, or $\mmlAtms$, is that they are writing $\sCCT$ code.
 The upcoming compilation pass makes sure this assumption is actually true.
 
 \myfig{
@@ -7000,217 +7000,217 @@ The upcoming compilation pass makes sure this assumption is actually true.
 
 \myfig{
   \begin{center}
-    \judgbox{\delta_{CCT}(\obj{\loc})=\specificev{\loc}}{,,A map from $\mmlAo$ memory locations $\obj{\loc}$ to CCT-specific locations $\specificev{\loc}$.''}
-    \judgbox{\tospecificevo[_{\delta_{CCT}}]{\event} = \cctevent}{,,Project an $\mmlAo$ event to CCT-specific events.''}
+    \judgbox{\delta_{\sCCT}(\obj{\loc})=\specificev{\loc}}{,,A map from $\mmlAo$ memory locations $\obj{\loc}$ to \sCCT-specific locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevo[_{\delta_{\sCCT}}]{\event} = \scctevent}{,,Project an $\mmlAo$ event to \sCCT-specific events.''}
     %
-    \typerule{o-cct-filter-context}{
+    \typerule{o-scct-filter-context}{
       \obj{\event_b} \not= \obj{\lightning}
     }{
-      \tospecificevo[_{\delta_{CCT}}]{\event_b;\ctx} = \specificev{\emptyevent}
-    }{o-cct-filter-context}
+      \tospecificevo[_{\delta_{\sCCT}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{o-scct-filter-context}
     %
-    \typerule{o-cct-filter-comp-start}{
+    \typerule{o-scct-filter-comp-start}{
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Start;\comp} = \specificev{\emptyevent}
-    }{o-cct-filter-comp-start}
+      \tospecificevo[_{\delta_{\sCCT}}]{Start;\comp} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-start}
     %
-    \typerule{o-cct-filter-comp-alloc}{
-      \delta_{CCT}(\obj{\loc})=\specificev{\loc} &
+    \typerule{o-scct-filter-comp-alloc}{
+      \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Alloc\ \loc\ n;\comp} = \specificev{\emptyevent}
-    }{o-cct-filter-comp-alloc}
+      \tospecificevo[_{\delta_{\sCCT}}]{Alloc\ \loc\ n;\comp} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-alloc}
     %
-    \typerule{o-cct-filter-comp-dealloc}{
-      \delta_{CCT}(\obj{\loc})=\specificev{\loc}
+    \typerule{o-scct-filter-comp-dealloc}{
+      \delta_{\sCCT}(\obj{\loc})=\specificev{\loc}
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Dealloc\ \loc;\comp} = \specificev{\emptyevent}
-    }{o-cct-filter-comp-dealloc}
+      \tospecificevo[_{\delta_{\sCCT}}]{Dealloc\ \loc;\comp} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-dealloc}
     %
-    \typerule{o-cct-filter-comp-get-noleak}{
-      \delta_{CCT}(\obj{\loc})=\specificev{\loc} &
+    \typerule{o-scct-filter-comp-get-noleak}{
+      \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{CCT}}]{\widehat{Get}\ \loc\ n;\comp} = \specificev{\emptyevent}
-    }{o-cct-filter-comp-get-noleak}
+      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Get}\ \loc\ n;\comp} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-get-noleak}
     %
-    \typerule{o-cct-filter-comp-set-noleak}{
-      \delta_{CCT}(\obj{\loc})=\specificev{\loc} &
+    \typerule{o-scct-filter-comp-set-noleak}{
+      \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{CCT}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp} = \specificev{\emptyevent}
-    }{o-cct-filter-comp-set-noleak}
+      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-set-noleak}
     %
-    \typerule{o-cct-filter-comp-get-leak}{
-      \delta_{CCT}(\obj{\loc})=\specificev{\loc} &
+    \typerule{o-scct-filter-comp-get-leak}{
+      \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
-    }{o-cct-filter-comp-get-leak}
+      \tospecificevo[_{\delta_{\sCCT}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+    }{o-scct-filter-comp-get-leak}
     %
-    \typerule{o-cct-filter-comp-set-leak}{
-      \delta_{CCT}(\obj{\loc})=\specificev{\loc} &
+    \typerule{o-scct-filter-comp-set-leak}{
+      \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
-    }{o-cct-filter-comp-set-leak}
+      \tospecificevo[_{\delta_{\sCCT}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+    }{o-scct-filter-comp-set-leak}
     %
-    \typerule{o-cct-filter-comp-call}{
+    \typerule{o-scct-filter-comp-call}{
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
-    }{o-cct-filter-comp-call}
+      \tospecificevo[_{\delta_{\sCCT}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-call}
     %
-    \typerule{o-cct-filter-comp-ret}{
+    \typerule{o-scct-filter-comp-ret}{
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
-    }{o-cct-filter-comp-ret}
+      \tospecificevo[_{\delta_{\sCCT}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-ret}
     %
-    \typerule{o-cct-filter-comp-binop}{
+    \typerule{o-scct-filter-comp-binop}{
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Binop\ n_1\ n_2;\comp} = \specificev{Binop\ n_1\ n_2}
-    }{o-cct-filter-comp-binop}
+      \tospecificevo[_{\delta_{\sCCT}}]{Binop\ n_1\ n_2;\comp} = \specificev{Binop\ n_1\ n_2}
+    }{o-scct-filter-comp-binop}
     %
-    \typerule{o-cct-filter-comp-branch}{
+    \typerule{o-scct-filter-comp-branch}{
     }{
-      \tospecificevo[_{\delta_{CCT}}]{Branch\ n;\comp} = \specificev{Branch\ n}
-    }{o-cct-filter-comp-branch}
+      \tospecificevo[_{\delta_{\sCCT}}]{Branch\ n;\comp} = \specificev{Branch\ n}
+    }{o-scct-filter-comp-branch}
     %
-    \typerule{o-cct-filter-abort}{
+    \typerule{o-scct-filter-abort}{
     }{
-      \tospecificevo[_{\delta_{CCT}}]{\lightning;\sandboxtag} = \specificev{\lightning}
-    }{o-cct-filter-abort}
+      \tospecificevo[_{\delta_{\sCCT}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+    }{o-scct-filter-abort}
     %
-    \judgbox{\tospecificevo[^*_{\delta_{CCT}}]{\trace} = \ccttrace}{,,Project an $\mmlAo$ trace to CCT-specific traces.''}
+    \judgbox{\tospecificevo[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace}{,,Project an $\mmlAo$ trace to \sCCT-specific traces.''}
     %
-    \typerule{o-cct-filter-empty}{
+    \typerule{o-scct-filter-empty}{
     }{
-      \tospecificevo[^*_{\delta_{CCT}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
-    }{o-cct-filter-empty}
+      \tospecificevo[^*_{\delta_{\sCCT}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{o-scct-filter-empty}
     %
-    \typerule{o-cct-filter-cons-relevant}{
-      \tospecificevo[_{\delta_{CCT}}]{\event} = \specificev{\event} &
-      \tospecificevo[^*_{\delta_{CCT}}]{\trace} = \ccttrace &
+    \typerule{o-scct-filter-cons-relevant}{
+      \tospecificevo[_{\delta_{\sCCT}}]{\event} = \specificev{\event} &
+      \tospecificevo[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace &
       \specificev{\event} \not= \specificev{\emptyevent}
     }{
-      \tospecificevo[^*_{\delta_{CCT}}]{\event\cdot\trace} = \specificev{\event}\cdot\ccttrace
-    }{o-cct-filter-cons-relevant}
+      \tospecificevo[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \specificev{\event}\cdot\sccttrace
+    }{o-scct-filter-cons-relevant}
     %
-    \typerule{o-cct-filter-cons-relevant}{
-      \tospecificevo[_{\delta_{CCT}}]{\event} = \specificev{\emptyevent} &
-      \tospecificevo[^*_{\delta_{CCT}}]{\trace} = \ccttrace
+    \typerule{o-scct-filter-cons-relevant}{
+      \tospecificevo[_{\delta_{\sCCT}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevo[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace
     }{
-      \tospecificevo[^*_{\delta_{CCT}}]{\event\cdot\trace} = \ccttrace
-    }{o-cct-filter-cons}
+      \tospecificevo[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \sccttrace
+    }{o-scct-filter-cons}
   \end{center}
-}{wo-cct-events-project-to-specific}{Projection of $\mmlAo$ events to \gls*{cct}-specific events.}
+}{wo-scct-events-project-to-specific}{Projection of $\mmlAo$ events to \gls*{scct}-specific events.}
 
 \myfig{
   \begin{center}
-    \judgbox{\delta(\irl{\loc})=\obj{\loc}}{,,Map from $\mmlAtms$ locations $\irl{\loc}$ to $\mmlAtcct$ locations $\obj{\loc}$.''} \\
-    \judgbox{\xlangtraceeqc{\trace}{\trace}}{,,The $\mmlAtms$ trace $\irl{\trace}$ describes the same actions as $\mmlAtcct$ trace $\obj{\trace}$.''} \\
-    \typerule{cct-empty-trace-eq}{
+    \judgbox{\delta(\irl{\loc})=\obj{\loc}}{,,Map from $\mmlAtms$ locations $\irl{\loc}$ to $\mmlAtscct$ locations $\obj{\loc}$.''} \\
+    \judgbox{\xlangtraceeqc{\trace}{\trace}}{,,The $\mmlAtms$ trace $\irl{\trace}$ describes the same actions as $\mmlAtscct$ trace $\obj{\trace}$.''} \\
+    \typerule{scct-empty-trace-eq}{
     }{
       \xlangtraceeqc{\hole{\cdot}}{\hole{\cdot}}
-    }{cct-empty-trace-eq}
+    }{scct-empty-trace-eq}
     %
-    \typerule{cct-cons-trace-eq}{
+    \typerule{scct-cons-trace-eq}{
       \irl{\sandboxtag}=\obj{\sandboxtag} &
       \xlangeventeqc{\event_{b}}{\event_{b}} &
       \xlangtraceeqc{\trace}{\trace}
     }{
       \xlangtraceeqc{\event_{b};\sandboxtag\cdot\trace}{\event_{b};\sandboxtag\cdot\trace}
-    }{cct-cons-trace-eq}
+    }{scct-cons-trace-eq}
     %
     \judgbox{\xlangeventeqc{\event_{b}}{\event_{b}}}{,,The $\mmlAtms$ event $\irl{\event_b}$ describes the same action as $\mmlAtms$ event $\obj{\event_b}$.''} \\
     %
-    \typerule{cct-start-event-eq}{
+    \typerule{scct-start-event-eq}{
     }{
       \xlangeventeqc{Start}{Start}
-    }{cct-start-event-eq}
+    }{scct-start-event-eq}
     %
-    \typerule{cct-end-event-eq}{
-      \mmlAtmsmmlAtcctcomp{\valueexpr} = \obj{\valueexpr}
+    \typerule{scct-end-event-eq}{
+      \mmlAtmsmmlAtscctcomp{\valueexpr} = \obj{\valueexpr}
     }{
       \xlangeventeqc{End\ \valueexpr}{End\ \valueexpr}
-    }{cct-end-event-eq}
+    }{scct-end-event-eq}
     %
-    \typerule{cct-alloc-event-eq}{
-      \mmlAtmsmmlAtcctcomp{n}=\obj{n} &
+    \typerule{scct-alloc-event-eq}{
+      \mmlAtmsmmlAtscctcomp{n}=\obj{n} &
       \delta(\irl{\loc})=\obj{\loc}
     }{
       \xlangeventeqc{Alloc\ \loc\ n}{Alloc\ \loc\ n}
-    }{cct-alloc-event-eq}
+    }{scct-alloc-event-eq}
     %
-    \typerule{cct-dealloc-event-eq}{
+    \typerule{scct-dealloc-event-eq}{
       \delta(\irl{\loc})=\obj{\loc}
     }{
       \xlangeventeqc{Dealloc\ \loc}{Dealloc\ \loc}
-    }{cct-dealloc-event-eq}
+    }{scct-dealloc-event-eq}
     %
-    \typerule{cct-get-event-eq-noleak}{
-      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+    \typerule{scct-get-event-eq-noleak}{
+      \mmlAtmsmmlAtscctcomp{n} = \obj{n} &
       \delta(\irl{\loc}) = \obj{\loc}
     }{
       \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{\widehat{Get}\ \loc\ n}
-    }{cct-get-event-eq-noleak}
+    }{scct-get-event-eq-noleak}
     %
-    \typerule{cct-get-event-eq-leak}{
-      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+    \typerule{scct-get-event-eq-leak}{
+      \mmlAtmsmmlAtscctcomp{n} = \obj{n} &
       \delta(\irl{\loc}) = \obj{\loc}
     }{
       \xlangeventeqc{Get\ \loc\ n}{Get\ \loc\ n}
-    }{cct-get-event-eq-leak}
+    }{scct-get-event-eq-leak}
     %
-    \typerule{cct-set-event-eq-leak}{
-      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
-      \mmlAtmsmmlAtcctcomp{\valueexpr} = \obj{\valueexpr} &
+    \typerule{scct-set-event-eq-leak}{
+      \mmlAtmsmmlAtscctcomp{n} = \obj{n} &
+      \mmlAtmsmmlAtscctcomp{\valueexpr} = \obj{\valueexpr} &
       \delta(\irl{\loc}) = \obj{\loc}
     }{
       \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{Set\ \loc\ n\ \valueexpr}
-    }{cct-set-event-eq-leak}
+    }{scct-set-event-eq-leak}
     %
-    \typerule{cct-set-event-eq-noleak}{
-      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
-      \mmlAtmsmmlAtcctcomp{\valueexpr} = \obj{\valueexpr} &
+    \typerule{scct-set-event-eq-noleak}{
+      \mmlAtmsmmlAtscctcomp{n} = \obj{n} &
+      \mmlAtmsmmlAtscctcomp{\valueexpr} = \obj{\valueexpr} &
       \delta(\irl{\loc}) = \obj{\loc}
     }{
       \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{\widehat{Set}\ \loc\ n\ \valueexpr}
-    }{cct-set-event-eq-noleak}
+    }{scct-set-event-eq-noleak}
     %
-    \typerule{cct-call-event-eq}{
-      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
-      \mmlAtmsmmlAtcctcomp{foo} = \obj{foo} &
+    \typerule{scct-call-event-eq}{
+      \mmlAtmsmmlAtscctcomp{n} = \obj{n} &
+      \mmlAtmsmmlAtscctcomp{foo} = \obj{foo} &
       \irl{\comm} = \obj{\comm}
     }{
       \xlangeventeqc{Call\ \comm\ foo\ n}{Call\ \comm\ foo\ n}
-    }{cct-call-event-eq}
+    }{scct-call-event-eq}
     %
-    \typerule{cct-ret-event-eq}{
-      \mmlAtmsmmlAtcctcomp{n} = \obj{n} &
+    \typerule{scct-ret-event-eq}{
+      \mmlAtmsmmlAtscctcomp{n} = \obj{n} &
       \irl{\comm} = \obj{\comm}
     }{
       \xlangeventeqc{Ret\ \comm\ n}{Ret\ \comm\ n}
-    }{cct-ret-event-eq}
+    }{scct-ret-event-eq}
     %
-    \typerule{cct-$\irl{\emptyevent}$-event-eq}{
+    \typerule{scct-$\irl{\emptyevent}$-event-eq}{
     }{
       \xlangeventeqc{\emptyevent}{\emptyevent}
-    }{cct-emptyevent-event-eq}
+    }{scct-emptyevent-event-eq}
     %
-    \typerule{cct-$\irl{\lightning}$-event-eq}{
+    \typerule{scct-$\irl{\lightning}$-event-eq}{
     }{
       \xlangeventeqc{\lightning}{\lightning}
-    }{cct-abort-event-eq}
+    }{scct-abort-event-eq}
     %
-    \typerule{cct-binop-event-eq-leak}{
+    \typerule{scct-binop-event-eq-leak}{
     }{
       \xlangeventeqc{\emptyevent}{Binop\ n_1\ n_2}
-    }{cct-binop-event-eq-leak}
+    }{scct-binop-event-eq-leak}
     %
-    \typerule{cct-binop-event-eq-leak}{
+    \typerule{scct-binop-event-eq-leak}{
     }{
       \xlangeventeqc{\emptyevent}{Branch\ n}
-    }{cct-branch-event-eq-leak}
+    }{scct-branch-event-eq-leak}
     $\;$\\
     %
     \judgbox{\irl{\comm} = \obj{\comm}}{,,Communications are equal.''} \\
@@ -7218,26 +7218,26 @@ The upcoming compilation pass makes sure this assumption is actually true.
     \typerule{$\irl{\ctxtocomp}=\obj{\ctxtocomp}$}{
     }{
       \irl{\ctxtocomp}=\obj{\ctxtocomp}
-    }{cct-sctxtocomp-eq-tctxtocomp}
+    }{scct-sctxtocomp-eq-tctxtocomp}
     %
     \typerule{$\irl{\comptoctx}=\obj{\comptoctx}$}{
     }{
       \irl{\comptoctx}=\obj{\comptoctx}
-    }{cct-scomptoctx-eq-tcomptoctx}
+    }{scct-scomptoctx-eq-tcomptoctx}
     %
     \typerule{$\irl{\nocomm}=\obj{\nocomm}$}{
     }{
       \irl{\nocomm}=\obj{\nocomm}
-    }{cct-snocomm-eq-tnocomm}
+    }{scct-snocomm-eq-tnocomm}
   \end{center}
-}{cct-pres-trace-relation}{Trace Relation from $\mmlAtms$ to $\mmlAtcct$.}
+}{scct-pres-trace-relation}{Trace Relation from $\mmlAtms$ to $\mmlAtscct$.}
 
 \myfig{
   \begin{center}
-    \judgbox{\delta(\irl{\loc})=\obj{\loc}}{,,The $\mmlAtms$ memory location $\irl{\loc}$ corresponds to\\the $\mmlAtcct$ memory location $\obj{\loc}$.''} \\
+    \judgbox{\delta(\irl{\loc})=\obj{\loc}}{,,The $\mmlAtms$ memory location $\irl{\loc}$ corresponds to\\the $\mmlAtscct$ memory location $\obj{\loc}$.''} \\
     \judgbox{\xlangstateeqc{\Omega}{\Omega}}{,,The $\mmlAtms$ state $\irl{\Omega}$ agrees with $\mmlAtms$ state $\obj{\Omega}$.''} \\
     %
-    \typerule{cct-state-eq}{
+    \typerule{scct-state-eq}{
       \irl{\Omega}=\irl{\cfstate;\sandboxtag;\memstate} &
       \obj{\Omega}=\obj{\cfstate;\sandboxtag;\memstate} &
       \irl{\sandboxtag} = \obj{\sandboxtag} \\
@@ -7245,21 +7245,21 @@ The upcoming compilation pass makes sure this assumption is actually true.
       \xlangstateeqc{\memstate}{\memstate}
     }{
       \xlangstateeqc{\Omega}{\Omega}
-    }{cct-state-eq}
+    }{scct-state-eq}
     %
-    \typerule{cct-abort-state-eq}{
+    \typerule{scct-abort-state-eq}{
     }{
       \xlangstateeqc{\lightning}{\lightning}
-    }{cct-abort-eq}
+    }{scct-abort-eq}
     %
-    \judgbox{\xlangstateeqc{\memstate}{\memstate}}{,,The $\mmlAtms$ memory-state $\irl{\memstate}$ agrees with $\mmlAtcct$ one $\obj{\memstate}$. $\irl{L}$ contains locations\\introduced by the backtranslation wrapper.''}\\
+    \judgbox{\xlangstateeqc{\memstate}{\memstate}}{,,The $\mmlAtms$ memory-state $\irl{\memstate}$ agrees with $\mmlAtscct$ one $\obj{\memstate}$. $\irl{L}$ contains locations\\introduced by the backtranslation wrapper.''}\\
     %
-    \typerule{cct-empty-memstate-eq}{
+    \typerule{scct-empty-memstate-eq}{
     }{
       \xlangstateeqc{\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\hole{\cdot};\hole{\cdot};\hole{\cdot}}
-    }{cct-empty-memstate-eq}
+    }{scct-empty-memstate-eq}
     %
-    \typerule{cct-comp-cons-memstate-eq}{
+    \typerule{scct-comp-cons-memstate-eq}{
       \irl{\loc}\not\in\irl{L} &
       \irl{n}=\obj{n} &
       \irl{\poison}=\obj{\poison} &
@@ -7268,92 +7268,92 @@ The upcoming compilation pass makes sure this assumption is actually true.
       \xlangstateeqc{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta_{1},\Delta_{2}}
     }{
       \xlangstateeqc{H^{\ctx};H^{\comp};x\mapsto(\loc;\comp;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\comp;\poison;n),\Delta_{2}}
-    }{cct-comp-cons-memstate-eq}
+    }{scct-comp-cons-memstate-eq}
     %
-    \typerule{cct-ctx-cons-memstate-eq}{
+    \typerule{scct-ctx-cons-memstate-eq}{
       \irl{\loc}\not\in\irl{L} &
       \xlangstateeqc{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}
     }{
       \xlangstateeqc{H^{\ctx};H^{\comp};x\mapsto(\loc;\ctx;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta}
-    }{cct-ctx-cons-memstate-eq}
+    }{scct-ctx-cons-memstate-eq}
     %
-    \typerule{cct-whatever-cons-memstate-eq}{
+    \typerule{scct-whatever-cons-memstate-eq}{
       \irl{\loc}\in\irl{L} &
       \xlangstateeqc{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}
     }{
       \xlangstateeqc{H^{\ctx};H^{\comp};x\mapsto(\loc;\sandboxtag;\poison;n),\Delta}{H^{\ctx};H^{\comp};\Delta}
-    }{cct-whatever-cons-memstate-eq}
+    }{scct-whatever-cons-memstate-eq}
     %
     %
     \judgbox{\irl{\loc},\irl{n}\vdash_{\delta}\irl{H^{\comp}}\approx\obj{H^{\comp}}}{,,The heaps $\irl{H^{\comp}}$ and $\obj{H^{\comp}}$ are related at $\irl{\loc}$ for\\$\irl{n}$ memory cells.''}
     %
-    \typerule{cct-heap-related}{
-      \mmlAtmsmmlAtcctcomp{n}=\obj{n} &
+    \typerule{scct-heap-related}{
+      \mmlAtmsmmlAtscctcomp{n}=\obj{n} &
       \delta(\irl{\loc}) = \obj{\loc} \\
       \forall \irl{0}\le\irl{m}<\irl{n},\ \obj{0}\le\obj{m}<\obj{n},\irl{H^{\comp}}\left(\irl{\loc} + \irl{m}\right)=\obj{H^{\comp}}\left(\obj{\loc} + \obj{m}\right)
     }{
       \irl{\loc},\irl{n}\vdash_{\delta}\irl{H^{\comp}}\approx\obj{H^{\comp}}
-    }{cct-heap-related}
+    }{scct-heap-related}
     %
-    \judgbox{\xlangstateeqc[]{\cfstate}{\cfstate}}{,,The $\mmlAtms$ control-flow-state $\irl{\cfstate}$ agrees with $\mmlAtcct$ one $\obj{\cfstate}$.''} \\
+    \judgbox{\xlangstateeqc[]{\cfstate}{\cfstate}}{,,The $\mmlAtms$ control-flow-state $\irl{\cfstate}$ agrees with $\mmlAtscct$ one $\obj{\cfstate}$.''} \\
     %
-    \typerule{cct-cfstate-eq}{
+    \typerule{scct-cfstate-eq}{
       \irl{\cfstate}=\irl{\commlib;\library;\kontstack} &
       \obj{\cfstate}=\obj{\commlib;\library;\kontstack} \\
       \xlangstateeqc[]{\library}{\library} &
       \xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack} &
-      \obj{\commlib}=\mmlAtmsmmlAtcctcomp{\commlib}
+      \obj{\commlib}=\mmlAtmsmmlAtscctcomp{\commlib}
     }{
       \xlangstateeqc[]{\cfstate}{\cfstate}
-    }{cct-cfstate-eq}$\;$\\
+    }{scct-cfstate-eq}$\;$\\
     %
     %
-    \judgbox{\irl{\poison}=\obj{\poison}}{,,$\mmlAtms$ poison equals $\mmlAtcct$ one $\obj{\poison}$.''} \\
+    \judgbox{\irl{\poison}=\obj{\poison}}{,,$\mmlAtms$ poison equals $\mmlAtscct$ one $\obj{\poison}$.''} \\
     %
     \typerule{$\poisoned$-equal}{
     }{
       \irl{\poisoned}=\obj{\poisoned}
-    }{cct-poisoned-equal}
+    }{scct-poisoned-equal}
     %
     \typerule{$\poisonless$-equal}{
     }{
       \irl{\poisonless}=\obj{\poisonless}
-    }{cct-poisonless-equal}
+    }{scct-poisonless-equal}
   \end{center}
-}{cct-pres-state-relations-first}{State Relation from $\mmlAtms$ to $\mmlAtcct$. This is meant to relate the states whenever we are ,,inside'' a component.}
+}{scct-pres-state-relations-first}{State Relation from $\mmlAtms$ to $\mmlAtscct$. This is meant to relate the states whenever we are ,,inside'' a component.}
 
 \myfig{
   \begin{center}
     %
-    \judgbox{\xlangstateeqc[]{\library}{\library}}{,,The procedures of $\mmlAtms$ agree with $\mmlAtcct$ ones.''} \\
+    \judgbox{\xlangstateeqc[]{\library}{\library}}{,,The procedures of $\mmlAtms$ agree with $\mmlAtscct$ ones.''} \\
     %
-    \typerule{cct-empty-commlib-lib-eq}{
+    \typerule{scct-empty-commlib-lib-eq}{
     }{
       \xlangstateeqc[]{\hole{\cdot}}{\library}
-    }{cct-empty-commlib-eq}
+    }{scct-empty-commlib-eq}
     %
-    \typerule{cct-cons-commlib-eq}{
-      \mmlAtmsmmlAtcctcomp{let\ foo\ x:\type_{\color{black}\lambda} := e} = \obj{let\ foo\ x := e} &
+    \typerule{scct-cons-commlib-eq}{
+      \mmlAtmsmmlAtscctcomp{let\ foo\ x:\type_{\color{black}\lambda} := e} = \obj{let\ foo\ x := e} &
       \xlangstateeqc[]{\library}{\library_1,\library_2}
     }{
       \xlangstateeqc[]{(let\ foo\ x:\type_{\color{black}\lambda} := e),\library}{\library_1,(let\ foo\ x := e),\library_2}
-    }{cct-cons-commlib-eq}
+    }{scct-cons-commlib-eq}
     %
     %
-    \judgbox{\xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack}}{,,The stack of $\mmlAtms$ continuations $\irl{\kontstack}$ agrees with $\mmlAtcct$ one $\obj{\kontstack}$.\\Only checks $\irl{foo}\in\irl{\commlib}$''} \\
+    \judgbox{\xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack}}{,,The stack of $\mmlAtms$ continuations $\irl{\kontstack}$ agrees with $\mmlAtscct$ one $\obj{\kontstack}$.\\Only checks $\irl{foo}\in\irl{\commlib}$''} \\
     %
-    \typerule{cct-empty-kontstack-eq}{
+    \typerule{scct-empty-kontstack-eq}{
     }{
       \xlangstateeqc[\irl{\commlib}]{\hole{\cdot}}{\hole{\cdot}}
-    }{cct-empty-kontstack-eq}
+    }{scct-empty-kontstack-eq}
     %
-    \typerule{cct-ign-cons-kontstack-eq}{
+    \typerule{scct-ign-cons-kontstack-eq}{
       \irl{foo}\notin\irl{\commlib} &
-      \obj{foo}=\mmlAtmsmmlAtcctcomp{foo} &
+      \obj{foo}=\mmlAtmsmmlAtscctcomp{foo} &
       \xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack}
     }{
       \xlangstateeqc[\irl{\commlib}]{\kontstack}{(K;foo),\kontstack}
-    }{cct-ign-cons-kontstack-eq}
+    }{scct-ign-cons-kontstack-eq}
     %
     \typerule{cons-kontstack-eq}{
       \irl{foo}\in\irl{\commlib} &
@@ -7361,145 +7361,159 @@ The upcoming compilation pass makes sure this assumption is actually true.
       \xlangstateeqc[\irl{\commlib}]{\kontstack}{\kontstack}
     }{
       \xlangstateeqc[\irl{\commlib}]{(K;foo),\kontstack}{(K;foo),\kontstack}
-    }{cct-cons-kontstack-eq}
+    }{scct-cons-kontstack-eq}
   \end{center}
-}{cct-pres-memstate-relations}{Memory-State Relations from $\mmlAtms$ to $\mmlAtcct$.}
+}{scct-pres-memstate-relations}{Memory-State Relations from $\mmlAtms$ to $\mmlAtscct$.}
 
 \subsubsection{Compiler}
 
 \myfig{
   \begin{center}
     \begin{gather*}
-    \judgbox{\mmlAtmsmmlAtcctcomp{e}=\obj{e'}}{,,Compile $\mmlAtms$ expression $\irl{e}$ to $\mmlAtcct$ expression $\obj{e'}$.''}\\
-    \judgbox{\mmlAtmsmmlAtcctcomp{\left[\valueexpr / x\right]}=\obj{\left[\valueexpr / x\right]}}{,,Compile $\mmlAtms$ substitution to $\mmlAtcct$ substitution.''} \\
-    \judgbox{\mmlAtmsmmlAtcctcomp{\commlib}=\obj{\commlib'}}{,,Compile $\mmlAtms$ component library to $\mmlAtcct$ component library.''} \\
+    \judgbox{\mmlAtmsmmlAtscctcomp{e}=\obj{e'}}{,,Compile $\mmlAtms$ expression $\irl{e}$ to $\mmlAtscct$ expression $\obj{e'}$.''}\\
+    \judgbox{\mmlAtmsmmlAtscctcomp{\left[\valueexpr / x\right]}=\obj{\left[\valueexpr / x\right]}}{,,Compile $\mmlAtms$ substitution to $\mmlAtscct$ substitution.''} \\
+    \judgbox{\mmlAtmsmmlAtscctcomp{\commlib}=\obj{\commlib'}}{,,Compile $\mmlAtms$ component library to $\mmlAtscct$ component library.''} \\
     \end{gather*}
     $$
     \begin{array}{rll}
-    \mmlAtmsmmlAtcctcomp{\finalexpr} &\ = & \obj{\finalexpr} \\
-    \mmlAtmsmmlAtcctcomp{call\ foo\ e} &\ = & \obj{call\ }\mmlAtmsmmlAtcctcomp{foo}\ \mmlAtmsmmlAtcctcomp{e}\\
-    \mmlAtmsmmlAtcctcomp{return\ e} &\ = & \obj{return\ }\mmlAtmsmmlAtcctcomp{e}\\
-    \mmlAtmsmmlAtcctcomp{e_1\oplus e_2} &\ = & \mmlAtmsmmlAtcctcomp{e_1} \obj{\widehat{\oplus}} \mmlAtmsmmlAtcctcomp{e_2} \\
-      \mmlAtmsmmlAtcctcomp{x[e]} &\ = & \obj{\widehat{load}\ x\ }\mmlAtmsmmlAtcctcomp{e}\\
-    \mmlAtmsmmlAtcctcomp{let\ x= e_1\ in\ e_2} &\ = & \obj{let\ x=} \mmlAtmsmmlAtcctcomp{e_1}\obj{\ in\ }\mmlAtmsmmlAtcctcomp{e_2} \\
-    \mmlAtmsmmlAtcctcomp{x[e_1]\leftarrow e_2} &\ = & \obj{\widehat{write}\ x\ }\mmlAtmsmmlAtcctcomp{e_1}\ \mmlAtmsmmlAtcctcomp{e_2} \\
-    \mmlAtmsmmlAtcctcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \obj{let\ x=new\ }\mmlAtmsmmlAtcctcomp{e_1}\obj{\ in\ }\mmlAtmsmmlAtcctcomp{e_2} \\
-    \mmlAtmsmmlAtcctcomp{delete\ x} &\ = & \obj{delete\ x} \\
-    \mmlAtmsmmlAtcctcomp{x\ is\ \poisoned} &\ = & \obj{x\ is\ \poisoned} \\
-    \mmlAtmsmmlAtcctcomp{\lparen e_1;e_2\rparen} &\ = & \obj{\lparen}\mmlAtmsmmlAtcctcomp{e_1}\obj{;}\mmlAtmsmmlAtcctcomp{e_2}\obj{\rparen}\\
-    \mmlAtmsmmlAtcctcomp{\pi_1\ e} &\ = & \obj{\pi_1\ }\mmlAtmsmmlAtcctcomp{e}\\
-    \mmlAtmsmmlAtcctcomp{\pi_2\ e} &\ = & \obj{\pi_2\ }\mmlAtmsmmlAtcctcomp{e}\\
-    \mmlAtmsmmlAtcctcomp{e\ has\ \type} &\ = & \mmlAtmsmmlAtcctcomp{e}\ \obj{has\ \type}\\
-    \mmlAtmsmmlAtcctcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \obj{\widehat{ifz}\ }\mmlAtmsmmlAtcctcomp{e_1}\\
-                                                        &&\obj{then\ }\mmlAtmsmmlAtcctcomp{e_2} \\
-                                                        &&\obj{else\ }\mmlAtmsmmlAtcctcomp{e_3} \\[0.5cm]
+    \mmlAtmsmmlAtscctcomp{\finalexpr} &\ = & \obj{\finalexpr} \\
+    \mmlAtmsmmlAtscctcomp{call\ foo\ e} &\ = & \obj{call\ }\mmlAtmsmmlAtscctcomp{foo}\ \mmlAtmsmmlAtscctcomp{e}\\
+    \mmlAtmsmmlAtscctcomp{return\ e} &\ = & \obj{return\ }\mmlAtmsmmlAtscctcomp{e}\\
+    \mmlAtmsmmlAtscctcomp{e_1\oplus e_2} &\ = & \mmlAtmsmmlAtscctcomp{e_1} \obj{\widehat{\oplus}} \mmlAtmsmmlAtscctcomp{e_2} \\
+      \mmlAtmsmmlAtscctcomp{x[e]} &\ = & \obj{\widehat{load}\ x\ }\mmlAtmsmmlAtscctcomp{e}\\
+    \mmlAtmsmmlAtscctcomp{let\ x= e_1\ in\ e_2} &\ = & \obj{let\ x=} \mmlAtmsmmlAtscctcomp{e_1}\obj{\ in\ }\mmlAtmsmmlAtscctcomp{e_2} \\
+    \mmlAtmsmmlAtscctcomp{x[e_1]\leftarrow e_2} &\ = & \obj{\widehat{write}\ x\ }\mmlAtmsmmlAtscctcomp{e_1}\ \mmlAtmsmmlAtscctcomp{e_2} \\
+    \mmlAtmsmmlAtscctcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \obj{let\ x=new\ }\mmlAtmsmmlAtscctcomp{e_1}\obj{\ in\ }\mmlAtmsmmlAtscctcomp{e_2} \\
+    \mmlAtmsmmlAtscctcomp{delete\ x} &\ = & \obj{delete\ x} \\
+    \mmlAtmsmmlAtscctcomp{x\ is\ \poisoned} &\ = & \obj{x\ is\ \poisoned} \\
+    \mmlAtmsmmlAtscctcomp{\lparen e_1;e_2\rparen} &\ = & \obj{\lparen}\mmlAtmsmmlAtscctcomp{e_1}\obj{;}\mmlAtmsmmlAtscctcomp{e_2}\obj{\rparen}\\
+    \mmlAtmsmmlAtscctcomp{\pi_1\ e} &\ = & \obj{\pi_1\ }\mmlAtmsmmlAtscctcomp{e}\\
+    \mmlAtmsmmlAtscctcomp{\pi_2\ e} &\ = & \obj{\pi_2\ }\mmlAtmsmmlAtscctcomp{e}\\
+    \mmlAtmsmmlAtscctcomp{e\ has\ \type} &\ = & \mmlAtmsmmlAtscctcomp{e}\ \obj{has\ \type}\\
+    \mmlAtmsmmlAtscctcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \obj{\widehat{ifz}\ }\mmlAtmsmmlAtscctcomp{e_1}\\
+                                                        &&\obj{then\ }\mmlAtmsmmlAtscctcomp{e_2} \\
+                                                        &&\obj{else\ }\mmlAtmsmmlAtscctcomp{e_3} \\[0.5cm]
     %
-    \mmlAtmsmmlAtcctcomp{\left[\valueexpr/x\right]}&\ = & \obj{\left[\right.}\mmlAtmsmmlAtcctcomp{v}\obj{/}\mmlAtmsmmlAtcctcomp{x}\obj{\left.\right]} \\[0.5cm]
+    \mmlAtmsmmlAtscctcomp{\left[\valueexpr/x\right]}&\ = & \obj{\left[\right.}\mmlAtmsmmlAtscctcomp{v}\obj{/}\mmlAtmsmmlAtscctcomp{x}\obj{\left.\right]} \\[0.5cm]
     %
-    \mmlAtmsmmlAtcctcomp{\hole{\cdot}}&\ = & \obj{\hole{\cdot}} \\
-    \mmlAtmsmmlAtcctcomp{foo,\commlib}&\ = & \obj{foo,}\mmlAtmsmmlAtcctcomp{\commlib} \\
+    \mmlAtmsmmlAtscctcomp{\hole{\cdot}}&\ = & \obj{\hole{\cdot}} \\
+    \mmlAtmsmmlAtscctcomp{foo,\commlib}&\ = & \obj{foo,}\mmlAtmsmmlAtscctcomp{\commlib} \\
     \end{array}
     $$
   \end{center}
-}{cct-pres-compiler}{Compiler from $\mmlAtms$ to $\mmlAtcct$.}
+}{scct-pres-compiler}{Compiler from $\mmlAtms$ to $\mmlAtscct$.}
 \myfig{
   \begin{center}
     \begin{gather*}
-    \judgbox{\mmlAtmsmmlAtcctcomp{F}=\obj{F}}{,,Compile $\mmlAtms$ procedures to $\mmlAtcct$ procedures.''}
+    \judgbox{\mmlAtmsmmlAtscctcomp{F}=\obj{F}}{,,Compile $\mmlAtms$ procedures to $\mmlAtscct$ procedures.''}
     \end{gather*}
     $$
     \begin{array}{rll}
     %
-      \mmlAtmsmmlAtcctcomp{let\ foo\ x := e}&\ = & \obj{let\ foo\ x := }\mmlAtmsmmlAtcctcomp{e}\\
+      \mmlAtmsmmlAtscctcomp{let\ foo\ x := e}&\ = & \obj{let\ foo\ x := }\mmlAtmsmmlAtscctcomp{e}\\
     \end{array}
     $$
     \begin{gather*}
-    \judgbox{\mmlAtmsmmlAtcctcomp{\library}=\obj{\library}}{,,Compile $\mmlAtms$ libraries to $\mmlAtcct$ libraries.''}
+    \judgbox{\mmlAtmsmmlAtscctcomp{\library}=\obj{\library}}{,,Compile $\mmlAtms$ libraries to $\mmlAtscct$ libraries.''}
     \end{gather*}
     $$
     \begin{array}{rll}
-      \mmlAtmsmmlAtcctcomp{\hole{\cdot}}&\ = & \obj{\hole{\cdot}} \\
-      \mmlAtmsmmlAtcctcomp{F,\library}&\ = & \mmlAtmsmmlAtcctcomp{F}\irl{,}\mmlAtmsmmlAtcctcomp{\library} \\
+      \mmlAtmsmmlAtscctcomp{\hole{\cdot}}&\ = & \obj{\hole{\cdot}} \\
+      \mmlAtmsmmlAtscctcomp{F,\library}&\ = & \mmlAtmsmmlAtscctcomp{F}\irl{,}\mmlAtmsmmlAtscctcomp{\library} \\
     \end{array}
     $$
   \end{center}
-}{cct-pres-compiler-comp}{Compiler from $\mmlAtms$ components to $\mmlAtcct$ components.}
+}{scct-pres-compiler-comp}{Compiler from $\mmlAtms$ components to $\mmlAtscct$ components.}
 
 \cleardoublepage
 
-\begin{lemma}[Primitive Forward Simulation]\label{lem:prim:forwardsim:cct}
+\begin{lemma}[Primitive Forward Simulation]\label{lem:prim:forwardsim:scct}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:prim:forwardsim:cct:execi} $\exprevali{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
-    \item $\monitorcheck[]{\cctmonitor}{\cctmonitor'}{\absevent}$
+    \item\label[ass]{asm:prim:forwardsim:scct:execi} $\exprevali{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
+    \item $\monitorcheck[]{\scctmonitor}{\scctmonitor'}{\absevent}$
     \item $\theta_{\delta}(\irl{\event})=\absevent$
     \item $\xlangstateeqc{\Omega}{\Omega}$
-    \item $\storeagreecct{\cctmonitor}{\obj{\Omega}}$
   \end{assumptions}
-  Then $\exists \delta_{cct}'\ \obj{\event}\ \obj{\Omega'}$,
+  Then $\exists \delta_{scct}'\ \obj{\event}\ \obj{\Omega'}$,
   \begin{goals}
-    \item $\exprevalo{\Omega}{\color{black}\mmlAtmsmmlAtcctcomp{e}\mmlAtmsmmlAtcctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtcctcomp{e'}\mmlAtmsmmlAtcctcomp{\gamma'}}{\event}$
-    \item $\xlangeventeqc[\delta_{cct}']{\event}{\event}$
-    \item $\xlangstateeqc[\delta_{cct}']{\Omega'}{\Omega'}$
-    \item $\theta_{\delta_{cct}'}(\obj{\event})=\absevent$
+    \item $\exprevalo{\Omega}{\color{black}\mmlAtmsmmlAtscctcomp{e}\mmlAtmsmmlAtscctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtscctcomp{e'}\mmlAtmsmmlAtscctcomp{\gamma'}}{\event}$
+    \item $\xlangeventeqc[\delta_{scct}']{\event}{\event}$
+    \item $\xlangstateeqc[\delta_{scct}']{\Omega'}{\Omega'}$
+    \item $\theta_{\delta_{scct}'}(\obj{\event})=\absevent$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Case analysis on \Cref{asm:prim:forwardsim:cct:execi}.
+  Case analysis on \Cref{asm:prim:forwardsim:scct:execi}.
 \end{proof}
 
-\begin{lemma}[Contextual Forward Simulation]\label{lem:ctx:forwardsim:cct}
+\begin{lemma}[Contextual Forward Simulation]\label{lem:ctx:forwardsim:scct}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:ctx:forwardsim:cct:execi} $\exectms[]{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
-    \item $\monitorcheck[]{\cctmonitor}{\cctmonitor'}{\absevent}$
+    \item\label[ass]{asm:ctx:forwardsim:scct:execi} $\exectms[]{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
+    \item $\monitorcheck[]{\scctmonitor}{\scctmonitor'}{\absevent}$
     \item $\theta_{\delta}(\irl{\event})=\absevent$
     \item $\xlangstateeqc{\Omega}{\Omega}$
-    \item $\storeagreecct{\cctmonitor}{\obj{\Omega}}$
   \end{assumptions}
-  Then $\exists \delta_{cct}'\ \obj{\event}\ \obj{\Omega'}$,
+  Then $\exists \delta_{scct}'\ \obj{\event}\ \obj{\Omega'}$,
   \begin{goals}
-    \item $\execo[]{\Omega}{\color{black}\mmlAtmsmmlAtcctcomp{e}\mmlAtmsmmlAtcctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtcctcomp{e'}\mmlAtmsmmlAtcctcomp{\gamma'}}{\event}$
-    \item $\xlangeventeqc[\delta_{cct}']{\event}{\event}$
-    \item $\xlangstateeqc[\delta_{cct}']{\Omega'}{\Omega'}$
-    \item $\theta_{\delta_{cct}'}(\obj{\event})=\absevent$
+    \item $\execo[]{\Omega}{\color{black}\mmlAtmsmmlAtscctcomp{e}\mmlAtmsmmlAtscctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtscctcomp{e'}\mmlAtmsmmlAtscctcomp{\gamma'}}{\event}$
+    \item $\xlangeventeqc[\delta_{scct}']{\event}{\event}$
+    \item $\xlangstateeqc[\delta_{scct}']{\Omega'}{\Omega'}$
+    \item $\theta_{\delta_{scct}'}(\obj{\event})=\absevent$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Case analysis on \Cref{asm:ctx:forwardsim:cct:execi} and using \Thmref{lem:prim:forwardsim:cct}.
+  Case analysis on \Cref{asm:ctx:forwardsim:scct:execi} and using \Thmref{lem:prim:forwardsim:scct}.
 \end{proof}
 
-\begin{lemma}[Forward Simulation]\label{lem:steps:forwardsim:cct}
+\begin{lemma}[Forward Simulation]\label{lem:steps:forwardsim:scct}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:steps:forwardsim:cct:execi} $\exectms{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
-    \item $\monitorcheck[]{\cctmonitor}{\cctmonitor'}{\absevent}$
+    \item\label[ass]{asm:steps:forwardsim:scct:execi} $\exectms{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
+    \item $\monitorcheck[]{\scctmonitor}{\scctmonitor'}{\absevent}$
     \item $\theta_{\delta}(\irl{\event})=\absevent$
     \item $\xlangstateeqc{\Omega}{\Omega}$
-    \item $\storeagreecct{\cctmonitor}{\obj{\Omega}}$
   \end{assumptions}
-  Then $\exists \delta_{cct}'\ \obj{\event}\ \obj{\Omega'}$,
+  Then $\exists \delta_{scct}'\ \obj{\event}\ \obj{\Omega'}$,
   \begin{goals}
-    \item $\execo{\Omega}{\color{black}\mmlAtmsmmlAtcctcomp{e}\mmlAtmsmmlAtcctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtcctcomp{e'}\mmlAtmsmmlAtcctcomp{\gamma'}}{\event}$
-    \item $\xlangeventeqc[\delta_{cct}']{\event}{\event}$
-    \item $\xlangstateeqc[\delta_{cct}']{\Omega'}{\Omega'}$
-    \item $\theta_{\delta_{cct}'}(\obj{\event})=\absevent$
+    \item $\execo{\Omega}{\color{black}\mmlAtmsmmlAtscctcomp{e}\mmlAtmsmmlAtscctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtscctcomp{e'}\mmlAtmsmmlAtscctcomp{\gamma'}}{\event}$
+    \item $\xlangeventeqc[\delta_{scct}']{\event}{\event}$
+    \item $\xlangstateeqc[\delta_{scct}']{\Omega'}{\Omega'}$
+    \item $\theta_{\delta_{scct}'}(\obj{\event})=\absevent$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Case analysis on \Cref{asm:steps:forwardsim:cct:execi} and using \Thmref{lem:ctx:forwardsim:cct}.
+  Case analysis on \Cref{asm:steps:forwardsim:scct:execi} and using \Thmref{lem:ctx:forwardsim:scct}.
 \end{proof}
 
 \begin{lemma}[Backward Simulation]
+  If
+  \begin{assumptions}
+    \item $\execo{\Omega}{\color{black}\mmlAtmsmmlAtscctcomp{e}\mmlAtmsmmlAtscctcomp{\gamma}}{\Omega'}{\color{black}\mmlAtmsmmlAtscctcomp{e'}\mmlAtmsmmlAtscctcomp{\gamma'}}{\trace}$
+    \item $\xlangstateeqc[\delta_{scct}]{\Omega}{\Omega}$
+    \item $\monitorcheck{\scctmonitor}{\scctmonitor'}{\absevent}$
+    \item $\theta_{\delta}(\irl{\event})=\absevent$
+  \end{assumptions}
+  Then $\exists \delta_{scct}'\ \irl{\Omega'}\ \irl{\trace}$
+  \begin{goals}
+    \item $\delta_{scct}\subseteq\delta_{scct}'$
+    \item $\exectms{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\trace}$
+    \item $\xlangstateeqc[\delta_{scct}']{\Omega'}{\Omega'}$
+    \item $\xlangtraceeqc[\delta_{scct}']{\trace}{\trace}$
+  \end{goals}
 \end{lemma}
+\begin{proof}
+  Follows from \Cref{lem:steps:forwardsim:scct} and determinism.
+\end{proof}
 
 \begin{scontents}[store-env=buffer]
   $\;$\\
   \begin{goals}
-    \item $\vdash\mmlAtmsmmlAtcctcomp{\bullet}:\lceil\operatorname{scct}\rceil$
+    \item $\vdash\mmlAtmsmmlAtscctcomp{\bullet}:\lceil\operatorname{scct}\rceil$
   \end{goals}
 \end{scontents}
-\realthm{thm:rcctp}{7}{Robust Strict Cryptographic Constant Time Preservation}
+\realthm{thm:rscctp}{7}{Robust Strict Cryptographic Constant Time Preservation}
 \begin{incompleteproof}
   Unfortunately, we'll need a backtranslation, since the syntax is entirely different and operational states may differ as well. So, we've got approx-lollipop-action again.
 \end{incompleteproof}

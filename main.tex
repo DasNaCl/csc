@@ -6599,11 +6599,11 @@ The upcoming compilation pass makes sure this assumption is actually true.
   \mi{Final\ Result}\ \obj{\finalexprnoerr} \bnfdef&\ \obj{\valueexpr} \mid \obj{x} \hspace{0.5cm}
   \mi{May\ be\ a\ Result}\ \obj{\finalexpr} \bnfdef\ \obj{\finalexprnoerr} \mid \obj{stuck} \\
   %
-  \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{e_{1} \widehat{\oplus} e_{2}} \mid \obj{load\ x\ e} \mid \obj{\widehat{load}\ x\ e} \\
-  & \mid \obj{let\ x = e_{1}\ in\ e_{2}} \mid \obj{write\ x\ e_{1}\ e_{2}} \mid \obj{\widehat{write}\ x\ e_{1}\ e_{2}} \\
+  \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{x[e]} \mid \obj{rddoit\ x} \mid \obj{wrdoit\ e} \\
+  & \mid \obj{let\ x = e_{1}\ in\ e_{2}} \mid \obj{x\leftarrow e_{1}[e_{2}]} \\
   & \mid \obj{let\ x = new\ e_{1}\ in\ e_{2}} \mid \obj{delete\ x} \\
   & \mid \obj{return\ e} \mid \obj{call\ foo\ e} \mid \obj{ifz\ e_{1}\ then\ e_{2}\ else\ e_{3}} \\
-  & \mid \obj{\widehat{ifz}\ e_1\ then\ e_2\ else\ e_3} \mid \obj{abort()} \mid \obj{x\ is\ \poisoned} \\
+  & \mid \obj{abort()} \mid \obj{x\ is\ \poisoned} \\
   & \mid \obj{\langle e_{1},e_{2}\rangle} \mid \obj{\pi_{1} e} \mid \obj{\pi_{2} e} \mid \obj{e\ has\ \type} \\
    &\text{where } \obj{\oplus}\in\{\obj{+},\obj{-},\obj{\times},\obj{\widehat{\times}},\obj{<},\obj{\widehat{<}},\obj{/},\obj{\widehat{/}}\}\\
   %
@@ -6613,12 +6613,11 @@ The upcoming compilation pass makes sure this assumption is actually true.
   \mi{Values}~\obj{\valueexpr} \bnfdef&\ \obj{n}\in\obj{\nat} \hspace{0.25cm}
   %
   \mi{References}~\obj{\loc}\in\obj{\nat} \\
-  \mi{Eval. Ctx.}~\obj{K}\bnfdef &\ \obj{\hole{\cdot}}\mid \obj{K\oplus e}\mid \obj{v\oplus K}\mid \obj{load\ x\ K}\mid \obj{let\ x=K\ in\ e}\\
-                     &\ \mid\obj{write\ x\ K\ e}\mid \obj{write\ x\ v\ K}\mid \obj{let\ x=new\ K\ in\ e} \\
+  \mi{Eval. Ctx.}~\obj{K}\bnfdef &\ \obj{\hole{\cdot}}\mid \obj{K\oplus e}\mid \obj{v\oplus K}\mid \obj{x[K]}\mid \obj{let\ x=K\ in\ e}\\
+                     &\ \mid\obj{x[K]\leftarrow e}\mid \obj{x[v]\leftarrow K}\mid \obj{let\ x=new\ K\ in\ e} \\
                      &\ \mid\obj{ifz\ K\ then\ e_1\ else\ e_2} \mid \obj{call\ foo\ K}\mid \obj{return\ K} \\
                      &\ \mid\obj{\langle K, e\rangle} \mid \obj{\langle \valueexpr, K \rangle } \mid \obj{\pi_{1} K} \mid \obj{\pi_{2} K} \mid \obj{K\ has\ \type} \\
-                     &\ \mid\obj{ifz\ K\ then\ e_{1}\ else\ e_{2}} \mid \obj{\widehat{ifz}\ K\ then\ e_{1}\ else\ e_{2}}\\
-                     &\ \mid\obj{K\widehat{\oplus}e} \mid \obj{\valueexpr \widehat{\oplus} K} \mid \obj{\widehat{load}\ x\ K} \mid \obj{\widehat{write}\ x\ K\ e} \mid \obj{\widehat{write}\ x\ \valueexpr\ K} \\
+                     &\ \mid\obj{ifz\ K\ then\ e_{1}\ else\ e_{2}} \mid \obj{wrdoit\ K} \\
   %
   \mi{Variables}~\ &\obj{x} \mid \obj{y} \mid \obj{foo} \mid \dots \hspace{0.5cm}
   %
@@ -6634,7 +6633,7 @@ The upcoming compilation pass makes sure this assumption is actually true.
   \mi{Cont.\ Stack}~\obj{\kontstack} \bnfdef&\ \obj{\hole{\cdot}} \mid (\obj{K};\obj{foo}),\obj{\kontstack} \hspace{0.5cm}
   \mi{Library}~\obj{\library} \bnfdef\ \obj{\hole{\cdot}} \mid \obj{\asymbol},\obj{\library} \\
   \mi{Relevant}\ \obj{\commlib} \bnfdef& \obj{\hole{\cdot}} \mid \obj{foo},\obj{\commlib}\hspace{0.5cm}
-  \mi{State}~\obj{\Omega}\ \bnfdef\ \obj{\cfstate;\sandboxtag;\memstate}\\
+  \mi{State}~\obj{\Omega}\ \bnfdef\ \obj{\cfstate;\sandboxtag;n;\memstate}\\
   \mi{Flow\ State}~\obj{\cfstate}\bnfdef&\ \obj{\commlib;\library;\kontstack}\hspace{0.5cm}
   \mi{Memory\ State}~\obj{\memstate}\bnfdef\ \obj{H^{\ctx};H^{\comp};\Delta} \\
   %
@@ -6642,7 +6641,12 @@ The upcoming compilation pass makes sure this assumption is actually true.
   \mi{Substitutions}~\obj{\gamma} \bnfdef \obj{[\valueexpr/x],\gamma}\ \vert\ \obj{\hole{\cdot}} \\
   \end{aligned}
   \end{gather*}
-}{mmlao-syntax}{Syntax of $\mmlAo$}
+}{mmlao-syntax}{Syntax of $\mmlAtscct$}
+
+The only difference between $\mmlAtms$ and $\mmlAtscct$ is that we have access to model specific registers by means of the $\obj{rddoit}$ and $\obj{wrdoit}$ instructions.
+Thus, we also extend the dynamic state with a special purpose register representing a model specific register for a data operand independent timing mode).
+Whenever this flag is set, certain instructions will run in a ,,constant-time mode''.
+Usually, access to model specific registers requires privileged execution. Since we want to model the strongest possible attacker, we disregard privilege and, thus, grant contexts access to that variable.
 
 \subsubsection{Dynamic Semantics}
 

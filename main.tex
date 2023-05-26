@@ -26,6 +26,7 @@
 \usepackage{adjustbox}
 \usepackage{scontents}
 \usepackage{comment}
+\usepackage{fontawesome5}
 
 % workaround to use extpfeil and stmaryrd together.
 % see https://tex.stackexchange.com/questions/297108/
@@ -6596,11 +6597,11 @@ The upcoming compilation pass makes sure this assumption is actually true.
 	\vspace{-1em}
   \begin{gather*}
   \begin{aligned}
-  \mi{Final\ Result}\ \obj{\finalexprnoerr} \bnfdef&\ \obj{\valueexpr} \mid \obj{x} \hspace{0.5cm}
+  \mi{Final\ Result}\ \obj{\finalexprnoerr} \bnfdef&\ \obj{\valueexpr^{\sigma}} \mid \obj{x^{\sigma}} \hspace{0.5cm}
   \mi{May\ be\ a\ Result}\ \obj{\finalexpr} \bnfdef\ \obj{\finalexprnoerr} \mid \obj{stuck} \\
   %
-  \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{x[e]} \mid \obj{rddoit\ x} \mid \obj{wrdoit\ e} \\
-  & \mid \obj{let\ x = e_{1}\ in\ e_{2}} \mid \obj{x\leftarrow e_{1}[e_{2}]} \\
+  \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{x[e]} \mid \obj{rddoit\ x\ in\ e} \mid \obj{wrdoit\ e} \\
+  & \mid \obj{let\ x = e_{1}\ in\ e_{2}} \mid \obj{x[e_{1}]\leftarrow e_{2}} \\
   & \mid \obj{let\ x = new\ e_{1}\ in\ e_{2}} \mid \obj{delete\ x} \\
   & \mid \obj{return\ e} \mid \obj{call\ foo\ e} \mid \obj{ifz\ e_{1}\ then\ e_{2}\ else\ e_{3}} \\
   & \mid \obj{abort()} \mid \obj{x\ is\ \poisoned} \\
@@ -6639,6 +6640,7 @@ The upcoming compilation pass makes sure this assumption is actually true.
   %
   \mi{Programs}\ &\obj{prog\ \library_{ctx}\ \library_{comp}} \hspace{0.35cm}
   \mi{Substitutions}~\obj{\gamma} \bnfdef \obj{[\valueexpr/x],\gamma}\ \vert\ \obj{\hole{\cdot}} \\
+  \mi{Security\ Tag}~\obj{\sigma} \bnfdef&\ \obj{\lock} \mid \obj{\unlock}
   \end{aligned}
   \end{gather*}
 }{mmlao-syntax}{Syntax of $\mmlAtscct$}
@@ -6647,6 +6649,10 @@ The only difference between $\mmlAtms$ and $\mmlAtscct$ is that we have access t
 Thus, we also extend the dynamic state with a special purpose register representing a model specific register for a data operand independent timing mode).
 Whenever this flag is set, certain instructions will run in a ,,constant-time mode''.
 Usually, access to model specific registers requires privileged execution. Since we want to model the strongest possible attacker, we disregard privilege and, thus, grant contexts access to that variable.
+
+The language also has security tags to model annotations to variables (and, by taint analysis, to expressions) as high or low.
+$\obj{\lock}$ means it's high, while $\obj{\unlock}$ means it's low. We have an $\obj{\cdot}\le\obj{\cdot}$ such that $\obj{\lock}\le\obj{\unlock}$.
+Final results are tagged with the respected taint and the semantics keeps track of this taint during execution.
 
 \subsubsection{Dynamic Semantics}
 
@@ -6696,206 +6702,426 @@ Usually, access to model specific registers requires privileged execution. Since
                                            & \mid \obj{Call\ \comm\ foo\ \valueexpr} \mid \obj{Ret\ \comm\ \valueexpr} \mid \obj{Start} \mid \obj{End\ \valueexpr} \\
                                            & \mid \obj{Branch\ n} \mid \obj{Binop\ n\ m} \\
     & \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr'} \\
-  \mi{Events}~\obj{\event} \bnfdef&\ \obj{\emptyevent} \mid \obj{\event_{b};\sandboxtag}
+  \mi{Events}~\obj{\event} \bnfdef&\ \obj{\emptyevent} \mid \obj{\event_{b};\sandboxtag;\sigma}
   \end{aligned}
   \end{gather*}
 }{to-events}{Events of $\mmlAo$.}
 
 \myfig{
+  \begin{center}
+    \judgbox{\obj{\cdot}\le\obj{\cdot}}{,,Order of security labels.''}$\;$\\
+    %
+    \typerule{leq-$\obj{\unlock}$-refl}{
+    }{
+      \obj{\unlock}\le\obj{\unlock}
+    }{leq-unlock-refl}
+    %
+    \typerule{leq-lock}{
+    }{
+      \obj{\lock}\le\obj{\sigma}
+    }{leq-lock}
+    %
+
+    \judgbox{\obj{\cdot}\sqcap\obj{\cdot}}{,,Meet of security labels.''}$\;$\\
+    %
+    \typerule{meet-refl}{
+    }{
+      \obj{\sigma}\sqcap\obj{\sigma}=\obj{\sigma}
+    }{meet-refl}
+    %
+    \typerule{meet-ineq}{
+      \obj{\sigma}\not=\obj{\sigma'}
+    }{
+      \obj{\sigma}\sqcap\obj{\sigma'}=\obj{\unlock}
+    }{meet-ineq}
+  \end{center}
+}{to-security-meet}{Lattice operations for security labels.}
+
+\myfig{
   \judgbox{\exprevalo{\Omega}{e}{\Omega'}{e'}{\event}}{,,Expression $\obj{e}$ evaluates under Configuration $\Omega$ to $\obj{e'}$ and\\new Configuration $\obj{\Omega'}$, emitting event $\obj{\event}$.''}
   %
-  \typerule{$e-\obj{\oplus}-$noleak}{
+  \typerule{$e-\obj{\oplus}-$noleak-op}{
     \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
-    \obj{\oplus}\notin\{\obj{*},\obj{/},\obj{<}\}
+    \obj{\oplus}\notin\{\obj{*},\obj{/},\obj{<}\} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\Omega}{n_1\oplus n_2}{\Omega}{n_3}{\emptyevent}
-  }{to-e-oplus-noleak}
+    \exprevalo{\Omega}{n_1^\sigma \oplus n_2^{\sigma'}}{\Omega}{n_3^{\sigma''}}{\emptyevent}
+  }{to-e-oplus-noleak-op}
   %
   \typerule{$e-\obj{\oplus}-$leak}{
     \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
-    \obj{\oplus}\in\{\obj{*},\obj{/},\obj{<}\}
+    \obj{\oplus}\in\{\obj{*},\obj{/},\obj{<}\} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\Omega}{n_1\oplus n_2}{\Omega}{n_3}{Binop\ n_1\ n_2}
+    \exprevalo{\cfstate;\sandboxtag;0;\memstate}{n_1^\sigma\oplus n_2^{\sigma'}}{\cfstate;\sandboxtag;0;\memstate}{n_3^{\sigma''}}{Binop\ n_1\ n_2;\sandboxtag;\sigma''}
+  }{to-e-oplus-leak}
+  %
+  \typerule{$e-\obj{\oplus}-$noleak-doit}{
+    \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
+    \obj{\oplus}\in\{\obj{*},\obj{/},\obj{<}\} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
+  }{
+    \exprevalo{\cfstate;\sandboxtag;m+1;\memstate}{n_1^\sigma\oplus n_2^{\sigma'}}{\cfstate;\sandboxtag;m+1;\memstate}{n_3^{\sigma''}}{\emptyevent}
   }{to-e-oplus-leak}
   %
   \typerule{$e-\obj{get}-\in-$leak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
-    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}}
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\sandboxtag';\memstate}{load\ x\ n}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag';0;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';0;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{Get\ \loc\ n;\sandboxtag;\sigma''}
   }{to-e-get-in-leak}
   %
   \typerule{$e-\obj{get}-\notin-$leak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
-    \obj{\loc}\notin\text{dom }\obj{H^{\sandboxtag}}
+    \obj{\loc}\notin\text{dom }\obj{H^{\sandboxtag}} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\sandboxtag';\memstate}{load\ x\ n}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag';0;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';0;\memstate}{1729^{\unlock}}{Get\ \loc\ n;\sandboxtag;\sigma''}
   }{to-e-get-notin-leak}
   %
   \typerule{$e-\obj{get}-\in-$noleak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
-    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}}
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\sandboxtag';\memstate}{\widehat{load}\ x\ n}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{\widehat{Get}\ \loc\ n;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{\widehat{Get}\ \loc\ n;\sandboxtag;\sigma''}
   }{to-e-get-in-noleak}
   %
   \typerule{$e-\obj{get}-\notin-$noleak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
-    \obj{\loc}\notin\text{dom }\obj{H^{\sandboxtag}}
+    \obj{\loc}\notin\text{dom }\obj{H^{\sandboxtag}} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\sandboxtag';\memstate}{\widehat{load}\ x\ n}{\cfstate;\sandboxtag';\memstate}{1729}{\widehat{Get}\ \loc\ n;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{1729^{\unlock}}{\widehat{Get}\ \loc\ n;\sandboxtag;\sigma''}
   }{to-e-get-notin-noleak}
   %
   \typerule{$e-\obj{set}-\ctx-$leak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
     \obj{H^{\ctx'}} = \obj{H^{\ctx}}(\obj{\loc+n}\mapsto \obj{v}) \\
-    \obj{\memstate'}=\obj{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2}
+    \obj{\memstate'}=\obj{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+    \obj{\sigma'''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\ctx;\memstate}{write\ x\ n\ v}{\cfstate;\ctx;\memstate'}{v}{Set\ \loc\ n\ v;\ctx}
+    \exprevalo{\cfstate;\ctx;0;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\ctx;0;\memstate'}{v^{\sigma''}}{Set\ \loc\ n\ v;\ctx;\sigma'''}
   }{to-e-set-ctx-leak}
   %
   \typerule{$e-\obj{set}-\comp-$leak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
     \obj{H^{\comp'}} = \obj{H^{\comp}}(\obj{\loc+n}\mapsto \obj{v}) \\
-    \obj{\memstate'}=\obj{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2}
+    \obj{\memstate'}=\obj{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+    \obj{\sigma'''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\comp;\memstate}{write\ x\ n\ v}{\cfstate;\comp;\memstate'}{v}{Set\ \loc\ n\ v;\comp}
+    \exprevalo{\cfstate;\comp;0;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\comp;0;\memstate'}{v^{\sigma''}}{Set\ \loc\ n\ v;\comp;\sigma'''}
   }{to-e-set-comp-leak}
-  %
+}{to-expr-eval-0}{Evaluation of $\mmlAtscct$ expressions.}
+\myfig{
   \typerule{$e-\obj{set}-\ctx-$noleak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
     \obj{H^{\ctx'}} = \obj{H^{\ctx}}(\obj{\loc+n}\mapsto \obj{v}) \\
-    \obj{\memstate'}=\obj{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2}
+    \obj{\memstate'}=\obj{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+    \obj{\sigma'''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\ctx;\memstate}{\widehat{write}\ x\ n\ v}{\cfstate;\ctx;\memstate'}{v}{\widehat{Set}\ \loc\ n\ v;\ctx}
+    \exprevalo{\cfstate;\ctx;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\ctx;m+1;\memstate'}{v^{\sigma''}}{\widehat{Set}\ \loc\ n\ v;\ctx;\sigma'''}
   }{to-e-set-ctx-noleak}
   %
   \typerule{$e-\obj{set}-\comp-$noleak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
     \obj{H^{\comp'}} = \obj{H^{\comp}}(\obj{\loc+n}\mapsto \obj{v}) \\
-    \obj{\memstate'}=\obj{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2}
+    \obj{\memstate'}=\obj{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+    \obj{\sigma'''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\comp;\memstate}{\widehat{write}\ x\ n\ v}{\cfstate;\comp;\memstate'}{v}{\widehat{Set}\ \loc\ n\ v;\comp}
+    \exprevalo{\cfstate;\comp;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\comp;m+1;\memstate'}{v^{\sigma''}}{\widehat{Set}\ \loc\ n\ v;\comp;\sigma'''}
   }{to-e-set-comp-noleak}
   %
   \typerule{$e-\obj{let}-\obj{\finalexprnoerr}$}{
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
+    \exprevalo{\Omega}{let\ x^\sigma=\finalexprnoerr^{\sigma'}\ in\ e}{\Omega}{e[\finalexprnoerr^{\sigma''}/x]}{\emptyevent}
   }{to-e-let-f}
   %
   \typerule{$e-\obj{delete}$}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
   }{
-    \exprevalo{\cfstate;\sandboxtag;\memstate}{delete\ x}{\cfstate;\sandboxtag;\memstate'}{0}{Dealloc\ \loc;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag;m;\memstate}{delete\ x^\sigma}{\cfstate;\sandboxtag;m;\memstate'}{0^\unlock}{Dealloc\ \loc;\sandboxtag;\sigma}
   }{to-e-delete}
-  %
-}{to-expr-eval}{Evaluation of $\mmlAo$ expressions.}
-
-\myfig{
   %
   \typerule{$e-\obj{new}-ctx$}{
     \fresh{\obj{\Delta}}{\obj{\loc}} &
     \fresh{\obj{\Delta}}{\obj{z}} &
     \obj{H^{\ctx'}} = \obj{H^{\ctx}} \ll \obj{n} \\
-    \obj{\memstate} = \obj{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+    \obj{\memstate} = \obj{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta} &
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;\memstate}{e[z/x]}{Alloc\ \loc\ n;\ctx}
+    \exprevalo{\cfstate;\ctx;m;H^{\ctx};H^{\comp};\Delta}{let\ x^\sigma=new\ n^{\sigma'}\ in\ e}{\cfstate;\ctx;m;\memstate}{e[z^{\sigma''}/x]}{Alloc\ \loc\ n;\ctx;\sigma''}
   }{to-e-let-new-ctx}
   %
   \typerule{$e-\obj{new}-comp$}{
     \fresh{\obj{\Delta}}{\obj{\loc}} &
     \fresh{\obj{\Delta}}{\obj{z}} &
     \obj{H^{\comp'}} = \obj{H^{\comp}} \ll \obj{n} \\
-    \obj{\memstate} = \obj{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+    \obj{\memstate} = \obj{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta} &
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate}{e[z/x]}{Alloc\ \loc\ n;\comp}
+    \exprevalo{\cfstate;\comp;m;H^{\ctx};H^{\comp};\Delta}{let\ x^\sigma=new\ n^{\sigma'}\ in\ e}{\cfstate;\comp;m;\memstate}{e[z^{\sigma''}/x]}{Alloc\ \loc\ n;\comp;\sigma''}
   }{to-e-let-new-comp}
   %
   \typerule{$e-\obj{ifz}-$true-noleak}{
   }{
-    \exprevalo{\cfstate;\sandboxtag;\memstate}{ifz\ 0\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;\memstate}{e_1}{Branch\ 0;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag;0;\memstate}{ifz\ 0^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;0;\memstate}{e_1}{Branch\ 0;\sandboxtag;\sigma}
   }{to-e-if-true-noleak}
   %
   \typerule{$e-\obj{ifz}-$false-noleak}{
   }{
-    \exprevalo{\cfstate;\sandboxtag;\memstate}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;\memstate}{e_2}{Branch\ S(n);\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag;0;\memstate}{ifz\ (S\ n)^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;0;\memstate}{e_2}{Branch\ S(n);\sandboxtag;\sigma}
   }{to-e-if-false-noleak}
   %
   \typerule{$e-\obj{ifz}-$true-leak}{
   }{
-    \exprevalo{\cfstate;\sandboxtag;\memstate}{\widehat{ifz}\ 0\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;\memstate}{e_1}{\emptyevent;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag;m+1;\memstate}{ifz\ 0^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;m+1;\memstate}{e_1}{\emptyevent}
   }{to-e-if-true-leak}
   %
   \typerule{$e-\obj{ifz}-$false-leak}{
   }{
-    \exprevalo{\cfstate;\sandboxtag;\memstate}{\widehat{ifz}\ S(n)\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;\memstate}{e_2}{\emptyevent;\sandboxtag}
+    \exprevalo{\cfstate;\sandboxtag;m+1;\memstate}{ifz\ (S\ n)^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;m+1;\memstate}{e_2}{\emptyevent}
   }{to-e-if-false-leak}
   %
   \typerule{$e-\obj{abort}$}{
   }{
-    \exprevalo{\Omega}{abort()}{\Omega}{stuck}{\lightning}
+    \exprevalo{\cfstate;\sandboxtag;m;\memstate}{abort()}{\cfstate;\sandboxtag;m;\memstate}{stuck}{\lightning;\sandboxtag;\unlock}
   }{to-e-abort}
+}{to-expr-eval-1}{Evaluation of $\mmlAtscct$ expressions, continued.}
+
+\myfig{
   \typerule{$e-\obj{\pi_1}$}{
   }{
-    \exprevalo{\Omega}{\pi_1\langle n_1;n_2\rangle}{\Omega}{n_1}{\emptyevent}
+    \exprevalo{\Omega}{\pi_1\langle n_1^\sigma;n_2^{\sigma'}\rangle}{\Omega}{n_1^\sigma}{\emptyevent}
   }{to-e-proj1}
   %
   \typerule{$e-\obj{\pi_2}$}{
   }{
-    \exprevalo{\Omega}{\pi_2\langle n_1;n_2\rangle}{\Omega}{n_2}{\emptyevent}
+    \exprevalo{\Omega}{\pi_2\langle n_1^\sigma;n_2^{\sigma'}\rangle}{\Omega}{n_2^{\sigma'}}{\emptyevent}
   }{to-e-proj2}
   %
   \typerule{$e-\obj{x\ is\ \poisoned}-$yes}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta} &
     \obj{\Delta}=\obj{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
   }{
-    \exprevalo{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{0}{\emptyevent}
+    \exprevalo{\cfstate;\sandboxtag';m;\memstate}{x^\sigma\ is\ \poisoned}{\cfstate;\sandboxtag';m;\memstate}{0^\unlock}{\emptyevent}
   }{to-e-x-is-poisoned-yes}
   %
   \typerule{$e-\obj{x\ is\ \poisoned}-$no}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta} &
     \obj{\Delta}=\obj{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2}
   }{
-    \exprevalo{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{1}{\emptyevent}
+    \exprevalo{\cfstate;\sandboxtag';m;\memstate}{x^\sigma\ is\ \poisoned}{\cfstate;\sandboxtag';m;\memstate}{1^\unlock}{\emptyevent}
   }{to-e-x-is-poisoned-no}
   %
   \typerule{$e-\obj{n\ has\ \nat}$}{
   }{
-    \exprevalo{\Omega}{n\ has\ \nat}{\Omega}{0}{\emptyevent}
+    \exprevalo{\Omega}{n^\sigma\ has\ \nat}{\Omega}{0^\unlock}{\emptyevent}
   }{to-e-n-hasnat}
   %
   \typerule{$e-pair-\obj{has\ \nat}$}{
   }{
-    \exprevalo{\Omega}{\langle n_1,n_2\rangle\ has\ \nat}{\Omega}{1}{\emptyevent}
+    \exprevalo{\Omega}{\langle n_1^\sigma,n_2^{\sigma'}\rangle\ has\ \nat}{\Omega}{1^\unlock}{\emptyevent}
   }{to-e-pair-hasnat}
   %
   \typerule{$e-\obj{x\ has\ \nat}$}{
   }{
-    \exprevalo{\Omega}{x\ has\ \nat}{\Omega}{1}{\emptyevent}
+    \exprevalo{\Omega}{x^\sigma\ has\ \nat}{\Omega}{1^\unlock}{\emptyevent}
   }{to-e-x-hasnat}
   %
   \typerule{$e-\obj{n\ has\ \nat\times\nat}$}{
   }{
-    \exprevalo{\Omega}{n\ has\ \nat\times\nat}{\Omega}{1}{\emptyevent}
+    \exprevalo{\Omega}{n^\sigma\ has\ \nat\times\nat}{\Omega}{1^\unlock}{\emptyevent}
   }{to-e-n-haspair}
   %
   \typerule{$e-pair-\obj{has\ \nat\times\nat}$}{
   }{
-    \exprevalo{\Omega}{\langle n_1,n_2\rangle\ has\ \nat\times\nat}{\Omega}{0}{\emptyevent}
+    \exprevalo{\Omega}{\langle n_1^\sigma,n_2^{\sigma'}\rangle\ has\ \nat\times\nat}{\Omega}{0^\unlock}{\emptyevent}
   }{to-e-pair-haspair}
   %
   \typerule{$e-\obj{x\ has\ \nat\times\nat}$}{
   }{
-    \exprevalo{\Omega}{x\ has\ \nat\times\nat}{\Omega}{1}{\emptyevent}
+    \exprevalo{\Omega}{x^\sigma\ has\ \nat\times\nat}{\Omega}{1^\unlock}{\emptyevent}
   }{to-e-x-haspair}
-}{to-expr-eval-continued}{Evaluation of $\mmlAo$ expressions, continued.}
+  %
+  \typerule{$e-\obj{wrdoit\ n}$}{
+  }{
+    \exprevalo{\cfstate;\sandboxtag;m;\memstate}{wrdoit\ n^\sigma}{\cfstate;\sandboxtag;n;\memstate}{n^\sigma}{\emptyevent}
+  }{to-e-wrdoit}
+  %
+  \typerule{$e-\obj{rddoit\ x\ in\ e}$}{
+  }{
+    \exprevalo{\cfstate;\sandboxtag;n;\memstate}{rddoit\ x^\sigma\ in\ e}{\cfstate;\sandboxtag;n;\memstate}{e[n^\sigma/x]}{\emptyevent}
+  }{to-e-wrdoit}
+}{to-expr-eval-2}{Evaluation of $\mmlAo$ expressions, continued.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\execo[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}}{,,Given an evaluation context $\obj{K}$ and an expression\\ $\obj{e}$, it evaluates under configuration $\Omega$ to $\obj{e'}$ and new\\configuration $\obj{\Omega'}$ in context $\obj{K}$, emitting event $\obj{\event}$.''}
+    %
+    \typerule{$e-\text{ctx}$}{
+      \exprevalo{\Omega}{e}{\Omega'}{e'}{\event}
+    }{
+      \execo[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
+    }{to-e-ectx}
+    %
+    \typerule{$e-\text{ctx}-\obj{stuck}$}{
+      \exprevalo{\Omega}{e}{\Omega'}{stuck}{\lightning}
+    }{
+      \execo[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
+    }{to-e-ectx-stuck}
+    %
+    \typerule{$e-\text{ctx}-\obj{call}-$main}{
+      \obj{\Omega}=\obj{\commlib;\library;\hole{\cdot};\comp;0;\memstate} &
+      \obj{\library}=\obj{\library_1,}(\obj{let\ main\ x:\type}_\lambda\obj{:=e})\obj{,\library_2}\\
+      \obj{\Omega'}=\obj{\commlib;\library;K^{main},\hole{\cdot};\ctx;0;\memstate}
+    }{
+      \execo[]{\Omega}{K[call\ main^\sigma\ \valueexpr^{\sigma'}]}{\Omega'}{e[\valueexpr^{\sigma'}/x]}{Start;\comp;\sigma'}
+    }{to-e-ectx-call-main}
+    %
+    \typerule{$e-\text{ctx}-\obj{call}-\text{notsame}$}{
+      \obj{\Omega}=\obj{\commlib;\library;\kontstack;\sandboxtag;m;\memstate} &
+      \obj{\library}=\obj{\library_1,}(\obj{let\ foo\ x:\type}_\lambda\obj{:=e})\obj{,\library_2} \\
+      %\rho_{\tiny call}(\obj{\commlib},\obj{foo},\obj{\kontstack},\obj{v}) = \obj{\event},\obj{\comm} &
+      \obj{foo}\in_{\obj{\neg\sandboxtag}}\obj{\commlib} &
+      \rho\left(\obj{\neg\sandboxtag}\right) = \obj{\comm} &
+      \obj{\Omega'}=\obj{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;m;\memstate} \\
+    }{
+      \execo[]{\Omega}{K[call\ foo^\sigma\ \valueexpr^{\sigma'}]}{\Omega'}{e[\valueexpr^{\sigma'}/x]}{Call\ \comm\ foo\ \valueexpr;\sandboxtag;\sigma'}
+    }{to-e-ectx-call-notsame}
+    %
+    \typerule{$e-\text{ctx}-\obj{call}-\text{same}$}{
+      \obj{\Omega}=\obj{\commlib;\library;\kontstack;\sandboxtag;m;\memstate} &
+      \obj{\library}=\obj{\library_1,}(\obj{let\ foo\ x:\type}_\lambda\obj{:=e})\obj{,\library_2} \\
+      %\rho_{\tiny call}(\obj{\commlib},\obj{foo},\obj{\kontstack},\obj{v}) = \obj{\event},\obj{\comm} &
+      \obj{foo}\in_{\obj{\sandboxtag}}\obj{\commlib} &
+      \obj{\Omega'}=\obj{\commlib;\library;K^{foo},\kontstack;\sandboxtag;m;\memstate} \\
+    }{
+      \execo[]{\Omega}{K[call\ foo^\sigma\ \valueexpr^{\sigma'}]}{\Omega'}{e[\valueexpr^{\sigma'}/x]}{Call\ \nocomm\ foo\ \valueexpr;\sandboxtag;\sigma'}
+    }{to-e-ectx-call-same}
+    %
+    \typerule{$e-\text{ctx}-\obj{return}-$main}{
+    }{
+      \exec[]{\obj{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;m;\memstate}}{\obj{K'[return\ \valueexpr^\sigma]}}{\obj{\commlib;\library;\hole{\cdot};\comp;m;\memstate}}{\obj{\valueexpr^\sigma}}{\obj{End\ \valueexpr;\sandboxtag;\sigma}}
+    }{to-e-ectx-ret-main}
+    %
+    \typerule{$e-\text{ctx}-\obj{return}-\text{notsame}$}{
+      \obj{foo}\in_{\obj{\neg\sandboxtag}}\obj{\commlib} &
+      \rho\left(\obj{\neg\sandboxtag}\right) = \obj{\comm;\sandboxtag}
+    }{
+      \exec[]{\obj{\commlib;\library;K^{foo},\kontstack;\sandboxtag;m;\memstate}}{\obj{K'[return\ \valueexpr^\sigma]}}{\obj{\commlib;\library;\kontstack;\neg\sandboxtag;m;\memstate}}{\obj{K[\valueexpr^\sigma]}}{\obj{Ret\ \comm\ \valueexpr;\sandboxtag;\sigma}}
+    }{to-e-ectx-ret-notsame}
+    %
+    \typerule{$e-\text{ctx}-\obj{return}-\text{same}$}{
+      \obj{foo}\in_{\obj{\sandboxtag}}\obj{\commlib}
+    }{
+      \exec[]{\obj{\commlib;\library;K^{foo},\kontstack;\sandboxtag;m;\memstate}}{\obj{K'[return\ \valueexpr^\sigma]}}{\obj{\commlib;\library;\kontstack;\sandboxtag;m;\memstate}}{\obj{K[\valueexpr^\sigma]}}{\obj{Ret\ \nocomm\ \valueexpr;\sandboxtag;\sigma}}
+    }{to-e-ectx-ret-same}
+    %
+    \judgbox{\rho(\obj{\sandboxtag})=\obj{\comm}}{,,Returns either $\obj{\ctxtocomp}$ or $\obj{\comptoctx}$ depending on $\obj{\sandboxtag}$.''}\\
+    %
+    \typerule{comm-ctxtocomp}{
+    }{
+      \rho(\obj{\ctx})=\obj{\ctxtocomp}
+    }{to-comm-ctxtocomp}
+    %
+    \typerule{comm-comptoctx}{
+    }{
+      \rho(\obj{\comp})=\obj{\comptoctx}
+    }{to-comm-comptoctx}\\[0.33cm]
+    %
+    \judgbox{\obj{\neg\sandboxtag}=\obj{\sandboxtag'}}{,,Negation of $\obj{\sandboxtag}$.''}\\
+    %
+    \typerule{neg-ctx}{
+    }{
+      \obj{\neg\ctx}=\obj{\comp}
+    }{to-neg-ctx}
+    %
+    \typerule{neg-comp}{
+    }{
+      \obj{\neg\comp}=\obj{\ctx}
+    }{to-neg-comp}
+  \end{center}
+}{w-o-expr-ctx-eval}{Contextual Evaluation of $\mmlAtscct$ expressions.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\execo{\Omega}{e}{\Omega'}{e'}{\trace}}{,,Expression $\obj{e}$ evaluates under configuration $\obj{\Omega}$ to $\obj{e'}$ and\\new configuration $\obj{\Omega'}$, emitting list of events $\obj{\trace}$.''}
+    %
+    \typerule{$et-\text{refl}$}{
+    }{
+      \execo{\Omega}{\finalexpr}{\Omega}{\finalexpr}{\hole{\cdot}}
+    }{wt-e-refl}
+    \typerule{$et-\text{trans}-$important}{
+      \execo[]{\Omega}{e}{\Omega'}{e'}{\event}&
+      \execo{\Omega'}{e'}{\Omega''}{e''}{\trace}&
+      \obj{a}\not=\obj{\emptyevent}
+    }{
+      \execo{\Omega}{e}{\Omega''}{e''}{\event \cdot \trace}
+    }{wt-e-trans-important}
+    \typerule{$et-\text{trans}-$unimportant}{
+      \execo[]{\Omega}{e}{\Omega'}{e'}{\emptyevent}&
+      \execo{\Omega'}{e'}{\Omega''}{e''}{\trace}&
+    }{
+      \execo{\Omega}{e}{\Omega''}{e''}{\trace}
+    }{wt-e-trans-unimportant}
+    %
+    %
+    \judgbox{\execoN{\Omega}{e}{\Omega'}{e'}{\trace}}{,,Expression $\obj{e}$ evaluates in $n$ steps under configuration $\obj{\Omega}$ to\\$\obj{e'}$ and new configuration $\obj{\Omega'}$, emitting list of events $\obj{\trace}$.''}
+    %
+    \typerule{$en-\text{refl}$}{
+    }{
+      \execoN[^0]{\Omega}{e}{\Omega}{e}{\emptyevent}
+    }{wtn-e-refl}
+    %
+    \typerule{$en-\text{trans}-$important}{
+      \execo[]{\Omega}{e}{\Omega'}{e'}{\event} &
+      \execoN[^n]{\Omega'}{e'}{\Omega''}{e''}{\trace} &
+      \obj{\event}\not=\obj{\emptyevent}
+    }{
+      \execoN[^{(n+1)}]{\Omega}{e}{\Omega''}{e''}{\event\cdot\trace}
+    }{wtn-e-trans-important}
+    %
+    \typerule{$en-\text{trans}-$unimportant}{
+      \execo[]{\Omega}{e}{\Omega'}{e'}{\emptyevent} &
+      \execoN[^n]{\Omega'}{e'}{\Omega''}{e''}{\trace} &
+    }{
+      \execoN[^{(n+1)}]{\Omega}{e}{\Omega''}{e''}{\trace}
+    }{wtn-e-trans-unimportant}
+  \end{center}
+}{wo-steps}{Trace prefix generation given a $\mmlAtscct$ program using the reflexive-transitive closure.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexprnoerr}{\trace}}{,,Run $\mmlAtscct$ program $\obj{prog\ \library_{ctx}\ \library_{comp}}$, giving\\dynamic state $\obj{\Omega}$ and emitting trace $\obj{\trace}$.''}
+    \typerule{$e-\text{wprog}$}{
+      \obj{\library}=\obj{\library_{ctx}\linker\library_{comp}} &
+      \obj{main}\notin\obj{\commlib} &
+      \obj{\commlib}=\operatorname{dom}\ \obj{\library_{comp}} \\
+      \execo{\commlib;\library;\hole{\cdot};\sandboxtag;0;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+    }{
+      \wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}
+    }{wt-e-prog}
+    %
+    \typerule{$e-\text{wprog}-\lightning$}{
+      \obj{\library}=\obj{\library_{ctx}\linker\library_{comp}} &
+      \obj{main}\notin\obj{\commlib} &
+      \obj{\commlib}=\operatorname{dom}\ \obj{\library_{comp}} \\
+      \execo{\commlib;\library;\hole{\cdot};\sandboxtag;0;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+    }{
+      \wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+    }{wt-e-prog-crash}
+  \end{center}
+}{toprog-run}{Running a whole $\mmlAtscct$ program.}
 
 % \begin{definition}[$\CRhash$ security]
 %   Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
 %   Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{c,\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{c',\trace[_{B}]}$ we say $e_{1}$ is $\CRhash$-secure with respect to $\obj{\zeta}$ iff $(\obj{c},\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\obj{c'},\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
 % \end{definition}
-%
+
 \myfig{
   \begin{center}
     \judgbox{\delta_{MS}(\obj{\loc})=\specificev{\loc}}{,,A map from $\mmlAo$ memory locations $\obj{\loc}$ to MS-specific locations $\specificev{\loc}$.''}

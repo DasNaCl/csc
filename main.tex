@@ -578,10 +578,12 @@ We introduce a set of actions that allows us to describe properties abstractly i
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning} |\ \specificev{Branch\ n} \mid \specificev{Binop\ n} \\
+    \mi{Security\ Tag}~\specificev{\sigma} \bnfdef&\ \specificev{\lock} \mid \specificev{\unlock} \\
+    \mi{Pre-Events}~\msevent_{b} \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning} |\ \specificev{Branch\ n} \mid \specificev{Binop\ n} \\
+    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{\msevent_{b}};\specificev{\sigma} \\
   \end{aligned}
   \end{gather*}
-}{w-specific-events}{\gls*{ms}-Specific Events.}
+}{w-specific-events}{Specification Events.}
 
 \subsection{\gls*{tms} Monitor}
 In order to just talk about temporal memory safety, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
@@ -664,22 +666,22 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{TMS-Alloc-Authentic}{
     }{
-      \tmstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}}
+      \tmstraceagree{\specificev{Alloc\ \loc\ n};\specificev{\sigma}}{\textbf{Alloc}\ \specificev{\loc}}
     }{tms-alloc-auth}
     %
     \typerule{TMS-Dealloc-Authentic}{
     }{
-      \tmstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
+      \tmstraceagree{\specificev{Dealloc\ \loc};\specificev{\sigma}}{\textbf{Dealloc}\ \specificev{\loc}}
     }{tms-dealloc-auth}
     %
     \typerule{TMS-Use-Authentic}{
     }{
-      \tmstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}}
+      \tmstraceagree{\specificev{Use\ \loc\ n};\specificev{\sigma}}{\textbf{Use}\ \specificev{\loc}}
     }{tms-use-auth}
     %
     \typerule{TMS-Abort-Authentic}{
     }{
-      \tmstraceagree{\specificev{\lightning}}{\bm{\lightning}}
+      \tmstraceagree{\specificev{\lightning};\specificev{\sigma}}{\bm{\lightning}}
     }{tms-abort-auth}
     %
     \typerule{TMS-None-Authentic}{
@@ -689,12 +691,12 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{TMS-Branch-Authentic}{
     }{
-      \tmstraceagree{\specificev{Branch\ n}}{\bm{\varepsilon}}
+      \tmstraceagree{\specificev{Branch\ n};\specificev{\sigma}}{\bm{\varepsilon}}
     }{tms-branch-auth}
     %
     \typerule{TMS-Binop-Authentic}{
     }{
-      \tmstraceagree{\specificev{Binop\ n}}{\bm{\varepsilon}}
+      \tmstraceagree{\specificev{Binop\ n};\specificev{\sigma}}{\bm{\varepsilon}}
     }{tms-binop-auth}
     %
     \typerule{TMS-Refl-Authentic}{
@@ -779,37 +781,37 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{SMS-Alloc-Authentic}{
     }{
-      \smstraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
+      \smstraceagree{\specificev{Alloc\ \loc\ n};\specificev{\sigma}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
     }{sms-alloc-auth}
     %
     \typerule{SMS-Dealloc-Authentic}{
     }{
-      \smstraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}\ \specificev{\loc}}
+      \smstraceagree{\specificev{Dealloc\ \loc};\specificev{\sigma}}{\textbf{Dealloc}\ \specificev{\loc}}
     }{sms-dealloc-auth}
     %
     \typerule{SMS-Use-Authentic}{
     }{
-      \smstraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
+      \smstraceagree{\specificev{Use\ \loc\ n};\specificev{\sigma}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
     }{sms-use-auth}
     %
     \typerule{SMS-None-Authentic}{
     }{
-      \smstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{\varepsilon};\specificev{\sigma}}{\bm{\varepsilon}}
     }{sms-none-auth}
     %
     \typerule{SMS-Branch-Authentic}{
     }{
-      \smstraceagree{\specificev{Branch\ n}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{Branch\ n};\specificev{\sigma}}{\bm{\varepsilon}}
     }{sms-branch-auth}
     %
     \typerule{SMS-Binop-Authentic}{
     }{
-      \smstraceagree{\specificev{Binop\ n}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{Binop\ n};\specificev{\sigma}}{\bm{\varepsilon}}
     }{sms-binop-auth}
     %
     \typerule{SMS-Abort-Authentic}{
     }{
-      \smstraceagree{\specificev{\lightning}}{\bm{\lightning}}
+      \smstraceagree{\specificev{\lightning};\specificev{\sigma}}{\bm{\lightning}}
     }{sms-abort-auth}
     %
     \typerule{SMS-Refl-Authentic}{
@@ -896,18 +898,18 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
   We define the property $\operatorname{tmsafe}$ as a conjunction of the following conditions for any given $\mstrace$:
   \begin{itemize}
-    \item $\specificev{Alloc\ \loc\ s}\le_{{\mstrace}}\specificev{Dealloc\ \loc}$
-    \item $\neg(\specificev{Use\ \loc\ n}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s})$
-    \item $\neg(\specificev{Dealloc\ \loc}\le_{{\mstrace}}\specificev{Use\ \loc\ n})$
-    \item $\specificev{Alloc\ \loc\ s}\in_{!}\mstrace$
-    \item $\specificev{Dealloc\ \loc}\in_{!}\mstrace$
+    \item $\specificev{Alloc\ \loc\ s};\specificev{\sigma}\le_{{\mstrace}}\specificev{Dealloc\ \loc};\specificev{\sigma}$
+    \item $\neg(\specificev{Use\ \loc\ n};\specificev{\sigma}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s};\specificev{\sigma})$
+    \item $\neg(\specificev{Dealloc\ \loc};\specificev{\sigma}\le_{{\mstrace}}\specificev{Use\ \loc\ n};\specificev{\sigma})$
+    \item $\specificev{Alloc\ \loc\ s};\specificev{\sigma}\in_{!}\mstrace$
+    \item $\specificev{Dealloc\ \loc};\specificev{\sigma}\in_{!}\mstrace$
   \end{itemize}
 \end{definition}
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
   We define the property $\operatorname{smsafe}$ as follows for any given $\mstrace$:
   \begin{itemize}
-    \item If $\specificev{Alloc\ \loc\ s}\in{\mstrace}$ and $\specificev{Use\ \loc\ n}\in{\mstrace}$, then ${n}<{s}$
+    \item If $\specificev{Alloc\ \loc\ s};\specificev{\sigma}\in{\mstrace}$ and $\specificev{Use\ \loc\ n};\specificev{\sigma}\in{\mstrace}$, then ${n}<{s}$
   \end{itemize}
 \end{definition}
 
@@ -977,9 +979,10 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon}\mid \textbf{Alloc} \mid \textbf{Dealloc} \mid \textbf{Use} \mid \abstermination \mid \textbf{Branch}\\
-      &\mid \textbf{Binop}\\
+      \mi{Abstract\ Store}~\scctmonitor =&\ () \\
+      \mi{Abstract\ Security\ Tag}~\bm{\sigma} \bnfdef&\ \lock \mid \unlock \\
+      \mi{Abstract\ Pre-Events}~\absevent_{b} \bnfdef&\ \textbf{Any} \mid \abstermination \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \absevent_{b};\bm{\sigma}
     \end{aligned}
   \end{gather*}
 }{scct-monitor}{\gls{scct} Monitor.}
@@ -998,8 +1001,13 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     %
     \typerule{scct-Abort}{
     }{
-      \monitorcheck[]{\scctmonitor}{\scctmonitor}{\bm{\lightning}}
+      \monitorcheck[]{\scctmonitor}{\scctmonitor}{\bm{\lightning};\bm{\unlock}}
     }{scct-abort}
+    %
+    \typerule{scct-any-public}{
+    }{
+      \monitorcheck[]{\scctmonitor}{\scctmonitor}{\bm{Any};\bm{\unlock}}
+    }{scct-any-public}
     %
     \typerule{scct-Refl}{
     }{
@@ -1017,27 +1025,43 @@ Here, any event whatsoever is considered bad, since this leaks information by me
 
 \myfig{
   \begin{center}
+    \judgbox{\specificev{\sigma}=\bm{\sigma}}{,,Equality of Security Tags.''}$\;$\\
+    %
+    \typerule{secure-eq}{
+    }{
+      \specificev{\lock}=\lock
+    }{secure-eq}
+    %
+    \typerule{insecure-eq}{
+    }{
+      \specificev{\unlock}=\unlock
+    }{insecure-eq}
+
     \judgbox{\sccttraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
     \judgbox{\sccttraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{\sCCT-Alloc-Authentic}{
+      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Alloc\ \loc\ n}}{\textbf{Alloc}}
+      \sccttraceagree{\specificev{Alloc\ \loc\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
     }{scct-alloc-auth}
     %
     \typerule{\sCCT-Dealloc-Authentic}{
+      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Dealloc\ \loc}}{\textbf{Dealloc}}
+      \sccttraceagree{\specificev{Dealloc\ \loc};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
     }{scct-dealloc-auth}
     %
     \typerule{\sCCT-Use-Authentic}{
+      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Use\ \loc\ n}}{\textbf{Use}}
+      \sccttraceagree{\specificev{Use\ \loc\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
     }{scct-use-auth}
     %
     \typerule{\sCCT-Abort-Authentic}{
+      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{\lightning}}{\bm{\lightning}}
+      \sccttraceagree{\specificev{\lightning};\specificev{\sigma}}{\bm{\lightning};\bm{\sigma}}
     }{scct-abort-auth}
     %
     \typerule{\sCCT-None-Authentic}{
@@ -1046,13 +1070,15 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     }{scct-none-auth}
     %
     \typerule{\sCCT-Branch-Authentic}{
+      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Branch\ n}}{\textbf{Branch}}
+      \sccttraceagree{\specificev{Branch\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
     }{scct-branch-auth}
     %
     \typerule{\sCCT-Binop-Authentic}{
+      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Binop\ n}}{\textbf{Binop}}
+      \sccttraceagree{\specificev{Binop\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
     }{scct-binop-auth}
     %
     \typerule{\sCCT-Refl-Authentic}{
@@ -7130,78 +7156,78 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \typerule{o-filter-context}{
       \obj{\event_b} \not= \obj{\lightning}
     }{
-      \tospecificevo[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{\event_b;\ctx;\sigma} = \specificev{\emptyevent}
     }{o-filter-context}
     %
     \typerule{o-filter-comp-start}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{Start;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{Start;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-start}
     %
     \typerule{o-filter-comp-alloc}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp;\sigma} = \specificev{Alloc\ \loc\ n}
     }{o-filter-comp-alloc}
     %
     \typerule{o-filter-comp-dealloc}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc}
+      \tospecificevo[_{\delta_{MS}}]{Dealloc\ \loc;\comp;\sigma} = \specificev{Dealloc\ \loc}
     }{o-filter-comp-dealloc}
     %
     \typerule{o-filter-comp-get-noleak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{\widehat{Get}\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-filter-comp-get-noleak}
     %
     \typerule{o-filter-comp-set-noleak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-filter-comp-set-noleak}
     %
     \typerule{o-filter-comp-get-leak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{Get\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-filter-comp-get-leak}
     %
     \typerule{o-filter-comp-set-leak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-filter-comp-set-leak}
     %
     \typerule{o-filter-comp-call}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-call}
     %
     \typerule{o-filter-comp-ret}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-ret}
     %
     \typerule{o-filter-comp-binop}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{Binop\ n_1\ n_2;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{Binop\ n_1\ n_2;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-binop}
     %
     \typerule{o-filter-comp-branch}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{Branch\ n;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{Branch\ n;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-branch}
     %
     \typerule{o-filter-abort}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+      \tospecificevo[_{\delta_{MS}}]{\lightning;\sandboxtag;\sigma} = \specificev{\lightning}
     }{o-filter-abort}
     %
     \judgbox{\tospecificevo[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAo$ trace to MS-specific traces.''}
@@ -7236,78 +7262,78 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \typerule{o-scct-filter-context}{
       \obj{\event_b} \not= \obj{\lightning}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{\event_b;\ctx} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{\event_b;\ctx;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-context}
     %
     \typerule{o-scct-filter-comp-start}{
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Start;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{Start;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-start}
     %
     \typerule{o-scct-filter-comp-alloc}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Alloc\ \loc\ n;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{Alloc\ \loc\ n;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-alloc}
     %
     \typerule{o-scct-filter-comp-dealloc}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Dealloc\ \loc;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{Dealloc\ \loc;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-dealloc}
     %
     \typerule{o-scct-filter-comp-get-noleak}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Get}\ \loc\ n;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-get-noleak}
     %
     \typerule{o-scct-filter-comp-set-noleak}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-set-noleak}
     %
     \typerule{o-scct-filter-comp-get-leak}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{\sCCT}}]{Get\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-scct-filter-comp-get-leak}
     %
     \typerule{o-scct-filter-comp-set-leak}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{\sCCT}}]{Set\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-scct-filter-comp-set-leak}
     %
     \typerule{o-scct-filter-comp-call}{
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{Call\ \comm\ foo\ \interfacevalue;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-call}
     %
     \typerule{o-scct-filter-comp-ret}{
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{Ret\ \comm\ \interfacevalue;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-ret}
     %
     \typerule{o-scct-filter-comp-binop}{
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Binop\ n_1\ n_2;\comp} = \specificev{Binop\ n_1\ n_2}
+      \tospecificevo[_{\delta_{\sCCT}}]{Binop\ n_1\ n_2;\comp;\sigma} = \specificev{Binop\ n_1\ n_2}
     }{o-scct-filter-comp-binop}
     %
     \typerule{o-scct-filter-comp-branch}{
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{Branch\ n;\comp} = \specificev{Branch\ n}
+      \tospecificevo[_{\delta_{\sCCT}}]{Branch\ n;\comp;\sigma} = \specificev{Branch\ n}
     }{o-scct-filter-comp-branch}
     %
     \typerule{o-scct-filter-abort}{
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+      \tospecificevo[_{\delta_{\sCCT}}]{\lightning;\sandboxtag;\sigma} = \specificev{\lightning}
     }{o-scct-filter-abort}
     %
     \judgbox{\tospecificevo[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace}{,,Project an $\mmlAo$ trace to \sCCT-specific traces.''}
@@ -7348,7 +7374,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \xlangeventeqc{\event_{b}}{\event_{b}} &
       \xlangtraceeqc{\trace}{\trace}
     }{
-      \xlangtraceeqc{\event_{b};\sandboxtag\cdot\trace}{\event_{b};\sandboxtag\cdot\trace}
+      \xlangtraceeqc{\event_{b};\sandboxtag\cdot\trace}{\event_{b};\sandboxtag;\sigma\cdot\trace}
     }{scct-cons-trace-eq}
     %
     \judgbox{\xlangeventeqc{\event_{b}}{\event_{b}}}{,,The $\mmlAtms$ event $\irl{\event_b}$ describes the same action as $\mmlAtms$ event $\obj{\event_b}$.''} \\
@@ -7469,8 +7495,9 @@ Final results are tagged with the respected taint and the semantics keeps track 
     %
     \typerule{scct-state-eq}{
       \irl{\Omega}=\irl{\cfstate;\sandboxtag;\memstate} &
-      \obj{\Omega}=\obj{\cfstate;\sandboxtag;\memstate} &
-      \irl{\sandboxtag} = \obj{\sandboxtag} \\
+      \obj{\Omega}=\obj{\cfstate;\sandboxtag;n;\memstate} \\
+      \obj{n}\not=\obj{0} &
+      \irl{\sandboxtag} = \obj{\sandboxtag} &
       \xlangstateeqc[]{\cfstate}{\cfstate} &
       \xlangstateeqc{\memstate}{\memstate}
     }{
@@ -7550,7 +7577,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \irl{\poisonless}=\obj{\poisonless}
     }{scct-poisonless-equal}
   \end{center}
-}{scct-pres-state-relations-first}{State Relation from $\mmlAtms$ to $\mmlAtscct$. This is meant to relate the states whenever we are ,,inside'' a component.}
+}{scct-pres-state-relations-first}{State Relation from $\mmlAtms$ to $\mmlAtscct$. This is meant to relate the states whenever we are ,,inside'' a component. Note that the DOIT flag is required to be non-zero.}
 
 \myfig{
   \begin{center}
@@ -7594,6 +7621,44 @@ Final results are tagged with the respected taint and the semantics keeps track 
     }{scct-cons-kontstack-eq}
   \end{center}
 }{scct-pres-memstate-relations}{Memory-State Relations from $\mmlAtms$ to $\mmlAtscct$.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\delta(\irl{\loc})=\obj{\loc}}{,,The $\mmlAtms$ memory location $\irl{\loc}$ corresponds to\\the $\mmlAtscct$ memory location $\obj{\loc}$.''} \\
+    \judgbox{\xlangbackstateeqc{\Omega}{\Omega}}{,,The $\mmlAtms$ state $\irl{\Omega}$ agrees with $\mmlAtscct$ state $\obj{\Omega}$. $\irl{L}$ contains locations\\introduced by the backtranslation wrapper, which are subsequently ignored.''} \\
+    %
+    \typerule{state-qe}{
+      \irl{\Omega}=\irl{\cfstate;\sandboxtag;\memstate} &
+      \obj{\Omega}=\obj{\cfstate;\sandboxtag;n;\memstate} \\
+      \xlangbackstateeqc[]{\cfstate}{\cfstate} &
+      \xlangbackstateeqc{\memstate}{\memstate}
+    }{
+      \xlangbackstateeqc{\Omega}{\Omega}
+    }{scct-state-qe}
+    %
+    \typerule{abort-state-qe}{
+    }{
+      \xlangbackstateeqc{\lightning}{\lightning}
+    }{scct-abort-qe}
+    %
+    \judgbox{\xlangbackstateeqc{\memstate}{\memstate}}{,,The $\mmlAtms$ memory-state $\irl{\memstate}$ agrees with $\mmlAtscct$ one $\obj{\memstate}$. $\irl{L}$ contains locations\\introduced by the backtranslation wrapper.''}\\
+    %
+    \typerule{memstate-qe}{
+      \xlangstateeqc{\memstate}{\memstate}
+    }{
+      \xlangbackstateeqc{\memstate}{\memstate}
+    }{scct-memstate-qe}$\;$\\
+    %
+    %
+    \judgbox{\xlangbackstateeqc[]{\cfstate}{\cfstate}}{,,The $\mmlAtms$ control-flow-state $\irl{\cfstate}$ agrees with $\mmlAtscct$ one $\obj{\cfstate}$.''} \\
+    %
+    \typerule{cfstate-qe}{
+      \xlangstateeqc[]{\cfstate}{\cfstate}
+    }{
+      \xlangbackstateeqc[]{\cfstate}{\cfstate}
+    }{scct-cfstate-qe}
+  \end{center}
+}{scct-pres-state-relations-second}{State Relation from $\mmlAtms$ to $\mmlAtscct$. This is meant to relate the states whenever we are ,,inside'' a context.}
 
 \subsubsection{Compiler}
 
@@ -7640,7 +7705,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     $$
     \begin{array}{rll}
     %
-      \mmlAtmsmmlAtscctcomp{let\ foo\ x := e}&\ = & \obj{let\ foo\ x := }\mmlAtmsmmlAtscctcomp{e}\\
+      \mmlAtmsmmlAtscctcomp{let\ foo\ x := e}&\ = & \obj{let\ foo\ x := wrdoit\ 1;}\mmlAtmsmmlAtscctcomp{e}\\
     \end{array}
     $$
     \begin{gather*}

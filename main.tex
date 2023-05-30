@@ -976,10 +976,28 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \end{proof}
 
 \subsubsection{\gls*{scct} Monitor}
+\sCCT-Problems:
+\begin{itemize}
+  \item branching or predicated execution
+  \item comparisons are an issue: can only get the content of special flag register by branching
+  \item timing of loads/stores changes
+  \item mult/div is problematic. mult is safe on modern procs, but not on microprocs
+  \item bitshifts may translate into loops (unless bitshift by constant)
+\end{itemize}
+
+To remedy most of these real-world problems, which are dependent on the hardware, we introduce another language which has $\sCCT$-hardened instructions.
+That is, we assume there exists an $\hat{\oplus}$ which behaves similarily to $\oplus$, but without leaking timing information.
+Moreover, we also assume that there are $\sCCT$-versions of reading and writing.
+If the instruction set architecture does not support these, we argue that there is some encoding that can be done in the style of FaCT that the compiler would have to do.
+For example, to circumvent loading/storing and ensure $\sCCT$-versions, the register allocator could ensure that this variable stays in a register. Whenever this is not possible, one could spill and, prior to re-loading the variable, invalidate the caches. Another option is to simply load the whole array sequentially and select the relevant entry using a bitmask operation.
+
+We consider arbitrary lists of public identifiers $\obj{\zeta}$ and harden the program component against any such list.
+The underlying assumption the programmer does in any other language we've seen before, that is, $\mmlAs$, $\mmlAt$, or $\mmlAtms$, is that they are writing $\sCCT$ code.
+
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ Store}~\scctmonitor =&\ () \\
+      \mi{Abstract\ Store}~\scctmonitor =&\ \emptyset \\
       \mi{Abstract\ Security\ Tag}~\bm{\sigma} \bnfdef&\ \lock \mid \unlock \\
       \mi{Abstract\ Pre-Events}~\absevent_{b} \bnfdef&\ \textbf{Any} \mid \abstermination \\
       \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \absevent_{b};\bm{\sigma}
@@ -6591,34 +6609,6 @@ The syntax and semantics are entirely identical.
 
 \subsection{Robustly Preserving $\sCCT$}
 
-\begin{definition}[Indistinguishability of States]
-  Two states $\obj{\Omega_{1}},\obj{\Omega_{2}}$ are indistinguishable with respect to a list $\obj{\zeta}$ of public identifiers (written $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$) iff for any public identifier $\obj{x}\in\obj{\zeta}$, we have $\obj{\Omega_{1}}[\obj{x}]=\obj{\Omega_{2}}[\obj{x}]$.
-\end{definition}
-
-\begin{definition}[$\sCCT$ security]
-  Let $\obj{\zeta}$ be a list of public identifiers and states $\obj{\Omega_{1}},\obj{\Omega_{1}'}$ such that $\obj{\zeta}\vdash\obj{\Omega_{1}}\approx\obj{\Omega_{2}}$.
-  Given $\execo{\Omega_{1}}{e_{1}}{\Omega_{2}}{\finalexprnoerr}{\trace[_{A}]}$ and $\execo{\Omega_{1}'}{e_{1}}{\Omega_{2}'}{\finalexprnoerr}{\trace[_{B}]}$ we say $e_{1}$ is $\sCCT$-secure with respect to $\obj{\zeta}$ iff $(\operatorname{mems-and-branches}(\obj{\trace_{A}}))=(\operatorname{mems-and-branches}(\obj{\trace_{B}}))$
-\end{definition}
-
-\sCCT-Problems:
-\begin{itemize}
-  \item branching or predicated execution
-  \item comparisons are an issue: can only get the content of special flag register by branching
-  \item timing of loads/stores changes
-  \item mult/div is problematic. mult is safe on modern procs, but not on microprocs
-  \item bitshifts may translate into loops (unless bitshift by constant)
-\end{itemize}
-
-To remedy most of these real-world problems, which are dependent on the hardware, we introduce another language which has $\sCCT$-hardened instructions.
-That is, we assume there exists an $\hat{\oplus}$ which behaves similarily to $\oplus$, but without leaking timing information.
-Moreover, we also assume that there are $\sCCT$-versions of reading and writing.
-If the instruction set architecture does not support these, we argue that there is some encoding that can be done in the style of FaCT that the compiler would have to do.
-For example, to circumvent loading/storing and ensure $\sCCT$-versions, the register allocator could ensure that this variable stays in a register. Whenever this is not possible, one could spill and, prior to re-loading the variable, invalidate the caches. Another option is to simply load the whole array sequentially and select the relevant entry using a bitmask operation.
-
-We consider arbitrary lists of public identifiers $\obj{\zeta}$ and harden the program component against any such list.
-The underlying assumption the programmer does in any other language we've seen before, that is, $\mmlAs$, $\mmlAt$, or $\mmlAtms$, is that they are writing $\sCCT$ code.
-The upcoming compilation pass makes sure this assumption is actually true.
-
 \myfig{
 	\vspace{-1em}
   \begin{gather*}
@@ -7168,51 +7158,51 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp;\sigma} = \specificev{Alloc\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp;\sigma} = \specificev{Alloc\ \loc\ n;\sigma}
     }{o-filter-comp-alloc}
     %
     \typerule{o-filter-comp-dealloc}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Dealloc\ \loc;\comp;\sigma} = \specificev{Dealloc\ \loc}
+      \tospecificevo[_{\delta_{MS}}]{Dealloc\ \loc;\comp;\sigma} = \specificev{Dealloc\ \loc;\sigma}
     }{o-filter-comp-dealloc}
     %
     \typerule{o-filter-comp-get-noleak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n;\unlock}
     }{o-filter-comp-get-noleak}
     %
     \typerule{o-filter-comp-set-noleak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n;\unlock}
     }{o-filter-comp-set-noleak}
     %
     \typerule{o-filter-comp-get-leak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Get\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{Get\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n;\sigma}
     }{o-filter-comp-get-leak}
     %
     \typerule{o-filter-comp-set-leak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n;\sigma}
     }{o-filter-comp-set-leak}
     %
     \typerule{o-filter-comp-call}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp;\sigma} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{Call\ \comm\ foo\ \valueexpr;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-call}
     %
     \typerule{o-filter-comp-ret}{
     }{
-      \tospecificevo[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp;\sigma} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{MS}}]{Ret\ \comm\ \valueexpr;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-ret}
     %
     \typerule{o-filter-comp-binop}{
@@ -7821,72 +7811,72 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \obj{\event_b} = \obj{Branch\ n}\vee
       \obj{\event_b} = \obj{Binop\ n_1\ n_2}
     }{
-      \tospecificevo[_{\obj{\bullet}}]{\event_b;\ctx} = \obj{\emptyevent}
+      \tospecificevo[_{\obj{\bullet}}]{\event_b;\ctx;\sigma} = \obj{\emptyevent}
     }{obj-filter-context}
     %
     \typerule{obj-filter-unimportant}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{\emptyevent;\sandboxtag} = \obj{\emptyevent}
+      \tospecificevo[_{\obj{\bullet}}]{\emptyevent} = \obj{\emptyevent}
     }{obj-filter-unimportant}
     %
     \typerule{obj-filter-comp-start}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Start;\comp} = \obj{\emptyevent}
+      \tospecificevo[_{\obj{\bullet}}]{Start;\comp;\sigma} = \obj{\emptyevent}
     }{obj-filter-comp-start}
     %
     \typerule{obj-filter-comp-alloc}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Alloc\ \loc\ n;\comp} = \obj{Alloc\ \loc\ n}
+      \tospecificevo[_{\obj{\bullet}}]{Alloc\ \loc\ n;\comp;\sigma} = \obj{Alloc\ \loc\ n}
     }{obj-filter-comp-alloc}
     %
     \typerule{obj-filter-comp-dealloc}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Dealloc\ \loc;\comp} = \obj{Dealloc\ \loc}
+      \tospecificevo[_{\obj{\bullet}}]{Dealloc\ \loc;\comp;\sigma} = \obj{Dealloc\ \loc}
     }{obj-filter-comp-dealloc}
     %
     \typerule{obj-filter-comp-get-noleak}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{\widehat{Get}\ \loc\ n;\comp} = \obj{\widehat{Get}\ \loc\ n}
+      \tospecificevo[_{\obj{\bullet}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \obj{\widehat{Get}\ \loc\ n}
     }{obj-filter-comp-get-noleak}
     %
     \typerule{obj-filter-comp-set-noleak}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp} = \obj{\widehat{Set}\ \loc\ n\ \valueexpr}
+      \tospecificevo[_{\obj{\bullet}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \obj{\widehat{Set}\ \loc\ n\ \valueexpr}
     }{obj-filter-comp-set-noleak}
     %
     \typerule{obj-filter-comp-get-leak}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Get\ \loc\ n;\comp} = \obj{Get\ \loc\ n}
+      \tospecificevo[_{\obj{\bullet}}]{Get\ \loc\ n;\comp;\sigma} = \obj{Get\ \loc\ n}
     }{obj-filter-comp-get-leak}
     %
     \typerule{obj-filter-comp-set-leak}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Set\ \loc\ n\ \valueexpr;\comp} = \obj{Set\ \loc\ n\ \valueexpr}
+      \tospecificevo[_{\obj{\bullet}}]{Set\ \loc\ n\ \valueexpr;\comp;\sigma} = \obj{Set\ \loc\ n\ \valueexpr}
     }{obj-filter-comp-set-leak}
     %
     \typerule{obj-filter-comp-call}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Call\ \comm\ foo\ \valueexpr;\sandboxtag} = \obj{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
+      \tospecificevo[_{\obj{\bullet}}]{Call\ \comm\ foo\ \valueexpr;\sandboxtag;\sigma} = \obj{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
     }{obj-filter-comp-call}
     %
     \typerule{obj-filter-comp-ret}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Ret\ \comm\ \valueexpr;\sandboxtag} = \obj{Ret\ \comm\ \valueexpr;\sandboxtag}
+      \tospecificevo[_{\obj{\bullet}}]{Ret\ \comm\ \valueexpr;\sandboxtag;\sigma} = \obj{Ret\ \comm\ \valueexpr;\sandboxtag}
     }{obj-filter-comp-ret}
     %
     \typerule{obj-filter-branch}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Branch\ n;\comp} = \obj{Branch\ n}
+      \tospecificevo[_{\obj{\bullet}}]{Branch\ n;\comp;\sigma} = \obj{Branch\ n}
     }{obj-filter-branch-leak}
     %
     \typerule{obj-filter-binop}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{Binop\ n_1\ n_2;\comp} = \obj{Binop\ n_1\ n_2}
+      \tospecificevo[_{\obj{\bullet}}]{Binop\ n_1\ n_2;\comp;\sigma} = \obj{Binop\ n_1\ n_2}
     }{obj-filter-binop}
     %
     \typerule{obj-filter-abort}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{\lightning;\sandboxtag} = \obj{\lightning}
+      \tospecificevo[_{\obj{\bullet}}]{\lightning;\sandboxtag;\sigma} = \obj{\lightning}
     }{obj-filter-abort}
     %
     %
@@ -7934,26 +7924,26 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \typerule{scct-backtrans-alloc}{
       \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
     }{
-      \mmlAtmsmmlAtscctdetail[]{\obj{Alloc\ \loc\ s;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+      \mmlAtmsmmlAtscctdetail[]{\obj{Alloc\ \loc\ s;\sandboxtag;\sigma}\cdot\obj{\trace}}=\irl{e}
     }{scct-backtrans-alloc}
     \typerule{scct-backtrans-dealloc}{
       \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
     }{
-      \mmlAtmsmmlAtscctdetail[]{\obj{Dealloc\ \loc;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+      \mmlAtmsmmlAtscctdetail[]{\obj{Dealloc\ \loc;\sandboxtag;\sigma}\cdot\obj{\trace}}=\irl{e}
     }{scct-backtrans-dealloc}
     \typerule{scct-backtrans-set}{
       \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
     }{
-      \mmlAtmsmmlAtscctdetail[]{\obj{Set\ \loc\ n\ \valueexpr;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+      \mmlAtmsmmlAtscctdetail[]{\obj{Set\ \loc\ n\ \valueexpr;\sandboxtag;\sigma}\cdot\obj{\trace}}=\irl{e}
     }{scct-backtrans-set}
     \typerule{scct-backtrans-get}{
       \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e}
     }{
-      \mmlAtmsmmlAtscctdetail[]{\obj{Get\ \loc\ n;\sandboxtag}\cdot\obj{\trace}}=\irl{e}
+      \mmlAtmsmmlAtscctdetail[]{\obj{Get\ \loc\ n;\sandboxtag;\sigma}\cdot\obj{\trace}}=\irl{e}
     }{scct-backtrans-get}
     \typerule{scct-backtrans-abort}{
     }{
-      \mmlAtmsmmlAtscctdetail[]{\lightning;\sandboxtag}=\irl{abort()}
+      \mmlAtmsmmlAtscctdetail[]{\lightning;\sandboxtag;\sigma}=\irl{abort()}
     }{scct-backtrans-abort}
     %
   \end{center}
@@ -7961,11 +7951,11 @@ Final results are tagged with the respected taint and the semantics keeps track 
 \myfig{
   \begin{center}
     \judgbox{\Game\left(\obj{\loc}\right)=\irl{x}}{,,Map an $\mmlAtscct$ location to an $\mmlAtms$ identifier.''}
-    \judgbox{\mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\irl{\overline{\loc}}]{\event}=\irl{\overline{\loc'}};\irl{e}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\irl{\overline{\loc}}$, yield\\another stack of locations $\irl{\overline{\loc'}}$, and an $\mmlAtms$\\expression from target $\comptoctx$-interaction-event $\irl{\event}$.''}
+    \judgbox{\mmlAtmsmmlAtscctcomptoctx[\Game;\delta]{\event}=\irl{e}}{,,Given a \varmapbacktransds $\Game$ and $\delta$ yield an $\mmlAtms$ expression\\from target $\comptoctx$-interaction-event $\obj{\event}$.''}
     %
     \typerule{scct-backtrans-start}{
     }{
-      \mmlAtmsmmlAtscctcomptoctx[\emptyset;\emptyset;\obj{\hole{\cdot}}]{\obj{Start}} = \obj{\hole{\cdot}};\irl{42}
+      \mmlAtmsmmlAtscctcomptoctx[\emptyset;\emptyset]{\obj{Start}} = \irl{42}
     }{scct-backtrans-start}
     %
 %   \typerule{scct-backtrans-call-comptoctx}{
@@ -7979,11 +7969,11 @@ Final results are tagged with the respected taint and the semantics keeps track 
 %     \irl{e}=\irl{delete\ z}
     }{
 %     \mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\obj{\loc,\overline{\loc}}]{\obj{Ret\ \comptoctx\ \valueexpr}}=\obj{\overline{\loc}};\irl{e;}\mmlAtmsmmlAtscctv[]{\valueexpr}
-      \mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\obj{\overline{\loc}}]{\obj{Ret\ \comptoctx\ \valueexpr}}=\obj{\overline{\loc}};\irl{e;}\mmlAtmsmmlAtscctv[]{\valueexpr}
+      \mmlAtmsmmlAtscctcomptoctx[\Game;\delta]{\obj{Ret\ \comptoctx\ \valueexpr}}=\mmlAtmsmmlAtscctv[]{\valueexpr}
     }{scct-backtrans-ret-comptoctx}
     %
     %
-    \judgbox{\mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc}}]{\event}=\Game';\delta';\obj{\overline{\loc'}};\irl{e}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\obj{\overline{\loc}}$, construct a \varmapbacktransds $\Game'$,\\ a $\delta'$, another stack of locations $\obj{\overline{\loc'}}$, and an $\mmlAtscct$\\expression from target $\ctxtocomp$-interaction-event $\obj{\event}$.''}
+    \judgbox{\mmlAtmsmmlAtscctctxtocomp[\Game;\delta]{\event}=\Game';\delta';\irl{e}}{,,Given a \varmapbacktransds $\Game$ and $\delta$ construct a \varmapbacktransds $\Game'$,\\ a $\delta'$, and an $\mmlAtscct$ expression from target\\$\ctxtocomp$-interaction-event $\obj{\event}$.''}
     %
     \typerule{scct-backtrans-call-ctxtocomp}{
 %     \fresh{\Game,\delta}{\irl{\loc}}&
@@ -7994,7 +7984,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
 %     \irl{e}=\irl{let\ z = new\ 42\ in\ call\ }\mmlAtmsmmlAtscctdetail[]{foo}\ \mmlAtmsmmlAtscctv[]{\valueexpr}
     }{
 %     \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc}}]{\obj{Call\ \ctxtocomp\ foo\ \valueexpr}}=\Game_z;\delta';\obj{\loc,\overline{\loc}};\irl{e}
-      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc}}]{\obj{Call\ \ctxtocomp\ foo\ \valueexpr}}=\Game_z;\delta;\obj{\overline{\loc}};\irl{e}
+      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta]{\obj{Call\ \ctxtocomp\ foo\ \valueexpr}}=\Game_z;\delta;\mmlAtmsmmlAtscctv[]{\valueexpr}
     }{scct-backtrans-call-ctxtocomp}
     %
 %   \typerule{scct-backtrans-ret-ctxtocomp}{
@@ -8012,7 +8002,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
 %     \irl{e}=\irl{let\ z=new\ 42\ in\ delete\ z;return\ }\mmlAtmsmmlAtscctv[]{\valueexpr}
     }{
 %     \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\hole{\cdot}}]{\obj{End\ \valueexpr}}=\Game_z;\delta';\obj{\hole{\cdot}};\irl{e}
-      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\hole{\cdot}}]{\obj{End\ \valueexpr}}=\Game_z;\delta;\obj{\hole{\cdot}};\irl{e}
+      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta]{\obj{End\ \valueexpr}}=\Game_z;\delta;\mmlAtmsmmlAtscctv[]{\valueexpr}
     }{scct-backtrans-end-ctxtocomp}
   \end{center}
 }{scct-pres-backtrans-interact}{scct-backtranslation of interaction-events from memory-specific $\mmlAtscct$ events to $\mmlAtms$ terms.}
@@ -8026,27 +8016,27 @@ Final results are tagged with the respected taint and the semantics keeps track 
     %
     \typerule{scct-non-interface-$\obj{Alloc}$}{
     }{
-      \vdash \obj{Alloc\ \loc\ n;\sandboxtag} \operatorname{non-int-\obj{\event}}
+      \vdash \obj{Alloc\ \loc\ n;\sandboxtag;\sigma} \operatorname{non-int-\obj{\event}}
     }{scct-non-interface-alloc}
     %
     \typerule{scct-non-interface-$\obj{Dealloc}$}{
     }{
-      \vdash \obj{Dealloc\ \loc;\sandboxtag} \operatorname{non-int-\obj{\event}}
+      \vdash \obj{Dealloc\ \loc;\sandboxtag;\sigma} \operatorname{non-int-\obj{\event}}
     }{scct-non-interface-dealloc}
     %
     \typerule{scct-non-interface-$\obj{Get}$}{
     }{
-      \vdash \obj{Get\ \loc\ n;\sandboxtag} \operatorname{non-int-\obj{\event}}
+      \vdash \obj{Get\ \loc\ n;\sandboxtag;\sigma} \operatorname{non-int-\obj{\event}}
     }{scct-non-interface-get}
     %
     \typerule{scct-non-interface-$\obj{Set}$}{
     }{
-      \vdash \obj{Set\ \loc\ n;\sandboxtag} \operatorname{non-int-\obj{\event}}
+      \vdash \obj{Set\ \loc\ n;\sandboxtag;\sigma} \operatorname{non-int-\obj{\event}}
     }{scct-non-interface-set}
     %
     \typerule{scct-non-interface-$\obj{\lightning}$}{
     }{
-      \vdash \obj{\lightning;\sandboxtag} \operatorname{non-int-\obj{\event}}
+      \vdash \obj{\lightning;\sandboxtag;\sigma} \operatorname{non-int-\obj{\event}}
     }{scct-non-interface-abort}
     %
     \typerule{scct-non-interface-trace-empty}{
@@ -8064,15 +8054,15 @@ Final results are tagged with the respected taint and the semantics keeps track 
 }{scct-non-interfacing-events}{Non-Interfacing events.}
 \myfig{
   \begin{center}
-    \judgbox{\mmlAtmsmmlAtscctsubtop[\Game;\delta; \obj{\overline{\loc}}]{\event[_1]\cdot\trace\cdot\event[_2]}=\Game';\delta';\obj{\overline{\loc'}};\irl{e_1};\irl{e_2};\irl{e_3}}{,,Given a \varmapbacktransds $\Game$, $\delta$, and $\obj{\overline{\loc}}$,\\construct a \varmapbacktransds $\Game'$, a $\delta'$, another\\stack of locations $\obj{\overline{\loc'}}$, and an $\mmlAtms$\\ensemble of expressions from target-\\trace $\obj{\mstrace}$ which starts with a $\ctxtocomp$ event\\and ends in a $\comptoctx$.''}
+    \judgbox{\mmlAtmsmmlAtscctsubtop[\Game;\delta]{\event[_1]\cdot\trace\cdot\event[_2]}=\Game';\delta';\irl{e_1};\irl{e_2};\irl{e_3}}{,,Given a \varmapbacktransds $\Game$ and $\delta$,\\construct a \varmapbacktransds $\Game'$, a $\delta'$, and an $\mmlAtms$\\ensemble of expressions from target-\\trace $\obj{\mstrace}$ which starts with a $\ctxtocomp$ event\\and ends in a $\comptoctx$.''}
     %
     \typerule{scct-subtoplevel-backtrans}{
       \vdash \obj{\trace} \operatorname{non-int-\obj{\trace}}\\
-      \mmlAtmsmmlAtscctcomptoctx[\Game;\delta;\obj{\overline{\loc}}]{\obj{\event[_1]}}=\obj{\overline{\loc'}};\irl{e_1} &
+      \mmlAtmsmmlAtscctcomptoctx[\Game;\delta]{\obj{\event[_1]}}=\irl{e_1} &
       \mmlAtmsmmlAtscctdetail[]{\obj{\trace}}=\irl{e_2} &
-      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta;\obj{\overline{\loc'}}]{\obj{\event[_2]}}=\Game';\delta';\obj{\overline{\loc''}};\irl{e_3} \\
+      \mmlAtmsmmlAtscctctxtocomp[\Game;\delta]{\obj{\event[_2]}}=\Game';\delta';\irl{e_3} \\
     }{
-      \mmlAtmsmmlAtscctsubtop[\Game;\delta;\obj{\overline{\loc}}]{\obj{\event[_1]\cdot\trace\cdot\event[_2]}}=\Game';\delta';\obj{\overline{\loc''}}; \irl{e_1}; \irl{e_2}; \irl{e_3}
+      \mmlAtmsmmlAtscctsubtop[\Game;\delta]{\obj{\event[_1]\cdot\trace\cdot\event[_2]}}=\Game';\delta'; \irl{e_1}; \irl{e_2}; \irl{e_3}
     }{scct-subtoplevel-backtrans}
     %
 %   \typerule{subtoplevel-backtrans-indu}{
@@ -8099,8 +8089,8 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \obj{\trace[_0]}=\obj{Start\cdot\trace[_0']\cdot Call\ \ctxtocomp\ foo\ \interfacevalue_1} &
       \obj{\trace[_1]}=\obj{Ret\ \comptoctx\ \interfacevalue_2\cdot\trace[_0']\cdot End\ \interfacevalue_3}\\
 %      \mmlAtmsmmlAtscctsubtop[\emptyset;\emptyset;\obj{\hole{\cdot}}]{\color{black}\tospecificevo[^*_\obj{\bullet}]{\trace[_0]}} = \Game; \delta; \obj{\overline{\loc}}; \irl{e_0};\irl{e_0'};\irl{let\ x_0 = new\ n_0\ in\ e_0''} \\
-      \mmlAtmsmmlAtscctsubtop[\emptyset;\emptyset;\obj{\hole{\cdot}}]{\color{black}\tospecificevo[^*_\obj{\bullet}]{\trace[_0]}} = \Game; \delta; \obj{\overline{\loc}}; \irl{e_0};\irl{e_0'};\irl{e_0''} \\
-      \mmlAtmsmmlAtscctsubtop[\Game;\delta;\obj{\overline{\loc}}]{\color{black}\tospecificevo[^*_\obj{\bullet}]{\trace[_1]}} = \Game'; \delta'; \obj{\hole{\cdot}}; \irl{e_1};\irl{e_1'};\irl{e_1''} \\
+      \mmlAtmsmmlAtscctsubtop[\emptyset;\emptyset]{\color{black}\tospecificevo[^*_\obj{\bullet}]{\trace[_0]}} = \Game; \delta; \irl{e_0};\irl{e_0'};\irl{e_0''} \\
+      \mmlAtmsmmlAtscctsubtop[\Game;\delta]{\color{black}\tospecificevo[^*_\obj{\bullet}]{\trace[_1]}} = \Game'; \delta'; \irl{e_1};\irl{e_1'};\irl{e_1''} \\
 %      \irl{e} = \irl{e_0;e_0';let\ x_0 = new\ n_0\ in\ (e_0'';e_1);e_1';e_1''}
       \irl{e} = \irl{e_0;e_0';e_0'';e_1;e_1';e_1''}
     }{
@@ -8116,15 +8106,15 @@ Final results are tagged with the respected taint and the semantics keeps track 
   \begin{assumptions}
   \item $\obj{\library}=\obj{\library_{ctx}\linker}\mmlAtmsmmlAtscctcomp{\library_{comp}}$
   \item $\obj{\commlib}=\mmlAtmsmmlAtscctcomp{\commlib}=\operatorname{dom}\ \mmlAtmsmmlAtscctcomp{\library_{comp}}$
-  \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:exect} $\execo[]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot}; main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0/x]}{Start;\comp}$
+  \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:exect} $\execo[]{\commlib;\library;\hole{\cdot};\comp;0;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot}; main),\hole{\cdot};\ctx;0;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0/x]}{Start;\comp}$
   \item $\mmlAtmsmmlAtscctcomptoctx[\emptyset;\emptyset;\obj{\hole{\cdot}}]{\color{black}\tospecificevo[_{\obj{\bullet}}]{Start}}=\obj{\hole{\cdot}};\irl{42}$
-  \item $\xlangstateeqc[\emptyset;\irl{\hole{\cdot}}]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
+  \item $\xlangstateeqc[\emptyset;\irl{\hole{\cdot}}]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;\hole{\cdot};\comp;0;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
   \item $\irl{\library}=\left\{\irl{main}\mapsto\irl{42;e_{main}}\right\}\irl{\linker\library_{comp}}$
   \end{assumptions}
   Then $\exists n$
   \begin{goals}
   \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:execs} $\execN[^{n}]{\irl{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{call\ main\ 0}}{\irl{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{e_{main}[0/x]}}{\irl{Start;\comp}}$
-  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:backstateeq} $\xlangstateeqc[\emptyset;\irl{\hole{\cdot}}]{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot}}$
+  \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:backstateeq} $\xlangstateeqc[\emptyset;\irl{\hole{\cdot}}]{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;0;\hole{\cdot};\hole{\cdot}}$
   \item\label[goal]{goal:exprbacktranslation:vbeg:wrapper:correct:eventeq} $\irl{Start}\thexlangtraceeq[\emptyset;\irl{\hole{\cdot}}]\obj{Start}$
   \end{goals}
 \end{lemma}

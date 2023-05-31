@@ -1963,118 +1963,6 @@ We also use it to project the call/return events onto it.
   \end{center}
 }{tms-store-agreement}{Store Agreement.}
 
-\myfig{
-  \begin{center}
-    \judgbox{\delta_{MS}(\trg{\loc})=\specificev{\loc}}{,,Map $\mmlAt$ locations $\trg{\loc}$ to abstract locations $\specificev{\loc}$.''}
-    \judgbox{\storeagreesms{\smsmonitor}{\trg{\Delta}}}{,,Abstract memory state $\tmsmonitor$ describes the concrete state $\trg{\Delta}$.''}
-    \typerule{SMS-Empty-Agree}{
-    }{
-      \storeagreesms{\emptyset}{\trg{\hole{\cdot}}}
-    }{sms-store-empty-agree}
-    %
-    \typerule{SMS-Abort-Agree}{
-    }{
-      \storeagreesms{\emptyset}{\trg{\lightning}}
-    }{sms-store-abort-agree}
-    %
-    \typerule{SMS-Cons-Agree}{
-      \delta_{MS}(\trg{\loc})=\specificev{\loc}&
-      \specificev{\loc}\notin\smsmonitor&
-      \storeagreesms{\smsmonitor}{\trg{\Delta}}
-    }{
-      \storeagreesms{\left\{\left(\specificev{\loc},\bm{m}\right)\right\}\cup \smsmonitor}{\trg{x\mapsto(\loc;\comp;\poison;n),\Delta}}
-    }{sms-store-cons-agree}
-    %
-    \typerule{SMS-Ignore-Agree}{
-      \storeagreesms{\smsmonitor}{\trg{\Delta}}
-    }{
-      \storeagreesms{\smsmonitor}{\trg{x\mapsto(\loc;\ctx;\poison;n),\Delta}}
-    }{sms-store-ignore-agree}
-  \end{center}
-}{sms-store-agreement}{Store Agreement.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\delta_{MS}(\trg{\loc})=\specificev{\loc}}{,,A map from $\mmlAt$ memory locations $\trg{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
-    \judgbox{\tospecificevt[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAt$ event to MS-specific events.''}
-    %
-    \typerule{t-filter-context}{
-      \trg{\event_b} \not= \trg{\lightning}
-    }{
-      \tospecificevt[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
-    }{t-filter-context}
-    %
-    \typerule{t-filter-comp-start}{
-    }{
-      \tospecificevt[_{\delta_{MS}}]{Start;\comp} = \specificev{\emptyevent}
-    }{t-filter-comp-start}
-    %
-    \typerule{t-filter-comp-alloc}{
-      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
-      \specificev{n}=\trg{n}
-    }{
-      \tospecificevt[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n}
-    }{t-filter-comp-alloc}
-    %
-    \typerule{t-filter-comp-dealloc}{
-      \delta_{MS}(\trg{\loc})=\specificev{\loc}
-    }{
-      \tospecificevt[_{\delta_{MS}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc}
-    }{t-filter-comp-dealloc}
-    %
-    \typerule{t-filter-comp-get}{
-      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
-      \specificev{n}=\trg{n}
-    }{
-      \tospecificevt[_{\delta_{MS}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
-    }{t-filter-comp-get}
-    %
-    \typerule{t-filter-comp-set}{
-      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
-      \specificev{n}=\trg{n}
-    }{
-      \tospecificevt[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
-    }{t-filter-comp-set}
-    %
-    \typerule{t-filter-comp-call}{
-    }{
-      \tospecificevt[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
-    }{t-filter-comp-call}
-    %
-    \typerule{t-filter-comp-ret}{
-    }{
-      \tospecificevt[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
-    }{t-filter-comp-ret}
-    %
-    \typerule{t-filter-abort}{
-    }{
-      \tospecificevt[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
-    }{t-filter-abort}
-    %
-    \judgbox{\tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAt$ trace to MS-specific traces.''}
-    %
-    \typerule{t-filter-empty}{
-    }{
-      \tospecificevt[^*_{\delta_{MS}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
-    }{t-filter-empty}
-    %
-    \typerule{t-filter-cons-relevant}{
-      \tospecificevt[_{\delta_{MS}}]{\event} = \specificev{\event} &
-      \tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace &
-      \specificev{\event} \not= \specificev{\emptyevent}
-    }{
-      \tospecificevt[^*_{\delta_{MS}}]{\event\cdot\trace} = \specificev{\event}\cdot\mstrace
-    }{t-filter-cons-relevant}
-    %
-    \typerule{t-filter-cons-relevant}{
-      \tospecificevt[_{\delta_{MS}}]{\event} = \specificev{\emptyevent} &
-      \tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace
-    }{
-      \tospecificevt[^*_{\delta_{MS}}]{\event\cdot\trace} = \mstrace
-    }{t-filter-cons}
-  \end{center}
-}{wt-events-project-to-specific}{Projection of $\mmlAt$ events to \gls*{ms}-specific events.}
-
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
@@ -5929,6 +5817,120 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 For instrumented $\mmlAt$ code, we'll write $\mmlAtms$.
 The syntax and semantics are entirely identical.
 
+\subsubsection{Translation to Specification Events}
+
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{MS}(\trg{\loc})=\specificev{\loc}}{,,Map $\mmlAt$ locations $\trg{\loc}$ to abstract locations $\specificev{\loc}$.''}
+    \judgbox{\storeagreesms{\smsmonitor}{\trg{\Delta}}}{,,Abstract memory state $\tmsmonitor$ describes the concrete state $\trg{\Delta}$.''}
+    \typerule{SMS-Empty-Agree}{
+    }{
+      \storeagreesms{\emptyset}{\trg{\hole{\cdot}}}
+    }{sms-store-empty-agree}
+    %
+    \typerule{SMS-Abort-Agree}{
+    }{
+      \storeagreesms{\emptyset}{\trg{\lightning}}
+    }{sms-store-abort-agree}
+    %
+    \typerule{SMS-Cons-Agree}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc}&
+      \specificev{\loc}\notin\smsmonitor&
+      \storeagreesms{\smsmonitor}{\trg{\Delta}}
+    }{
+      \storeagreesms{\left\{\left(\specificev{\loc},\bm{m}\right)\right\}\cup \smsmonitor}{\trg{x\mapsto(\loc;\comp;\poison;n),\Delta}}
+    }{sms-store-cons-agree}
+    %
+    \typerule{SMS-Ignore-Agree}{
+      \storeagreesms{\smsmonitor}{\trg{\Delta}}
+    }{
+      \storeagreesms{\smsmonitor}{\trg{x\mapsto(\loc;\ctx;\poison;n),\Delta}}
+    }{sms-store-ignore-agree}
+  \end{center}
+}{sms-store-agreement}{Store Agreement.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{MS}(\trg{\loc})=\specificev{\loc}}{,,A map from $\mmlAt$ memory locations $\trg{\loc}$ to MS-specific locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevt[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAt$ event to MS-specific events.''}
+    %
+    \typerule{t-filter-context}{
+      \trg{\event_b} \not= \trg{\lightning}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{t-filter-context}
+    %
+    \typerule{t-filter-comp-start}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Start;\comp} = \specificev{\emptyevent}
+    }{t-filter-comp-start}
+    %
+    \typerule{t-filter-comp-alloc}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
+      \specificev{n}=\trg{n}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n}
+    }{t-filter-comp-alloc}
+    %
+    \typerule{t-filter-comp-dealloc}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc}
+    }{t-filter-comp-dealloc}
+    %
+    \typerule{t-filter-comp-get}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
+      \specificev{n}=\trg{n}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+    }{t-filter-comp-get}
+    %
+    \typerule{t-filter-comp-set}{
+      \delta_{MS}(\trg{\loc})=\specificev{\loc} &
+      \specificev{n}=\trg{n}
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+    }{t-filter-comp-set}
+    %
+    \typerule{t-filter-comp-call}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Call\ \comm\ foo\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{t-filter-comp-call}
+    %
+    \typerule{t-filter-comp-ret}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{Ret\ \comm\ \interfacevalue;\comp} = \specificev{\emptyevent}
+    }{t-filter-comp-ret}
+    %
+    \typerule{t-filter-abort}{
+    }{
+      \tospecificevt[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+    }{t-filter-abort}
+    %
+    \judgbox{\tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAt$ trace to MS-specific traces.''}
+    %
+    \typerule{t-filter-empty}{
+    }{
+      \tospecificevt[^*_{\delta_{MS}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{t-filter-empty}
+    %
+    \typerule{t-filter-cons-relevant}{
+      \tospecificevt[_{\delta_{MS}}]{\event} = \specificev{\event} &
+      \tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace &
+      \specificev{\event} \not= \specificev{\emptyevent}
+    }{
+      \tospecificevt[^*_{\delta_{MS}}]{\event\cdot\trace} = \specificev{\event}\cdot\mstrace
+    }{t-filter-cons-relevant}
+    %
+    \typerule{t-filter-cons-relevant}{
+      \tospecificevt[_{\delta_{MS}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevt[^*_{\delta_{MS}}]{\trace} = \mstrace
+    }{
+      \tospecificevt[^*_{\delta_{MS}}]{\event\cdot\trace} = \mstrace
+    }{t-filter-cons}
+  \end{center}
+}{wt-events-project-to-specific}{Projection of $\mmlAt$ events to \gls*{ms}-specific events.}
+
 \subsubsection{Compiler}
 
 \myfig{
@@ -6637,7 +6639,7 @@ The syntax and semantics are entirely identical.
   This solves \Cref{goal:rmtsp:rsat}.
 \end{proof}
 
-\subsection{Robustly Preserving $\sCCT$}
+\subsection{Object Language}
 
 \myfig{
 	\vspace{-1em}
@@ -7680,6 +7682,8 @@ Final results are tagged with the respected taint and the semantics keeps track 
   \end{center}
 }{scct-pres-state-relations-second}{State Relation from $\mmlAtms$ to $\mmlAtscct$. This is meant to relate the states whenever we are ,,inside'' a context.}
 
+\subsection{Robustly Preserving $\sCCT$}
+
 \subsubsection{Compiler}
 
 \myfig{
@@ -7694,10 +7698,10 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \mmlAtmsmmlAtscctcomp{\finalexpr} &\ = & \obj{\finalexpr} \\
     \mmlAtmsmmlAtscctcomp{call\ foo\ e} &\ = & \obj{call\ }\mmlAtmsmmlAtscctcomp{foo}\ \mmlAtmsmmlAtscctcomp{e}\\
     \mmlAtmsmmlAtscctcomp{return\ e} &\ = & \obj{return\ }\mmlAtmsmmlAtscctcomp{e}\\
-    \mmlAtmsmmlAtscctcomp{e_1\oplus e_2} &\ = & \mmlAtmsmmlAtscctcomp{e_1} \obj{\widehat{\oplus}} \mmlAtmsmmlAtscctcomp{e_2} \\
-      \mmlAtmsmmlAtscctcomp{x[e]} &\ = & \obj{\widehat{load}\ x\ }\mmlAtmsmmlAtscctcomp{e}\\
+    \mmlAtmsmmlAtscctcomp{e_1\oplus e_2} &\ = & \mmlAtmsmmlAtscctcomp{e_1} \obj{\oplus} \mmlAtmsmmlAtscctcomp{e_2} \\
+    \mmlAtmsmmlAtscctcomp{x[e]} &\ = & \obj{x[}\mmlAtmsmmlAtscctcomp{e}\obj{]} \\
     \mmlAtmsmmlAtscctcomp{let\ x= e_1\ in\ e_2} &\ = & \obj{let\ x=} \mmlAtmsmmlAtscctcomp{e_1}\obj{\ in\ }\mmlAtmsmmlAtscctcomp{e_2} \\
-    \mmlAtmsmmlAtscctcomp{x[e_1]\leftarrow e_2} &\ = & \obj{\widehat{write}\ x\ }\mmlAtmsmmlAtscctcomp{e_1}\ \mmlAtmsmmlAtscctcomp{e_2} \\
+    \mmlAtmsmmlAtscctcomp{x[e_1]\leftarrow e_2} &\ = & \obj{x[}\mmlAtmsmmlAtscctcomp{e_1}\obj{]\leftarrow} \mmlAtmsmmlAtscctcomp{e_2} \\
     \mmlAtmsmmlAtscctcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \obj{let\ x=new\ }\mmlAtmsmmlAtscctcomp{e_1}\obj{\ in\ }\mmlAtmsmmlAtscctcomp{e_2} \\
     \mmlAtmsmmlAtscctcomp{delete\ x} &\ = & \obj{delete\ x} \\
     \mmlAtmsmmlAtscctcomp{x\ is\ \poisoned} &\ = & \obj{x\ is\ \poisoned} \\
@@ -7705,7 +7709,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \mmlAtmsmmlAtscctcomp{\pi_1\ e} &\ = & \obj{\pi_1\ }\mmlAtmsmmlAtscctcomp{e}\\
     \mmlAtmsmmlAtscctcomp{\pi_2\ e} &\ = & \obj{\pi_2\ }\mmlAtmsmmlAtscctcomp{e}\\
     \mmlAtmsmmlAtscctcomp{e\ has\ \type} &\ = & \mmlAtmsmmlAtscctcomp{e}\ \obj{has\ \type}\\
-    \mmlAtmsmmlAtscctcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \obj{\widehat{ifz}\ }\mmlAtmsmmlAtscctcomp{e_1}\\
+    \mmlAtmsmmlAtscctcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \obj{ifz\ }\mmlAtmsmmlAtscctcomp{e_1}\\
                                                         &&\obj{then\ }\mmlAtmsmmlAtscctcomp{e_2} \\
                                                         &&\obj{else\ }\mmlAtmsmmlAtscctcomp{e_3} \\[0.5cm]
     %

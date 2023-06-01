@@ -4928,7 +4928,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Use \Cref{asm:exprbacktranslation:vbeg:wrapper:correct:execs0,asm:exprbacktranslation:vbeg:wrapper:correct:execs1} on \Cref{tr:wsn-e-trans-important,tr:wsn-e-refl}:
   \begin{passumptions}{H}
     \setcounter{enumi}{2}
-    \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:execs} $\execsn[^{2}]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0[0/x]}{\commlib;\library;(\hole{\cdot},main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0/x]}{Start}$
+    \item\label[ass]{asm:exprbacktranslation:vbeg:wrapper:correct:execs} $\execsn[^{2}]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot},main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0/x]}{Start}$
   \end{passumptions}
   So, instantiating $n=2$ concludes \Cref{goal:exprbacktranslation:vbeg:wrapper:correct:execs}.
 
@@ -7100,20 +7100,20 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \typerule{$et-\text{refl}$}{
     }{
       \execo{\Omega}{\finalexpr}{\Omega}{\finalexpr}{\hole{\cdot}}
-    }{wt-e-refl}
+    }{wo-e-refl}
     \typerule{$et-\text{trans}-$important}{
       \execo[]{\Omega}{e}{\Omega'}{e'}{\event}&
       \execo{\Omega'}{e'}{\Omega''}{e''}{\trace}&
       \obj{a}\not=\obj{\emptyevent}
     }{
       \execo{\Omega}{e}{\Omega''}{e''}{\event \cdot \trace}
-    }{wt-e-trans-important}
+    }{wo-e-trans-important}
     \typerule{$et-\text{trans}-$unimportant}{
       \execo[]{\Omega}{e}{\Omega'}{e'}{\emptyevent}&
       \execo{\Omega'}{e'}{\Omega''}{e''}{\trace}&
     }{
       \execo{\Omega}{e}{\Omega''}{e''}{\trace}
-    }{wt-e-trans-unimportant}
+    }{wo-e-trans-unimportant}
     %
     %
     \judgbox{\execoN{\Omega}{e}{\Omega'}{e'}{\trace}}{,,Expression $\obj{e}$ evaluates in $n$ steps under configuration $\obj{\Omega}$ to\\$\obj{e'}$ and new configuration $\obj{\Omega'}$, emitting list of events $\obj{\trace}$.''}
@@ -7121,7 +7121,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \typerule{$en-\text{refl}$}{
     }{
       \execoN[^0]{\Omega}{e}{\Omega}{e}{\emptyevent}
-    }{wtn-e-refl}
+    }{won-e-refl}
     %
     \typerule{$en-\text{trans}-$important}{
       \execo[]{\Omega}{e}{\Omega'}{e'}{\event} &
@@ -7129,14 +7129,14 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \obj{\event}\not=\obj{\emptyevent}
     }{
       \execoN[^{(n+1)}]{\Omega}{e}{\Omega''}{e''}{\event\cdot\trace}
-    }{wtn-e-trans-important}
+    }{won-e-trans-important}
     %
     \typerule{$en-\text{trans}-$unimportant}{
       \execo[]{\Omega}{e}{\Omega'}{e'}{\emptyevent} &
       \execoN[^n]{\Omega'}{e'}{\Omega''}{e''}{\trace} &
     }{
       \execoN[^{(n+1)}]{\Omega}{e}{\Omega''}{e''}{\trace}
-    }{wtn-e-trans-unimportant}
+    }{won-e-trans-unimportant}
   \end{center}
 }{wo-steps}{Trace prefix generation given a $\mmlAtscct$ program using the reflexive-transitive closure.}
 
@@ -8144,21 +8144,41 @@ Final results are tagged with the respected taint and the semantics keeps track 
   If
   \begin{assumptions}
   \item $\obj{\library}=\obj{\library_{ctx}\linker}\mmlAtmsmmlAtscctcomp{\library_{comp}}$
-  \item $\obj{\commlib}=\mmlAtmsmmlAtscctcomp{\commlib}=\operatorname{dom}\ \mmlAtmsmmlAtscctcomp{\library_{comp}}$
-  \item\label[ass]{asm:scct:exprbacktranslation:vbeg:wrapper:correct:exect} $\execo[]{\commlib;\library;\hole{\cdot};\comp;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot}; main),\hole{\cdot};\ctx;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0/x]}{Start;\comp}$
+  \item\label[ass]{asm:scct:vbeg:exprbacktranslation:commlib} $\obj{\commlib}=\mmlAtmsmmlAtscctcomp{\commlib}=\operatorname{dom}\ \mmlAtmsmmlAtscctcomp{\library_{comp}}$
+  \item $\obj{\sigma''}=\obj{\sigma\sqcap\sigma'}$
+  \item\label[ass]{asm:scct:exprbacktranslation:vbeg:wrapper:correct:exect} $\execo[]{\commlib;\library;\hole{\cdot};\comp;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main^{\sigma}\ 0^{\sigma'}}{\commlib;\library;(\hole{\cdot}; main),\hole{\cdot};\ctx;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0^{\sigma'}/x]}{Start;\comp;\sigma''}$
   \item $\mmlAtmsmmlAtscctcomptoctx[\emptyset;\emptyset]{\color{black}\tospecificevo[_{\obj{\bullet}}]{Start}}=\irl{42}$
-  \item $\xlangstateeqc[\emptyset;\irl{\hole{\cdot}}]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;\hole{\cdot};\comp;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
+  \item\label[ass]{asm:scct:vbeg:exprbacktranslation:staterel} $\xlangstateeqc[\emptyset;\irl{\hole{\cdot}}]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;\hole{\cdot};\comp;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}$
   \item $\irl{\library}=\left\{\irl{main}\mapsto\irl{42;e_{main}}\right\}\irl{\linker\library_{comp}}$
   \end{assumptions}
   Then $\exists n$
   \begin{goals}
-  \item\label[goal]{goal:scct:exprbacktranslation:vbeg:wrapper:correct:execs} $\execN[^{n}]{\irl{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{call\ main\ 0}}{\irl{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{e_{main}[0/x]}}{\irl{Start;\comp}}$
-  \item\label[goal]{goal:scct:exprbacktranslation:vbeg:wrapper:correct:backstateeq} $\xlangstateeqc[\emptyset;\irl{\hole{\cdot}}]{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;1;\hole{\cdot};\hole{\cdot}}$
-  \item\label[goal]{goal:scct:exprbacktranslation:vbeg:wrapper:correct:eventeq} $\irl{Start}\thexlangtraceeq[\emptyset;\irl{\hole{\cdot}}]\obj{Start}$
+  \item\label[goal]{goal:scct:exprbacktranslation:vbeg:wrapper:correct:execs} $\execN[^{n}]{\irl{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{call\ main\ 0}}{\irl{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}}{\irl{e_{main}[0/x]}}{\irl{Start;\comp;\sigma''}}$
+  \item\label[goal]{goal:scct:exprbacktranslation:vbeg:wrapper:correct:backstateeq} $\xlangbackstateeqc[\emptyset]{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;1;\hole{\cdot};\hole{\cdot}}$
+  \item\label[goal]{goal:scct:exprbacktranslation:vbeg:wrapper:correct:eventeq} $\irl{Start}\thexlangtraceeq[\emptyset]\obj{Start}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Similar to \Thmref{lem:exprbacktranslation:vbeg:wrapper:correct}.
+  With \Cref{tr:tw-e-ectx-call-main,tr:wtn-e-trans-important,tr:wtn-e-refl} one can conclude:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:scct:vbeg:execiN:main} $\execiN[^1]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{let\ \_ = 42\ in\ e_{main}[0/x]}{Start;\comp}$
+  \end{passumptions}
+  Now following with \Cref{tr:tw-e-let-f,tr:wtn-e-trans-unimportant,tr:wtn-e-refl}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{1}
+    \item\label[ass]{asm:scct:vbeg:execiN:let} $\execiN[^1]{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{let\ \_ = 42\ in\ e_{main}[0/x]}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0/x]}{\varepsilon}$
+  \end{passumptions}
+  Combine \Cref{asm:scct:vbeg:execiN:main,asm:scct:vbeg:execiN:let} with \Cref{tr:wtn-e-trans-important,tr:wtn-e-trans-unimportant,tr:wtn-e-refl}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:scct:vbeg:execiN:final} $\execiN[^2]{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\commlib;\library;(\hole{\cdot};main),\hole{\cdot};\ctx;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{e_{main}[0/x]}{Start;\comp}$
+  \end{passumptions}
+  Instantiate $n=2$ and \Cref{asm:scct:vbeg:execiN:final} solves \Cref{goal:scct:exprbacktranslation:vbeg:wrapper:correct:execs}.
+
+  \noindent\Cref{goal:scct:exprbacktranslation:vbeg:wrapper:correct:backstateeq} by \Cref{tr:scct-state-qe,tr:scct-cfstate-qe,tr:scct-empty-memstate-eq,tr:scct-empty-kontstack-eq,asm:scct:vbeg:exprbacktranslation:commlib,asm:scct:vbeg:exprbacktranslation:staterel}.
+
+  \noindent
+  \Cref{goal:scct:exprbacktranslation:vbeg:wrapper:correct:eventeq} by \Cref{tr:scct-start-event-eq}.
 \end{proof}
 
 \begin{lemma}[Backtranslation Correctness of $\obj{Ret}$]\label{lem:scct:exprbacktranslation:beg:wrapper:correct}

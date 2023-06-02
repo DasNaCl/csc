@@ -7862,15 +7862,17 @@ Final results are tagged with the respected taint and the semantics keeps track 
 
 \subsubsection{Proofs and Auxiliary Lemmas}
 
-\begin{lemma}[Filters Equal]\label{lem:scctfiltereq}
+\begin{lemma}[Trace Equality transfer Safety]\label{lem:scctfiltereq}
   If
   \begin{assumptions}
     \item $\forall\irl{\loc}\ \obj{\loc},\delta(\irl{\loc})=\obj{\loc}\implies \delta_{scct}(\irl{\loc})=\delta_{scct}(\delta^{-1}(\obj{\loc}))$
     \item\label[ass]{asm:scctfiltereq:eq} $\xlangtraceeqc[\delta]{\trace}{\trace}$
+    \item\label[ass]{asm:scctfiltereq:objtoabs} $\traceagree{\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}}{\abstrace}$
+    \item $\monitorcheck{\scctmonitor}{\scctmonitor'}{\abstrace}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\tospecificevi[^{*}_{\delta_{scct}}]{\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}$
+    \item $\traceagree{\tospecificevi[_{\delta_{scct}}]{\trace}}{\abstrace}$
   \end{goals}
 \end{lemma}
 \begin{proof}
@@ -7878,7 +7880,9 @@ Final results are tagged with the respected taint and the semantics keeps track 
 
   \begin{description}
     \case{tr:scct-empty-trace-eq}
-      By \Cref{tr:i-scct-filter-empty} we know $\tospecificevi[_{\delta_{scct}}]{\hole{\cdot}}=\specificev{\hole{\cdot}}$ and similarily \Cref{tr:o-scct-filter-empty} we know $\tospecificevo[_{\delta_{scct}\circ\delta^{-1}}]{\hole{\cdot}}=\specificev{\hole{\cdot}}$, which shows the needed equality.
+      By \Cref{tr:i-scct-filter-empty} we know $\tospecificevi[_{\delta_{scct}}]{\hole{\cdot}}=\specificev{\hole{\cdot}}$ and similarily \Cref{tr:o-scct-filter-empty} we know $\tospecificevo[_{\delta_{scct}\circ\delta^{-1}}]{\hole{\cdot}}=\specificev{\hole{\cdot}}$.
+      Invert \Cref{asm:scctfiltereq:objtoabs} to know that $\abstrace=\bm{\hole{\cdot}}$.
+      \Cref{tr:scct-none} resolves the goal.
 
     \case{tr:scct-cons-trace-eq}
 
@@ -7886,32 +7890,61 @@ Final results are tagged with the respected taint and the semantics keeps track 
       If
       \begin{passumptions}{H}
         \item\label[ass]{asm:scctfiltereq:indu:delta} $\forall\irl{\loc}\ \obj{\loc},\delta(\irl{\loc})=\obj{\loc}\implies \delta_{scct}(\irl{\loc})=\delta_{scct}(\delta^{-1}(\obj{\loc}))$
-        \item\label[ass]{asm:scctfiltereq:indu:eq} $\xlangtraceeqc[\delta]{\trace}{\trace}$
-        \item $\irl{\sandboxtag}=\obj{\sandboxtag}$
-        \item\label[ass]{asm:scctfiltereq:indu:eventeq} $\xlangeventeqc{\event[_{b}]}{\event[_{b}]}$
+        \item\label[ass]{asm:scctfiltereq:indu:eq} $\xlangtraceeqc[\delta]{\event[_{b}];\sandboxtag\cdot\trace}{\event[_{b}];\sandboxtag;\sigma\cdot\trace}$
+        \item $\traceagree{\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event[_{b}];\sandboxtag;\sigma\cdot\trace}}{\abstrace}$
+        \item\label[ass]{asm:scctfiltereq:indu:monitorcheck} $\monitorcheck{\scctmonitor}{\scctmonitor[']}{\abstrace}$
       \end{passumptions}
-      and
       \begin{passumptions}{\IH}
-        \item\label[ass]{asm:scctfiltereq:indu:hyp} $\tospecificevi[^{*}_{\delta_{scct}}]{\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}$
+        \item\label[ass]{asm:scctfiltereq:indu:hyp} Given $\abstrace[_{\IH}], \scctmonitor[_{\IH}], \scctmonitor['_{\IH}]$,\\
+        if $\xlangtraceeqc[\delta]{\trace}{\trace}$ \\
+        and $\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}=\abstrace[_{\IH}]$\\
+        and $\monitorcheck{\scctmonitor[_{\IH}]}{\scctmonitor['_{\IH}]}{\abstrace[_{\IH}]}$\\
+        then $\tospecificevi[^{*}_{\delta_{scct}}]{\trace}=\abstrace[_{\IH}]$
       \end{passumptions}
       Then
       \begin{goals}
-        \item $\tospecificevi[^{*}_{\delta_{scct}}]{\event[_{b}];\sandboxtag\cdot\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event[_{b}];\sandboxtag;\sigma\cdot\trace}$
+        \item\label[goal]{goal:scctfiltereq:irltoabs} $\traceagree{\tospecificevi[^{*}_{\delta_{scct}}]{\event[_{b}];\sandboxtag\cdot\trace}}{\abstrace}$
       \end{goals}
 
-      By distributivity\MK{technically, this needs a lemma that says $\theta(\irl{\event\cdot\trace})=\theta(\irl{\event})\cdot\theta(\irl{\trace})$} and transitivity, we split the goal:
-
-      \begin{goals}
-        \item\label[goal]{goal:scct:filtereq:eventeq} $\tospecificevi[^{*}_{\delta_{scct}}]{\event[_{b}];\sandboxtag}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event[_{b}];\sandboxtag;\sigma}$
-        \item\label[goal]{goal:scct:filtereq:traceeq} $\tospecificevi[^{*}_{\delta_{scct}}]{\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}$
-      \end{goals}
-
-      Obviously, \Cref{asm:scctfiltereq:indu:hyp} solves \Cref{goal:scct:filtereq:traceeq}.
+      Invert \Cref{asm:scctfiltereq:indu:eq} to get:
+      \begin{passumptions}{H}
+        \setcounter{enumi}{4}
+        \item $\irl{\sandboxtag}=\obj{\sandboxtag}$
+        \item\label[ass]{asm:scctfiltereq:indu:eventeq} $\xlangeventeqc[\delta]{\event[_{b}]}{\event[_{b}]}$
+        \item\label[ass]{asm:scctfiltereq:indu:traceeq} $\xlangtraceeqc[\delta]{\trace}{\trace}$
+      \end{passumptions}
 
       \noindent
-      For \Cref{goal:scct:filtereq:eventeq}, perform case analysis on \Cref{asm:scctfiltereq:indu:eventeq}.
-      We leave cases with $\irl{\sandboxtag}=\irl{\ctx}$ out, they are easy by \Cref{tr:o-scct-filter-context,tr:i-scct-filter-context}.
+      Note that $\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event\cdot\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event}\specificev{\cdot}\:\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}$ and rewrite \Cref{asm:scctfiltereq:objtoabs} with that.\MK{make this a lemma?}
+
+      So, by inversion on \Cref{asm:scctfiltereq:objtoabs} we know:
+      \begin{passumptions}{H}
+        \setcounter{enumi}{7}
+        \item $\abstrace=\absevent\cdot\abstrace'$
+        \item\label[ass]{asm:scctfiltereq:objtoabsev} $\sccttraceagree{\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event}}{\absevent}$
+        \item\label[ass]{asm:scctfiltereq:objtoabstr} $\sccttraceagree[^{*}]{\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}}{\abstrace'}$
+      \end{passumptions}
+
+      Invert \Cref{asm:scctfiltereq:indu:monitorcheck}:
+      \begin{passumptions}{H}
+        \setcounter{enumi}{10}
+        \item\label[ass]{asm:scctfiltereq:indu:monitorcheckev} $\monitorcheck[]{\scctmonitor}{\scctmonitor_{0}}{\absevent}$
+        \item\label[ass]{asm:scctfiltereq:indu:monitorchecktr} $\monitorcheck{\scctmonitor_{0}}{\scctmonitor'}{\abstrace}$
+      \end{passumptions}
+
+      Rewrite \Cref{goal:scctfiltereq:irltoabs}, exploiting distributivity of the filter:\MK{lemma?}
+      \begin{goals}
+        \item\label[goal]{goal:scctfiltereq:irltoabsev} $\traceagree{\tospecificevi[^{*}_{\delta_{scct}}]{\event[_{b}];\sandboxtag}}{\absevent}$
+        \item\label[goal]{goal:scctfiltereq:irltoabstr} $\traceagree{\tospecificevi[^{*}_{\delta_{scct}}]{\trace}}{\abstrace'}$
+      \end{goals}
+      We are ready to solve \Cref{goal:scctfiltereq:irltoabstr} with \Cref{asm:scctfiltereq:indu:hyp} using \Cref{asm:scctfiltereq:indu:traceeq,asm:scctfiltereq:objtoabstr,asm:scctfiltereq:indu:monitorchecktr}.
+
+      For \Cref{goal:scctfiltereq:irltoabsev}, perform case analysis on \Cref{asm:scctfiltereq:indu:eventeq}.
+      We leave cases with $\irl{\sandboxtag}=\irl{\ctx}$ out, they are easy by \Cref{tr:i-scct-filter-context}, noting that by inverting \Cref{asm:scctfiltereq:objtoabsev} would give us $\absevent=\bm{\varepsilon}$, which then allows us to apply \Cref{tr:scct-none-auth}.
       So, in the following, let $\irl{\sandboxtag}=\irl{\comp}$ and $\obj{\sandboxtag}=\obj{\comp}$.
+
+
+      {\large\color{green} up to here all is good. do the case analysis now}
 
       \begin{description}
         \case{tr:scct-start-event-eq}

@@ -7360,8 +7360,13 @@ Final results are tagged with the respected taint and the semantics keeps track 
     %
     \typerule{i-scct-filter-abort}{
     }{
-      \tospecificevi[_{\delta_{\sCCT}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+      \tospecificevi[_{\delta_{\sCCT}}]{\lightning;\sandboxtag} = \specificev{\lightning;\unlock}
     }{i-scct-filter-abort}
+    %
+    \typerule{i-scct-filter-emptyevent}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\emptyevent} = \specificev{\emptyevent}
+    }{i-scct-filter-emptyevent}
     %
     \judgbox{\tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace}{,,Project an $\mmlAo$ trace to specification traces.''}
     %
@@ -7473,6 +7478,11 @@ Final results are tagged with the respected taint and the semantics keeps track 
     }{
       \tospecificevo[_{\delta_{\sCCT}}]{\lightning;\sandboxtag;\sigma} = \specificev{\lightning;\sigma}
     }{o-scct-filter-abort}
+    %
+    \typerule{o-scct-filter-emptyevent}{
+    }{
+      \tospecificevo[_{\delta_{\sCCT}}]{\emptyevent} = \specificev{\emptyevent}
+    }{o-scct-filter-emptyevent}
     %
     \judgbox{\tospecificevo[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace}{,,Project an $\mmlAo$ trace to specification traces.''}
     %
@@ -7601,7 +7611,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \xlangeventeqc{\emptyevent}{Binop\ n_1\ n_2}
     }{scct-binop-event-eq-leak}
     %
-    \typerule{scct-binop-event-eq-leak}{
+    \typerule{scct-branch-event-eq-leak}{
     }{
       \xlangeventeqc{\emptyevent}{Branch\ n}
     }{scct-branch-event-eq-leak}
@@ -7943,34 +7953,121 @@ Final results are tagged with the respected taint and the semantics keeps track 
       We leave cases with $\irl{\sandboxtag}=\irl{\ctx}$ out, they are easy by \Cref{tr:i-scct-filter-context}, noting that by inverting \Cref{asm:scctfiltereq:objtoabsev} would give us $\absevent=\bm{\varepsilon}$, which then allows us to apply \Cref{tr:scct-none-auth}.
       So, in the following, let $\irl{\sandboxtag}=\irl{\comp}$ and $\obj{\sandboxtag}=\obj{\comp}$.
 
-
-      {\large\color{green} up to here all is good. do the case analysis now}
-
       \begin{description}
         \case{tr:scct-start-event-eq}
-          Easy from \Cref{tr:o-scct-filter-comp-start,tr:i-scct-filter-comp-start}.
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.
+          Note \Cref{tr:i-scct-filter-comp-start}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
 
         \case{tr:scct-end-event-eq}
-          Easy from \Cref{tr:o-scct-filter-comp-end,tr:i-scct-filter-comp-end}.
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.
+          Note \Cref{tr:i-scct-filter-comp-end}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
 
         \case{tr:scct-alloc-event-eq}
-          Invert \Cref{asm:scctfiltereq:indu:eventeq} to get:
-          \begin{passumptions}{F}
-            \item $\delta(\irl{\loc})=\obj{\loc}$
-            \item $\mmlAtmsmmlAtscctcomp{n}=\obj{n}$
-          \end{passumptions}
-          With that, the goal follows from \Cref{tr:o-scct-filter-comp-alloc,tr:i-scct-filter-comp-alloc} using \Cref{asm:scctfiltereq:indu:delta}.
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{Any;\unlock}$.
+          Note \Cref{tr:i-scct-filter-comp-alloc}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-alloc-auth}.
 
         \case{tr:scct-dealloc-event-eq}
-          Invert \Cref{asm:scctfiltereq:indu:eventeq} to get:
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{Any;\unlock}$.
+          Note \Cref{tr:i-scct-filter-comp-dealloc}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-dealloc-auth}.
+
+        \case{tr:scct-get-event-eq-noleak}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.
+          Note \Cref{tr:i-scct-filter-comp-get-noleak}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
+
+        \case{tr:scct-set-event-eq-noleak}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.
+          Note \Cref{tr:i-scct-filter-comp-set-noleak}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
+
+        \case{tr:scct-get-event-eq-leak}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
           \begin{passumptions}{F}
-            \item $\delta(\irl{\loc})=\obj{\loc}$
+%            \item $\delta_{scct}(\delta^{-1}(\obj{\loc}))=\specificev{\loc}$
+%            \item $\obj{n} = \specificev{n}$
+            \item $\specificev{\sigma}=\bm{\sigma}$
+            \item $\absevent=\bm{Any};\bm{\sigma}$.
           \end{passumptions}
-          With that, the goal follows from \Cref{tr:o-scct-filter-comp-dealloc,tr:i-scct-filter-comp-dealloc} using \Cref{asm:scctfiltereq:indu:delta}.
+          Case analysis on $\bm{\sigma}$.
+          \begin{description}
+            \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
+                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
+
+            \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
+              Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
+          \end{description}
+
+        \case{tr:scct-set-event-eq-leak}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
+          \begin{passumptions}{F}
+%            \item $\delta_{scct}(\delta^{-1}(\obj{\loc}))=\specificev{\loc}$
+%            \item $\obj{n} = \specificev{n}$
+            \item $\specificev{\sigma}=\bm{\sigma}$
+            \item $\absevent=\bm{Any};\bm{\sigma}$.
+          \end{passumptions}
+          Case analysis on $\bm{\sigma}$.
+          \begin{description}
+            \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
+                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
+
+            \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
+              Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
+          \end{description}
+
+        \case{tr:scct-call-event-eq}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.
+          Note \Cref{tr:i-scct-filter-comp-call}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
+
+        \case{tr:scct-ret-event-eq}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.
+          Note \Cref{tr:i-scct-filter-comp-ret}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
+
+        \case{tr:scct-emptyevent-event-eq}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.
+          Note \Cref{tr:i-scct-filter-emptyevent}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
+
+        \case{tr:scct-abort-event-eq}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
+          \begin{passumptions}{F}
+            \item $\specificev{\sigma}=\bm{\sigma}$
+            \item $\absevent=\bm{\lightning};\bm{\sigma}$.
+          \end{passumptions}
+          Case analysis on $\bm{\sigma}$.
+          \begin{description}
+            \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
+              Note \Cref{tr:i-scct-filter-abort}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-abort-auth}.
+
+            \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
+              Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
+          \end{description}
 
         \case{tr:scct-binop-event-eq-leak}
-              {\color{green}\huge this breaks}\MK{fix could be to assume the trace is well-formed, i.e. safe with respect to monitor}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
+          \begin{passumptions}{F}
+            \item $\specificev{\sigma}=\bm{\sigma}$
+            \item $\absevent=\bm{\lightning};\bm{\sigma}$.
+          \end{passumptions}
+          Case analysis on $\bm{\sigma}$.
+          \begin{description}
+            \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
+                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
 
+            \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
+              Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
+          \end{description}
+
+        \case{tr:scct-branch-event-eq-leak}
+          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
+          \begin{passumptions}{F}
+            \item $\specificev{\sigma}=\bm{\sigma}$
+            \item $\absevent=\bm{\lightning};\bm{\sigma}$.
+          \end{passumptions}
+          Case analysis on $\bm{\sigma}$.
+          \begin{description}
+            \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
+                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
+
+            \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
+              Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
+          \end{description}
       \end{description}
   \end{description}
 \end{proof}

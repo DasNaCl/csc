@@ -7181,6 +7181,11 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \tospecificevo[_{\delta_{MS}}]{Start;\comp;\sigma} = \specificev{\emptyevent}
     }{o-filter-comp-start}
     %
+    \typerule{o-filter-comp-end}{
+    }{
+      \tospecificevo[_{\delta_{MS}}]{End\ \valueexpr;\comp;\sigma} = \specificev{\emptyevent}
+    }{o-filter-comp-end}
+    %
     \typerule{o-filter-comp-alloc}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
@@ -7273,6 +7278,117 @@ Final results are tagged with the respected taint and the semantics keeps track 
 
 \myfig{
   \begin{center}
+    \judgbox{\delta_{\sCCT}(\irl{\loc})=\specificev{\loc}}{,,A map from $\mmlAtms$ memory locations $\irl{\loc}$ to specification locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevi[_{\delta_{\sCCT}}]{\event} = \scctevent}{,,Project an $\mmlAtms$ event to specification events.''}
+    %
+    \typerule{i-scct-filter-context}{
+      \irl{\event_b} \not= \irl{\lightning}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{i-scct-filter-context}
+    %
+    \typerule{i-scct-filter-comp-start}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Start;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-start}
+    %
+    \typerule{i-scct-filter-comp-end}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{End\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-end}
+    %
+    \typerule{i-scct-filter-comp-alloc}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n;\unlock}
+    }{i-scct-filter-comp-alloc}
+    %
+    \typerule{i-scct-filter-comp-dealloc}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc;\unlock}
+    }{i-scct-filter-comp-dealloc}
+    %
+    \typerule{i-scct-filter-comp-get-noleak}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\widehat{Get}\ \loc\ n;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-get-noleak}
+    %
+    \typerule{i-scct-filter-comp-set-noleak}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-set-noleak}
+    %
+    \typerule{i-scct-filter-comp-get-leak}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+    }{i-scct-filter-comp-get-leak}
+    %
+    \typerule{i-scct-filter-comp-set-leak}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+    }{i-scct-filter-comp-set-leak}
+    %
+    \typerule{i-scct-filter-comp-call}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Call\ \comm\ foo\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-call}
+    %
+    \typerule{i-scct-filter-comp-ret}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Ret\ \comm\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-ret}
+    %
+    \typerule{i-scct-filter-comp-binop}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Binop\ n_1\ n_2;\comp} = \specificev{Binop\ n_1\ n_2}
+    }{i-scct-filter-comp-binop}
+    %
+    \typerule{i-scct-filter-comp-branch}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Branch\ n;\comp} = \specificev{Branch\ n}
+    }{i-scct-filter-comp-branch}
+    %
+    \typerule{i-scct-filter-abort}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+    }{i-scct-filter-abort}
+    %
+    \judgbox{\tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace}{,,Project an $\mmlAo$ trace to specification traces.''}
+    %
+    \typerule{i-scct-filter-empty}{
+    }{
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{i-scct-filter-empty}
+    %
+    \typerule{i-scct-filter-cons-relevant}{
+      \tospecificevi[_{\delta_{\sCCT}}]{\event} = \specificev{\event} &
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace &
+      \specificev{\event} \not= \specificev{\emptyevent}
+    }{
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \specificev{\event}\cdot\sccttrace
+    }{i-scct-filter-cons-relevant}
+    %
+    \typerule{i-scct-filter-cons-relevant}{
+      \tospecificevi[_{\delta_{\sCCT}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace
+    }{
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \sccttrace
+    }{i-scct-filter-cons}
+  \end{center}
+}{wi-scct-events-project-to-specific}{Projection of $\mmlAtms$ events to specification events.}
+
+\myfig{
+  \begin{center}
     \judgbox{\delta_{\sCCT}(\obj{\loc})=\specificev{\loc}}{,,A map from $\mmlAo$ memory locations $\obj{\loc}$ to specification locations $\specificev{\loc}$.''}
     \judgbox{\tospecificevo[_{\delta_{\sCCT}}]{\event} = \scctevent}{,,Project an $\mmlAo$ event to specification events.''}
     %
@@ -7286,6 +7402,11 @@ Final results are tagged with the respected taint and the semantics keeps track 
     }{
       \tospecificevo[_{\delta_{\sCCT}}]{Start;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-start}
+    %
+    \typerule{o-scct-filter-comp-end}{
+    }{
+      \tospecificevo[_{\delta_{\sCCT}}]{End\ \valueexpr;\comp;\sigma} = \specificev{\emptyevent}
+    }{o-scct-filter-comp-end}
     %
     \typerule{o-scct-filter-comp-alloc}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
@@ -7753,9 +7874,72 @@ Final results are tagged with the respected taint and the semantics keeps track 
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on \Cref{asm:msfiltereq:eq}.
+  Induction on \Cref{asm:scctfiltereq:eq}.
 
-  {\color{green}\large TODO}
+  \begin{description}
+    \case{tr:scct-empty-trace-eq}
+      By \Cref{tr:i-scct-filter-empty} we know $\tospecificevi[_{\delta_{scct}}]{\hole{\cdot}}=\specificev{\hole{\cdot}}$ and similarily \Cref{tr:o-scct-filter-empty} we know $\tospecificevo[_{\delta_{scct}\circ\delta^{-1}}]{\hole{\cdot}}=\specificev{\hole{\cdot}}$, which shows the needed equality.
+
+    \case{tr:scct-cons-trace-eq}
+
+      For readability, we repeat the proof context:
+      If
+      \begin{passumptions}{H}
+        \item\label[ass]{asm:scctfiltereq:indu:delta} $\forall\irl{\loc}\ \obj{\loc},\delta(\irl{\loc})=\obj{\loc}\implies \delta_{scct}(\irl{\loc})=\delta_{scct}(\delta^{-1}(\obj{\loc}))$
+        \item\label[ass]{asm:scctfiltereq:indu:eq} $\xlangtraceeqc[\delta]{\trace}{\trace}$
+        \item $\irl{\sandboxtag}=\obj{\sandboxtag}$
+        \item\label[ass]{asm:scctfiltereq:indu:eventeq} $\xlangeventeqc{\event[_{b}]}{\event[_{b}]}$
+      \end{passumptions}
+      and
+      \begin{passumptions}{\IH}
+        \item\label[ass]{asm:scctfiltereq:indu:hyp} $\tospecificevi[^{*}_{\delta_{scct}}]{\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}$
+      \end{passumptions}
+      Then
+      \begin{goals}
+        \item $\tospecificevi[^{*}_{\delta_{scct}}]{\event[_{b}];\sandboxtag\cdot\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event[_{b}];\sandboxtag;\sigma\cdot\trace}$
+      \end{goals}
+
+      By distributivity\MK{technically, this needs a lemma that says $\theta(\irl{\event\cdot\trace})=\theta(\irl{\event})\cdot\theta(\irl{\trace})$} and transitivity, we split the goal:
+
+      \begin{goals}
+        \item\label[goal]{goal:scct:filtereq:eventeq} $\tospecificevi[^{*}_{\delta_{scct}}]{\event[_{b}];\sandboxtag}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\event[_{b}];\sandboxtag;\sigma}$
+        \item\label[goal]{goal:scct:filtereq:traceeq} $\tospecificevi[^{*}_{\delta_{scct}}]{\trace}=\tospecificevo[^{*}_{\delta_{scct}\circ\delta^{-1}}]{\trace}$
+      \end{goals}
+
+      Obviously, \Cref{asm:scctfiltereq:indu:hyp} solves \Cref{goal:scct:filtereq:traceeq}.
+
+      \noindent
+      For \Cref{goal:scct:filtereq:eventeq}, perform case analysis on \Cref{asm:scctfiltereq:indu:eventeq}.
+      We leave cases with $\irl{\sandboxtag}=\irl{\ctx}$ out, they are easy by \Cref{tr:o-scct-filter-context,tr:i-scct-filter-context}.
+      So, in the following, let $\irl{\sandboxtag}=\irl{\comp}$ and $\obj{\sandboxtag}=\obj{\comp}$.
+
+      \begin{description}
+        \case{tr:scct-start-event-eq}
+          Easy from \Cref{tr:o-scct-filter-comp-start,tr:i-scct-filter-comp-start}.
+
+        \case{tr:scct-end-event-eq}
+          Easy from \Cref{tr:o-scct-filter-comp-end,tr:i-scct-filter-comp-end}.
+
+        \case{tr:scct-alloc-event-eq}
+          Invert \Cref{asm:scctfiltereq:indu:eventeq} to get:
+          \begin{passumptions}{F}
+            \item $\delta(\irl{\loc})=\obj{\loc}$
+            \item $\mmlAtmsmmlAtscctcomp{n}=\obj{n}$
+          \end{passumptions}
+          With that, the goal follows from \Cref{tr:o-scct-filter-comp-alloc,tr:i-scct-filter-comp-alloc} using \Cref{asm:scctfiltereq:indu:delta}.
+
+        \case{tr:scct-dealloc-event-eq}
+          Invert \Cref{asm:scctfiltereq:indu:eventeq} to get:
+          \begin{passumptions}{F}
+            \item $\delta(\irl{\loc})=\obj{\loc}$
+          \end{passumptions}
+          With that, the goal follows from \Cref{tr:o-scct-filter-comp-dealloc,tr:i-scct-filter-comp-dealloc} using \Cref{asm:scctfiltereq:indu:delta}.
+
+        \case{tr:scct-binop-event-eq-leak}
+              {\color{green}\huge this breaks}\MK{fix could be to assume the trace is well-formed, i.e. safe with respect to monitor}
+
+      \end{description}
+  \end{description}
 \end{proof}
 
 

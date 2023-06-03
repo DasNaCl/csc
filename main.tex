@@ -1058,28 +1058,29 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     \judgbox{\sccttraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
     \judgbox{\sccttraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
-    \typerule{\sCCT-Alloc-Authentic}{
-      \specificev{\sigma}=\bm{\sigma}
+    \typerule{\sCCT-Public-Authentic}{
     }{
-      \sccttraceagree{\specificev{Alloc\ \loc\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
+      \sccttraceagree{\msevent[_b];\specificev{\unlock}}{\bm{\varepsilon}}
+    }{scct-public-auth}
+    %
+    \typerule{\sCCT-Alloc-Authentic}{
+    }{
+      \sccttraceagree{\specificev{Alloc\ \loc\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-alloc-auth}
     %
     \typerule{\sCCT-Dealloc-Authentic}{
-      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Dealloc\ \loc};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
+      \sccttraceagree{\specificev{Dealloc\ \loc};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-dealloc-auth}
     %
     \typerule{\sCCT-Use-Authentic}{
-      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Use\ \loc\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
+      \sccttraceagree{\specificev{Use\ \loc\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-use-auth}
     %
     \typerule{\sCCT-Abort-Authentic}{
-      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{\lightning};\specificev{\sigma}}{\bm{\lightning};\bm{\sigma}}
+      \sccttraceagree{\specificev{\lightning};\specificev{\lock}}{\bm{\lightning};\bm{\lock}}
     }{scct-abort-auth}
     %
     \typerule{\sCCT-None-Authentic}{
@@ -1088,15 +1089,13 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     }{scct-none-auth}
     %
     \typerule{\sCCT-Branch-Authentic}{
-      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Branch\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
+      \sccttraceagree{\specificev{Branch\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-branch-auth}
     %
     \typerule{\sCCT-Binop-Authentic}{
-      \specificev{\sigma}=\bm{\sigma}
     }{
-      \sccttraceagree{\specificev{Binop\ n};\specificev{\sigma}}{\textbf{Any};\bm{\sigma}}
+      \sccttraceagree{\specificev{Binop\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-binop-auth}
     %
     \typerule{\sCCT-Refl-Authentic}{
@@ -7979,34 +7978,28 @@ Final results are tagged with the respected taint and the semantics keeps track 
           Note \Cref{tr:i-scct-filter-comp-set-noleak}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
 
         \case{tr:scct-get-event-eq-leak}
-          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
-          \begin{passumptions}{F}
-%            \item $\delta_{scct}(\delta^{-1}(\obj{\loc}))=\specificev{\loc}$
-%            \item $\obj{n} = \specificev{n}$
-            \item $\specificev{\sigma}=\bm{\sigma}$
-            \item $\absevent=\bm{Any};\bm{\sigma}$.
-          \end{passumptions}
           Case analysis on $\bm{\sigma}$.
           \begin{description}
             \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
-                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
+              Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
+              \begin{passumptions}{F}
+                \item $\absevent=\bm{\varepsilon}$.
+              \end{passumptions}
+              Note \Cref{tr:i-scct-filter-comp-get-noleak}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
 
             \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
               Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
           \end{description}
 
         \case{tr:scct-set-event-eq-leak}
-          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
-          \begin{passumptions}{F}
-%            \item $\delta_{scct}(\delta^{-1}(\obj{\loc}))=\specificev{\loc}$
-%            \item $\obj{n} = \specificev{n}$
-            \item $\specificev{\sigma}=\bm{\sigma}$
-            \item $\absevent=\bm{Any};\bm{\sigma}$.
-          \end{passumptions}
           Case analysis on $\bm{\sigma}$.
           \begin{description}
             \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
-                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
+              Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
+              \begin{passumptions}{F}
+                \item $\absevent=\bm{\varepsilon}$.
+              \end{passumptions}
+              Note \Cref{tr:i-scct-filter-comp-set-noleak}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
 
             \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
               Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
@@ -8040,30 +8033,15 @@ Final results are tagged with the respected taint and the semantics keeps track 
           \end{description}
 
         \case{tr:scct-binop-event-eq-leak}
-          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
-          \begin{passumptions}{F}
-            \item $\specificev{\sigma}=\bm{\sigma}$
-            \item $\absevent=\bm{\lightning};\bm{\sigma}$.
-          \end{passumptions}
-          Case analysis on $\bm{\sigma}$.
-          \begin{description}
-            \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
-                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
-
-            \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
-              Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.
-          \end{description}
-
         \case{tr:scct-branch-event-eq-leak}
-          Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
-          \begin{passumptions}{F}
-            \item $\specificev{\sigma}=\bm{\sigma}$
-            \item $\absevent=\bm{\lightning};\bm{\sigma}$.
-          \end{passumptions}
           Case analysis on $\bm{\sigma}$.
           \begin{description}
             \item \textbf{Case }$\bm{\sigma}=\unlock$\textbf{:}
-                {\color{green}\large what do we do here? make specificev of Use with the unlock go to epsilon? -> would be ok, we don't care about public stuff anyways!}
+              Invert \Cref{asm:scctfiltereq:objtoabsev} to get:
+              \begin{passumptions}{F}
+                \item $\absevent=\bm{\varepsilon}$.
+              \end{passumptions}
+              Note \Cref{tr:i-scct-filter-emptyevent}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-none-auth}.
 
             \item \textbf{Case }$\bm{\sigma}=\lock$\textbf{:}
               Inverting \Cref{asm:scctfiltereq:indu:monitorcheckev} immediately gives us a contradiction, because there is no matching rule that steps on \lock.

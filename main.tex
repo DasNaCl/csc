@@ -8611,6 +8611,57 @@ Final results are tagged with the respected taint and the semantics keeps track 
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  Inverting \Cref{asm:scct:backtrans:correct:backtrans} gives:
+  \begin{passumptions}{H}
+    \item $\obj{\trace}=\obj{\trace[_{0}]\cdot\trace[_{comp}]\cdot\trace[_{1}]}$
+    \item $\obj{\trace[_{0}]}=\obj{Start\cdot\trace[_{0}']\cdot Call\ \ctxtocomp\ foo\ \valueexpr}$
+    \item $\obj{\trace[_{1}]}=\obj{Ret\ \comptoctx\ \valueexpr'\cdot\trace[_{1}]'\cdot End\ \valueexpr''}$
+    \item $\vdash\obj{\trace[_{comp}]}\operatorname{non-int-\obj{\trace}}$
+    \item\label[ass]{asm:scct:backtrans:subtop1} $\mmlAtmsmmlAtscctsubtop[]{\color{black}\tospecificevo[^{*}_{\obj{\bullet}}]{\trace[_{0}]}}=\irl{e_{0};e_{0}';e_{0}''}$
+    \item\label[ass]{asm:scct:backtrans:subtop2} $\mmlAtmsmmlAtscctsubtop[]{\color{black}\tospecificevo[^{*}_{\obj{\bullet}}]{\trace[_{1}]}}=\irl{e_{1};e_{1}';e_{1}''}$
+  \end{passumptions}
+  By definition of $\tospecificevo[_{\obj{\bullet}}]{\cdot}$\MK{lemma?}, we have:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{6}
+    \item $\tospecificevo[^{*}_{\obj{\bullet}}]{\trace[_{0}]}=\obj{Start\cdot Call\ \ctxtocomp\ foo\ \valueexpr}$
+    \item $\tospecificevo[^{*}_{\obj{\bullet}}]{\trace[_{1}]}=\obj{Ret\ \comptoctx\ \valueexpr'\cdot End\ \valueexpr''}$
+  \end{passumptions}
+  Invert \Cref{asm:scct:backtrans:subtop1,asm:scct:backtrans:subtop2}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{8}
+    \item\label[ass]{asm:scct:backtrans:subtop1:e0} $\mmlAtmsmmlAtscctcomptoctx[]{Start}=\irl{e_{0}}$
+    \item\label[ass]{asm:scct:backtrans:subtop1:e1} $\mmlAtmsmmlAtscctdetail[]{\hole{\cdot}}=\irl{e_{0}'}$
+    \item\label[ass]{asm:scct:backtrans:subtop1:e2} $\mmlAtmsmmlAtscctctxtocomp[]{Call\ \ctxtocomp\ foo\ \valueexpr}=\irl{e_{0}''}$
+    \item\label[ass]{asm:scct:backtrans:subtop2:e0} $\mmlAtmsmmlAtscctcomptoctx[]{Ret\ \comptoctx\ \valueexpr'}=\irl{e_{1}}$
+    \item\label[ass]{asm:scct:backtrans:subtop2:e1} $\mmlAtmsmmlAtscctdetail[]{\hole{\cdot}}=\irl{e_{1}'}$
+    \item\label[ass]{asm:scct:backtrans:subtop2:e2} $\mmlAtmsmmlAtscctctxtocomp[]{End\ \valueexpr''}=\irl{e_{1}''}$
+  \end{passumptions}
+  Invert \Cref{asm:scct:backtrans:subtop1:e0,asm:scct:backtrans:subtop1:e1,asm:scct:backtrans:subtop1:e2,asm:scct:backtrans:subtop2:e0,asm:scct:backtrans:subtop2:e1,asm:scct:backtrans:subtop2:e2}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{14}
+    \item\label[ass]{asm:scct:backtrans:subtop1:e0p} $\irl{e_{0}}=\irl{42}$
+    \item\label[ass]{asm:scct:backtrans:subtop1:e1p} $\irl{e_{0}'}=\irl{42}$
+    \item\label[ass]{asm:scct:backtrans:subtop1:e2p} $\irl{e_{0}''}=\irl{call\ foo }\mmlAtmsmmlAtscctv[]{\valueexpr}$
+    \item\label[ass]{asm:scct:backtrans:subtop2:e0p} $\irl{e_{1}}=\mmlAtmsmmlAtscctv[]{\valueexpr'}$
+    \item\label[ass]{asm:scct:backtrans:subtop2:e1p} $\irl{e_{1}'}=\irl{42}$
+    \item\label[ass]{asm:scct:backtrans:subtop2:e2p} $\irl{e_{1}''}=\mmlAtmsmmlAtscctv[]{\valueexpr''}$
+  \end{passumptions}
+  Let $\irl{\valueexpr}=\mmlAtmsmmlAtscctv[]{\valueexpr}$ and $\irl{\valueexpr'}=\mmlAtmsmmlAtscctv[]{\valueexpr'}$ and $\irl{\valueexpr''}=\mmlAtmsmmlAtscctv[]{\valueexpr''}$.
+
+  By \Cref{tr:tw-e-ectx-call-main}, we have\MK{apply BT corr of start}
+  \begin{passumptions}{H}
+    \setcounter{enumi}{20}
+    \item $\exec[]{\irl{\Omega}}{\irl{call\ main\ 0}}{\irl{foo,\hole{\cdot};\library;(main;\hole{\cdot}),\hole{\cdot};\comp;\memstate}}{\irl{42;42;call\ foo\ \valueexpr;v';42;\valueexpr''}}{\irl{Start}}$
+  \end{passumptions}
+  It's easy to see that this reduces further to:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{21}
+    \item $\execN[^{3}]{\irl{\Omega}}{\irl{42;42;call\ foo\ \valueexpr;v';42;\valueexpr''}}{\irl{foo},\irl{\hole{\cdot}};\irl{\library};(\irl{\hole{\cdot}};\irl{\valueexpr';42;\valueexpr''}),(\irl{main};\irl{\hole{\cdot}}),\irl{\hole{\cdot}};\irl{\comp};\irl{\memstate}}{\irl{e_{foo}}}{\irl{Call\ \ctxtocomp\ foo\ \valueexpr}}$
+  \end{passumptions}
+
+  Now by backward simulation
+
+  then the other BT correctness lemmas
 \end{incompleteproof}
 
 \begin{definition}[$\mmlAtms$ Robust Satisfaction]

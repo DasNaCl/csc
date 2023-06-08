@@ -34,9 +34,18 @@
 %%
 %%
 %% The first command in your LaTeX source must be the \documentclass command.
-\documentclass[acmsmall,review,screen]{acmart}
+\documentclass[acmsmall,review,screen,dvipsnames]{acmart}
 
+\usepackage[colorinlistoftodos]{todonotes}
+\usepackage{cleveref}
+\usepackage{glossaries}
 \usepackage{listings}
+\usepackage{xspace}
+
+\input{cmds.tex}
+
+\loadglsentries{acronyms}
+\makeglossaries
 
 %% NOTE that a single column version may be required for 
 %% submission and peer review. This can be done by changing
@@ -130,7 +139,7 @@
 %% "authornote" and "authornotemark" commands
 %% used to denote shared contribution to the research.
 \author{Matthis Kruse}
-\authornote{Both authors contributed equally to this research.}
+% \authornote{Both authors contributed equally to this research.}
 \email{matthis.kruse@cispa.de}
 \orcid{0000-0003-4062-9666}
 \affiliation{%
@@ -190,6 +199,13 @@
   We validate our meta-level findings by means of a case study that looks at three different robust safety preserving compilers.
 
   Lastly, parts of our results are verified in Coq.
+
+\begin{center}\small\it
+	{In the following, we use syntax highlighting accessible to both colourblind and black \& white readers~\citep{patrignani2020use}. Specifically, we use a $\src{\text{blue}}$,
+	$\src{sans\text{-}serif}$ font for $\src{L_{TMS}}$,
+	$\trg{bold}$ font for $\trg{L}$ and $\trg{L_{MS}}$, and $\obj{green}$ font for $\obj{L_{sCCT}}$.
+	}
+\end{center}
 \end{abstract}
 
 %%
@@ -212,21 +228,6 @@
 %% the work being presented. Separate the keywords with commas.
 \keywords{Memory-safety, Secure Compilation, Privacy}
 
-%% A "teaser" image appears between the author and affiliation
-%% information and the body of the document, and typically spans the
-%% page.
-%\begin{teaserfigure}
-%  \includegraphics[width=\textwidth]{sampleteaser}
-%  \caption{Seattle Mariners at Spring Training, 2010.}
-%  \Description{Enjoying the baseball game from the third-base
-%  seats. Ichiro Suzuki preparing to bat.}
-%  \label{fig:teaser}
-%\end{teaserfigure}
-
-%\received{20 February 2007}
-%\received[revised]{12 March 2009}
-%\received[accepted]{5 June 2009}
-
 %%
 %% This command processes the author and affiliation and title
 %% information and builds the first part of the formatted document.
@@ -234,24 +235,105 @@
 
 \section{Introduction}
 
-\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']
-if at <= bounds {
-  x[at] = 42;
+\gls{cct} code does not leak information through timing analyses.
+%However, it is possible to write \gls{cct} code in a more high-level language like FaCT~\cite{cauligi2019fact}.
+It is folklore that programmers prefer to write code in higher-level languages such as \verb|C|.
+But, high-level languages do not run on common hardware, so they need to be translated by a compiler.
+Due to their optimizing nature, compilers can break security properties, such as \gls{cct}, when performing this translation.
+An example of this exists in literature~\cite{barthe2018sec}:
+
+\begin{minipage}{0.49\textwidth}
+  \begin{lstlisting}[language=c,caption={Before Compilation},numbers=left]
+// x = (b ? x : y)
+int mask = -b;
+x = (y & mask) | (x & ~mask);
+  \end{lstlisting}
+\end{minipage}%
+\begin{minipage}{0.49\textwidth}
+  \begin{lstlisting}[language=c,caption={After Compilation},numbers=left]
+if(b) {
+  x = y;
 }
-\end{lstlisting}
-Note the subtle bug of using \verb|<=| instead of \verb|<|, leading to an out-of-bounds access whenever \verb|at = bounds|.
-Furthermore, when \verb|at| and \verb|bounds| are 64-bit integers on a 32-bit architecture, the comparison may not be performed in constant-time: The compiler may bail out as soon as the lower 32 bits are unequal, not bothering to compare the higher 32 bits.
+  \end{lstlisting}
+\end{minipage}
 
-\section{Compositionality}
+\noindent
+Here, the compiler recognizes the pattern in the bit hacks and rewrites them to code branching on \verb|b|, violating \gls{cct}.
+Because of this, typically, \gls{cct} code is written in assembly.
+Thanks to DSLs like FaCT~\cite{cauligi2019fact}, however, this is not necessary.
 
-\section{Robust MS Preservation}
+But, FaCT's compiler gives no guarantees with regards to robustness.
+That is, the code may not be \gls{cct} when linked with untrusted third-party libraries.
+%For example, a simple table lookup may be fetched from one of many cache layers.
+%The higher up layers lead to slower access times which is detectable from just observing the program's %execution time.
+%With that, an attacker can identify the entry in the table that we wanted to access.
+%A \gls{cct} table lookup has to go through all elements of that table in the same order.
+%
+Compilers giving such a guarantee are known to be robustly preserving~\cite{abate2019jour}.
+These \emph{secure compilers} give a strong formal guarantee for security, since an arbitrary target-level attacker has no chance of violating our property of interest, such as \gls{cct}.\MK{cite CCT compiler that is robustly preserving}
 
-\section{Robust MS+CCT Preservation}
+For code to be \gls{cct}, \gls{ms} is a prerequisite, since information is easily leaked in a memory-unsafe world by just reading out of bounds.
+The importance of \gls{ms} has given rise to lots of possible countermeasures.
+Particularily interesting for this paper are \emph{compiler-based} countermeasures like CETS~\cite{nagarakatte2010cets}, SoftBound~\cite{nagarakatte2009soft}, or MSWasm~\cite{michael2023mswasm}, which describes a \emph{robust enforcement} of \gls{ms}.
+Given \gls{cct} requires \gls{ms}, it is natural to combine compiler-based techniques to ensure both \gls{cct} and \gls{ms} hold.
+Unfortunately, the composition of secure compilers is unclear.
 
-\section{Related Work}
+This paper develops the theory of secure compiler compositions and introduces a secure compilation chain for a combination of \gls{ms} and \gls{cct}.
+We do this via 4 contributions:
+
+\contribution{\contribnum Composition of Properties (\Cref{sec:compprop})}
+We present a formal framework to reason about compositions of safety properties.
+First, we assume there is a most general trace semantics in which a property can be defined and that there is a monitor for that property.
+The monitor is defined on a restricted trace semantics without unneccessary information.
+The composition of trace properties is then modelled by the composition of monitors.
+The two-level approach, i.e., the two different trace semantics allow for a modular extension without touching any already existing definition.
+
+\contribution{\contribnum Composition of Secure Compilers (\Cref{sec:compcomp})}
+We introduce a formal framework for the composition of secure compilers.
+Composition of secure compilers allows for modular proof engineering, since our framework can be used even if the compilers robustly preserve different properties.
+A simple corollary of our main composition theorem is the fact that the composition of secure compilers with equal source and target programming lanugages can be freely swapped without compromising security.
+In turn, formal compiler engineers can optimize the compilation tool chain with regards to the phase ordering problem.
+
+\contribution{\contribnum Compiler Robustly Preserving \gls{ms} and \gls{cct} (\Cref{sec:casestud})}
+We introduce a case-study consisting of three secure compilers.
+To this end, we present the language $\src{L_{TMS}}$ which has a type system with linear constraints to enforce \gls{tms} statically.
+%We prove that any well-typed $\src{L_{TMS}}$ program is temporal memory safe.
+Then, we introduce $\trg{L}$, a language without a type system, and a compiler $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\trg{L}}$ from $\src{L_{TMS}}$ to $\trg{L}$ that robustly preserves \gls{tms}.
+To get full \gls{ms}, we define another compiler $\llbracket\trg{\bullet}\rrbracket^{\trg{L}\to\trg{L_{MS}}}$ which introduces bounds-checks and compose it with $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\trg{L}}$.
+Lastly, we define $\obj{L_{sCCT}}$, a language with access to a \emph{model specific register} to enable \gls{cct} execution, and a compiler $\llbracket\irl{\bullet}\rrbracket^{\trg{L_{MS}}\to\obj{L_{sCCT}}}$ which we compose with the other ones.
+Finally, this gives us a three-step compilation chain with both \gls{ms} and \gls{cct}.
 
 
-\section{Conclusion}
+\contribution{\contribnum Coq Formalisation}
+Parts of our results are formalized in the Coq proof assistant.
+We use the symbol \CoqSymbol to demonstrate the fact that a definition or a proof is done in Coq.
+Since our semantics and compiler definitions are extractable from Coq to Ocaml, we can run them.
+
+
+We now describe the other sections in the paper.
+\Cref{sec:background} establishes the notions of traces, (hyper-)properties, and robust preservation, while \Cref{sec:relwork} compares this work with others.
+We conclude in \Cref{sec:concl} and give an outlook for future work.
+
+\contribution{Open Source \& Technical Report} Our technical report and the Coq formalisation are
+available as supplementary material and will be made available upon acceptance of this paper.
+
+
+\section{Background}\label{sec:background}
+\section{Composing Properties}\label{sec:compprop}
+\section{Composing Robustly Secure Compilers}\label{sec:compcomp}
+\section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
+
+%\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']
+%if at <= bounds {
+%  x[at] = 42;
+%}
+%\end{lstlisting}
+%Note the subtle bug of using \verb|<=| instead of \verb|<|, leading to an out-of-bounds access whenever \verb|at = bounds|.
+%Furthermore, when \verb|at| and \verb|bounds| are 64-bit integers on a 32-bit architecture, the comparison may not be performed in constant-time: The compiler may bail out as soon as the lower 32 bits are unequal, not bothering to compare the higher 32 bits.
+
+
+\section{Related Work}\label{sec:relwork}
+\section{Conclusion}\label{sec:concl}
 
 
 %% The acknowledgments section is defined using the "acks" environment
@@ -259,14 +341,13 @@ Furthermore, when \verb|at| and \verb|bounds| are 64-bit integers on a 32-bit ar
 %% identification of the section in the article metadata, and the
 %% consistent spelling of the heading.
 \begin{acks}
-To Robert, for the bagels and explaining CMYK and color spaces.
 \end{acks}
 
 %%
 %% The next two lines define the bibliography style to be used, and
 %% the bibliography file.
 \bibliographystyle{ACM-Reference-Format}
-\bibliography{sample-base}
+\bibliography{main}
 
 %%
 %% If your work has an appendix, this is the place to put it.

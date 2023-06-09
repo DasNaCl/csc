@@ -214,13 +214,13 @@
 \hltt{Context}
 \hltt{Problem}
 
-\BrText{Overview}{This paper introduces a formal framework for secure compiler compositions and showcases the framework's power by instantiating it on a multi-level compilation chain.
+\BrText{Solution}{This paper introduces a formal framework for secure compiler compositions and showcases the framework's power by instantiating it on a multi-level compilation chain.
 To this end, we discuss security property compositions and define several secure compilers, where each is either robustly preserving a different security property of interest or optimizing, i.e., applying \gls{cf} or doing \gls{dce}.
 We compose these secure compilers into a multi-level compilation chain which is optimizing and robustly preserves a combination of \gls{ms} and \gls{cct}.
 Crucially, the robust preservation proofs are only done for the individual compilers in the compilation chain and the robust preservation for the whole chain is a result of one of our key theorems.
 The key results are formalized in Coq.}
 
-In summary, this paper makes the following contributions:
+\BrText{Validation}{In summary, this paper makes the following contributions:
 
 \begin{itemize}
   \item
@@ -244,7 +244,7 @@ In summary, this paper makes the following contributions:
         The formalization for the compilers are \emph{extractable}.
         That is, one can translate our Coq code to Ocaml and run them.
         Finally, in this paper, whenever definitions or proofs are done in Coq, we use the symbol \CoqSymbol.
-\end{itemize}
+\end{itemize}}
 
 We now describe the other sections of the paper.
 In \Cref{sec:background}, the paper establishes the notions of traces, (hyper-)properties, and robust preservation, while \Cref{sec:relwork} compares this work with others.
@@ -263,15 +263,19 @@ With property satisfaction, we re-introduce the concept of robust satisfaction a
 
 \section{Composing Properties}\label{sec:compprop}
 \section{Composing Robustly Secure Compilers}\label{sec:compcomp}
-This section presents three different kinds of secure compiler compositions and their corresponding proofs.
+This section studies different kinds of secure compiler compositions and their corresponding proofs.
+Most notably, it looks at the sequential composition of secure compilers and shows a theorem that allows for modular proof engineering: compilers need not to robustly preserve the same property in order to be securely composed.
+Moreover, it demonstrates that the order does not matter for composing compilers with the same source and target language.
 
 \section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
 This section defines several secure compilers, each of which robustly preserves a different property of interest.
 We demonstrate the power of our framework from \Cref{sec:compprop,sec:compcomp} by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
-Concretely, \Cref{subsec:cs:tms} describes robust preservation of \gls{tms}. % by compiling from a language with a strong, static type system to a language without any type system.
-\Cref{subsec:cs:ms} describes the robust preservation of \gls{sms} and, when composed with the compiler for \gls{tms}, \gls{ms}.
-\Cref{subsec:cs:scct} composes the compiler for \gls{ms} with another one that robustly preserves \gls{cct}.
-We attain our final compilation chain in \Cref{subsec:cs:opts}, which defines optimizing compilers performing either \gls{cf} or \gls{dce} and composes them with the ones from \Cref{subsec:cs:tms,subsec:cs:ms,subsec:cs:scct}.
+Concretely, \Cref{subsec:cs:tms} starts by defining languages $\src{L_{TMS}}$ and $\trg{L}$ and describes a compiler $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\trg{L}}$ for the robust preservation of \gls{tms} between the two languages.
+\Cref{subsec:cs:ms} defines $\irl{L_{MS}}$ and a compiler $\llbracket\trg{\bullet}\rrbracket^{\trg{L}\to\irl{L_{MS}}}$ that robustly preserves \gls{sms}.
+By the framework presented in \Cref{sec:compcomp,sec:compprop}, we attain a compiler $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\irl{L_{MS}}}$ for the robust preservation of \gls{ms} by composing $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\trg{L}}$ and $\llbracket\trg{\bullet}\rrbracket^{\trg{L}\to\irl{L_{MS}}}$.
+\Cref{subsec:cs:scct} defines $\obj{L_{CCT}}$ and a compiler $\llbracket\irl{\bullet}\rrbracket^{\irl{L_{MS}}\to\obj{L_{CCT}}}$ that robustly preserves \gls{cct}.
+Composing it with $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\irl{L_{MS}}}$ yields $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\obj{L_{CCT}}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
+We attain our final compilation chain in \Cref{subsec:cs:opts}, which defines optimizing compilers performing either \gls{cf} or \gls{dce} and composes them with $\llbracket\src{\bullet}\rrbracket^{\src{L_{TMS}}\to\obj{L_{CCT}}}$, giving us an optimizing, secure compilation chain.
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}

@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 
-Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List.
+Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Coq.Program.Equality.
 Require Import CSC.Sets CSC.Util CSC.Fresh.
 
 (* This file defines the overlapping mechanics of our programming languages *)
@@ -102,6 +102,18 @@ Inductive expr : Type :=
 Coercion Xres : ferr >-> expr.
 #[global]
 Instance expr__Instance : ExprClass expr := {}.
+
+Definition is_stuck : expr -> Prop := fun _ => False. (* TODO: actually do the check *)
+Inductive is_val : expr -> Prop :=
+| Cfres : forall e f, e = Xres(Fres(Fval(Vnat f))) -> is_val e
+.
+Lemma expr_val_dec e :
+  { is_val e } + { ~is_val e }.
+Proof.
+  induction e.
+  1: destruct f. destruct f. destruct v. left; eauto using Cfres.
+  all: right; intros H; inv H; inv H0.
+Qed.
 
 Fixpoint string_of_expr (e : expr) :=
   match e with
@@ -507,6 +519,7 @@ Definition string_of_event (e : event) :=
                           (String.append " "%string x))
   end
 .
+Definition tracepref := list event.
 (** A runtime program is a state plus an expression. *)
 Definition rtexpr : Type := (option state) * expr.
 #[global]
@@ -768,3 +781,383 @@ Inductive estep : CtxStep :=
 Existing Instance estep.
 #[global]
 Hint Constructors estep : core.
+
+Lemma estep_is_nodupinv_invariant Ω e Ω' e' a :
+  Ω ▷ e ==[, a ]==> Ω' ▷ e' ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof.
+  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
+  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy;
+  induction 1; try (inv H; inv H0; easy);
+  inv H; inv H0; intros H0; apply pstep_is_nodupinv_invariant in H4; eauto.
+Qed.
+Local Set Warnings "-cast-in-pattern".
+Ltac crush_estep := (match goal with
+                     | [H: _ ▷ (Xres ?f) ==[ ?a ]==> ?r |- _] =>
+                       inv H
+                     | [H: _ ▷ (Xres ?f) ==[]==> ?r |- _] =>
+                       inv H
+                     | [H: _ ▷ (Xres ?f) ==[, ?a ]==> ?r |- _] =>
+                       inv H
+                     end);
+  (repeat match goal with
+   | [H: insert ?E (Xreturn (Xres(Fres ?f0))) = Xres ?f |- _] => induction E; try congruence; inv H
+   | [H: insert ?E (Xcall ?foo (Xres(Fres ?f0))) = Xres ?f |- _] => induction E; try congruence; inv H
+   | [H: Xres ?f = insert ?K ?e |- _] =>
+     induction K; cbn in H; try congruence; inv H
+   | [H: _ ▷ (Xres ?f) --[]--> ?r |- _] =>
+     inv H
+   | [H: _ ▷ (Xres ?f) --[, ?a ]--> ?r |- _] =>
+     inv H
+   | [H: _ ▷ (Xres ?f) --[ ?a ]--> ?r |- _] =>
+     inv H
+   end)
+.
+Ltac unfold_estep := (match goal with
+                      | [H: _ ▷ _ ==[ _ ]==> _ ▷ _ |- _ ] => inv H
+                      end);
+  (match goal with
+   | [H: _ = insert ?K _ |- _] =>
+     induction K; cbn in H; try congruence; inv H
+   end).
+
+Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
+  None
+  (*
+  let '(oΩ, e) := r in
+  let* Ω := oΩ in
+  let* (K, e0) := evalctx_of_expr e in
+  match e0 with
+  | Xcall foo (Xres(Fres f)) =>
+    let '(F, (Ξ, ξ, Ks'), q, doit, (H__ctx, H__comp, Δ)) := Ω in
+    match mget Ξ foo with
+    | None => None
+    | Some (argx, τ__arg, e__foo) =>
+      match Ks' with
+      | List.nil =>
+        if vareq foo "main"%string then
+          Some(Some Sstart, s(F ; cf(Ξ ; ξ ; (Khole, "main"%string, Qctxtocomp) :: List.nil) ; q ; doit ; m(H__ctx ; H__comp ; Δ)) ▷ (Xreturn (subst argx e__foo 0)))
+        else
+          None
+      | (K__bar, bar) :: Ks =>
+        match ρ__call ξ foo bar f with
+        | (a, q') =>
+          Some(a, s(F ; cf(Ξ ; ξ ; ((K, foo, q') :: (K__bar, bar, q) :: Ks)) ; q ; doit ; m(H__ctx ; H__comp ; Δ)) ▷ (Xreturn (subst argx e__foo f)))
+        end
+      end
+    end
+  | Xreturn(Xres(Fres f)) =>
+    let '(F, (Ξ, ξ, Ks'), q, doit, (H__ctx, H__comp, Δ)) := Ω in
+    match Ks' with
+    | nil => None
+    | (Khole, "main"%string, Qctxtocomp) :: List.nil =>
+      match f with
+      | Fval(v) => Some(Some(Send v), s(F ; cf(Ξ ; ξ ; List.nil) ; q ; doit ; m(H__ctx ; H__comp ; Δ)) ▷ f)
+      | _ => None
+      end
+    | (K__foo, _foo) :: Ks =>
+      let a := ρ__ret q f in
+      Some(a, s(F ; cf(Ξ ; ξ ; Ks) ; q ; doit ; m(H__ctx ; H__comp ; Δ)) ▷ insert K__foo f)
+    end
+  | _ =>
+    let* _ := pstep_compatible e0 in
+    let* (a, (oΩ, e0')) := pstepf (Ω ▷ e0) in
+    match oΩ with
+    | None => Some(Some(Scrash), ↯ ▷ stuck)
+    | Some Ω' => Some(a, Ω' ▷ insert K e0')
+    end
+  end*)
+.
+
+Ltac crush_insert :=
+  match goal with
+  | [H: insert ?K ?e = ?f |- _] => symmetry in H
+  | _ => trivial
+  end;
+  (match goal with
+   | [H: ?f = insert ?K ?e |- _] =>
+     let H' := fresh "H" in
+     assert (H':=H); generalize dependent e; induction K; intros; cbn in H; try congruence; inv H
+   end)
+.
+#[local]
+Ltac crush_grab_ectx :=
+      (repeat match goal with
+      | [H: Some(Xres ?f) = pestep_compatible(Xres ?f) |- _] => inv H
+      | [H: Some(?e) = pestep_compatible ?e |- _] => cbn in H
+      | [H: Some(_) = match ?e with
+                      | Xres _ => _
+                      | _ => _
+                      end |- _] => grab_value e
+      | [H: Some _ = None |- _] => inv H
+      end; try now cbn;
+      match goal with
+      | [v : value |- _] => destruct v
+      | [ |- _ ] => trivial
+      end;
+      cbn; repeat match goal with
+           | [H1: _ = insert _ _ |- _] => cbn in H1
+           | [H: Some ?e0 = pestep_compatible ?e0 |- match insert ?K ?e0 with
+                                                   | Xres _ => _
+                                                   | _ => _
+                                                   end = _] => let ek := fresh "ek" in
+                                                              let H2 := fresh "H2" in
+                                                              remember (insert K e0) as ek;
+                                                              destruct (expr_val_dec ek) as [H2|H2];
+                                                              try (inv H2; crush_insert; match goal with
+                                                              | [H: Some ?f = pestep_compatible ?f, f: nat |- _] => inv H
+                                                              end)
+           | [H: Some(?e0) = pestep_compatible ?e0,
+             H1: _ = insert _ _ |- _] => cbn in H
+           end;
+      match goal with
+      | [K: evalctx, e0: expr, ek: expr,
+         H: Some ?e0 = pestep_compatible ?e0,
+         Heqek: ?ek = insert ?K ?e0,
+         IHe: (forall (K' : evalctx) (e0' : expr), Some e0' = pestep_compatible e0' ->
+                                              ?ek = insert K' e0' ->
+                                              evalctx_of_expr ?ek = Some(K', e0'))
+         |- _] =>
+         specialize (IHe K e0 H Heqek) as ->
+      end;
+      repeat match goal with
+      | [H: ~ is_val ?ek |- match ?ek with
+                           | Xres _ => _
+                           | _ => _
+                           end = _] => destruct ek; trivial
+      | [H: ~ is_val (Xres ?f) |- match ?f with
+                          | Fres _ => _
+                          | _ => _
+                          end = _] => destruct f; trivial
+      | [H: ~ is_val (Xres(Fres ?f)) |- match ?f with
+                          | Fval _ => _
+                          | _ => _
+                          end = _] => destruct f; trivial
+      | [H: ~ is_val (Xres(Fres(Fval ?v))) |- _ ] => destruct v; destruct H; eauto using Cfres
+      end).
+Lemma grab_ectx e K e0 :
+  Some e0 = pestep_compatible e0 ->
+  e = insert K e0 ->
+  evalctx_of_expr e = Some(K, e0)
+.
+Proof.
+  revert K e0; induction e; intros; crush_insert; crush_grab_ectx.
+  cbn. remember (insert K e0) as ek.
+  destruct (expr_val_dec ek) as [H2|H2];
+  try (inv H2; crush_insert; inv H).
+  specialize (IHe1 K e0 H Heqek) as ->.
+  destruct ek; trivial. destruct f; trivial.
+  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
+
+  cbn; remember (insert K e0) as ek.
+  destruct (expr_val_dec ek) as [H2|H2];
+  try (inv H2; crush_insert; inv H).
+  specialize (IHe K e0 H Heqek) as ->;
+  destruct ek; trivial.
+  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
+
+  cbn; remember (insert K e0) as ek.
+  destruct (expr_val_dec ek) as [H2|H2];
+  try (inv H2; crush_insert; inv H).
+  specialize (IHe K e0 H Heqek) as ->;
+  destruct ek; trivial.
+  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
+Qed.
+
+Lemma easy_ectx e0 :
+  Some e0 = pestep_compatible e0 ->
+  evalctx_of_expr e0 = Some(Khole, e0).
+Proof. induction e0; cbn in *; intros H; crush_grab_ectx. Qed.
+
+Lemma injective_ectx e0 K e e' :
+  Some e0 = pestep_compatible e0 ->
+  evalctx_of_expr e = Some(K, e0) ->
+  evalctx_of_expr e' = Some(K, e0) ->
+  e = e'.
+Proof. Admitted.
+
+Lemma ungrab_ectx e K e0 :
+  Some e0 = pestep_compatible e0 ->
+  evalctx_of_expr e = Some(K, e0) ->
+  e = insert K e0.
+Proof.
+  intros H H1; remember (insert K e0) as e1;
+  eapply grab_ectx in Heqe1 as H2; eauto;
+  eapply injective_ectx; eauto.
+Qed.
+Lemma pstep_compatible_some e e' :
+  pstep_compatible e = Some e' -> e = e'.
+Proof.
+  revert e'; induction e; intros; cbn in H; try congruence.
+  - (* binop *) grab_value2 e1 e2.
+  - (* get *) grab_value e.
+  - (* set *) grab_value2 e1 e2.
+  - (* let *) grab_value e1.
+  - (* new *) grab_value e1.
+  - (* ifz *) grab_value e1; destruct e1; now inv H.
+Qed.
+
+Lemma pestep_compatible_some e e' :
+  pestep_compatible e = Some e' -> e = e'.
+Proof.
+  revert e'; induction e; intros; cbn in H; try congruence.
+  - (* binop *) grab_value2 e1 e2.
+  - (* get *) grab_value e.
+  - (* set *) grab_value2 e1 e2.
+  - (* let *) grab_value e1.
+  - (* new *) grab_value e1.
+  - (* ret *) grab_value e.
+  - (* call *) grab_value e.
+  - (* ifz *) grab_value e1; destruct e1; now inv H.
+Qed.
+Lemma elim_ectx_ret K (f : fnoerr) :
+  evalctx_of_expr (insert K (Xreturn f)) = Some(K, Xreturn f).
+Proof. remember (insert K (Xreturn f)); eapply grab_ectx in Heqe; eauto. Qed.
+Lemma elim_ectx_call K foo (f : fnoerr) :
+  evalctx_of_expr (insert K (Xcall foo f)) = Some(K, Xcall foo f).
+Proof. remember (insert K (Xcall foo f)); eapply grab_ectx in Heqe; eauto. Qed.
+
+Lemma equiv_estep r0 a r1 :
+  r0 ==[, a ]==> r1 <-> estepf r0 = Some(a, r1).
+Proof.
+  (* FIXME: This proof is broken *)
+  (*
+  split.
+  - induction 1.
+    + (* ret *)
+      unfold estepf.
+      rewrite (get_rid_of_letstar (F, Ξ, E__foo :: ξ, H, Δ)).
+      rewrite elim_ectx_ret.
+      now rewrite (get_rid_of_letstar (E, Xreturn f)).
+    + (* call *)
+      unfold estepf.
+      rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)).
+      rewrite elim_ectx_call.
+      rewrite (get_rid_of_letstar (E, Xcall foo f)).
+      change ((fun o => (
+        match o with
+        | Some (argx0, _, e__foo0) =>
+            Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx0 e__foo0 f)))
+        | None => None
+        end = Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx e__foo f)))
+      )) (mget Ξ foo)).
+      now rewrite <- H0.
+    + (* normal step *) assert (H':=H); eapply pstep_compat_weaken in H.
+      apply (@grab_ectx e0 K e H) in H0 as H0';
+      unfold estepf; rewrite H0'; rewrite equiv_pstep in H2;
+      rewrite (get_rid_of_letstar Ω). rewrite (get_rid_of_letstar (K, e)).
+      inv H'. rewrite (get_rid_of_letstar e);
+      rewrite H2; rewrite (get_rid_of_letstar (a, (Some Ω', e')));
+      destruct e; trivial; inv H4.
+    + (* crash *) assert (H':=H); eapply pstep_compat_weaken in H.
+      apply (@grab_ectx e0 K e H) in H0 as H0'.
+      unfold estepf; rewrite H0'; rewrite equiv_pstep in H1;
+      rewrite (get_rid_of_letstar Ω). rewrite (get_rid_of_letstar (K, e)).
+      inv H'. rewrite (get_rid_of_letstar e);
+      rewrite H1; destruct e; trivial; inv H3.
+  - destruct r0 as [Ω e], r1 as [Ω' e'].
+    intros H; unfold estepf in H.
+    destruct Ω as [Ω|].
+    destruct (option_dec (evalctx_of_expr e)) as [Hx0 | Hy0]; try rewrite Hy0 in H.
+    2,3: inv H.
+    rewrite (get_rid_of_letstar Ω) in H.
+    apply not_eq_None_Some in Hx0 as [[K e0] Hx0].
+    rewrite Hx0 in H.
+    rewrite (get_rid_of_letstar (K, e0)) in H.
+    destruct (option_dec (pstep_compatible e0)) as [Hx1 | Hy1]; try rewrite Hy1 in H.
+    + apply not_eq_None_Some in Hx1 as [e0p Hx1].
+      rewrite Hx1 in H.
+      rewrite (get_rid_of_letstar e0p) in H.
+      destruct (option_dec (pstepf (Some Ω, e0))) as [Hx|Hy].
+      -- apply (not_eq_None_Some) in Hx as [[ap [oΩ' oe0']] Hx].
+         rewrite Hx in H.
+         rewrite (get_rid_of_letstar (ap, (oΩ', oe0'))) in H.
+         destruct oΩ' as [oΩ'|].
+         * apply pstep_compatible_some in Hx1 as Hx1'; subst.
+           destruct (e0p); try inversion Hx1;
+           assert (H':=H); inv H; eapply E_ctx; eauto using ungrab_ectx;
+           apply equiv_pstep; try eapply Hx.
+         * apply pstep_compatible_some in Hx1 as Hx1'; subst.
+           destruct e0p; try inversion Hx1; inv H;
+           eapply E_abrt_ctx; eauto using ungrab_ectx;
+           apply equiv_pstep in Hx; inv Hx; try apply e_abort.
+      -- rewrite Hy in H; inv H.
+         destruct e0; try congruence; inv Hx1.
+    + destruct e0; try congruence; inv Hy1; inv H.
+      * (* ret *)
+        grab_value e0.
+        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
+           inv H1;
+           eapply ungrab_ectx in Hx0; subst; eauto using E_return.
+        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
+           inv H1;
+           eapply ungrab_ectx in Hx0; subst; eauto using E_return.
+      * (* call *)
+        grab_value e0.
+        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
+           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
+          apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
+           rewrite Hx in H1. inv H1.
+           eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto.
+           eapply E_call; symmetry; eassumption.
+        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
+           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
+           apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
+           rewrite Hx in H1. inv H1.
+           eapply ungrab_ectx in Hx0; subst; eauto.
+           eapply E_call; symmetry; eassumption.
+  *)
+Admitted.
+
+Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :
+  estepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof. intros H0 H1; apply equiv_estep in H0; apply estep_is_nodupinv_invariant in H0; eauto. Qed.
+
+Lemma different_reduction Ω Ω' e v v' As :
+  ((estep (Ω ▷ e) As (Ω' ▷ v)) -> False) ->
+  (estep (Ω ▷ e) As (Ω' ▷ v')) ->
+  v <> v'
+.
+Proof.
+  intros H0 H1 H2; now subst.
+Qed.
+
+Reserved Notation "e0 '==[' a ']==>*' e1" (at level 82, e1 at next level).
+Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
+| ES_refl : forall (r1 : rtexpr),
+    is_val (let '(_, e) := r1 in e) ->
+    r1 ==[ nil ]==>* r1
+| ES_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref),
+    r1 ==[ a ]==> r2 ->
+    r2 ==[ As ]==>* r3 ->
+    r1 ==[ a :: As ]==>* r3
+| ES_trans_unimportant : forall (r1 r2 r3 : rtexpr) (As : tracepref),
+    r1 ==[]==> r2 ->
+    r2 ==[ As ]==>* r3 ->
+    r1 ==[ As ]==>* r3
+where "e0 '==[' a ']==>*' e1" := (star_step e0 a e1).
+#[export]
+Hint Constructors star_step : core.
+Notation "e0 '==[]==>*' e1" := (star_step e0 (nil) e1) (at level 82, e1 at next level).
+
+Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
+  Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof.
+  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
+  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy.
+  intros H__star; dependent induction H__star; try (inv H; inv H0; easy); try easy.
+  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
+    eapply estep_is_nodupinv_invariant in H; eauto.
+    admit.
+  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
+    eapply estep_is_nodupinv_invariant in H; eauto.
+    admit.
+Admitted.

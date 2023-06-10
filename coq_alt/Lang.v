@@ -9,13 +9,10 @@ Require Import CSC.Sets CSC.Util CSC.Fresh.
 Definition vart := string.
 Definition vareq := fun x y => (x =? y)%string.
 Definition dontcare := "_"%string.
-
-#[local]
+#[export]
 Instance varteq__Instance : HasEquality vart := {
   eq := vareq ;
-  eq_refl := String.eqb_refl ;
   eqb_eq := String.eqb_eq ;
-  neqb_neq := String.eqb_neq
 }.
 
 Inductive value : Type :=
@@ -32,37 +29,23 @@ Definition loc_eqb :=
     | addr n1, addr n2 => Nat.eqb n1 n2
     end
 .
-Lemma loc_eqb_refl ℓ :
-  loc_eqb ℓ ℓ = true.
-Proof. destruct ℓ as [n]; induction n; now cbn. Qed.
 Lemma loc_eqb_eq ℓ0 ℓ1 :
   loc_eqb ℓ0 ℓ1 = true <-> ℓ0 = ℓ1.
 Proof.
   destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
   - cbn in H; rewrite Nat.eqb_eq in H; now subst.
-  - inv H; apply loc_eqb_refl.
+  - inv H; apply Nat.eqb_refl.
 Qed.
-Lemma loc_eqb_neq ℓ0 ℓ1 :
-  loc_eqb ℓ0 ℓ1 = false <-> ℓ0 <> ℓ1.
-Proof.
-  destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
-  - cbn in H; rewrite Nat.eqb_neq in H; congruence.
-  - destruct (Nat.eq_dec n0 n1).
-    + subst; congruence.
-    + now rewrite <- Nat.eqb_neq in n.
-Qed.
-#[local]
+#[export]
 Instance loceq__Instance : HasEquality loc := {
   eq := loc_eqb ;
-  eq_refl := loc_eqb_refl ;
   eqb_eq := loc_eqb_eq ;
-  neqb_neq := loc_eqb_neq
 }.
 #[local]
 Existing Instance varteq__Instance.
 
-#[global]
-Hint Resolve loc_eqb_refl String.eqb_refl : core.
+#[local]
+Hint Resolve eqb_eq String.eqb_refl : core.
 
 (** * Actual Syntax *)
 
@@ -233,8 +216,10 @@ Inductive poison : Type :=
 | poisonless : poison
 | poisoned : poison
 .
-Global Notation "'◻'" := (poisonless).
-Global Notation "'☣'" := (poisoned).
+#[global]
+Notation "'◻'" := (poisonless).
+#[global]
+Notation "'☣'" := (poisoned).
 
 Variant sandboxtag := SCtx | SComp.
 Definition sandboxtag_eqb t1 t2 :=
@@ -250,16 +235,14 @@ Definition string_of_sandboxtag t :=
   | SComp => "COMP"%string
   end
 .
-Lemma sandboxtag_eqb_refl t :
-  sandboxtag_eqb t t = true.
-Proof. now destruct t. Qed.
 Lemma sandboxtag_eqb_eq t1 t2 :
   sandboxtag_eqb t1 t2 = true <-> t1 = t2.
 Proof. now destruct t1, t2. Qed.
-Lemma sandboxtag_eqb_neq t1 t2 :
-  sandboxtag_eqb t1 t2 = false <-> t1 <> t2.
-Proof. now destruct t1, t2. Qed.
-#[global] Hint Resolve sandboxtag_eqb_refl Nat.eqb_refl : core.
+#[export]
+Instance sandboxtageq__Instance : HasEquality sandboxtag := {
+  eq := sandboxtag_eqb ;
+  eqb_eq := sandboxtag_eqb_eq ;
+}.
 
 (* A "dynamic" location contains the location and its poison *)
 Definition dynloc : Type := loc * sandboxtag * poison * nat.
@@ -272,9 +255,6 @@ Definition dynloc_eqb :=
     | (ℓ1, t1, ◻, n1), (ℓ2, t2, ☣, n2) => false
     end
 .
-Lemma dynloc_eqb_refl (dℓ1 : dynloc) :
-  dynloc_eqb dℓ1 dℓ1 = true.
-Proof. destruct dℓ1; repeat destruct p; destruct p0; cbn; repeat rewrite bool_and_equiv_prop; auto. Qed.
 Lemma dynloc_eqb_eq dℓ0 dℓ1 :
   dynloc_eqb dℓ0 dℓ1 = true <-> dℓ0 = dℓ1.
 Proof.
@@ -286,37 +266,14 @@ Proof.
     now apply loc_eqb_eq in H1c; apply Nat.eqb_eq in H1b; apply sandboxtag_eqb_eq in H1a; subst.
 
   all:
-    repeat rewrite bool_and_equiv_prop; split; auto.
-Qed.
-Lemma dynloc_eqb_neq dℓ0 dℓ1 :
-  dynloc_eqb dℓ0 dℓ1 = false <-> dℓ0 <> dℓ1.
-Proof.
-  destruct dℓ0 as [[[ℓ0 t0] ρ0] n0], dℓ1 as [[[ℓ1 t1] ρ1] n1]; destruct ρ0, ρ1; split; cbn; intros H; try easy.
-
-  1, 3:
-  repeat rewrite nbool_and_equiv_nprop in H; destruct H as [[H | H] | H];
-  try (apply sandboxtag_eqb_neq in H + apply Nat.eqb_neq in H + apply loc_eqb_neq in H); congruence.
-
-  all:
-    repeat rewrite nbool_and_equiv_nprop.
-  destruct (Nat.eq_dec n0 n1) as [H0|H0]; subst.
-  destruct t0, t1; cbn in *; auto.
-  destruct ℓ0, ℓ1; cbn in *; auto. right. apply Nat.eqb_neq. intros H'; subst; auto.
-  right. apply loc_eqb_neq. intros H'; subst; auto.
-  apply Nat.eqb_neq in H0; auto.
-
-  destruct (Nat.eq_dec n0 n1) as [H0|H0]; subst.
-  destruct t0, t1; cbn in *; auto.
-  destruct ℓ0, ℓ1; cbn in *; auto. right. apply Nat.eqb_neq. intros H'; subst; auto.
-  right. apply loc_eqb_neq. intros H'; subst; auto.
-  apply Nat.eqb_neq in H0; auto.
+    repeat rewrite bool_and_equiv_prop; repeat split; try now rewrite Nat.eqb_refl.
+  all: try now destruct t1.
+  all: destruct ℓ1; cbn; now rewrite Nat.eqb_refl.
 Qed.
 #[local]
 Instance dynloceq__Instance : HasEquality dynloc := {
   eq := dynloc_eqb ;
-  eq_refl := dynloc_eqb_refl ;
   eqb_eq := dynloc_eqb_eq ;
-  neqb_neq := dynloc_eqb_neq
 }.
 
 (** Stores map variables to potentially poisoned locations. *)
@@ -351,13 +308,19 @@ Proof.
   - inv H; now left.
   - specialize (IHΔ H); now right.
 Qed.
+Lemma δ_of_Δ_poison_eq (Δ1 Δ2 : store) (x : vart) (ℓ : loc) (t : sandboxtag) (n : nat) :
+  δ_of_Δ (Δ1 ◘ x ↦ (ℓ, t, ◻, n) ◘ Δ2) = δ_of_Δ (Δ1 ◘ x ↦ (ℓ, t, ☣, n) ◘ Δ2)
+.
+Proof.
+  induction Δ1; cbn; eauto; destruct b as [[] _]; fold (append Δ1 (x ↦ (ℓ, t, ◻, n) ◘ Δ2));
+  fold (append Δ1 (x ↦ (ℓ, t, ☣, n) ◘ Δ2));
+  destruct p, l; now f_equal.
+Qed.
 
 #[local]
 Instance nateq__Instance : HasEquality nat := {
   eq := Nat.eqb ;
-  eq_refl := Nat.eqb_refl ;
   eqb_eq := Nat.eqb_eq ;
-  neqb_neq := Nat.eqb_neq
 }.
 Definition heap := mapind nateq__Instance nat.
 Definition hNil : heap := mapNil nateq__Instance nat.
@@ -385,6 +348,9 @@ Definition comms_eq (q1 q2 : comms) :=
   | _, _ => false
   end
 .
+Lemma comms_eqb_eq (q1 q2 : comms) :
+  comms_eq q1 q2 = true <-> q1 = q2.
+Proof. now destruct q1,q2. Qed.
 Definition string_of_comms (q : comms) :=
   match q with
   | Qctxtocomp => "?"%string
@@ -392,8 +358,13 @@ Definition string_of_comms (q : comms) :=
   | Qinternal => "∅"%string
   end
 .
+#[export]
+Instance commseq__Instance : HasEquality comms := {
+  eq := comms_eq ;
+  eqb_eq := comms_eqb_eq ;
+}.
+
 Definition active_ectx := list (evalctx * vart).
-(** Contains names of component-level functions *)
 
 #[local]
 Existing Instance varteq__Instance | 0.
@@ -474,13 +445,10 @@ Lemma nodupinv_H H H' n :
   Util.nodupinv H'
 .
 Proof.
-  repeat split; eauto.
   revert H' H; induction n; intros H' H Hb H0.
   - now inv H0.
-  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)))) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
-    apply not_eq_None_Some in Hx as [H__x Hx].
-    rewrite Hx in H0.
-    cbn in H0. now apply push_ok in H0.
+  - cbn in H0; crush_option (Hgrow_aux H n (List.length (dom H)));
+    now apply push_ok in H0.
 Qed.
 
 (** Types of events that may occur in a trace. *)
@@ -510,6 +478,43 @@ Definition eventbeq (e1 e2 : eventb) : bool :=
   | _, _ => false
   end
 .
+#[export]
+Hint Resolve Nat.eqb_refl Util.eq_refl String.eqb_refl : core.
+Lemma eventb_eqb_eq : forall e1 e2, eventbeq e1 e2 = true <-> e1 = e2.
+Proof.
+  intros [] []; cbn; split; intros; try easy;
+  try now destruct v; try congruence.
+  all: try destruct v, v0; try easy.
+  all: try now apply Nat.eqb_eq in H; subst.
+  now inv H.
+  all: repeat match goal with
+  | [ℓ: loc |- _] => destruct ℓ
+  | [v: value |- _] => destruct v
+  | [v: fnoerr |- _] => destruct v
+  end; try easy.
+  all: repeat rewrite bool_and_equiv_prop in H.
+  all: repeat match goal with
+  | [H: Nat.eqb ?n1 ?n2 = true |- _] => apply Nat.eqb_eq in H; subst
+  | [H: _ /\ _ = true |- _] => destruct H
+  end; try easy.
+  all: try inv H; try now repeat rewrite Nat.eqb_refl.
+  apply String.eqb_eq in H2; change ((q == q0) = true) in H0; apply Util.eqb_eq in H0; now subst.
+  apply String.eqb_eq in H1, H3; change ((q == q0) = true) in H0; apply Util.eqb_eq in H0; now subst.
+  all: try match goal with
+  | [|- (?a && comms_eq ?q ?q)%bool = true] => change ((a && (q == q))%bool = true)
+  end.
+  all: repeat rewrite Nat.eqb_refl.
+  all: repeat rewrite String.eqb_refl.
+  all: repeat rewrite Util.eq_refl.
+  all: try easy.
+  all: change ((q == q0) = true) in H0; apply Util.eqb_eq in H0; subst; trivial.
+  now apply String.eqb_eq in H2; subst.
+Qed.
+#[export]
+Instance eventbeq__Instance : HasEquality eventb := {
+  eq := eventbeq ;
+  eqb_eq := eventb_eqb_eq ;
+}.
 Variant securitytag := Lock | Unlock.
 Definition securitytageq (σ1 σ2 : securitytag) : bool :=
   match σ1, σ2 with
@@ -523,6 +528,13 @@ Definition string_of_securitytag (σ : securitytag) : string :=
   | Unlock => "LOW"
   end
 .
+Lemma securitytag_eqb_eq : forall σ1 σ2, securitytageq σ1 σ2 = true <-> σ1 = σ2.
+Proof. intros [] []; easy. Qed.
+#[export]
+Instance securitytageq__Instance : HasEquality securitytag := {
+  eq := securitytageq ;
+  eqb_eq := securitytag_eqb_eq ;
+}.
 
 Record eventr : Type := mkevent {
   ee : eventb ;
@@ -531,6 +543,11 @@ Record eventr : Type := mkevent {
 }.
 #[export]
 Instance: Settable eventr := settable! mkevent <ee; et; eσ>.
+
+Definition eventreq (e1 e2 : eventr) : bool :=
+  (e1.(ee) == e1.(ee)) && (e1.(et) == e2.(et)) && (e1.(eσ) == e2.(eσ))
+.
+
 Variant event : Type :=
 | Sevent : eventr -> event
 | Scrash : event
@@ -1521,15 +1538,6 @@ Definition debug_eval (p : prog) :=
   let* (As, _) := wstepf p in
   Some(string_of_tracepref As)
 .
-
-Lemma δ_of_Δ_poison_eq (Δ1 Δ2 : store) (x : vart) (ℓ : loc) (t : sandboxtag) (n : nat) :
-  δ_of_Δ (Δ1 ◘ x ↦ (ℓ, t, ◻, n) ◘ Δ2) = δ_of_Δ (Δ1 ◘ x ↦ (ℓ, t, ☣, n) ◘ Δ2)
-.
-Proof.
-  induction Δ1; cbn; eauto; destruct b as [[] _]; fold (append Δ1 (x ↦ (ℓ, t, ◻, n) ◘ Δ2));
-  fold (append Δ1 (x ↦ (ℓ, t, ☣, n) ◘ Δ2)).
-  destruct p, l.  now f_equal.
-Qed.
 
 Reserved Notation "e0 '=(' n ')=[' a ']==>' e1" (at level 82, e1 at next level).
 Inductive n_step : rtexpr -> nat -> tracepref -> rtexpr -> Prop :=

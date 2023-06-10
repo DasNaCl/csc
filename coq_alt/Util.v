@@ -172,13 +172,38 @@ Proof. now cbn. Qed.
 
 Class HasEquality (A : Type) := {
   eq : A -> A -> bool ;
-  eq_refl : forall (a : A), eq a a = true ;
   eqb_eq : forall (a b : A), eq a b = true <-> a = b ;
-  neqb_neq : forall (a b : A), eq a b = false <-> a <> b ;
 }.
+#[global]
+Infix "==" := eq (at level 81, left associativity).
+Lemma eq_refl { A : Type } { H : HasEquality A } (a : A) :
+  eq a a = true.
+Proof. now apply eqb_eq. Qed.
 Lemma eqb_dec { A : Type } { H : HasEquality A } (a x : A) :
   eq a x = true \/ eq a x = false.
 Proof. destruct (eq a x); now (left + right). Qed.
+Lemma eqb_equiv_neqb { A : Type } { H : HasEquality A } (a b : A) :
+  eq a b = true <-> negb(eq a b) = negb true.
+Proof.
+  split; intros H0.
+  - rewrite H0; now cbn.
+  - destruct (eq a b); cbn in H0; auto.
+Qed.
+Lemma neqb_equiv_eqb { A : Type } { H : HasEquality A } (a b : A) :
+  eq a b = false <-> negb(eq a b) = negb false.
+Proof.
+  split; intros H0.
+  - rewrite H0; now cbn.
+  - destruct (eq a b); cbn in H0; auto.
+Qed.
+Lemma neqb_neq { A : Type } { H : HasEquality A } (a b : A) :
+  eq a b = false <-> a <> b.
+Proof.
+  split; intros H0.
+  - intros H1; subst; now rewrite eq_refl in H0.
+  - rewrite neqb_equiv_eqb. assert ((eq a b = true) -> False) by (intros H1; apply H0; now apply eqb_eq in H1).
+    destruct (eq a b); now cbn in *.
+Qed.
 Lemma eq_dec { A : Type } { H : HasEquality A } (a x : A) :
   a = x \/ a <> x.
 Proof.
@@ -186,6 +211,9 @@ Proof.
   apply eqb_eq in H0. now left.
   apply neqb_neq in H0. now right.
 Qed.
+
+#[global]
+Hint Resolve eq_refl eqb_dec eqb_equiv_neqb neqb_equiv_eqb neqb_neq eq_dec : core.
 
 Section Util.
 

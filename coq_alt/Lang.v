@@ -1,5 +1,6 @@
 Set Implicit Arguments.
 
+From RecordUpdate Require Import RecordSet.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Coq.Program.Equality.
 Require Import CSC.Sets CSC.Util CSC.Fresh.
 
@@ -243,6 +244,12 @@ Definition sandboxtag_eqb t1 t2 :=
   | _, _ => false
   end
 .
+Definition string_of_sandboxtag t :=
+  match t with
+  | SCtx => "CTX"%string
+  | SComp => "COMP"%string
+  end
+.
 Lemma sandboxtag_eqb_refl t :
   sandboxtag_eqb t t = true.
 Proof. now destruct t. Qed.
@@ -391,24 +398,45 @@ Definition active_ectx := list (evalctx * vart).
 #[local]
 Existing Instance varteq__Instance | 0.
 
-Definition cfstate : Type := symbols * commlib * active_ectx.
-Definition memstate : Type := heap * heap * store.
-Definition state : Type := CSC.Fresh.fresh_state * cfstate * sandboxtag * nat * memstate.
+Record cfstate : Type := mkcfstate {
+  Ξ : symbols ;
+  ξ : commlib ;
+  Ks : active_ectx
+}.
+#[export]
+Instance: Settable cfstate := settable! mkcfstate <Ξ; ξ; Ks>.
+Record memstate : Type := mkmemstate {
+  H__ctx : heap ;
+  H__comp : heap ;
+  Δ : store
+}.
+#[export]
+Instance: Settable memstate := settable! mkmemstate <H__ctx; H__comp; Δ>.
+Record state : Type := mkstate {
+  F : CSC.Fresh.fresh_state ;
+  Ψ : cfstate ;
+  Ωt : sandboxtag ;
+  doit : nat ;
+  Φ : memstate
+}.
+#[export]
+Instance: Settable state := settable! mkstate <F; Ψ; Ωt; doit; Φ>.
 
 #[global]
-Notation "'s(' F ';' Φ ';' t ';' n ';' Ψ ')'" := ((F, Φ, t, n, Ψ) : state) (at level 81,
+Notation "'s(' F ';' Φ ';' t ';' n ';' Ψ ')'" := (mkstate F Φ t n Ψ : state) (at level 81,
                                                   Φ at next level,
                                                   t at next level,
                                                   n at next level,
                                                   Ψ at next level).
 #[global]
-Notation  "'cf(' Ξ ';' ξ ';' K ')'" := ((Ξ, ξ, K) : cfstate) (at level 81,
+Notation  "'cf(' Ξ ';' ξ ';' K ')'" := (mkcfstate Ξ ξ K : cfstate) (at level 81,
                                         ξ at next level,
                                         K at next level).
 #[global]
-Notation "'m(' H__ctx ';' H__comp ';' Δ ')'" := ((H__ctx, H__comp, Δ) : memstate) (at level 81,
+Notation "'m(' H__ctx ';' H__comp ';' Δ ')'" := (mkmemstate H__ctx H__comp Δ : memstate) (at level 81,
                                                   H__comp at next level,
                                                   Δ at next level).
+(*
 Ltac splitΦ Φ :=
   let Ξ := fresh "Ξ" in
   let ξ := fresh "ξ" in
@@ -430,9 +458,11 @@ Ltac splitΩ Ω :=
   destruct Ω as [[[[F Φ] t] n] Ψ];
   splitΦ Φ; splitΨ Ψ
 .
+ *)
 Definition nodupinv (Ω : state) : Prop :=
-  let '(F, (Ξ, ξ, K), t, n, (H__ctx, H__comp, Δ)) := Ω in
-  nodupinv Ξ /\ nodupinv H__ctx /\ nodupinv H__comp /\ nodupinv Δ
+  let Φ := Ω.(Φ) in
+  let Ψ := Ω.(Ψ) in
+  nodupinv Ψ.(Ξ) /\ nodupinv Φ.(H__ctx) /\ nodupinv Φ.(H__comp) /\ nodupinv Φ.(Δ)
 .
 Lemma nodupinv_empty Ξ ξ n t :
   Util.nodupinv Ξ ->
@@ -454,18 +484,17 @@ Proof.
 Qed.
 
 (** Types of events that may occur in a trace. *)
-Variant event : Type :=
-| Sstart : event
-| Send (v : value) : event
-| Salloc (ℓ : loc) (n : nat) : event
-| Sdealloc (ℓ : loc) : event
-| Sget (ℓ : loc) (n : nat) : event
-| Sset (ℓ : loc) (n : nat) (v : value) : event
-| Scrash : event
-| Scall (q : comms) (foo : vart) (arg : fnoerr) : event
-| Sret (q : comms) (f : fnoerr) : event
+Variant eventb : Type :=
+| Sstart : eventb
+| Send (v : value) : eventb
+| Salloc (ℓ : loc) (n : nat) : eventb
+| Sdealloc (ℓ : loc) : eventb
+| Sget (ℓ : loc) (n : nat) : eventb
+| Sset (ℓ : loc) (n : nat) (v : value) : eventb
+| Scall (q : comms) (foo : vart) (arg : fnoerr) : eventb
+| Sret (q : comms) (f : fnoerr) : eventb
 .
-Definition eventeq (e1 e2 : event) : bool :=
+Definition eventbeq (e1 e2 : eventb) : bool :=
   match e1, e2 with
   | Sstart, Sstart => true
   | Send(Vnat n1), Send(Vnat n2) => Nat.eqb n1 n2
@@ -474,7 +503,6 @@ Definition eventeq (e1 e2 : event) : bool :=
   | Sget(addr ℓ0) n0, Sget(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
   | Sset(addr ℓ0) n0 (Vnat v0), Sset(addr ℓ1) n1 (Vnat v1) => andb (andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1))
                                                                   (Nat.eqb v0 v1)
-  | Scrash, Scrash => true
   | Scall q1 foo (Fval(Vnat v0)), Scall q2 bar (Fval(Vnat v1)) => andb (andb (String.eqb foo bar) (Nat.eqb v0 v1)) (comms_eq q1 q2)
   | Scall q1 foo (Fvar x), Scall q2 bar (Fvar y) => andb(andb (String.eqb foo bar) (String.eqb x y)) (comms_eq q1 q2)
   | Sret q1 (Fval(Vnat v0)), Sret q2 (Fval(Vnat v1)) => andb (Nat.eqb v0 v1) (comms_eq q1 q2)
@@ -482,41 +510,73 @@ Definition eventeq (e1 e2 : event) : bool :=
   | _, _ => false
   end
 .
+Variant securitytag := Lock | Unlock.
+Definition securitytageq (σ1 σ2 : securitytag) : bool :=
+  match σ1, σ2 with
+  | Lock, Lock | Unlock, Unlock => true
+  | _, _ => false
+  end
+.
+Definition string_of_securitytag (σ : securitytag) : string :=
+  match σ with
+  | Lock => "HIGH"
+  | Unlock => "LOW"
+  end
+.
+
+Record eventr : Type := mkevent {
+  ee : eventb ;
+  et : sandboxtag ;
+  eσ : securitytag ;
+}.
+#[export]
+Instance: Settable eventr := settable! mkevent <ee; et; eσ>.
+Variant event : Type :=
+| Sevent : eventr -> event
+| Scrash : event
+.
+Notation "'e[' e ';' t ';' σ ']'" := (Sevent (mkevent e t σ)) (at level 81, t at next level).
 #[global]
 Instance Event__Instance : TraceEvent event := {}.
 Definition string_of_event (e : event) :=
   match e with
-  | (Sstart) => "Start"%string
-  | (Send(Vnat n)) => String.append ("End "%string) (string_of_nat n)
-  | (Salloc (addr ℓ) n) => String.append
-                      (String.append ("Alloc ℓ"%string) (string_of_nat ℓ))
+  | Scrash => "↯"%string
+  | Sevent e =>
+    let pref := match e.(ee) with
+    | (Sstart) => "Start"%string
+    | (Send(Vnat n)) => String.append ("End "%string) (string_of_nat n)
+    | (Salloc (addr ℓ) n) => String.append
+                        (String.append ("Alloc ℓ"%string) (string_of_nat ℓ))
+                        (String.append (" "%string) (string_of_nat n))
+    | (Sdealloc (addr ℓ)) => String.append ("Dealloc ℓ"%string) (string_of_nat ℓ)
+    | (Sget (addr ℓ) n) => String.append
+                      (String.append ("Get ℓ"%string) (string_of_nat ℓ))
                       (String.append (" "%string) (string_of_nat n))
-  | (Sdealloc (addr ℓ)) => String.append ("Dealloc ℓ"%string) (string_of_nat ℓ)
-  | (Sget (addr ℓ) n) => String.append
-                    (String.append ("Get ℓ"%string) (string_of_nat ℓ))
-                    (String.append (" "%string) (string_of_nat n))
-  | (Sset (addr ℓ) n (Vnat m)) => String.append
-                             (String.append
-                               (String.append ("Set ℓ"%string) (string_of_nat ℓ))
-                               (String.append (" "%string) (string_of_nat n)))
-                             (String.append (" "%string) (string_of_nat m))
-  | (Scrash) => "↯"%string
-  | (Scall q foo (Fval(Vnat n))) => String.append (String.append
-                                                  (String.append ("Call "%string)
-                                                   (String.append (string_of_comms q)
-                                                    (String.append " "%string foo))) " "%string)
-                                   (string_of_nat n)
-  | (Scall q foo (Fvar x)) => String.append (String.append
-                                            (String.append ("Call "%string)
-                                             (String.append (string_of_comms q)
-                                              (String.append " "%string foo))) " "%string)
-                             x
-  | (Sret q (Fval(Vnat n))) => String.append ("Ret "%string)
-                              (String.append (string_of_comms q)
-                               (String.append " "%string (string_of_nat n)))
-  | (Sret q (Fvar x)) => String.append ("Ret "%string)
-                         (String.append (string_of_comms q)
-                          (String.append " "%string x))
+    | (Sset (addr ℓ) n (Vnat m)) => String.append
+                              (String.append
+                                (String.append ("Set ℓ"%string) (string_of_nat ℓ))
+                                (String.append (" "%string) (string_of_nat n)))
+                              (String.append (" "%string) (string_of_nat m))
+    | (Scall q foo (Fval(Vnat n))) => String.append (String.append
+                                                    (String.append ("Call "%string)
+                                                    (String.append (string_of_comms q)
+                                                      (String.append " "%string foo))) " "%string)
+                                    (string_of_nat n)
+    | (Scall q foo (Fvar x)) => String.append (String.append
+                                              (String.append ("Call "%string)
+                                              (String.append (string_of_comms q)
+                                                (String.append " "%string foo))) " "%string)
+                              x
+    | (Sret q (Fval(Vnat n))) => String.append ("Ret "%string)
+                                (String.append (string_of_comms q)
+                                (String.append " "%string (string_of_nat n)))
+    | (Sret q (Fvar x)) => String.append ("Ret "%string)
+                          (String.append (string_of_comms q)
+                            (String.append " "%string x))
+    end in
+    String.append pref (String.append ";"%string
+                        (String.append (string_of_sandboxtag e.(et))
+                        (String.append ";"%string (string_of_securitytag e.(eσ)))))
   end
 .
 Definition tracepref := list event.
@@ -565,6 +625,13 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
 Variable pstep : PrimStep.
 #[global]
 Existing Instance pstep.
+
+Variable pstep_fnostep : forall Ω (f : ferr) Ω' e' a,
+    Ω ▷ f --[, a ]--> Ω' ▷ e' ->
+    False
+.
+#[local]
+Hint Resolve pstep_fnostep : core.
 
 Variable pstep_is_nodupinv_invariant : forall Ω e Ω' e' a,
   Ω ▷ e --[, a ]--> Ω' ▷ e' ->
@@ -743,7 +810,7 @@ Inductive estep : CtxStep :=
     Some s = mget Ξ "main"%string ->
     argname_of_symbol s = x__arg ->
     expr_of_symbol s = e ->
-    s(F ; cf(Ξ ; ξ ; List.nil) ; SComp ; 0 ; Φ) ▷ (insert Khole (Xcall "main"%string 0)) ==[ Sstart ]==> s(F ; cf(Ξ ; ξ ; (Khole, "main"%string) :: List.nil) ; SCtx ; 0 ; Φ) ▷ Xreturn (subst x__arg e 0)
+    s(F ; cf(Ξ ; ξ ; List.nil) ; SComp ; 0 ; Φ) ▷ (insert Khole (Xcall "main"%string 0)) ==[ e[Sstart ; SComp ; Unlock] ]==> s(F ; cf(Ξ ; ξ ; (Khole, "main"%string) :: List.nil) ; SCtx ; 0 ; Φ) ▷ Xreturn (subst x__arg e 0)
 | E_ctx_call_notsame : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (t : sandboxtag) (K : evalctx) (Ks : active_ectx)
                          (doit : nat) (Φ : memstate) (s : symbol) (foo : vart) (x__arg : vart) (e : expr) (v : value)
                          (c : comms),
@@ -752,7 +819,7 @@ Inductive estep : CtxStep :=
     Some s = mget Ξ foo ->
     argname_of_symbol s = x__arg ->
     expr_of_symbol s = e ->
-    s(F ; cf(Ξ ; ξ ; Ks) ; t ; doit ; Φ) ▷ (insert K (Xcall foo (Xres v))) ==[ Scall c foo v ]==> s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; (negt t) ; doit ; Φ) ▷ Xreturn (subst x__arg e v)
+    s(F ; cf(Ξ ; ξ ; Ks) ; t ; doit ; Φ) ▷ (insert K (Xcall foo (Xres v))) ==[ e[Scall c foo v; t; Unlock] ]==> s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; (negt t) ; doit ; Φ) ▷ Xreturn (subst x__arg e v)
 | E_ctx_call_same : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (t : sandboxtag) (K : evalctx) (Ks : active_ectx)
                       (doit : nat) (Φ : memstate) (s : symbol) (foo : vart) (x__arg : vart) (e : expr) (v : value)
                       (c : comms),
@@ -760,22 +827,22 @@ Inductive estep : CtxStep :=
     Some s = mget Ξ foo ->
     argname_of_symbol s = x__arg ->
     expr_of_symbol s = e ->
-    s(F ; cf(Ξ ; ξ ; Ks) ; t ; doit ; Φ) ▷ (insert K (Xcall foo (Xres v))) ==[ Scall Qinternal foo v ]==> s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; t ; doit ; Φ) ▷ Xreturn (subst x__arg e v)
+    s(F ; cf(Ξ ; ξ ; Ks) ; t ; doit ; Φ) ▷ (insert K (Xcall foo (Xres v))) ==[ e[Scall Qinternal foo v; t; Unlock] ]==> s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; t ; doit ; Φ) ▷ Xreturn (subst x__arg e v)
 | E_ctx_ret_notsame : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (t : sandboxtag) (K K' : evalctx) (Ks : active_ectx)
                         (doit : nat) (Φ : memstate) (foo : vart) (s : symbol) (v : value) (c : comms),
     footincommlib foo ξ (negt t) ->
     ρ__call (negt t) = c ->
     Some s = mget Ξ foo ->
-    s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; t ; doit ; Φ) ▷ (insert K' (Xreturn v)) ==[ Sret c v ]==> s(F ; cf(Ξ ; ξ ; Ks) ; (negt t) ; doit ; Φ) ▷ (insert K v)
+    s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; t ; doit ; Φ) ▷ (insert K' (Xreturn v)) ==[ e[Sret c v; t; Unlock] ]==> s(F ; cf(Ξ ; ξ ; Ks) ; (negt t) ; doit ; Φ) ▷ (insert K v)
 | E_ctx_ret_same : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (t : sandboxtag) (K K' : evalctx) (Ks : active_ectx)
                      (doit : nat) (Φ : memstate) (foo : vart) (s : symbol) (v : value) (c : comms),
     footincommlib foo ξ t ->
     Some s = mget Ξ foo ->
-    s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; t ; doit ; Φ) ▷ (insert K' (Xreturn v)) ==[ Sret Qinternal v ]==> s(F ; cf(Ξ ; ξ ; Ks) ; t ; doit ; Φ) ▷ (insert K v)
+    s(F ; cf(Ξ ; ξ ; (K, foo) :: Ks) ; t ; doit ; Φ) ▷ (insert K' (Xreturn v)) ==[ e[Sret Qinternal v; t; Unlock] ]==> s(F ; cf(Ξ ; ξ ; Ks) ; t ; doit ; Φ) ▷ (insert K v)
 | E_ctx_ret_main : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : evalctx)
                      (doit : nat) (Φ : memstate) (s : symbol) (v : value),
     Some s = mget Ξ "main"%string ->
-    s(F ; cf(Ξ ; ξ ; (Khole, "main"%string) :: List.nil) ; SCtx ; doit ; Φ) ▷ (insert K (Xreturn v)) ==[ Send v ]==> s(F ; cf(Ξ ; ξ ; List.nil) ; SComp ; doit ; Φ) ▷ v
+    s(F ; cf(Ξ ; ξ ; (Khole, "main"%string) :: List.nil) ; SCtx ; doit ; Φ) ▷ (insert K (Xreturn v)) ==[ e[Send v; SCtx; Unlock] ]==> s(F ; cf(Ξ ; ξ ; List.nil) ; SComp ; doit ; Φ) ▷ v
 .
 #[global]
 Existing Instance estep.
@@ -1161,3 +1228,324 @@ Proof.
     eapply estep_is_nodupinv_invariant in H; eauto.
     admit.
 Admitted.
+(** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
+Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
+  let fix doo (fuel : nat) (r : rtexpr) :=
+    let (oΩ, e) := r in
+    let* Ω := oΩ in
+    match fuel, e with
+    | 0, Xres(_) => (* refl *)
+      Some(nil, r)
+    | S fuel', _ => (* trans *)
+      let* (a, r') := estepf r in
+      let* (As, r'') := doo fuel' r' in
+      match a with
+      | None => Some(As, r'')
+      | Some(a') => Some(a' :: As, r'')
+      end
+    | _, _ => None
+    end
+  in doo fuel r
+.
+
+(** Finds the amount of fuel necessary to run an expression. *)
+Fixpoint get_fuel (e : expr) : option nat :=
+  match e with
+  | Xres _ => Some(0)
+  | Xbinop symb lhs rhs =>
+    let* glhs := get_fuel lhs in
+    let* grhs := get_fuel rhs in
+    Some(1 + glhs + grhs)
+  | Xget x e =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
+  | Xset x e0 e1 =>
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + ge0 + ge1)
+  | Xlet x e0 e1 =>
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + ge0 + ge1)
+  | Xnew x e0 e1 =>
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + ge0 + ge1)
+  | Xdel x => Some(1)
+  | Xreturn e =>
+    match e with
+    | Xreturn e' => let* ge := get_fuel e' in Some(S ge)
+    | _ =>
+      let* ge := get_fuel e in
+      Some(1 + ge)
+    end
+  | Xcall foo e =>
+    let* ge := get_fuel e in
+    Some(1 + ge)
+  | Xifz c e0 e1 =>
+    let* gc := get_fuel c in
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(1 + gc + ge0 + ge1)
+  | Xabort => Some(1)
+  end
+.
+Ltac crush_option :=
+    match goal with
+    | [H: Some _ = None |- _] => inv H
+    | [H: _ <> None |- _] =>
+      let n := fresh "n" in
+      apply (not_eq_None_Some) in H as [n H]
+    | [H: _ = None |- _] => trivial
+    end.
+Ltac crush_fuel := (match goal with
+| [H: Some _ = Some _ |- _] => inv H
+| [H: Some ?fuel = match (get_fuel ?e1) with Some _ => _ | None => None end |- _] =>
+  let Hx := fresh "Hx" in
+  let Hy := fresh "Hy" in
+  let n := fresh "n" in
+  destruct (option_dec (get_fuel e1)) as [Hx|Hy];
+  crush_option; try rewrite Hx in *; try rewrite Hy in *
+end).
+
+Lemma atleast_once Ω e r a fuel :
+  Some fuel = get_fuel e ->
+  Ω ▷ e ==[, a ]==> r ->
+  exists fuel', fuel = S fuel'.
+Proof.
+  revert fuel; induction e; cbn; intros fuel H; intros Ha.
+  - crush_fuel; crush_estep; easy.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - crush_fuel; try crush_option; exists n0; now inv H.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - crush_fuel; now exists 0.
+  - destruct e; crush_fuel; try crush_option; exists n0; now inv H.
+  - crush_fuel; try crush_option; exists n0; now inv H.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
+  - exists 0; now inv H.
+Qed.
+Lemma star_stepf_one_step Ω e r r' a As fuel :
+  Some (S fuel) = get_fuel e ->
+  estep (Ω ▷ e) (Some a) r ->
+  star_stepf fuel r = Some(As, r') ->
+  star_stepf (S fuel) (Ω ▷ e) = Some(a :: As, r')
+.
+Proof. Admitted.
+Lemma star_stepf_one_unimportant_step Ω e r r' As fuel :
+  Some (S fuel) = get_fuel e ->
+  Ω ▷ e ==[]==> r ->
+  star_stepf fuel r = Some(As, r') ->
+  star_stepf (S fuel) (Ω ▷ e) = Some(As, r')
+.
+Proof. Admitted.
+Lemma estep_good_fuel Ω e r a fuel :
+  Some(S fuel) = get_fuel e ->
+  Ω ▷ e ==[, a ]==> r ->
+  Some fuel = get_fuel (let '(_, e') := r in e').
+Proof. Admitted.
+Lemma fuel_step oΩ e a oΩ' e' fuel :
+  Some(S fuel) = get_fuel e ->
+  (oΩ, e) ==[, a ]==> (oΩ', e') ->
+  Some fuel = get_fuel e'.
+Proof. Admitted.
+Lemma equiv_starstep Ω e r1 As fuel :
+  Some fuel = get_fuel e ->
+  Ω ▷ e ==[ As ]==>* r1 <-> star_stepf fuel (Ω ▷ e) = Some(As, r1).
+Proof.
+Admitted.
+
+Lemma star_stepf_is_nodupinv_invariant Ω e Ω' e' a fuel :
+  Some fuel = get_fuel e ->
+  star_stepf fuel (Ω ▷ e) = Some(a, Ω' ▷ e') ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof. intros H__fuel H0 H1; apply equiv_starstep in H0; eauto; apply star_step_is_nodupinv_invariant in H0; eauto. Qed.
+
+
+(** Evaluation of programs *)
+Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
+| e_wprog : forall (symbs : symbols) (ξ : commlib) (As : tracepref) (r : rtexpr),
+    s(Fresh.empty_fresh ; cf(symbs ; ξ ; nil) ; SComp ; 0 ; m(hNil ; hNil ; sNil)) ▷ Xcall "main"%string 0 ==[ As ]==>* r ->
+    wstep (Cprog symbs ξ) As r
+.
+
+Fixpoint get_fuel_fn_aux (E : evalctx) {struct E} : option nat :=
+  match E with
+  | Khole => Some 0
+  | KbinopL b K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | KbinopR b v K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Kget x K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | KsetL x K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | KsetR x v K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Klet x K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | Knew x K e =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge := get_fuel e in
+    Some(ge + gK + 1)
+  | Kifz K e0 e1 =>
+    let* gK := get_fuel_fn_aux K in
+    let* ge0 := get_fuel e0 in
+    let* ge1 := get_fuel e1 in
+    Some(ge0 + ge1 + gK + 1)
+  | Kreturn K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  | Kcall foo K =>
+    let* gK := get_fuel_fn_aux K in
+    Some(gK + 1)
+  end
+.
+Fixpoint get_fuel_fn (e : expr) : option nat :=
+  match e with
+  | Xres _ => Some 0
+  | Xabort | Xdel _ => Some 1
+  | Xbinop b e1 e2 =>
+    let* f1 := get_fuel_fn e1 in
+    let* f2 := get_fuel_fn e2 in
+    Some (f1 + f2 + 1)
+  | Xget x e' =>
+    let* f := get_fuel_fn e' in
+    Some (f + 1)
+  | Xset x e1 e2 =>
+    let* f1 := get_fuel_fn e1 in
+    let* f2 := get_fuel_fn e2 in
+    Some (f1 + f2 + 1)
+  | Xlet x e1 e2 =>
+    let* f1 := get_fuel_fn e1 in
+    let* f2 := get_fuel_fn e2 in
+    Some (f1 + f2 + 1)
+  | Xnew x e1 e2 =>
+    let* f1 := get_fuel_fn e1 in
+    let* f2 := get_fuel_fn e2 in
+    Some (f1 + f2 + 1)
+  | Xifz e0 e1 e2 =>
+    let* f0 := get_fuel_fn e0 in
+    let* f1 := get_fuel_fn e1 in
+    let* f2 := get_fuel_fn e2 in
+    Some (f0 + f1 + f2 + 1)
+  | Xreturn e' =>
+    let* f := get_fuel_fn e' in
+    Some (f + 1)
+  | Xcall foo e' =>
+    let* f := get_fuel_fn e' in
+    Some (f + 1)
+  end
+.
+Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
+  match e with
+  | Xbinop _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xget _ e => collect_callsites ξ e
+  | Xset _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xlet _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xnew _ e0 e1 =>
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(r0 ◘ r1)
+  | Xreturn e' => collect_callsites ξ e'
+  | Xcall foo e' =>
+    let* res := collect_callsites ξ e' in
+    let* K := mget ξ foo in
+    Some(foo ↦ K ◘ res)
+  | Xifz c e0 e1 =>
+    let* cr := collect_callsites ξ c in
+    let* r0 := collect_callsites ξ e0 in
+    let* r1 := collect_callsites ξ e1 in
+    Some(cr ◘ r0 ◘ r1)
+  | _ => Some(mapNil _ _)
+  end
+.
+(** Compute the total amount of fuel necessary to run a complete program. Each context corresponding to a call
+    artificially gets a return in the semantics (estep), so add 1.
+    Also, add 1 to the final result, because the top-level performs a call to "main". *)
+Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
+  let* Kτ := mget ξ foo in
+  let x__arg := argname_of_symbol Kτ in
+  let e__arg := expr_of_symbol Kτ in
+  let e := subst x__arg e__arg (Xres 0) in
+  let* ge := get_fuel e in
+  let* symbs := collect_callsites ξ e in
+  let* res := List.fold_left (fun acc Eτ =>
+                                let e__arg := expr_of_symbol Eτ in
+                                let* a := acc in
+                                let* b := get_fuel_fn e__arg in
+                                Some(1 + a + b)) (img symbs) (Some ge) in
+  Some(S res)
+.
+
+Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
+  let '(Cprog symbs ξ) := p in
+  let e := Xcall "main"%string 0 in
+  let* fuel := get_fuel_toplevel symbs "main"%string in
+  let R := s(Fresh.empty_fresh ; cf(symbs ; ξ ; nil) ; SComp ; 0 ; m(hNil ; hNil ; sNil)) ▷ e in
+  star_stepf fuel R
+.
+Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
+  match t with
+  | nil => acc
+  | a :: nil => String.append acc (string_of_event a)
+  | a :: As =>
+      let acc' := String.append acc (String.append (string_of_event a) (" · "%string))
+      in string_of_tracepref_aux As acc'
+  end
+.
+Definition string_of_tracepref (t : tracepref) : string := string_of_tracepref_aux t (""%string).
+
+Definition debug_eval (p : prog) :=
+  let* (As, _) := wstepf p in
+  Some(string_of_tracepref As)
+.
+
+Lemma δ_of_Δ_poison_eq (Δ1 Δ2 : store) (x : vart) (ℓ : loc) (t : sandboxtag) (n : nat) :
+  δ_of_Δ (Δ1 ◘ x ↦ (ℓ, t, ◻, n) ◘ Δ2) = δ_of_Δ (Δ1 ◘ x ↦ (ℓ, t, ☣, n) ◘ Δ2)
+.
+Proof.
+  induction Δ1; cbn; eauto; destruct b as [[] _]; fold (append Δ1 (x ↦ (ℓ, t, ◻, n) ◘ Δ2));
+  fold (append Δ1 (x ↦ (ℓ, t, ☣, n) ◘ Δ2)).
+  destruct p, l.  now f_equal.
+Qed.
+
+Reserved Notation "e0 '=(' n ')=[' a ']==>' e1" (at level 82, e1 at next level).
+Inductive n_step : rtexpr -> nat -> tracepref -> rtexpr -> Prop :=
+| ENS_refl : forall (r1 : rtexpr),
+    is_val (let '(_, e) := r1 in e) ->
+    r1 =( 0 )=[ nil ]==> r1
+| ENS_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref) (n : nat),
+    r1 ==[ a ]==> r2 ->
+    r2 =( n )=[ As ]==> r3 ->
+    r1 =( S n )=[ a :: As ]==> r3
+| ENS_trans_unimportant : forall (r1 r2 r3 : rtexpr) (As : tracepref) (n : nat),
+    r1 ==[]==> r2 ->
+    r2 =( n )=[ As ]==> r3 ->
+    r1 =( S n )=[ As ]==> r3
+where "e0 '=(' n ')=[' a ']==>' e1" := (n_step e0 n a e1).
+#[export]
+Hint Constructors star_step : core.
+Notation "e0 '=(0)=[]==>' e1" := (n_step e0 0 nil e1) (at level 82, e1 at next level).
+

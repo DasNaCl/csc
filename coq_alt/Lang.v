@@ -6,46 +6,48 @@ Require Import CSC.Sets CSC.Util CSC.Fresh.
 
 (* This file defines the overlapping mechanics of our programming languages *)
 
-Definition vart := string.
-Definition vareq := fun x y => (x =? y)%string.
-Definition dontcare := "_"%string.
-#[export]
-Instance varteq__Instance : HasEquality vart := {
-  eq := vareq ;
-  eqb_eq := String.eqb_eq ;
-}.
 
-Inductive value : Type :=
-| Vnat : nat -> value
-.
-Coercion Vnat : nat >-> value.
+Section L.
+  Definition vart := string.
+  Definition vareq := fun x y => (x =? y)%string.
+  Definition dontcare := "_"%string.
+  #[export]
+  Instance varteq__Instance : HasEquality vart := {
+    eq := vareq ;
+    eqb_eq := String.eqb_eq ;
+  }.
 
-Inductive loc : Type :=
-| addr : nat -> loc
-.
-Definition loc_eqb :=
-  fun ℓ1 ℓ2 =>
-    match ℓ1, ℓ2 with
-    | addr n1, addr n2 => Nat.eqb n1 n2
-    end
-.
-Lemma loc_eqb_eq ℓ0 ℓ1 :
-  loc_eqb ℓ0 ℓ1 = true <-> ℓ0 = ℓ1.
-Proof.
-  destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
-  - cbn in H; rewrite Nat.eqb_eq in H; now subst.
-  - inv H; apply Nat.eqb_refl.
-Qed.
-#[export]
-Instance loceq__Instance : HasEquality loc := {
-  eq := loc_eqb ;
-  eqb_eq := loc_eqb_eq ;
-}.
-#[local]
-Existing Instance varteq__Instance.
+  Inductive value : Type :=
+  | Vnat : nat -> value
+  .
+  Coercion Vnat : nat >-> value.
 
-#[local]
-Hint Resolve eqb_eq String.eqb_refl : core.
+  Inductive loc : Type :=
+  | addr : nat -> loc
+  .
+  Definition loc_eqb :=
+    fun ℓ1 ℓ2 =>
+      match ℓ1, ℓ2 with
+      | addr n1, addr n2 => Nat.eqb n1 n2
+      end
+  .
+  Lemma loc_eqb_eq ℓ0 ℓ1 :
+    loc_eqb ℓ0 ℓ1 = true <-> ℓ0 = ℓ1.
+  Proof.
+    destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
+    - cbn in H; rewrite Nat.eqb_eq in H; now subst.
+    - inv H; apply Nat.eqb_refl.
+  Qed.
+  #[export]
+  Instance loceq__Instance : HasEquality loc := {
+    eq := loc_eqb ;
+    eqb_eq := loc_eqb_eq ;
+  }.
+  #[local]
+  Existing Instance varteq__Instance.
+
+  #[local]
+  Hint Resolve eqb_eq String.eqb_refl : core.
 
 (** * Actual Syntax *)
 
@@ -87,12 +89,11 @@ Coercion Xres : ferr >-> expr.
 #[global]
 Instance expr__Instance : ExprClass expr := {}.
 
-Definition is_stuck : expr -> Prop := fun _ => False. (* TODO: actually do the check *)
-Inductive is_val : expr -> Prop :=
-| Cfres : forall e f, e = Xres(Fres(Fval(Vnat f))) -> is_val e
+Inductive is_value_e : expr -> Prop :=
+| Cfres : forall e f, e = Xres(Fres(Fval(Vnat f))) -> is_value_e e
 .
 Lemma expr_val_dec e :
-  { is_val e } + { ~is_val e }.
+  { is_value_e e } + { ~is_value_e e }.
 Proof.
   induction e.
   1: destruct f. destruct f. destruct v. left; eauto using Cfres.
@@ -176,6 +177,7 @@ Inductive evalctx : Type :=
 Variable symbol : Type.
 Variable argname_of_symbol : symbol -> vart.
 Variable expr_of_symbol : symbol -> expr.
+
 (** printing  *symbols* $\Xi$ *)
 Definition symbols := mapind varteq__Instance symbol.
 Definition commlib := list vart.
@@ -216,9 +218,7 @@ Inductive poison : Type :=
 | poisonless : poison
 | poisoned : poison
 .
-#[global]
 Notation "'◻'" := (poisonless).
-#[global]
 Notation "'☣'" := (poisoned).
 
 Variant sandboxtag := SCtx | SComp.
@@ -393,17 +393,14 @@ Record state : Type := mkstate {
 #[export]
 Instance: Settable state := settable! mkstate <F; Ψ; Ωt; doit; Φ>.
 
-#[global]
 Notation "'s(' F ';' Φ ';' t ';' n ';' Ψ ')'" := (mkstate F Φ t n Ψ : state) (at level 81,
                                                   Φ at next level,
                                                   t at next level,
                                                   n at next level,
                                                   Ψ at next level).
-#[global]
 Notation  "'cf(' Ξ ';' ξ ';' K ')'" := (mkcfstate Ξ ξ K : cfstate) (at level 81,
                                         ξ at next level,
                                         K at next level).
-#[global]
 Notation "'m(' H__ctx ';' H__comp ';' Δ ')'" := (mkmemstate H__ctx H__comp Δ : memstate) (at level 81,
                                                   H__comp at next level,
                                                   Δ at next level).
@@ -478,7 +475,6 @@ Definition eventbeq (e1 e2 : eventb) : bool :=
   | _, _ => false
   end
 .
-#[export]
 Hint Resolve Nat.eqb_refl Util.eq_refl String.eqb_refl : core.
 Lemma eventb_eqb_eq : forall e1 e2, eventbeq e1 e2 = true <-> e1 = e2.
 Proof.
@@ -545,13 +541,46 @@ Record eventr : Type := mkevent {
 Instance: Settable eventr := settable! mkevent <ee; et; eσ>.
 
 Definition eventreq (e1 e2 : eventr) : bool :=
-  (e1.(ee) == e1.(ee)) && (e1.(et) == e2.(et)) && (e1.(eσ) == e2.(eσ))
+  (e1.(ee) == e2.(ee)) && (e1.(et) == e2.(et)) && (e1.(eσ) == e2.(eσ))
 .
+Lemma eventr_eqb_eq (e1 e2 : eventr) : (eventreq e1 e2) = true <-> e1 = e2.
+Proof.
+  split; unfold eventreq; intros H; subst.
+  - repeat rewrite bool_and_equiv_prop in H; destruct H as [[H1 H2] H3];
+    rewrite Util.eqb_eq in H1; rewrite Util.eqb_eq in H2; rewrite Util.eqb_eq in H3;
+    destruct e1, e2; cbv in *; subst; reflexivity.
+  - repeat rewrite bool_and_equiv_prop; repeat split; easy.
+Qed.
+#[export]
+Instance eventreq__Instance : HasEquality eventr := {
+  eq := eventreq ;
+  eqb_eq := eventr_eqb_eq ;
+}.
 
 Variant event : Type :=
 | Sevent : eventr -> event
 | Scrash : event
 .
+Definition eventeq (e1 e2 : event) : bool :=
+  match e1, e2 with
+  | Scrash, Scrash => true
+  | Sevent e1, Sevent e2 => e1 == e2
+  | _, _ => false
+  end
+.
+Lemma event_eqb_eq (e1 e2 : event) : eventeq e1 e2 = true <-> e1 = e2.
+Proof.
+  destruct e1, e2; cbn; try easy.
+  change ((e == e0) = true <-> Sevent e = Sevent e0).
+  rewrite Util.eqb_eq. split; intros H; subst; try easy.
+  now inv H.
+Qed.
+#[export]
+Instance eventeq__Instance : HasEquality event := {
+  eq := eventeq ;
+  eqb_eq := event_eqb_eq ;
+}.
+
 Notation "'e[' e ';' t ';' σ ']'" := (Sevent (mkevent e t σ)) (at level 81, t at next level).
 #[global]
 Instance Event__Instance : TraceEvent event := {}.
@@ -596,13 +625,14 @@ Definition string_of_event (e : event) :=
                         (String.append ";"%string (string_of_securitytag e.(eσ)))))
   end
 .
-Definition tracepref := list event.
 (** A runtime program is a state plus an expression. *)
 Definition rtexpr : Type := (option state) * expr.
+Definition is_value : rtexpr -> Prop := fun r => let '(_, e) := r in is_value_e e.
+
 #[global]
 Instance rtexpr__Instance : RuntimeExprClass rtexpr := {}.
-Global Notation "Ω '▷' e" := ((((Some (Ω)) : option state), (e : expr)) : rtexpr) (at level 81).
-Global Notation "↯ '▷' 'stuck'" := (((None : option state), (Fabrt : expr)) : rtexpr).
+Notation "Ω '▷' e" := ((((Some (Ω)) : option state), (e : expr)) : rtexpr) (at level 81).
+Notation "↯ '▷' 'stuck'" := (((None : option state), (Fabrt : expr)) : rtexpr).
 
 (** Substitution, which assumes that the given expression is closed. *)
 Definition subst (what : vart) (inn forr : expr) : expr :=
@@ -640,7 +670,6 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
 .
 
 Variable pstep : PrimStep.
-#[global]
 Existing Instance pstep.
 
 Variable pstep_fnostep : forall Ω (f : ferr) Ω' e' a,
@@ -657,13 +686,10 @@ Variable pstep_is_nodupinv_invariant : forall Ω e Ω' e' a,
 .
 Variable pstepf : forall (r : rtexpr), option (option event * rtexpr).
 
-#[global]
 Ltac grab_value e :=
   (destruct e as [[[[e]|]|]| | | | | | | | | |]; try congruence)
 .
-#[global]
 Ltac grab_value2 e1 e2 := (grab_value e1; grab_value e2).
-#[global]
 Ltac grab_final e :=
   (destruct e as [[e|]| | | | | | | | | | ]; try congruence)
 .
@@ -782,7 +808,6 @@ Lemma pstep_compat_weaken e :
   Some e = pstep_compatible e ->
   Some e = pestep_compatible e.
 Proof. induction e; now cbn. Qed.
-#[global]
 Hint Resolve pstep_compat_weaken call_pestep_compat return_pestep_compat : core.
 
 (** ** Environment Semantics extended with context switches *)
@@ -863,8 +888,16 @@ Inductive estep : CtxStep :=
 .
 #[global]
 Existing Instance estep.
-#[global]
 Hint Constructors estep : core.
+
+Instance GeneralLangParams__Instance : LangParams := {
+  State := rtexpr ;
+  Ev := event ;
+  step := estep ;
+  string_of_event := string_of_event ;
+  is_value := fun (r : rtexpr) => let '(_,e) := r in is_value_e e ;
+}.
+Import LangNotations.
 
 Lemma estep_is_nodupinv_invariant Ω e Ω' e' a :
   Ω ▷ e ==[, a ]==> Ω' ▷ e' ->
@@ -879,6 +912,12 @@ Proof.
 Qed.
 Local Set Warnings "-cast-in-pattern".
 Ltac crush_estep := (match goal with
+                     | [H: estep (_ ▷ (Xres ?f)) (Some ?a) ?r |- _] =>
+                       inv H
+                     | [H: estep (_ ▷ (Xres ?f)) None ?r |- _] =>
+                       inv H
+                     | [H: estep (_ ▷ (Xres ?f)) ?a ?r |- _] =>
+                       inv H
                      | [H: _ ▷ (Xres ?f) ==[ ?a ]==> ?r |- _] =>
                        inv H
                      | [H: _ ▷ (Xres ?f) ==[]==> ?r |- _] =>
@@ -1007,19 +1046,19 @@ Ltac crush_grab_ectx :=
          specialize (IHe K e0 H Heqek) as ->
       end;
       repeat match goal with
-      | [H: ~ is_val ?ek |- match ?ek with
+      | [H: ~ is_value_e ?ek |- match ?ek with
                            | Xres _ => _
                            | _ => _
                            end = _] => destruct ek; trivial
-      | [H: ~ is_val (Xres ?f) |- match ?f with
+      | [H: ~ is_value_e (Xres ?f) |- match ?f with
                           | Fres _ => _
                           | _ => _
                           end = _] => destruct f; trivial
-      | [H: ~ is_val (Xres(Fres ?f)) |- match ?f with
+      | [H: ~ is_value_e (Xres(Fres ?f)) |- match ?f with
                           | Fval _ => _
                           | _ => _
                           end = _] => destruct f; trivial
-      | [H: ~ is_val (Xres(Fres(Fval ?v))) |- _ ] => destruct v; destruct H; eauto using Cfres
+      | [H: ~ is_value_e (Xres(Fres(Fval ?v))) |- _ ] => destruct v; destruct H; eauto using Cfres
       end).
 Lemma grab_ectx e K e0 :
   Some e0 = pestep_compatible e0 ->
@@ -1211,60 +1250,14 @@ Proof.
   intros H0 H1 H2; now subst.
 Qed.
 
-Reserved Notation "e0 '==[' a ']==>*' e1" (at level 82, e1 at next level).
-Inductive star_step : rtexpr -> tracepref -> rtexpr -> Prop :=
-| ES_refl : forall (r1 : rtexpr),
-    is_val (let '(_, e) := r1 in e) ->
-    r1 ==[ nil ]==>* r1
-| ES_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref),
-    r1 ==[ a ]==> r2 ->
-    r2 ==[ As ]==>* r3 ->
-    r1 ==[ a :: As ]==>* r3
-| ES_trans_unimportant : forall (r1 r2 r3 : rtexpr) (As : tracepref),
-    r1 ==[]==> r2 ->
-    r2 ==[ As ]==>* r3 ->
-    r1 ==[ As ]==>* r3
-where "e0 '==[' a ']==>*' e1" := (star_step e0 a e1).
-#[export]
-Hint Constructors star_step : core.
-Notation "e0 '==[]==>*' e1" := (star_step e0 (nil) e1) (at level 82, e1 at next level).
+Local Open Scope LangNotationsScope.
 
-Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
-  Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
-  nodupinv Ω ->
-  nodupinv Ω'
+(** Evaluation of programs *)
+Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
+| e_wprog : forall (symbs : symbols) (ξ : commlib) (As : tracepref) (r : rtexpr),
+    s(Fresh.empty_fresh ; cf(symbs ; ξ ; nil) ; SComp ; 0 ; m(hNil ; hNil ; sNil)) ▷ Xcall "main"%string 0 ==[ As ]==>* r ->
+    wstep (Cprog symbs ξ) As r
 .
-Proof.
-  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
-  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy.
-  intros H__star; dependent induction H__star; try (inv H; inv H0; easy); try easy.
-  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
-    eapply estep_is_nodupinv_invariant in H; eauto.
-    admit.
-  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
-    eapply estep_is_nodupinv_invariant in H; eauto.
-    admit.
-Admitted.
-(** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
-Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
-  let fix doo (fuel : nat) (r : rtexpr) :=
-    let (oΩ, e) := r in
-    let* Ω := oΩ in
-    match fuel, e with
-    | 0, Xres(_) => (* refl *)
-      Some(nil, r)
-    | S fuel', _ => (* trans *)
-      let* (a, r') := estepf r in
-      let* (As, r'') := doo fuel' r' in
-      match a with
-      | None => Some(As, r'')
-      | Some(a') => Some(a' :: As, r'')
-      end
-    | _, _ => None
-    end
-  in doo fuel r
-.
-
 (** Finds the amount of fuel necessary to run an expression. *)
 Fixpoint get_fuel (e : expr) : option nat :=
   match e with
@@ -1307,88 +1300,6 @@ Fixpoint get_fuel (e : expr) : option nat :=
   | Xabort => Some(1)
   end
 .
-Ltac crush_option :=
-    match goal with
-    | [H: Some _ = None |- _] => inv H
-    | [H: _ <> None |- _] =>
-      let n := fresh "n" in
-      apply (not_eq_None_Some) in H as [n H]
-    | [H: _ = None |- _] => trivial
-    end.
-Ltac crush_fuel := (match goal with
-| [H: Some _ = Some _ |- _] => inv H
-| [H: Some ?fuel = match (get_fuel ?e1) with Some _ => _ | None => None end |- _] =>
-  let Hx := fresh "Hx" in
-  let Hy := fresh "Hy" in
-  let n := fresh "n" in
-  destruct (option_dec (get_fuel e1)) as [Hx|Hy];
-  crush_option; try rewrite Hx in *; try rewrite Hy in *
-end).
-
-Lemma atleast_once Ω e r a fuel :
-  Some fuel = get_fuel e ->
-  Ω ▷ e ==[, a ]==> r ->
-  exists fuel', fuel = S fuel'.
-Proof.
-  revert fuel; induction e; cbn; intros fuel H; intros Ha.
-  - crush_fuel; crush_estep; easy.
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - crush_fuel; try crush_option; exists n0; now inv H.
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - crush_fuel; now exists 0.
-  - destruct e; crush_fuel; try crush_option; exists n0; now inv H.
-  - crush_fuel; try crush_option; exists n0; now inv H.
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
-  - exists 0; now inv H.
-Qed.
-Lemma star_stepf_one_step Ω e r r' a As fuel :
-  Some (S fuel) = get_fuel e ->
-  estep (Ω ▷ e) (Some a) r ->
-  star_stepf fuel r = Some(As, r') ->
-  star_stepf (S fuel) (Ω ▷ e) = Some(a :: As, r')
-.
-Proof. Admitted.
-Lemma star_stepf_one_unimportant_step Ω e r r' As fuel :
-  Some (S fuel) = get_fuel e ->
-  Ω ▷ e ==[]==> r ->
-  star_stepf fuel r = Some(As, r') ->
-  star_stepf (S fuel) (Ω ▷ e) = Some(As, r')
-.
-Proof. Admitted.
-Lemma estep_good_fuel Ω e r a fuel :
-  Some(S fuel) = get_fuel e ->
-  Ω ▷ e ==[, a ]==> r ->
-  Some fuel = get_fuel (let '(_, e') := r in e').
-Proof. Admitted.
-Lemma fuel_step oΩ e a oΩ' e' fuel :
-  Some(S fuel) = get_fuel e ->
-  (oΩ, e) ==[, a ]==> (oΩ', e') ->
-  Some fuel = get_fuel e'.
-Proof. Admitted.
-Lemma equiv_starstep Ω e r1 As fuel :
-  Some fuel = get_fuel e ->
-  Ω ▷ e ==[ As ]==>* r1 <-> star_stepf fuel (Ω ▷ e) = Some(As, r1).
-Proof.
-Admitted.
-
-Lemma star_stepf_is_nodupinv_invariant Ω e Ω' e' a fuel :
-  Some fuel = get_fuel e ->
-  star_stepf fuel (Ω ▷ e) = Some(a, Ω' ▷ e') ->
-  nodupinv Ω ->
-  nodupinv Ω'
-.
-Proof. intros H__fuel H0 H1; apply equiv_starstep in H0; eauto; apply star_step_is_nodupinv_invariant in H0; eauto. Qed.
-
-
-(** Evaluation of programs *)
-Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
-| e_wprog : forall (symbs : symbols) (ξ : commlib) (As : tracepref) (r : rtexpr),
-    s(Fresh.empty_fresh ; cf(symbs ; ξ ; nil) ; SComp ; 0 ; m(hNil ; hNil ; sNil)) ▷ Xcall "main"%string 0 ==[ As ]==>* r ->
-    wstep (Cprog symbs ξ) As r
-.
-
 Fixpoint get_fuel_fn_aux (E : evalctx) {struct E} : option nat :=
   match E with
   | Khole => Some 0
@@ -1516,6 +1427,42 @@ Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
   Some(S res)
 .
 
+
+Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
+  Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof.
+  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
+  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy.
+  intros H__star; dependent induction H__star; try (inv H; inv H0; easy); try easy.
+  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
+    eapply estep_is_nodupinv_invariant in H; eauto.
+    admit.
+  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
+    eapply estep_is_nodupinv_invariant in H; eauto.
+    admit.
+Admitted.
+(** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
+Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
+  let fix doo (fuel : nat) (r : rtexpr) :=
+    let (oΩ, e) := r in
+    let* Ω := oΩ in
+    match fuel, e with
+    | 0, Xres(_) => (* refl *)
+      Some(nil, r)
+    | S fuel', _ => (* trans *)
+      let* (a, r') := estepf r in
+      let* (As, r'') := doo fuel' r' in
+      match a with
+      | None => Some(As, r'')
+      | Some(a') => Some(a' :: As, r'')
+      end
+    | _, _ => None
+    end
+  in doo fuel r
+.
 Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
   let '(Cprog symbs ξ) := p in
   let e := Xcall "main"%string 0 in
@@ -1523,6 +1470,78 @@ Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
   let R := s(Fresh.empty_fresh ; cf(symbs ; ξ ; nil) ; SComp ; 0 ; m(hNil ; hNil ; sNil)) ▷ e in
   star_stepf fuel R
 .
+Ltac crush_option :=
+    match goal with
+    | [H: Some _ = None |- _] => inv H
+    | [H: _ <> None |- _] =>
+      let n := fresh "n" in
+      apply (not_eq_None_Some) in H as [n H]
+    | [H: _ = None |- _] => trivial
+    end.
+Ltac crush_fuel := (match goal with
+| [H: Some _ = Some _ |- _] => inv H
+| [H: Some ?fuel = match (get_fuel ?e1) with Some _ => _ | None => None end |- _] =>
+  let Hx := fresh "Hx" in
+  let Hy := fresh "Hy" in
+  let n := fresh "n" in
+  destruct (option_dec (get_fuel e1)) as [Hx|Hy];
+  crush_option; try rewrite Hx in *; try rewrite Hy in *
+end).
+
+Lemma atleast_once Ω e r a fuel :
+  Some fuel = get_fuel e ->
+  Ω ▷ e ==[, a ]==> r ->
+  exists fuel', fuel = S fuel'.
+Proof.
+  revert fuel; induction e; cbn; intros fuel H; intros Ha.
+  - crush_fuel; crush_estep; easy.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - crush_fuel; try crush_option; exists n0; now inv H.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
+  - crush_fuel; now exists 0.
+  - destruct e; crush_fuel; try crush_option; exists n0; now inv H.
+  - crush_fuel; try crush_option; exists n0; now inv H.
+  - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
+  - exists 0; now inv H.
+Qed.
+Lemma star_stepf_one_step Ω e r r' a As fuel :
+  Some (S fuel) = get_fuel e ->
+  estep (Ω ▷ e) (Some a) r ->
+  star_stepf fuel r = Some(As, r') ->
+  star_stepf (S fuel) (Ω ▷ e) = Some(a :: As, r')
+.
+Proof. Admitted.
+Lemma star_stepf_one_unimportant_step Ω e r r' As fuel :
+  Some (S fuel) = get_fuel e ->
+  Ω ▷ e ==[]==> r ->
+  star_stepf fuel r = Some(As, r') ->
+  star_stepf (S fuel) (Ω ▷ e) = Some(As, r')
+.
+Proof. Admitted.
+Lemma estep_good_fuel Ω e r a fuel :
+  Some(S fuel) = get_fuel e ->
+  Ω ▷ e ==[, a ]==> r ->
+  Some fuel = get_fuel (let '(_, e') := r in e').
+Proof. Admitted.
+Lemma fuel_step oΩ e a oΩ' e' fuel :
+  Some(S fuel) = get_fuel e ->
+  (oΩ, e) ==[, a ]==> (oΩ', e') ->
+  Some fuel = get_fuel e'.
+Proof. Admitted.
+Lemma equiv_starstep Ω e r1 As fuel :
+  Some fuel = get_fuel e ->
+  Ω ▷ e ==[ As ]==>* r1 <-> star_stepf fuel (Ω ▷ e) = Some(As, r1).
+Proof.
+Admitted.
+Lemma star_stepf_is_nodupinv_invariant Ω e Ω' e' a fuel :
+  Some fuel = get_fuel e ->
+  star_stepf fuel (Ω ▷ e) = Some(a, Ω' ▷ e') ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof. intros H__fuel H0 H1; apply equiv_starstep in H0; eauto; apply star_step_is_nodupinv_invariant in H0; eauto. Qed.
 Fixpoint string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
   match t with
   | nil => acc
@@ -1542,7 +1561,7 @@ Definition debug_eval (p : prog) :=
 Reserved Notation "e0 '=(' n ')=[' a ']==>' e1" (at level 82, e1 at next level).
 Inductive n_step : rtexpr -> nat -> tracepref -> rtexpr -> Prop :=
 | ENS_refl : forall (r1 : rtexpr),
-    is_val (let '(_, e) := r1 in e) ->
+    is_value r1 ->
     r1 =( 0 )=[ nil ]==> r1
 | ENS_trans_important : forall (r1 r2 r3 : rtexpr) (a : event) (As : tracepref) (n : nat),
     r1 ==[ a ]==> r2 ->
@@ -1553,7 +1572,7 @@ Inductive n_step : rtexpr -> nat -> tracepref -> rtexpr -> Prop :=
     r2 =( n )=[ As ]==> r3 ->
     r1 =( S n )=[ As ]==> r3
 where "e0 '=(' n ')=[' a ']==>' e1" := (n_step e0 n a e1).
-#[export]
-Hint Constructors star_step : core.
+Hint Constructors n_step : core.
 Notation "e0 '=(0)=[]==>' e1" := (n_step e0 0 nil e1) (at level 82, e1 at next level).
 
+End L.

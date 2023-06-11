@@ -42,6 +42,16 @@ Definition string_of_nat (n : nat) : string :=
     end
   in string_of_nat_aux n n ""%string
 .
+Lemma in_cons_variant (A : Type) (a b : A) (l : list A) : In b (a :: l) <-> a = b \/ In b l.
+Proof.
+  split.
+  - intros H; induction H.
+    + left; assumption.
+    + right; assumption.
+  - intros H; destruct H.
+    + rewrite H; cbn; left; reflexivity.
+    + now apply in_cons with (a := a) in H.
+Qed.
 
 Definition delete {A : Type} (x : string) (Δ : list (string * A)) :=
   match Δ with
@@ -99,15 +109,14 @@ Proof.
   - destruct (string_dec x a); subst.
     + now left.
     + right; now apply IHX.
-  - destruct H; destruct (string_dec x a); subst; trivial.
-    congruence. now apply IHX.
+  - destruct H; destruct (string_dec x a); subst; trivial; congruence + now apply IHX.
 Qed.
 Lemma bool_eq_equiv_if (x : bool) : (if x then True else False) <-> x = true.
 Proof. now destruct x. Qed.
 Lemma bool_and_equiv_prop (x y : bool) : (x && y)%bool = true <-> (x = true) /\ (y = true).
 Proof. now destruct x,y. Qed.
 Lemma nbool_and_equiv_nprop (x y : bool) : (x && y)%bool = false <-> (x = false) \/ (y = false).
-Proof. destruct x,y; split; cbn in *; try now (left + right). all: intros []; congruence. Qed.
+Proof. destruct x,y; split; cbn in *; (try now (left + right)); intros []; congruence. Qed.
 
 Lemma subset_equiv_bool_in_subset (X Y : StrListSet) : X ⊆ Y <-> (forall x, bool_In X x = true -> bool_In Y x = true).
 Proof.
@@ -169,6 +178,8 @@ Instance OptionMonad__Instance : Monad option := {
 Lemma get_rid_of_letstar {A B:Type} (a : A) (x : A) (f : A -> option B):
   (let* a := Some x in f a) = f x.
 Proof. now cbn. Qed.
+#[global]
+Hint Resolve get_rid_of_letstar : core.
 
 Class HasEquality (A : Type) := {
   eq : A -> A -> bool ;
@@ -242,9 +253,9 @@ Lemma in_dom_dec { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B
 Proof.
   induction m; cbn.
   - now right.
-  - fold (dom m). destruct IHm as [IHm|IHm]; eauto.
-    destruct (eq_dec a x); subst.
-    repeat left; easy. right. intros [H1|H1]; contradiction.
+  - fold (dom m); destruct IHm as [IHm|IHm]; eauto;
+    destruct (eq_dec a x); subst;
+    (repeat left; easy) + right; intros [H1|H1]; contradiction.
 Qed.
 Inductive nodupinv {A : Type} {H : HasEquality A} {B : Type} : mapind H B -> Prop :=
 | nodupmapNil : nodupinv (mapNil H B)
@@ -771,10 +782,6 @@ Notation "e0 '==[,' a ']==>' e1" := (estep__Class e0 a e1) (at level 82, e1 at n
 Notation "e0 '--[' a ']-->' e1" := (pstep__Class e0 (Some a) e1) (at level 82, e1 at next level).
 #[global]
 Notation "e0 '==[' a ']==>' e1" := (estep__Class e0 (Some a) e1) (at level 82, e1 at next level).
-#[global]
-Notation "G '⊦' e ':' t" := (vDash__Class G e t) (at level 82, e at next level, t at next level).
-#[global]
-Notation "'[⋅]'" := (Gnil).
 
 Lemma notin_dom_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
   ~ In x (dom(m1 ◘ m2)) ->
@@ -986,3 +993,144 @@ Ltac elim_split :=
      assert (H2':=H2); rewrite H1 in H2'; apply splitat_elim in H2'; auto; rewrite H2'
   end
 .
+
+(** Typeclass to define language with star step and all that. *)
+Class LangParams : Type := {
+  State : Type ;
+  Ev : Type ;
+  step : State -> option Ev -> State -> Prop ;
+  string_of_event : Ev -> string ;
+  is_value : State -> Prop ;
+}.
+
+Section Lang.
+  Context {langParams : LangParams}.
+
+  (** A trace is an infinite stream of events.
+      Termination is modeled by infinitely many `None`.
+   *)
+  CoInductive trace :=
+  | TCons : option Ev -> trace -> trace
+  .
+  (** It is sufficient to look at trace prefixes for safety properties. *)
+  Definition tracepref := list Ev.
+
+  Fixpoint Tappend (As Bs : tracepref) : tracepref :=
+    match As with
+    | nil => Bs
+    | a :: As => a :: (Tappend As Bs)
+    end
+  .
+  Definition string_of_tracepref (t : tracepref) : string :=
+    let aux := fix string_of_tracepref_aux (t : tracepref) (acc : string) : string :=
+      match t with
+      | nil => acc
+      | a :: nil => String.append acc (string_of_event a)
+      | a :: As =>
+          let acc' := String.append acc (String.append (string_of_event a) (" · "%string))
+          in string_of_tracepref_aux As acc'
+      end in
+    aux t (""%string)
+  .
+  Definition wherein (a : Ev) (As : tracepref) (n : nat) :=
+    match List.nth_error As n with
+    | None => False
+    | Some x => a = x
+  end.
+  Lemma wherein_nil (a : Ev) :
+    forall n, wherein a nil n -> False.
+  Proof. now induction n. Qed.
+  Lemma whereinE (a : Ev) (As : tracepref) :
+    forall n, wherein a As n <-> List.nth_error As n = Some a.
+  Proof.
+    split; intros; unfold wherein in *; destruct (nth_error As n); subst; try easy; now inv H.
+  Qed.
+  Lemma wherein_predecessor (a b: Ev) (As : tracepref) :
+    forall n, a <> b -> wherein a (b :: As) n -> wherein a As (pred n).
+  Proof. now induction n. Qed.
+  Lemma wherein_eq (a : Ev) (As : tracepref) :
+  forall n m, wherein a As n -> wherein a As m -> n = m.
+  Proof.
+  Admitted.
+  Lemma wherein_nth As a : In a As -> exists n, wherein a As n.
+  Proof.
+    intros H; apply In_nth_error in H; deex; exists n; apply whereinE; easy.
+  Qed.
+  Lemma wherein_implies_wherein_cons (a b : Ev) (As : tracepref) :
+    forall n, wherein a As n -> wherein a (b :: As) (n + 1).
+  Proof.
+    intros n H; apply whereinE in H; apply whereinE; rewrite <- H;
+    destruct n; trivial; cbn; destruct As; now rewrite PeanoNat.Nat.add_1_r.
+  Qed.
+  Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
+    exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
+  .
+  Lemma before_nothing a0 a1 :
+    before a0 a1 nil -> False.
+  Proof.
+    unfold before; intros H; deex; destruct H as [H1 [H2 H3]];
+    induction n0, n1; easy.
+  Qed.
+  Lemma before_split a As a0 a1 n :
+    (before a0 a1 As) \/ (a0 = a /\ wherein a1 As n) ->
+    before a0 a1 (a :: As)
+  .
+  Proof.
+    intros [H1 | [H1 H2]].
+    - unfold before in *; deex; destruct H1 as [H1 [H2 H3]];
+      exists (n0 + 1); exists (n1 + 1); repeat split; try apply wherein_implies_wherein_cons; try apply Nat.add_lt_mono_r; trivial.
+    - exists 0; exists (n + 1); repeat split.
+      + apply whereinE; simpl; subst; easy.
+      + apply wherein_implies_wherein_cons; trivial.
+      + apply PeanoNat.Nat.add_pos_r, NPeano.Nat.lt_0_1.
+  Qed.
+  (** Use this to define a coercion *)
+  Definition ev_to_tracepref (e : Ev) : tracepref := e :: nil.
+  Coercion ev_to_tracepref : Ev >-> tracepref.
+
+  Inductive star_step : State -> tracepref -> State -> Prop :=
+  | ES_refl : forall (r1 : State),
+      is_value r1 ->
+      star_step r1 nil r1
+  | ES_trans_important : forall (r1 r2 r3 : State) (a : Ev) (As : tracepref),
+      step r1 (Some a) r2 ->
+      star_step r2 As r3 ->
+      star_step r1 (a :: As) r3
+  | ES_trans_unimportant : forall (r1 r2 r3 : State) (As : tracepref),
+      step r1 None r2 ->
+      star_step r2 As r3 ->
+      star_step r1 As r3
+  .
+  Hint Constructors star_step : core.
+
+  Inductive n_step : State -> nat -> tracepref -> State -> Prop :=
+  | ENS_refl : forall (r1 : State),
+      is_value r1 ->
+      n_step r1 0 nil r1
+  | ENS_trans_important : forall (r1 r2 r3 : State) (a : Ev) (As : tracepref) (n : nat),
+      step r1 (Some a) r2 ->
+      n_step r2 n As r3 ->
+      n_step r1 (S n) (a :: As) r3
+  | ENS_trans_unimportant : forall (r1 r2 r3 : State) (As : tracepref) (n : nat),
+      step r1 None r2 ->
+      n_step r2 n As r3 ->
+      n_step r1 (S n) As r3
+  .
+  Hint Constructors star_step : core.
+End Lang.
+
+Module LangNotations.
+  Context (langParams : LangParams).
+
+  Declare Scope LangNotationsScope.
+  Delimit Scope LangNotationsScope with langnotationsscope.
+  Notation "e0 '==[' a ']==>' e1" := (step e0 (Some a) e1) (at level 82, e1 at next level) : LangNotationsScope.
+  Notation "e0 '==[,' a ']==>' e1" := (step e0 a e1) (at level 82, e1 at next level) : LangNotationsScope.
+  Notation "e0 '==[]==>' e1" := (step e0 None e1) (at level 82, e1 at next level) : LangNotationsScope.
+
+  Notation "e0 '==[' a ']==>*' e1" := (star_step e0 a e1) (at level 82, e1 at next level) : LangNotationsScope.
+  Notation "e0 '==[]==>*' e1" := (star_step e0 (Tnil) e1) (at level 82, e1 at next level) : LangNotationsScope.
+
+  Notation "e0 '=(' n ')=[' a ']==>' e1" := (n_step e0 n a e1) (at level 82, e1 at next level) : LangNotationsScope.
+  Notation "e0 '=()=[]==>' e1" := (n_step e0 0 nil e1) (at level 82, e1 at next level) : LangNotationsScope.
+End LangNotations.

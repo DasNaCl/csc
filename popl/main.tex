@@ -37,6 +37,7 @@
 \documentclass[acmsmall,review,screen,dvipsnames]{acmart}
 
 \usepackage[colorinlistoftodos]{todonotes}
+\usepackage[inference]{semantic}
 \usepackage{cleveref}
 \usepackage{glossaries}
 \usepackage{listings}
@@ -255,13 +256,145 @@ available as supplementary material and will be made available upon acceptance o
 
 
 \section{Background}\label{sec:background}
-We give a brief introduction to trace properties, monitors, and property satisfaction (\Cref{subsec:bg:tprop}).
-With property satisfaction, we re-introduce the concept of robust satisfaction and its compiler-driven preservation (\Cref{subsec:bg:rtp}).
+\Cref{subsec:bg:tprop} introduces trace properties, monitors, and property satisfaction.
+\Cref{subsec:bg:rtp} extends the property satisfaction with robustness and shows its compiler-driven preservation, as presented in~\cite{abate2019jour}.
 
-\subsection{Trace-Based Properties}\label{subsec:bg:tprop}
-\subsection{Robust Trace-Property Preservation}\label{subsec:bg:rtp}
+\subsection{Trace-Based Properties, Programming Languages, and Property Satisfaction}\label{subsec:bg:tprop}
+
+\emph{Events} $\event$ are an abstract representation of observable actions a program can do during its execution.
+Typically, one always has an empty observation $\emptyevent$ used to represent unimportant actions.
+A sequence of events $\trace$ is a \emph{trace}.
+So, throughout the paper, we use $\overline{\cdot}$ to mark meta-variables as sequences.
+Empty sequences are denoted with $\hole{\cdot}$ and concatenation of traces $\trace[_{1}],\trace[_{2}]$ is written as $\trace[_{1}]\cdot\trace[_{2}]$.
+For sake of brevity, we use this notation also for pre- and appending events to traces.
+
+A trace-based property $\pi$ is a set of admissable traces.
+For a trace to be admissable, a predicate evaluates to true whenever $\trace\in\pi$.
+Classes of properties $\class$, commonly referred to as hyperproperties in literature, are sets of properties.
+The \emph{lifting} of a property $\pi$ is simply its powerset and denoted as $\lift{\pi}$.
+To define property satisfaction, we first look at programming languages.
+
+For languages used in this paper, we consider a small-step style semantics.
+That is, there is a step relation between states $\statevar$ and an event $\event$: $\stepto[]{\statevar[_{1}]}{\statevar[_{2}]}{\event}$.
+Also, a program's syntax $p$ is encoded in the state $\statevar$ which we write as $p\in\statevar$.
+For states $\statevar$, we assume there exists a judgement $\isval{\statevar}$ that determines wether $\statevar$ is a final state or not.
+\Cref{fig:starstep:and:nstep}\MK{appendix?} defines the star-step relation $\stepto{\statevar[_{1}]}{\statevar[_{2}]}{\trace}$, essentially modelling a big-step style evaluation, and the $n$-step relation $\stepton{\statevar[_{1}]}{\statevar[_{2}]}{\trace}$ that evaluates a program for $n$ steps.
+Both relations filter $\varepsilon$ events.
+
+\begin{figure}[t]
+  \judgbox{\stepto{r}{r'}{\trace}}{,,State $\statevar$ steps to final state $\statevar[']$, emitting events $\trace$.''}$\;$\\
+  %
+  \typerule{star-step-refl}{
+    \isval{\statevar}
+  }{
+    \stepto{\statevar}{\statevar}{\hole{\cdot}}
+  }{star-step-refl}
+  %
+  \typerule{star-step-trans}{
+    \event\not=\varepsilon &
+    \stepto[]{\statevar}{\statevar[']}{\event} &
+    \stepto{\statevar[']}{\statevar['']}{\trace}
+  }{
+    \stepto{\statevar}{\statevar['']}{\event\cdot\trace}
+  }{star-step-trans}
+  %
+  \typerule{star-step-ign}{
+    \stepto[]{\statevar}{\statevar[']}{\varepsilon} &
+    \stepto{\statevar[']}{\statevar['']}{\trace}
+  }{
+    \stepto{\statevar}{\statevar['']}{\trace}
+  }{star-step-ign}
+
+  \judgbox{\stepton{\statevar}{\statevar[']}{\trace}}{,,State $r$ does $n$ steps to final state $\statevar[']$, emitting events $\trace$.''}$\;$\\
+  %
+  \typerule{n-step-refl}{
+  }{
+    \stepton[0]{\statevar}{\statevar}{\hole{\cdot}}
+  }{n-step-refl}
+  %
+  \typerule{n-step-trans}{
+    \event\not=\varepsilon &
+    \stepto[]{\statevar}{\statevar[']}{\event} &
+    \stepton{\statevar[']}{\statevar['']}{\trace}
+  }{
+    \stepton[n+1]{\statevar}{\statevar['']}{\event\cdot\trace}
+  }{n-step-trans}
+  %
+  \typerule{n-step-ign}{
+    \stepto[]{\statevar}{\statevar[']}{\varepsilon} &
+    \stepton{\statevar[']}{\statevar['']}{\trace}
+  }{
+    \stepton[n+1]{\statevar}{\statevar['']}{\trace}
+  }{n-step-ign}
+
+  \caption{Star-step and $n$-step relation for a given step relation $\stepto{\statevar[_{1}]}{\statevar[_{2}]}{\event}$}\label{fig:starstep:and:nstep}
+\end{figure}
+%
+The \emph{behavior} of a whole program $w$ ($\behav{w}$) is a set containing all traces the program may emit during execution.
+Note that for deterministic languages, $\behav{w}$ is a singleton set for any $w$.
+With this, we can define satisfaction:
+
+\begin{definition}[Property Satisfaction]\label{def:propsat}
+  A \emph{whole} program $w$ satisfies $\pi$ ($\sat{w}{\pi}$) iff $\behav{w}\in\lift{\pi}$.
+\end{definition}
+\begin{definition}[Class Satisfaction]\label{def:classsat}
+  A \emph{whole} program $w$ satisfies $\class$ ($\sat{w}{\class}$) iff $\behav{w}\in\class$.
+\end{definition}
+
+\subsection{Attacker Model and Robust Trace-Property Preservation}\label{subsec:bg:rtp}
+
+Partial programs cannot be executed, because they lack definitions for some symbols.
+Providing definitions for symbols is usually the job of the \emph{linker}.
+We denote linking two programs $\progvar[_{1}],\progvar[_{2}]$ as $\link{\progvar[_{1}]}{\progvar[_{2}]}$.
+For sake of simplicity, we assume that linking does not fail.
+With linking, we can define robust satisfaction analogously to \Cref{def:propsat,def:classsat}:
+
+\begin{definition}[Robust Property Satisfaction]\label{def:proprsat}
+  A program $\progvar$ robustly satisfies $\pi$ ($\rsat{\progvar}{\pi}$) iff for any program $\contextvar$ we have $\sat{\link{\contextvar}{\progvar}}{\pi}$. (similarily for $\rsat{\progvar}{\class}$)
+\end{definition}
+
+Robust satisfaction gives rise to a maximally powerful attacker model: Any other partial program, here referred to as context $\contextvar$, is the attacker.
+So, for example, if the programming language of $\progvar$ and $\contextvar$ allows guessing of memory addresses, then $\contextvar$ is able to read and write any position in memory and therefore guess the location of secrets.
+
+We expect compilers to preserve robust satisfaction.
+In this paper, compilers are modelled as function from one programming language's syntax to the other.
+Since this paper considers composing compilers, we'll adopt notation similar to tombstone diagrams to easen the formal burden.
+So, we denote a compiler from $\src{L}$ to $\trg{L}$ as $\cc{\src{L}\to\trg{L}}{\src{\bullet}}$ and we refer to $\src{L}$ as \emph{source} language and to $\trg{L}$ as \emph{target} language.
+Composing $\cc{\src{L}\to\trg{L}}{\src{\bullet}}$ with $\cc{\trg{L}\to\obj{L}}{\trg{\bullet}}$ is denoted as $\cc{\src{L}\to\trg{L}\to\obj{L}}{\src{\bullet}}$ and means first running $\cc{\src{L}\to\trg{L}}{\src{\bullet}}$ and plugging the output into $\cc{\trg{L}\to\obj{L}}{\trg{\bullet}}$.
+Contrary to tombstones, we don't consider a compiler's implementation language.
+We now define the compiler-property robust trace-property preservation.
+
+\begin{definition}[Robust Trace-Property Preservation]\label{def:rtp}
+  A compiler $\cc{\src{L}\to\trg{L}}{\src{\bullet}}$ robustly preserves a class of properties $\class$ ($\rtp{\cc{\src{L}\to\trg{L}}{\src{\bullet}}}{\class}$) iff for any property $\pi\in\class$ and $\src{p}$ written in $\src{L}$, given $\rsat{\src{\progvar}}{\pi}$, then $\rsat{\cc{\src{L}\to\trg{L}}{\src{\progvar}}}{\pi}$.
+\end{definition}
+
+Note that in the conclusion of \Cref{def:rtp} there is a target-level context.
+So, programs that robustly satisfy a property are hardened against a maximally malicious environment with respect to the power of the target language.
 
 \section{Composing Properties}\label{sec:compprop}
+\Cref{subsec:propdefs} introduces a ,,most general'' trace model and defines properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{cct}) that our case study (\Cref{sec:casestud}) on it.
+By means of taking these properties as an example, \Cref{subsec:monitors} defines monitors for them and an agreement relation between a monitor's trace model with the most general trace model.
+Then, we define monitor-based satisfaction and we prove that trace-property satisfaction is implied by it.
+Since monitor-based satisfaction is easier to reason about, this makes our later proofs considerably simpler.
+
+\subsection{Most General Trace-Model and Example Property Definitions}\label{subsec:propdefs}
+
+\begin{definition}[\glsfirst{tms}]
+
+\end{definition}
+\begin{definition}[\glsfirst{sms}]
+
+\end{definition}
+\begin{definition}[\glsfirst{ms}]
+
+\end{definition}
+\begin{definition}[\glsfirst{scct}]
+
+\end{definition}
+
+\subsection{Monitors and Trace Agreements}\label{subsec:monitors}
+
+
 \section{Composing Robustly Secure Compilers}\label{sec:compcomp}
 This section studies different kinds of secure compiler compositions and their corresponding proofs.
 Most notably, it looks at the sequential composition of secure compilers and shows a theorem that allows for modular proof engineering: compilers need not to robustly preserve the same property in order to be securely composed.

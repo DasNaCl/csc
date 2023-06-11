@@ -38,8 +38,10 @@
 
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[inference]{semantic}
-\usepackage{cleveref}
+\usepackage{fontawesome5}
 \usepackage{glossaries}
+\usepackage{cleveref}
+\usepackage{stmaryrd}
 \usepackage{listings}
 \usepackage{xspace}
 
@@ -372,24 +374,62 @@ Note that in the conclusion of \Cref{def:rtp} there is a target-level context.
 So, programs that robustly satisfy a property are hardened against a maximally malicious environment with respect to the power of the target language.
 
 \section{Composing Properties}\label{sec:compprop}
-\Cref{subsec:propdefs} introduces a ,,most general'' trace model and defines properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{cct}) that our case study (\Cref{sec:casestud}) on it.
+\Cref{subsec:propdefs} introduces a ,,most general'' trace model and defines properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{cct}) that our case study (\Cref{sec:casestud}) uses.
 By means of taking these properties as an example, \Cref{subsec:monitors} defines monitors for them and an agreement relation between a monitor's trace model with the most general trace model.
 Then, we define monitor-based satisfaction and we prove that trace-property satisfaction is implied by it.
 Since monitor-based satisfaction is easier to reason about, this makes our later proofs considerably simpler.
 
-\subsection{Most General Trace-Model and Example Property Definitions}\label{subsec:propdefs}
+\subsection{Most General Trace-Model and Some Property Definitions}\label{subsec:propdefs}
 
-\begin{definition}[\glsfirst{tms}]
+\begin{gather*}
+  \begin{aligned}
+  \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock\hspace{0.5cm}
+  \mi{(Control\ Tag)}~\sandboxtag\bnfdef \ctx\mid\comp\\
+  \mi{(Pre-event)}~\event[_{b}]\bnfdef&\ \ev{Alloc\ \loc\ n} \mid \ev{Dealloc\ \loc} \mid \ev{Use\ \loc\ n} \mid \ev{Branch\ n} \mid \ev{Binop\ n} \\
+  \mi{(Event)}~\event\bnfdef&\ \emptyevent \mid \lightning \mid \event[_{b}];\sandboxtag;\sigma \\
+  \end{aligned}
+\end{gather*}
 
+Security tags describe wether an event contains sensitive information ($\lock$) or not ($\unlock$).
+Control tags state wether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
+Pre-events describe the actual kind of event that happened.
+$\ev{Alloc\ \loc\ n}$ states that an allocation of size $n$ happened and is stored at $\loc$.
+$\ev{Dealloc\ \loc}$ announces that location $\loc$ is freed.
+$\ev{Use\ \loc\ n}$ abstracts over reads from $\loc$ and writes to $\loc$ in memory, where $n$ is read/written, respectively.
+$\ev{Branch\ n}$ and $\ev{Binop\ n}$ leak values involved in a branch or in a binary operation with data-dependent execution time.
+Finally, events are either the emptyevent ($\emptyevent$), a program crash ($\lightning$), or a tuple consisting of a pre-event, a control tag, and a security tag.
+
+We use this trace model to define any property that interests us.
+In a sense the trace model is most general, because it abstracts all events done in our languages as defined in \Cref{sec:casestud}.
+We write $\event[_{1}]\le_{\trace}\event[_{2}]$ if $\event[_{1}]$ occurs at an earlier position in $\trace$ than $\event[_{2}]$.
+
+\gls{tms} requires that pointers are freed exactly once and that no use happens after a free.
+
+\begin{definition}[\glsfirst{tms}]\label{def:trace:tmsdef}
+  A trace $\trace$ is temporal memory safe ($\trace\in\tmssafe$) iff $\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Dealloc\ \loc;\sandboxtag';\securitytag'}$, $\ev{Use\ \loc\ n;\sandboxtag;\securitytag}\not\le_{\trace}\ev{Alloc\ \loc\ m;\sandboxtag';\securitytag'}$ and $\ev{Use\ \loc\ n;\sandboxtag;\securitytag}\not\le_{\trace}\ev{Dealloc\ \loc;\sandboxtag';\securitytag'}$.
 \end{definition}
-\begin{definition}[\glsfirst{sms}]
 
-\end{definition}
-\begin{definition}[\glsfirst{ms}]
+\gls{sms} disregards out of bounds accesses.
 
+\begin{definition}[\glsfirst{sms}]\label{def:trace:smsdef}
+  A trace $\trace$ is spatial memory safe ($\trace\in\smssafe$) iff given $\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag';\securitytag'}$, then $n<m$.
 \end{definition}
+
+Full \gls{ms} is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
+
+\begin{definition}[\glsfirst{ms}]\label{def:trace:msdef}
+  A trace $\trace$ is memory safe ($\trace\in\mssafe$) iff $\trace\in\tmssafe$ and $\trace\in\smssafe$.
+\end{definition}
+
+We define a variant of the \gls{cct} security property.
+Generally, one cannot define \gls{cct} just as trace-property without, e.g., performing a self-composition of a program.
+That's why we adopt for a stricter variant of \gls{cct}, called \gls{scct}, that enforces common policies to ensure code is \gls{cct}.
+For example, one must not branch on secrets or perform binary operations, such as division, on secrets whose timing is data-dependent.
+We opt for a definition that disregards any secrets leaked on a trace.
+To define the property, we need a function on traces that strips all events with a $\lock$-tag: $\downarrow_{\lock}(\cdot)$.
+
 \begin{definition}[\glsfirst{scct}]
-
+  A trace $\trace$ is strictly cryptographic constant time ($\trace\in\scctsafe$) iff $\trace=\downarrow_{\lock}\left(\trace\right)$.
 \end{definition}
 
 \subsection{Monitors and Trace Agreements}\label{subsec:monitors}

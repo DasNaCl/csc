@@ -34,6 +34,11 @@
 %%
 %%
 %% The first command in your LaTeX source must be the \documentclass command.
+
+
+% Fixing: Too many math alphabets used in version normal.
+\newcommand\hmmax{0}
+\newcommand\bmmax{0}
 \documentclass[acmsmall,review,screen,dvipsnames]{acmart}
 
 \usepackage[colorinlistoftodos]{todonotes}
@@ -44,6 +49,7 @@
 \usepackage{stmaryrd}
 \usepackage{listings}
 \usepackage{xspace}
+\usepackage{bm}
 
 \input{cmds.tex}
 
@@ -394,6 +400,8 @@ Security tags describe wether an event contains sensitive information ($\lock$) 
 Control tags state wether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
 Pre-events describe the actual kind of event that happened.
 $\ev{Alloc\ \loc\ n}$ states that an allocation of size $n$ happened and is stored at $\loc$.
+Locations $\loc$ are elements of $L$ and left abstract.
+However, we expect $L$ to be closed over addition with natural numbers.
 $\ev{Dealloc\ \loc}$ announces that location $\loc$ is freed.
 $\ev{Use\ \loc\ n}$ abstracts over reads from $\loc$ and writes to $\loc$ in memory, where $n$ is read/written, respectively.
 $\ev{Branch\ n}$ and $\ev{Binop\ n}$ leak values involved in a branch or in a binary operation with data-dependent execution time.
@@ -440,10 +448,32 @@ This is because monitors should only be concerned with property-relevant informa
 For each such monitor-specific trace model, we define an agreement relation that relates it with the most general trace model.
 Lastly, if any monitor does not get stuck on a trace and the trace agrees with a most general trace, then the most general one satisfies the associated property of the monitor.
 
-\paragraph{\glsfirst{tms}}
-\paragraph{\glsfirst{sms}}
-\paragraph{\glsfirst{ms}}
-\paragraph{\glsfirst{scct}}
+\paragraph{Monitor for \glsfirst{tms}}
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{alloced}:L,\text{freed}:L\right\}\\
+    \mi{(Abstract\ Events)}~\absevent\bnfdef&\ \absev{\emptyevent} \mid \absev{Alloc\ }\loc \mid \absev{Dealloc\ }\loc \mid \absev{Use\ }\loc \mid \absterm\\[0.33cm]
+    \tmsmonitor\subseteq\tmsmonitor[']:=\ &\tmsmonitor.\text{freed}\subseteq\tmsmonitor['].\text{freed} \\
+    \loc\in\tmsmonitor:=\ &\loc\in\tmsmonitor.\text{alloced}\text{ and }\loc\notin\tmsmonitor.\text{freed} \\
+    \loc\notin\tmsmonitor:=\ &\loc\notin\tmsmonitor.\text{alloced}\text{ and }\loc\notin\tmsmonitor.\text{freed} \\
+    \left\{\loc\right\}\cup\tmsmonitor:=\ & \left\{\text{alloced}:\left\{\loc\right\}\cup\tmsmonitor.\text{alloced},\text{freed}:\tmsmonitor.\text{freed}\right\}\\
+    \tmsmonitor\setminus\left\{\loc\right\}:=\ &\left\{\text{alloced}:\tmsmonitor.\text{alloced}\setminus\left\{\loc\right\}, \text{freed}:\tmsmonitor.\text{freed}\cup\left\{\loc\right\}\right\}\\
+  \end{aligned}
+\end{gather*}
+
+
+\paragraph{Monitor for \glsfirst{sms}}
+\begin{gather*}
+  \begin{aligned}
+  \end{aligned}
+\end{gather*}
+\paragraph{Comining Monitors: \glsfirst{ms}}
+
+\paragraph{Monitor for \glsfirst{scct}}
+\begin{gather*}
+  \begin{aligned}
+  \end{aligned}
+\end{gather*}
 
 
 \section{Composing Robustly Secure Compilers}\label{sec:compcomp}

@@ -743,27 +743,50 @@ To obtain a monitor for \gls{ms}, the monitors for \gls{tms} and \gls{sms} are s
 
 The \gls{scct} monitor simply disregards all private data occuring on a trace.
 
+\begin{lemma}[Monitor Traces are $\scctsafe$]\label{lem:mon:scctsafe}
+  If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$.\Coqed
+\end{lemma}
+
+
 \MKin{combined version of all monitors? maybe just as lemma}
 
-\section{Composing Robustly Secure Compilers}\label{sec:compcomp}
+\section{Composing Secure Compilers}\label{sec:compcomp}
 This section studies different kinds of secure compiler compositions and their corresponding proofs.
 Most notably, it looks at the sequential composition of secure compilers and shows a theorem that allows for modular proof engineering: compilers need not to robustly preserve the same property in order to be securely composed.
 Moreover, it demonstrates that the order does not matter for composing compilers with the same source and target language.
+Throughout this section, let $\src{L},\trg{L},$ and $\obj{L}$ be arbitrary programming lanugages.
+
+\begin{definition}[Sequential Composition]\label{def:seqcomp}
+  Let $\cc{\src{L}\to\trg{L}}{\src{\bullet}}$, $\cc{\trg{L}\to\obj{L}}{\trg{\bullet}}$ be compilers.
+  Let $\src{p}$ be any $\src{L}$ program, $\trg{p}=\cc{\src{L}\to\trg{L}}{\src{p}}$, and $\obj{p}=\cc{\trg{L}\to\obj{L}}{\trg{p}}$.
+  The sequential composition is $\cc{\src{L}\to\trg{L}\to\obj{L}}{\src{p}}=\obj{p}$.
+\end{definition}
+
+\begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtp}
+  Given classes of properties $\class[_{1}],\class[_{2}]$, let $\rtp{\cc{\src{L}\to\trg{L}}{\src{\bullet}}}{\class[_{1}]}$ and $\rtp{\cc{\trg{L}\to\obj{L}}{\trg{\bullet}}}{\class[_{2}]}$.
+  Then, $\rtp{\cc{\src{L}\to\trg{L}\to\obj{L}}{\src{\bullet}}}{\class[_{1}]\cap\class[_{2}]}$. \Coqed
+\end{theorem}
+
+A corollary of \Cref{thm:rtp} is that optimization passes that have the input and output language can be freely swapped:
+\begin{corollary}[Sequential Composition of Secure Compilers]\label{corr:swappable}
+  Given classes of properties $\class[_{1}],\class[_{2}]$, let $\rtp{\cc{\trg{L}\xrightarrow{1}\trg{L}}{\trg{\bullet}}}{\class[_{1}]}$ and $\rtp{\cc{\trg{L}\xrightarrow{2}\trg{L}}{\trg{\bullet}}}{\class[_{2}]}$.
+  Then, $\rtp{\cc{\trg{L}\xrightarrow{1}\trg{L}\xrightarrow{2}\trg{L}}{\trg{\bullet}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc{\trg{L}\xrightarrow{2}\trg{L}\xrightarrow{1}\trg{L}}{\trg{\bullet}}}{\class[_{2}]\cap\class[_{1}]}$. \Coqed
+\end{corollary}
 
 \section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
 This section defines several secure compilers, each of which robustly preserves a different property of interest.
 The power of the frameworks from \Cref{sec:compprop,sec:compcomp} is demonstrated by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
-Concretely, \Cref{subsec:cs:tms} starts by defining languages $\src{L_{TMS}}$ and $\trg{L}$ and describes a compiler $\cc{\src{L_{TMS}}\to\trg{L}}{\src{\bullet}}$ for the robust preservation of \gls{tms} between the two languages.
-\Cref{subsec:cs:ms} defines $\irl{L_{MS}}$ and a compiler $\cc{\trg{L}\to\irl{L_{MS}}}{\trg{\bullet}}$ that robustly preserves \gls{sms}.
-By the framework presented in \Cref{sec:compcomp,sec:compprop}, a compiler $\cc{\src{L_{TMS}}\to\irl{L_{MS}}}{\src{\bullet}}$ for the robust preservation of \gls{ms} by composing $\cc{\src{L_{TMS}}\to\trg{L}}{\src{\bullet}}$ and $\cc{\trg{L}\to\irl{L_{MS}}}{\trg{\bullet}}$ is attained.
-\Cref{subsec:cs:scct} defines $\obj{L_{CCT}}$ and a compiler $\cc{\irl{L_{MS}}\to\obj{L_{CCT}}}{\irl{\bullet}}$ that robustly preserves \gls{cct}.
-Composing it with $\cc{\src{L_{TMS}}\to\irl{L_{MS}}}{\src{\bullet}}$ yields $\cc{\src{L_{TMS}}\to\obj{L_{CCT}}}{\src{\bullet}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
-The final compilation chain in \Cref{subsec:cs:opts} defines optimizing compilers performing either \gls{cf} or \gls{dce} and composes them with $\cc{\src{L_{TMS}}\to\obj{L_{CCT}}}{\src{\bullet}}$, giving an optimizing, secure compilation chain.
+Concretely, the section starts starts by defining languages $\src{L_{TMS}}$ and $\trg{L}$ and describes a compiler $\cc{\src{L_{TMS}}\to\trg{L}}{\src{\bullet}}$ for the robust preservation of \gls{tms} between the two languages (\Cref{subsec:cs:tms}).
+Then, it defines $\irl{L_{MS}}$ and a compiler $\cc{\trg{L}\to\irl{L_{MS}}}{\trg{\bullet}}$ that robustly preserves \gls{sms} (\Cref{subsec:cs:ms}).
+By the framework presented in \Cref{sec:compcomp,sec:compprop}, a compiler $\cc{\src{L_{TMS}}\to\trg{L}\to\irl{L_{MS}}}{\src{\bullet}}$ for the robust preservation of \gls{ms} by composing $\cc{\src{L_{TMS}}\to\trg{L}}{\src{\bullet}}$ and $\cc{\trg{L}\to\irl{L_{MS}}}{\trg{\bullet}}$ is attained.
+Two secure compilers $\cc{{\irl{L_{MS}}\xrightarrow{\gls{dce}}\irl{L_{MS}}}}{\irl{\bullet}}$ and $\cc{\irl{L_{MS}}\xrightarrow{\gls{cf}}\irl{L_{MS}}}{\irl{\bullet}}$ are defined that perform \gls{dce} and \gls{cf}, respectively, to model an optimzing pipeline happening somewhere in the compilation chain (\Cref{subsec:cs:opts}).
+Finally, the paper defines $\obj{L_{CCT}}$ and a compiler $\cc{\irl{L_{MS}}\to\obj{L_{CCT}}}{\irl{\bullet}}$ that robustly preserves \gls{cct} (\Cref{subsec:cs:scct}).
+Composing it with $\cc{\src{L_{TMS}}\to\irl{L_{MS}}}{\src{\bullet}}$ and the optimizing compilers $\cc{\irl{L_{MS}}\xrightarrow{\gls{dce}}\irl{L_{MS}}}{\irl{\bullet}}$ and $\cc{\irl{L_{MS}}\xrightarrow{\gls{cf}}\irl{L_{MS}}}{\irl{\bullet}}$ yields $\cc{\src{L_{TMS}}\to\trg{L}\to\irl{L_{MS}}\xrightarrow{\gls{cf}}\irl{L_{MS}}\xrightarrow{\gls{dce}}\irl{L_{MS}}\to\obj{L_{CCT}}}{\src{\bullet}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
-\subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
 \subsection{Optimizing Compilers}\label{subsec:cs:opts}
+\subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
 
 %\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']
 %if at <= bounds {

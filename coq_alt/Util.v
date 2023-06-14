@@ -1003,6 +1003,37 @@ Class LangParams : Type := {
   is_value : State -> Prop ;
 }.
 
+Inductive loc : Type :=
+| addr : nat -> loc
+.
+Definition loc_eqb :=
+  fun ℓ1 ℓ2 =>
+    match ℓ1, ℓ2 with
+    | addr n1, addr n2 => Nat.eqb n1 n2
+    end
+.
+Lemma loc_eqb_eq ℓ0 ℓ1 :
+  loc_eqb ℓ0 ℓ1 = true <-> ℓ0 = ℓ1.
+Proof.
+  destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
+  - cbn in H; rewrite Nat.eqb_eq in H; now subst.
+  - inv H; apply Nat.eqb_refl.
+Qed.
+#[export]
+Instance loceq__Instance : HasEquality loc := {
+  eq := loc_eqb ;
+  eqb_eq := loc_eqb_eq ;
+}.
+#[export]
+Hint Resolve eqb_eq String.eqb_refl : core.
+
+Module LocList <: ListBase.
+  Definition A := loc.
+  Definition eqb := loc_eqb.
+End LocList.
+Module LocListSets <: Sig := SetTheoryList (LocList).
+Definition LocListSet := LocListSets.set.
+
 Section Lang.
   Context {langParams : LangParams}.
 

@@ -863,11 +863,15 @@ Inductive estep : CtxStep :=
 Existing Instance estep.
 Hint Constructors estep : core.
 
+Instance Trace__Instance : TraceParams := {
+  Ev := event ;
+  string_of_event := string_of_event ;
+}.
+
 Instance GeneralLangParams__Instance : LangParams := {
   State := rtexpr ;
-  Ev := event ;
+  Trace__Instance := Trace__Instance ;
   step := estep ;
-  string_of_event := string_of_event ;
   is_value := fun (r : rtexpr) => let '(_,e) := r in is_value_e e ;
 }.
 Import LangNotations.

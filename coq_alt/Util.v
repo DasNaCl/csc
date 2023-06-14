@@ -994,15 +994,6 @@ Ltac elim_split :=
   end
 .
 
-(** Typeclass to define language with star step and all that. *)
-Class LangParams : Type := {
-  State : Type ;
-  Ev : Type ;
-  step : State -> option Ev -> State -> Prop ;
-  string_of_event : Ev -> string ;
-  is_value : State -> Prop ;
-}.
-
 Inductive loc : Type :=
 | addr : nat -> loc
 .
@@ -1034,9 +1025,13 @@ End LocList.
 Module LocListSets <: Sig := SetTheoryList (LocList).
 Definition LocListSet := LocListSets.set.
 
-Section Lang.
-  Context {langParams : LangParams}.
-
+(** Typeclass to define trace model *)
+Class TraceParams : Type := {
+  Ev : Type ;
+  string_of_event : Ev -> string ;
+}.
+Section Trace.
+  Context {traceParams : TraceParams}.
   (** A trace is an infinite stream of events.
       Termination is modeled by infinitely many `None`.
    *)
@@ -1118,6 +1113,21 @@ Section Lang.
   (** Use this to define a coercion *)
   Definition ev_to_tracepref (e : Ev) : tracepref := e :: nil.
   Coercion ev_to_tracepref : Ev >-> tracepref.
+
+End Trace.
+
+(** Typeclass to define language with star step and all that. *)
+Class LangParams : Type := {
+  State : Type ;
+  Trace__Instance : TraceParams ;
+  step : State -> option Ev -> State -> Prop ;
+  is_value : State -> Prop ;
+}.
+
+
+Section Lang.
+  Context {langParams : LangParams}.
+  Existing Instance Trace__Instance.
 
   Inductive star_step : State -> tracepref -> State -> Prop :=
   | ES_refl : forall (r1 : State),

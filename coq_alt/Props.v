@@ -27,6 +27,7 @@ Instance MGT__Instance : TraceParams := {
   Ev := Event ;
   string_of_event := fun _ => ""%string ;
 }.
+Definition tracepref := Util.tracepref.
 
 (** Trace property definitions *)
 
@@ -44,6 +45,10 @@ Definition sms : prop := fun (As : tracepref) =>
                            forall l n m t t' σ σ', before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As ->
                                               n < m
 .
+(** Memory Safety *)
+Definition ms : prop := fun (As : tracepref) =>
+                          tms As /\ sms As
+.
 (** Strict Cryptographic Constant Time *)
 Fixpoint no_secrets (As : tracepref) : tracepref :=
   match As with
@@ -59,7 +64,10 @@ Fixpoint no_secrets (As : tracepref) : tracepref :=
 Definition sCCT : prop := fun (As : tracepref) =>
                             As = no_secrets As
 .
-
+(** Combined version of ms and scct *)
+Definition MSSCCT : prop := fun (As : tracepref) =>
+                              ms As /\ sCCT As
+.
 Module PropNotations.
   Declare Scope PropNotationsScope.
   Delimit Scope PropNotationsScope with propnotationsscope.

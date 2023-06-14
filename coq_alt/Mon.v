@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String CSC.Util CSC.Sets.
+Require Import Strings.String CSC.Util CSC.Sets CSC.Props.
 
 (** * This file defines the various monitors from the paper. *)
 
@@ -12,16 +12,29 @@ Module Type MonitorT.
   Parameter string_of_absev : AbsEv -> string.
 End MonitorT.
 
-Module BaseMonitor (M : MonitorT).
+Module Monitor (M : MonitorT) <: MonitorT.
+  Include M.
+  #[export]
+  Instance Trace__Instance : TraceParams := {
+    Ev := AbsEv ;
+    string_of_event := string_of_absev ;
+  }.
   #[export]
   Instance MonInstance : LangParams := {
-    State := M.AbsState;
-    Ev := M.AbsEv;
-    step := M.MonCheck;
-    string_of_event := M.string_of_absev;
+    State := AbsState;
+    Trace__Instance := Trace__Instance;
+    step := MonCheck;
     is_value := fun _ => True;
   }.
-End BaseMonitor.
+  Definition tracepref := @Util.tracepref Trace__Instance.
+
+  Definition cong (As : Props.tracepref) (Bs : tracepref) : Prop := True.
+
+  Definition sat (As : Props.tracepref) : Prop :=
+    exists (Bs : tracepref) (T : State),
+      cong As Bs /\ @star_step MonInstance EmptyState Bs T
+  .
+End Monitor.
 
 (** Monitor Composition *)
 Module CompMonitor (M1 M2 : MonitorT) : MonitorT.
@@ -53,19 +66,10 @@ Module CompMonitor (M1 M2 : MonitorT) : MonitorT.
                                          (String.append s2
                                             ")"%string)))
   .
-
-  #[export]
-  Instance MonInstance : LangParams := {
-    State := AbsState;
-    Ev := AbsEv;
-    step := MonCheck;
-    string_of_event := string_of_absev;
-    is_value := fun _ => True;
-  }.
 End CompMonitor.
 
 (** Temporal Memory Safety Monitor *)
-Module TMSMon : MonitorT.
+Module TMSMonAux : MonitorT.
   Record AbsState_r : Type := {
       alloced : Util.LocListSet ;
       freed : Util.LocListSet ;
@@ -123,15 +127,8 @@ Module TMSMon : MonitorT.
           | AUse (addr _n) => "absUse ℓ"%string
           end
   .
-  #[export]
-  Instance MonInstance : LangParams := {
-    State := AbsState;
-    Ev := AbsEv;
-    step := MonCheck;
-    string_of_event := string_of_absev;
-    is_value := fun _ => True;
-  }.
-End TMSMon.
+End TMSMonAux.
+Module TMSMon := Monitor TMSMonAux.
 
 (** Spatial Memory Safety Monitor *)
 Module LocNatList <: ListBase.
@@ -143,7 +140,7 @@ Module LocNatList <: ListBase.
 End LocNatList.
 Module LocNatListSets <: Sig := SetTheoryList (LocNatList).
 Definition LocNatListSet := LocNatListSets.set.
-Module SMSMon : MonitorT.
+Module SMSMonAux : MonitorT.
   Definition AbsState := LocNatListSet.
   #[export]
   Hint Unfold AbsState : core.
@@ -180,17 +177,26 @@ Module SMSMon : MonitorT.
           end
   .
   #[export]
+  Instance Trace__Instance : TraceParams := {
+    Ev := AbsEv;
+    string_of_event := string_of_absev;
+  }.
+  #[export]
   Instance MonInstance : LangParams := {
     State := AbsState;
-    Ev := AbsEv;
+    Trace__Instance := Trace__Instance;
     step := MonCheck;
-    string_of_event := string_of_absev;
     is_value := fun _ => True;
   }.
-End SMSMon.
+End SMSMonAux.
+Module SMSMon := Monitor SMSMonAux.
+
+(** Memory Safety *)
+Module MSMonAux := CompMonitor TMSMonAux SMSMonAux.
+Module MSMon := Monitor MSMonAux.
 
 (** Strict Cryptographic Constan Time *)
-Module sCCTMon : MonitorT.
+Module sCCTMonAux : MonitorT.
   Definition AbsState : Type := unit.
   Definition EmptyState : AbsState := tt.
   Variant AbsEv_d : Type :=
@@ -214,11 +220,54 @@ Module sCCTMon : MonitorT.
           end
   .
   #[export]
+  Instance Trace__Instance : TraceParams := {
+    Ev := AbsEv;
+    string_of_event := string_of_absev;
+  }.
+  #[export]
   Instance MonInstance : LangParams := {
     State := AbsState;
-    Ev := AbsEv;
+    Trace__Instance := Trace__Instance;
     step := MonCheck;
-    string_of_event := string_of_absev;
     is_value := fun _ => True;
   }.
-End sCCTMon.
+End sCCTMonAux.
+Module sCCTMon := Monitor sCCTMonAux.
+
+(** scct and ms *)
+Module MSSCCTMonAux := CompMonitor MSMonAux sCCTMonAux.
+Module MSSCCTMon := Monitor MSSCCTMonAux.
+
+(** Proofs *)
+Import Props.PropNotations.
+Local Open Scope PropNotationsScope.
+Lemma TMSMon_is_TMS As :
+  TMSMon.sat As ->
+  As ∈ Props.tms
+.
+Proof.
+Admitted.
+Lemma SMSMon_is_SMS As :
+  SMSMon.sat As ->
+  As ∈ Props.sms
+.
+Proof.
+Admitted.
+Lemma MSMon_is_MS As :
+  MSMon.sat As ->
+  As ∈ Props.ms
+.
+Proof.
+Admitted.
+Lemma sCCTMon_is_sCCT As :
+  sCCTMon.sat As ->
+  As ∈ Props.sCCT
+.
+Proof.
+Admitted.
+Lemma MSSCCTMon_is_MSSCCT As :
+  MSSCCTMon.sat As ->
+  As ∈ Props.MSSCCT
+.
+Proof.
+Admitted.

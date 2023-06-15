@@ -36,9 +36,15 @@ Definition prop := tracepref -> Prop.
 
 (** Temporal Memory Safety *)
 Definition tms : prop := fun (As : tracepref) =>
-                           (forall l n t t' σ σ', before (PreEv (Alloc l n) t σ) (PreEv (Dealloc l) t' σ') As)
-                         /\ (forall l n m t t' σ σ', ~before (PreEv (Use l n) t σ) (PreEv (Alloc l m) t' σ') As)
-                         /\ (forall l n t t' σ σ', ~before (PreEv (Dealloc l) t σ) (PreEv (Use l n) t' σ') As)
+                           (forall l n t t' σ σ', in_t (PreEv (Alloc l n) t σ) As ->
+                                             in_t (PreEv (Dealloc l) t' σ') As ->
+                                             before (PreEv (Alloc l n) t σ) (PreEv (Dealloc l) t' σ') As)
+                         /\ (forall l n m t t' σ σ', in_t (PreEv (Use l n) t σ) As ->
+                                               in_t (PreEv (Alloc l m) t' σ') As ->
+                                               ~before (PreEv (Use l n) t σ) (PreEv (Alloc l m) t' σ') As)
+                         /\ (forall l n t t' σ σ', in_t (PreEv (Dealloc l) t σ) As ->
+                                             in_t (PreEv (Use l n) t' σ') As ->
+                                             ~before (PreEv (Dealloc l) t σ) (PreEv (Use l n) t' σ') As)
 .
 (** Spatial Memory Safety *)
 Definition sms : prop := fun (As : tracepref) =>

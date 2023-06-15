@@ -1063,6 +1063,7 @@ Section Trace.
     | None => False
     | Some x => a = x
   end.
+  Definition in_t (a : Ev) (As : tracepref) := exists (n : nat), wherein a As n.
   Lemma wherein_nil (a : Ev) :
     forall n, wherein a nil n -> False.
   Proof. now induction n. Qed.

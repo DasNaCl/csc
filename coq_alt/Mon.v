@@ -10,6 +10,8 @@ Module Type MonitorT.
   Parameter AbsEv : Type.
   Parameter MonCheck : AbsState -> option AbsEv -> AbsState -> Prop.
   Parameter string_of_absev : AbsEv -> string.
+
+  Parameter cong_e : option Props.Event -> option AbsEv -> Prop.
 End MonitorT.
 
 Module Monitor (M : MonitorT) <: MonitorT.
@@ -27,17 +29,41 @@ Module Monitor (M : MonitorT) <: MonitorT.
     is_value := fun _ => True;
   }.
   Definition tracepref := @Util.tracepref Trace__Instance.
-
-  Definition cong (As : Props.tracepref) (Bs : tracepref) : Prop := True.
+  Inductive cong : Props.tracepref -> tracepref -> Prop :=
+  | cong_refl : cong nil nil
+  | cong_stutter_L : forall (b : AbsEv)
+                       (Bs : tracepref)
+                       (As : Props.tracepref),
+      cong_e None (Some b) ->
+      cong As (List.cons b Bs) ->
+      cong As (List.cons b Bs)
+  | cong_stutter_R : forall (a : Props.Event)
+                       (Bs : tracepref)
+                       (As : Props.tracepref),
+      cong_e (Some a) None ->
+      cong (List.cons a As) Bs ->
+      cong (List.cons a As) Bs
+  | cong_trans : forall (b : AbsEv)
+                   (a : Props.Event)
+                   (Bs : tracepref)
+                   (As : Props.tracepref),
+      cong_e (Some a) (Some b) ->
+      cong As Bs ->
+      cong (List.cons a As) (List.cons b Bs)
+  .
 
   Definition sat (As : Props.tracepref) : Prop :=
     exists (Bs : tracepref) (T : State),
       cong As Bs /\ @star_step MonInstance EmptyState Bs T
   .
+  Definition gsat (As : Props.tracepref) (T0 : State) : Prop :=
+    exists (Bs : tracepref) (T : State),
+      cong As Bs /\ @star_step MonInstance T0 Bs T
+  .
 End Monitor.
 
 (** Monitor Composition *)
-Module CompMonitor (M1 M2 : MonitorT) : MonitorT.
+Module CompMonitor (M1 M2 : MonitorT) <: MonitorT.
   Definition AbsState : Type := (M1.AbsState * M2.AbsState).
   Definition EmptyState : AbsState := (M1.EmptyState, M2.EmptyState).
   Definition AbsEv : Type := (option M1.AbsEv * option M2.AbsEv).
@@ -66,10 +92,18 @@ Module CompMonitor (M1 M2 : MonitorT) : MonitorT.
                                          (String.append s2
                                             ")"%string)))
   .
+  Definition cong_e := fun b (a : option AbsEv) =>
+                         match a with
+                         | Some(a1, a2) =>
+                           M1.cong_e b a1 /\ M2.cong_e b a2
+                         | None =>
+                           M1.cong_e b None /\ M2.cong_e b None
+                         end
+  .
 End CompMonitor.
 
 (** Temporal Memory Safety Monitor *)
-Module TMSMonAux : MonitorT.
+Module TMSMonAux <: MonitorT.
   Record AbsState_r : Type := {
       alloced : Util.LocListSet ;
       freed : Util.LocListSet ;
@@ -114,7 +148,7 @@ Module TMSMonAux : MonitorT.
            alloced := List.app L0 L1 ;
            freed := LocListSets.Union T.(freed) (List.cons l List.nil) ;
          |} ->
-    MonCheck_i T (Some(AAlloc l)) T'
+    MonCheck_i T (Some(ADealloc l)) T'
   .
   Definition MonCheck := MonCheck_i.
   #[export]
@@ -127,9 +161,33 @@ Module TMSMonAux : MonitorT.
           | AUse (addr _n) => "absUse ℓ"%string
           end
   .
+  Inductive cong_i : option Props.Event -> option AbsEv -> Prop :=
+  | tms_alloc_authentic : forall l n t σ,
+      cong_i (Some(Props.PreEv (Props.Alloc l n) t σ))
+             (Some(AAlloc l))
+  | tms_dealloc_authentic : forall l t σ,
+      cong_i (Some(Props.PreEv (Props.Dealloc l) t σ))
+             (Some(ADealloc l))
+  | tms_use_authentic : forall l n t σ,
+      cong_i (Some(Props.PreEv (Props.Use l n) t σ))
+             (Some(AUse l))
+  | tms_branch_authentic : forall n t σ,
+      cong_i (Some(Props.PreEv (Props.Branch n) t σ))
+             None
+  | tms_binop_authentic : forall n t σ,
+      cong_i (Some(Props.PreEv (Props.Binop n) t σ))
+             None
+  | tms_empty_authentic :
+      cong_i None None
+  | tms_abort_authentic :
+      cong_i (Some(Props.Aborted))
+             (Some(AAbort))
+  .
+  Definition cong_e := cong_i.
+  #[export]
+  Hint Unfold cong_e : core.
 End TMSMonAux.
 Module TMSMon := Monitor TMSMonAux.
-
 (** Spatial Memory Safety Monitor *)
 Module LocNatList <: ListBase.
   Definition A : Type := loc * nat.
@@ -140,7 +198,7 @@ Module LocNatList <: ListBase.
 End LocNatList.
 Module LocNatListSets <: Sig := SetTheoryList (LocNatList).
 Definition LocNatListSet := LocNatListSets.set.
-Module SMSMonAux : MonitorT.
+Module SMSMonAux <: MonitorT.
   Definition AbsState := LocNatListSet.
   #[export]
   Hint Unfold AbsState : core.
@@ -176,18 +234,31 @@ Module SMSMonAux : MonitorT.
           | AUse (addr _n) n => "absUse ℓ"%string
           end
   .
+  Inductive cong_i : option Props.Event -> option AbsEv -> Prop :=
+  | sms_alloc_authentic : forall l n t σ,
+      cong_i (Some(Props.PreEv (Props.Alloc l n) t σ))
+             (Some(AAlloc l n))
+  | sms_dealloc_authentic : forall l t σ,
+      cong_i (Some(Props.PreEv (Props.Dealloc l) t σ))
+             None
+  | sms_use_authentic : forall l n t σ,
+      cong_i (Some(Props.PreEv (Props.Use l n) t σ))
+             (Some(AUse l n))
+  | sms_branch_authentic : forall n t σ,
+      cong_i (Some(Props.PreEv (Props.Branch n) t σ))
+             None
+  | sms_binop_authentic : forall n t σ,
+      cong_i (Some(Props.PreEv (Props.Binop n) t σ))
+             None
+  | sms_empty_authentic :
+      cong_i None None
+  | sms_abort_authentic :
+      cong_i (Some(Props.Aborted))
+             (Some(AAbort))
+  .
+  Definition cong_e := cong_i.
   #[export]
-  Instance Trace__Instance : TraceParams := {
-    Ev := AbsEv;
-    string_of_event := string_of_absev;
-  }.
-  #[export]
-  Instance MonInstance : LangParams := {
-    State := AbsState;
-    Trace__Instance := Trace__Instance;
-    step := MonCheck;
-    is_value := fun _ => True;
-  }.
+  Hint Unfold cong_e : core.
 End SMSMonAux.
 Module SMSMon := Monitor SMSMonAux.
 
@@ -196,7 +267,7 @@ Module MSMonAux := CompMonitor TMSMonAux SMSMonAux.
 Module MSMon := Monitor MSMonAux.
 
 (** Strict Cryptographic Constan Time *)
-Module sCCTMonAux : MonitorT.
+Module sCCTMonAux <: MonitorT.
   Definition AbsState : Type := unit.
   Definition EmptyState : AbsState := tt.
   Variant AbsEv_d : Type :=
@@ -219,18 +290,22 @@ Module sCCTMonAux : MonitorT.
           | AAny => "absAny"%string
           end
   .
+  Inductive cong_i : option Props.Event -> option AbsEv -> Prop :=
+  | scct_low_authentic : forall a__b t,
+      cong_i (Some(Props.PreEv a__b t Props.SUnlock))
+             None
+  | scct_high_authentic : forall a__b t,
+      cong_i (Some(Props.PreEv a__b t Props.SLock))
+             (Some AAny)
+  | scct_empty_authentic :
+      cong_i None None
+  | scct_abort_authentic :
+      cong_i (Some(Props.Aborted))
+             (Some(AAbort))
+  .
+  Definition cong_e := cong_i.
   #[export]
-  Instance Trace__Instance : TraceParams := {
-    Ev := AbsEv;
-    string_of_event := string_of_absev;
-  }.
-  #[export]
-  Instance MonInstance : LangParams := {
-    State := AbsState;
-    Trace__Instance := Trace__Instance;
-    step := MonCheck;
-    is_value := fun _ => True;
-  }.
+  Hint Unfold cong_e : core.
 End sCCTMonAux.
 Module sCCTMon := Monitor sCCTMonAux.
 
@@ -239,35 +314,60 @@ Module MSSCCTMonAux := CompMonitor MSMonAux sCCTMonAux.
 Module MSSCCTMon := Monitor MSSCCTMonAux.
 
 (** Proofs *)
-Import Props.PropNotations.
-Local Open Scope PropNotationsScope.
+Lemma gTMSMon_is_TMS As As0 T0 :
+  TMSMon.gsat As T0 ->
+  Props.tms (List.app As0 As)
+.
+Proof.
+  (* need to related T0 with As0 ? *)
+
+  (*
+  intros [Bs [T__TMS [H1 H2]]].
+  revert As0 T__TMS H2; induction H1; auto; intros.
+  - (* refl *) repeat split; intros; inv H; exfalso; revert H1; clear; intros H1; induction x; cbn in *; congruence.
+  - (* trans *)
+    inv H.
+    + (* AAlloc *) remember (TMSMonAux.AAlloc l :: Bs)%list as BBs.
+      change ((fun BBs => star_step T0 BBs T__TMS) (TMSMonAux.AAlloc l :: Bs)%list) in H2; rewrite <- HeqBBs in H2.
+      induction H2.
+      * (* refl *) congruence.
+      * (* trans-important *) clear IHstar_step; inv HeqBBs.
+        inv H.
+      * (* trans-unimportant *) inv H; auto.
+    + repeat split; intros. intros Ha. [x [x0 [Ha Hb]]].
+
+    repeat split; intros.
+    + inv H0; inv H3. exists x; exists x0; repeat split; auto.
+      inv H. induction H1.
+   *)
+Admitted.
 Lemma TMSMon_is_TMS As :
   TMSMon.sat As ->
-  As ∈ Props.tms
+  Props.tms As
 .
 Proof.
 Admitted.
 Lemma SMSMon_is_SMS As :
   SMSMon.sat As ->
-  As ∈ Props.sms
+  Props.sms As
 .
 Proof.
 Admitted.
 Lemma MSMon_is_MS As :
   MSMon.sat As ->
-  As ∈ Props.ms
+  Props.ms As
 .
 Proof.
 Admitted.
 Lemma sCCTMon_is_sCCT As :
   sCCTMon.sat As ->
-  As ∈ Props.sCCT
+  Props.sCCT As
 .
 Proof.
 Admitted.
 Lemma MSSCCTMon_is_MSSCCT As :
   MSSCCTMon.sat As ->
-  As ∈ Props.MSSCCT
+  Props.MSSCCT As
 .
 Proof.
 Admitted.

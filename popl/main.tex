@@ -766,31 +766,6 @@ The \gls{scct} monitor simply disregards all private data occuring on a trace.
 
 \section{Composing Secure Compilers}\label{sec:compcomp}
 
-\begin{figure}[h]
-  \begin{center}
-    \begin{tikzpicture}
-      \node (S) {$\src{L_{\tmssafe}}$};
-      \node[right=1.0 of S] (T) {$\trg{L}$};
-      \node[right=1.0 of T] (M) {$\irl{L_{\mssafe}}$};
-      \node[below right=0.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
-      \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
-      \node[right=1.0 of D0] (D1) {$\irl{L_{\mssafe}}$};
-      \node[right=1.0 of C0] (C1) {$\irl{L_{\mssafe}}$};
-      \node[right=4.5 of M] (O) {$\obj{L_{\scctsafe}}$};
-
-      \draw[->] (S) to[sloped,above] node {\text{\scriptsize\gls{tms}}} (T);
-      \draw[->] (T) to[sloped,above] node {\text{\scriptsize\gls{sms}}} (M);
-      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (D0);
-      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (C0);
-      \draw[->] (D0) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (D1);
-      \draw[->] (C0) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (C1);
-      \draw[->] (D1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
-      \draw[->] (C1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
-    \end{tikzpicture}
-  \end{center}
-  \caption{Visualisation of the optimizing compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}
-\end{figure}
-
 This section studies different kinds of secure compiler compositions and their corresponding proofs.
 Most notably, it looks at the sequential composition of secure compilers and shows a theorem that allows for modular proof engineering: compilers need not to robustly preserve the same property in order to be securely composed.
 Moreover, it demonstrates that the order does not matter for composing compilers with the same source and target language.
@@ -814,16 +789,44 @@ A corollary of \Cref{thm:rtp} is that optimization passes that have the input an
 \end{corollary}
 
 \section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
-This section defines several secure compilers, each of which robustly preserves a different property of interest.
-The power of the frameworks from \Cref{sec:compprop,sec:compcomp} is demonstrated by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
-Concretely, the section starts starts by defining languages $\src{L_{TMS}}$ and $\trg{L}$ and describes a compiler $\cc{\src{L_{TMS}}}{\trg{L}}$ for the robust preservation of \gls{tms} between the two languages (\Cref{subsec:cs:tms}).
-Then, it defines $\irl{L_{MS}}$ and a compiler $\cc{\trg{L}}{\irl{L_{MS}}}$ that robustly preserves \gls{sms} (\Cref{subsec:cs:ms}).
-By the framework presented in \Cref{sec:compcomp,sec:compprop}, a compiler $\rtp{\cc{\src{L_{TMS}}}{\trg{L}}\circ\cc{\trg{L}}{\irl{L_{MS}}}}{\mssafe}$ is attained.
-Two secure compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ are defined that perform \gls{dce} and \gls{cf}, respectively, to model an optimzing pipeline happening somewhere in the compilation chain (\Cref{subsec:cs:opts}).
-Finally, the paper defines $\obj{L_{CCT}}$ and a compiler $\cc{\irl{L_{MS}}}{\obj{L_{CCT}}}$ that robustly preserves \gls{cct} (\Cref{subsec:cs:scct}).
-Composing it with $\cc{\src{L_{TMS}}}{\irl{L_{MS}}}$ and the optimizing compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ yields $\cc{\src{L_{TMS}}}{\obj{L_{CCT}}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
+\begin{figure}[h]
+  \begin{center}
+    \begin{tikzpicture}
+      \node (S) {$\src{L_{\tmssafe}}$};
+      \node[right=1.0 of S] (T) {$\trg{L}$};
+      \node[right=1.0 of T] (M) {$\irl{L_{\mssafe}}$};
+      \node[below right=0.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
+      \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
+      \node[right=1.0 of D0] (D1) {$\irl{L_{\mssafe}}$};
+      \node[right=1.0 of C0] (C1) {$\irl{L_{\mssafe}}$};
+      \node[right=4.5 of M] (O) {$\obj{L_{\scctsafe}}$};
 
-\MKin{add image and do introduction using that}
+      \draw[->] (S) to[sloped,above] node {\text{\scriptsize\gls{tms}}} (T);
+      \draw[->] (T) to[sloped,above] node {\text{\scriptsize\gls{sms}}} (M);
+      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (D0);
+      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (C0);
+      \draw[->] (D0) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (D1);
+      \draw[->] (C0) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (C1);
+      \draw[->] (D1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
+      \draw[->] (C1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
+    \end{tikzpicture}
+  \end{center}
+  \caption{Visualisation of the optimizing compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}\label{fig:pipeline}
+\end{figure}
+
+This section defines several secure compilers, each of which robustly preserves a different property of interest (see \Cref{fig:pipeline}).
+The power of the framework (\Cref{sec:compprop,sec:compcomp}) is demonstrated by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
+Concretely, the section starts with a base-line definition for the used languages and extends that to define languages $\src{L_{TMS}}$ and $\trg{L}$.
+For programmers using $\src{L_{TMS}}$, their mental model should be that their code is temporal memory safe and cryptographic constant time.
+The former is enforced by the static semantics of $\src{L_{TMS}}$, where each well-typed program is temporal memory safe.
+The latter is completely untyped.
+Having languages defined, this section continues with a compiler $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ and proves that $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ robustly preserves \gls{tms} (\Cref{subsec:cs:tms}).
+For readability purposes, it defines $\irl{L_{MS}}$ to be exactly the same as $\trg{L}$ and continues to present a compiler $\cc{\trg{L}}{\irl{L_{MS}}}$ that robustly preserves \gls{sms} (\Cref{subsec:cs:ms}).
+Now leaveraging the power of the framework that this paper introduces (\Cref{sec:compcomp,sec:compprop}), a compiler $\rtp{\cc{\src{L_{TMS}}}{\irl{L_{MS}}}}{\mssafe}$ is attained.
+The next steps in the compilation pipeline are two secure compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ that perform \gls{dce} and \gls{cf}, respectively, to model an optimzing pipeline happening somewhere in the compilation chain (\Cref{subsec:cs:opts}).
+Finally, this section defines the language $\obj{L_{\scctsafe}}$ that is, in contrast to the other languages, not cryptographic constant time by definition.
+Concluding, a compiler $\cc{\irl{L_{MS}}}{\obj{L_{CCT}}}$ that robustly preserves \gls{cct} (\Cref{subsec:cs:scct}) is shown and composed with $\cc{\src{L_{TMS}}}{\irl{L_{MS}}}$ and the optimizing compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$.
+In turn, this yields $\cc{\src{L_{TMS}}}{\obj{L_{CCT}}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}

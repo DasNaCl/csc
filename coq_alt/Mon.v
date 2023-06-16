@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String CSC.Util CSC.Sets CSC.Props.
+Require Import Strings.String CSC.Util CSC.Sets CSC.Props Coq.Program.Equality.
 
 (** * This file defines the various monitors from the paper. *)
 
@@ -31,17 +31,17 @@ Module Monitor (M : MonitorT) <: MonitorT.
   Definition tracepref := @Util.tracepref Trace__Instance.
   Inductive cong : Props.tracepref -> tracepref -> Prop :=
   | cong_refl : cong nil nil
-  | cong_stutter_L : forall (b : AbsEv)
+(*  | cong_stutter_L : forall (b : AbsEv)
                        (Bs : tracepref)
                        (As : Props.tracepref),
       cong_e None (Some b) ->
       cong As (List.cons b Bs) ->
-      cong As (List.cons b Bs)
+      cong As (List.cons b Bs) *)
   | cong_stutter_R : forall (a : Props.Event)
                        (Bs : tracepref)
                        (As : Props.tracepref),
       cong_e (Some a) None ->
-      cong (List.cons a As) Bs ->
+      cong As Bs ->
       cong (List.cons a As) Bs
   | cong_trans : forall (b : AbsEv)
                    (a : Props.Event)
@@ -51,6 +51,8 @@ Module Monitor (M : MonitorT) <: MonitorT.
       cong As Bs ->
       cong (List.cons a As) (List.cons b Bs)
   .
+  #[export]
+  Hint Constructors cong : core.
 
   Definition sat (As : Props.tracepref) : Prop :=
     exists (Bs : tracepref) (T : State),
@@ -353,17 +355,114 @@ Lemma SMSMon_is_SMS As :
 .
 Proof.
 Admitted.
+Fixpoint opt { A : Type } (As : list A) : list(option A) :=
+  match As with
+  | nil => nil
+  | cons a As => Some a :: opt As
+  end
+.
+Fixpoint zip { A B : Type } (As : list A) (Bs : list B) : list (A * B) :=
+  match As, Bs with
+  | nil, nil => nil
+  | (a :: As')%list, (b :: Bs')%list => ((a, b) :: zip As' Bs')%list
+  | _, _ => nil
+  end
+.
+Lemma MSMon_steps_split (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) (As : list MSMon.AbsEv) :
+  @star_step MSMon.MonInstance (T1, T2) As (T1', T2') ->
+  exists (As__TMS : TMSMon.tracepref) (As__SMS : SMSMon.tracepref),
+    As = zip (opt As__TMS) (opt As__SMS) /\
+    @star_step TMSMon.MonInstance T1 As__TMS T1' /\
+    @star_step SMSMon.MonInstance T2 As__SMS T2'
+.
+Proof. Admitted.
+Lemma MSMon_cong_cons_split (As : tracepref) (a__TMS : option TMSMon.AbsEv) (a__SMS : option SMSMon.AbsEv) (As__MS : MSMon.tracepref) :
+  MSMon.cong As (((a__TMS, a__SMS) :: As__MS)%list) ->
+  (
+  exists a As', As = (a :: As')%list /\
+           TMSMon.cong_e (Some a) a__TMS /\
+           SMSMon.cong_e (Some a) a__SMS /\
+           MSMon.cong As' As__MS
+  ) \/ (
+    TMSMon.cong_e None a__TMS /\
+    SMSMon.cong_e None a__SMS
+  )
+.
+Proof. Admitted.
+Lemma MSMon_cong_split (As : tracepref) (As__TMS : TMSMon.tracepref) (As__SMS : SMSMon.tracepref) :
+  MSMon.cong As (zip (opt As__TMS) (opt As__SMS)) ->
+  TMSMon.cong As As__TMS /\ SMSMon.cong As As__SMS
+.
+Proof. Admitted.
+Lemma MSMon_cong_TMSMon_cong_nil (As : tracepref) :
+  MSMon.cong As nil ->
+  TMSMon.cong As nil
+.
+Proof. Admitted.
+Lemma MSMon_cong_SMSMon_cong_nil (As : tracepref) :
+  MSMon.cong As nil ->
+  SMSMon.cong As nil
+.
+Proof. Admitted.
+Lemma MSMon_cong_none_strip (As : tracepref) Bs :
+  MSMon.cong As ((None, None) :: Bs)%list ->
+  MSMon.cong As Bs
+.
+Proof. Admitted.
 Lemma MSMon_is_MS As :
   MSMon.sat As ->
   Props.ms As
 .
 Proof.
+  intros [Bs [T__TMS [H__a H__b]]].
+  Ltac do_goal := split; (apply TMSMon_is_TMS || apply SMSMon_is_SMS).
+  remember MSMon.EmptyState as T__MS; induction H__b; auto.
+  - (* As cong [] *)
+    remember nil as Bs; induction H__a; auto.
+    + do_goal; exists List.nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState);
+        split; now constructor.
+    + inv H0. inv H1.
+      * do_goal; exists nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState); split.
+        2, 4: repeat constructor. 1,2: constructor 2; try constructor;
+          now (apply MSMon_cong_TMSMon_cong_nil + apply MSMon_cong_SMSMon_cong_nil).
+      * do_goal; exists nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState); split.
+        2, 4: repeat constructor. 1,2: constructor 2; try constructor;
+          now (apply MSMon_cong_TMSMon_cong_nil + apply MSMon_cong_SMSMon_cong_nil).
+    + exfalso; revert HeqBs; clear; intros H; induction Bs; congruence.
+  - (* As cong b::Bs0 *)
+    destruct r2 as [T__TMS T__SMS]. destruct r3 as [T__TMS' T__SMS'].
+    apply MSMon_steps_split in H__b as [As__TMS [As__SMS [H__b1 [H__b2 H__b3]]]].
+    inv H.
+    assert (H__a':=H__a);
+    apply MSMon_cong_cons_split in H__a as [H__a | [H__a1 H__a2]].
+    + destruct H__a as [a [As' [H__a1 [H__a2 [H__a3 H__a4]]]]]. subst. apply MSMon_cong_split in H__a4 as [H__a4 H__a5].
+      inv H__a2.
+      * exists (TMSMonAux.AAlloc l :: As__TMS)%list. exists T__TMS'. split.
+          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+      * exists (TMSMonAux.ADealloc l :: As__TMS)%list. exists T__TMS'. split.
+          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+      * exists (TMSMonAux.AUse l :: As__TMS)%list. exists T__TMS'. split.
+          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+      * exists (As__TMS)%list. exists T__TMS'. split.
+          constructor 2. constructor. assumption. inv H2. econstructor 3; eauto.
+      * exists (As__TMS)%list. exists T__TMS'. split.
+          constructor. constructor. assumption. inv H2. econstructor 3; eauto.
+      * exists (TMSMonAux.AAbort :: As__TMS)%list. exists T__TMS'. split.
+          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+    + inv H__a1. inv H__a2. inv H2. inv H4. inv H5. apply IHH__b; auto.
+      now apply MSMon_cong_none_strip in H__a'.
+  - (* As cong Bs *)
+    apply IHH__b; auto; subst; inv H.
 Admitted.
 Lemma sCCTMon_is_sCCT As :
   sCCTMon.sat As ->
   Props.sCCT As
 .
 Proof.
+  intros [Bs [T__sCCT [H1 H2]]].
+  induction H2; auto.
+  - admit.
+  -
 Admitted.
 Lemma MSSCCTMon_is_MSSCCT As :
   MSSCCTMon.sat As ->

@@ -44,11 +44,14 @@
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[inference]{semantic}
 \usepackage{fontawesome5}
+\usepackage{listofitems}
 \usepackage{glossaries}
 \usepackage{cleveref}
 \usepackage{stmaryrd}
+\usepackage{marvosym}
 \usepackage{listings}
 \usepackage{xspace}
+\usepackage{xfrac}
 \usepackage{tikz}
 \usepackage{bm}
 
@@ -816,7 +819,7 @@ A corollary of \Cref{thm:rtp} is that optimization passes that have the input an
 
 This section defines several secure compilers, each of which robustly preserves a different property of interest (\Cref{fig:pipeline}).
 The power of the framework (\Cref{sec:compprop,sec:compcomp}) is demonstrated by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
-Concretely, the section starts with a base-line definition for the used languages and extends that to define languages $\src{L_{TMS}}$ and $\trg{L}$.
+Concretely, the section starts with a base-line definition for the used languages (\Cref{subsec:cs:defs}) and extends that to define languages $\src{L_{TMS}}$ and $\trg{L}$.
 For programmers using $\src{L_{TMS}}$, their mental model should be that their code is temporal memory safe and cryptographic constant time.
 The former is proven to be enforced by the static semantics of $\src{L_{TMS}}$, where each well-typed program is temporal memory safe.
 The latter is completely untyped.
@@ -827,6 +830,32 @@ The next steps in the compilation pipeline are two secure compilers $\cc[_{\gls{
 Finally, this section defines the language $\obj{L_{\scctsafe}}$ that is, in contrast to the other languages, not cryptographic constant time by definition.
 Concluding, a compiler $\cc{\irl{L_{MS}}}{\obj{L_{CCT}}}$ that robustly preserves \gls{cct} (\Cref{subsec:cs:scct}) is shown and composed with $\cc{\src{L_{TMS}}}{\irl{L_{MS}}}$ and the optimizing compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$.
 In turn, this yields $\cc{\src{L_{TMS}}}{\obj{L_{CCT}}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
+
+\subsection{Preliminary Definitions}\label{subsec:cs:defs}
+\begin{gather*}
+  \begin{aligned}
+  \mi{(Finals)}~\finalexprnoerr&\bnfdef\ \valueexpr \mid x\hspace{0.5cm}
+  \mi{(Results)}~\finalexpr\bnfdef\ \finalexprnoerr \mid stuck\hspace{0.5cm}
+  \mi{(Values)}~\valueexpr\bnfdef\ n\\
+  \mi{(Expressions)}~\expr&\bnfdef\ \finalexpr \mid \lbinop{\expr[_{1}]}{\expr[_{2}]} \mid \lget{x}{\expr} \mid \lnew{x}{\expr[_{1}]}{\expr[_{2}]} \mid \ldelete{x} \mid \lset{x}{\expr[_{1}]}{\expr[_{2}]} \\
+    & \mid \llet{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lreturn{\expr} \mid \lcall{g}{\expr} \mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \\
+    & \text{where}\ \lbinop{}{}\in\left\{+,-,\times,<,/\right\}\\
+  \mi{(Functions)}~\function&\bnfdef\ \lfunction{g}{x}{e}\hspace{0.5cm}
+  \mi{(Types)}~\type\bnfdef\ \natt\hspace{0.5cm}
+  \mi{(Locations)}~\loc\in\nat \\
+  \mi{(Eval.~Ctx.)}~\ectx&\bnfdef\ \hole{\cdot} \mid \lbinop{\ectx}{\expr} \mid \lbinop{\valueexpr}{\ectx} \mid \lget{x}{\ectx} \mid \lnew{x}{\ectx}{\expr} \mid \lset{x}{\ectx}{\expr}\\
+    & \mid \lset{x}{\valueexpr}{\ectx} \mid \lreturn{\ectx} \mid \lcall{g}{\ectx} \mid \lifz{\ectx}{\expr[_{1}]}{\expr[_{2}]} \\
+  \mi{(Poison)}~\poison&\bnfdef\ \poisoned \mid \poisonless \hspace{0.5cm}
+  \mi{(Store)}~\store\bnfdef\ \hole{\cdot} \mid \storeel{x}{\loc}{\sandboxtag}{\poison}{n},\store \\
+  \mi{(Transfer~Tag)}~\comm&\bnfdef\ \nocomm \mid\ \ctxtocomp \mid\ \comptoctx \hspace{0.5cm}
+  \mi{(Heaps)}~\heap\bnfdef\ \hole{\cdot} \mid n,\heap \hspace{0.5cm}
+  \mi{(Library)}~\library\bnfdef\ \hole{\cdot} \mid \function,\library \\
+  \mi{(Component~Names)}~\commlib&\bnfdef\ \hole{\cdot} \mid g,\commlib \hspace{0.5cm}
+  \mi{(Continuation~Stack)}~\ectxstack\bnfdef\ \hole{\cdot} \mid \tup{\ectx}{g},\ectxstack \\
+  \mi{(Flow~State)}~\cfstate&\bnfdef\ \tup{\commlib}{\library,\ectxstack} \hspace{0.5cm}
+  \mi{(Memory~State)}~\memstate\bnfdef\ \tup{\heap[^{\ctx}]}{\heap[^{\comp}],\store} \hspace{0.5cm}
+  \end{aligned}
+\end{gather*}
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}

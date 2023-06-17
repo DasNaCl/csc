@@ -31,12 +31,12 @@ Module Monitor (M : MonitorT) <: MonitorT.
   Definition tracepref := @Util.tracepref Trace__Instance.
   Inductive cong : Props.tracepref -> tracepref -> Prop :=
   | cong_refl : cong nil nil
-(*  | cong_stutter_L : forall (b : AbsEv)
+  | cong_stutter_L : forall (b : AbsEv)
                        (Bs : tracepref)
                        (As : Props.tracepref),
       cong_e None (Some b) ->
       cong As (List.cons b Bs) ->
-      cong As (List.cons b Bs) *)
+      cong As (List.cons b Bs)
   | cong_stutter_R : forall (a : Props.Event)
                        (Bs : tracepref)
                        (As : Props.tracepref),
@@ -496,13 +496,11 @@ Proof.
     apply opt_some in H'__a, H'__b; deex; destruct H'__a as [H'a1 [H'a2 H'a3]]; destruct H'__b as [H'b1 [H'b2 H'b3]].
     subst. dependent induction H0.
     + inv H. split.
-      * inv H1. constructor 2. constructor. eapply IHcong; eauto.
-        constructor 2. constructor. eapply IHcong; eauto.
-      * inv H2. constructor 2. constructor. eapply IHcong; eauto.
-        constructor 2. constructor. eapply IHcong; eauto.
-        constructor 2. constructor. eapply IHcong; eauto.
+      * inv H1.
+      * inv H1.
+    + inv H. split; constructor 3; try easy; eapply IHcong; eauto.
     + specialize (IHxs As As'1 As'0 H'__c H0) as [IHxs1 IHxs2].
-      inv H. split. now constructor 3. now constructor 3.
+      inv H. split; now constructor 4.
 Qed.
 Lemma MSMon_cong_TMSMon_cong_nil (As : tracepref) :
   MSMon.cong As nil ->
@@ -533,42 +531,42 @@ Proof.
         split; now constructor.
     + inv H0. inv H1.
       * do_goal; exists nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState); split.
-        2, 4: repeat constructor. 1,2: constructor 2; try constructor;
+        2, 4: repeat constructor. 1,2: constructor 3; try constructor;
           now (apply MSMon_cong_TMSMon_cong_nil + apply MSMon_cong_SMSMon_cong_nil).
       * do_goal; exists nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState); split.
-        2, 4: repeat constructor. 1,2: constructor 2; try constructor;
+        2, 4: repeat constructor. 1,2: constructor 3; try constructor;
           now (apply MSMon_cong_TMSMon_cong_nil + apply MSMon_cong_SMSMon_cong_nil).
     + exfalso; revert HeqBs; clear; intros H; induction Bs; congruence.
   - (* As cong b::Bs0 *)
     destruct r2 as [T__TMS T__SMS]; destruct r3 as [T__TMS' T__SMS'].
     apply MSMon_steps_split in H__b as [As__TMS [As__SMS [H__b1 [H__b2 H__b3]]]].
     inv H. assert (H__a':=H__a); apply MSMon_cong_cons_split in H__a as [H__a | [H__a1 H__a2]].
-    + destruct H__a as [a [As' [H__a1 [H__a2 [H__a3 H__a4]]]]]; subst; apply MSMon_cong_split in H__a4 as [H__a4 H__a5].
+    + destruct H__a as [a [As' [H__a1 [H__a2 [H__a3 H__a4]]]]]; subst. apply (MSMon_cong_split _ _ H__b1) in H__a4 as [H__a4 H__a5].
       inv H__a2; inv H__a3; do_goal.
       * exists (TMSMonAux.AAlloc l :: As__TMS)%list. exists T__TMS'. split.
-          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+          constructor 4. constructor. assumption. inv H2. econstructor 2; eauto.
       * exists (SMSMonAux.AAlloc l n :: As__SMS)%list. exists T__SMS'. split.
-          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+          constructor 4. constructor. assumption. inv H2. econstructor 2; eauto.
       * exists (TMSMonAux.ADealloc l :: As__TMS)%list. exists T__TMS'. split.
-          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+          constructor 4. constructor. assumption. inv H2. econstructor 2; eauto.
       * exists (As__SMS)%list. exists T__SMS'. split.
-          constructor 2. constructor. assumption. inv H2. econstructor 3; eauto.
+          constructor 3. constructor. assumption. inv H2. econstructor 3; eauto.
       * exists (TMSMonAux.AUse l :: As__TMS)%list. exists T__TMS'. split.
-          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+          constructor 4. constructor. assumption. inv H2. econstructor 2; eauto.
       * exists (SMSMonAux.AUse l n :: As__SMS)%list. exists T__SMS'. split.
-          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+          constructor 4. constructor. assumption. inv H2. econstructor 2; eauto.
       * exists (As__TMS)%list. exists T__TMS'. split.
-          constructor 2. constructor. assumption. inv H2. econstructor 3; eauto.
+          constructor 3. constructor. assumption. inv H2. econstructor 3; eauto.
       * exists (As__SMS)%list. exists T__SMS'. split.
-          constructor 2. constructor. assumption. inv H2. econstructor 3; eauto.
+          constructor 3. constructor. assumption. inv H2. econstructor 3; eauto.
       * exists (As__TMS)%list. exists T__TMS'. split.
-          constructor. constructor. assumption. inv H2. econstructor 3; eauto.
+          constructor 3. constructor. assumption. inv H2. econstructor 3; eauto.
       * exists (As__SMS)%list. exists T__SMS'. split.
-          constructor 2. constructor. assumption. inv H2. econstructor 3; eauto.
+          constructor 3. constructor. assumption. inv H2. econstructor 3; eauto.
       * exists (TMSMonAux.AAbort :: As__TMS)%list. exists T__TMS'. split.
-          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+          constructor 4. constructor. assumption. inv H2. econstructor 2; eauto.
       * exists (SMSMonAux.AAbort :: As__SMS)%list. exists T__SMS'. split.
-          constructor 3. constructor. assumption. inv H2. econstructor 2; eauto.
+          constructor 4. constructor. assumption. inv H2. econstructor 2; eauto.
     + inv H__a1. inv H__a2. inv H2. inv H4. inv H5. apply IHH__b; auto.
       now apply MSMon_cong_none_strip in H__a'.
   - (* As cong Bs *)

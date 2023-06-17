@@ -506,17 +506,27 @@ Lemma MSMon_cong_TMSMon_cong_nil (As : tracepref) :
   MSMon.cong As nil ->
   TMSMon.cong As nil
 .
-Proof. Admitted.
+Proof.
+  assert (Some nil = zip (opt (nil : TMSMon.tracepref)) (opt (nil : SMSMon.tracepref))) by now cbn.
+  eintros H'%MSMon_cong_split; eauto; now destruct H'.
+Qed.
 Lemma MSMon_cong_SMSMon_cong_nil (As : tracepref) :
   MSMon.cong As nil ->
   SMSMon.cong As nil
 .
-Proof. Admitted.
+Proof.
+  assert (Some nil = zip (opt (nil : TMSMon.tracepref)) (opt (nil : SMSMon.tracepref))) by now cbn.
+  eintros H'%MSMon_cong_split; eauto; now destruct H'.
+Qed.
 Lemma MSMon_cong_none_strip (As : tracepref) Bs :
   MSMon.cong As ((None, None) :: Bs)%list ->
   MSMon.cong As Bs
 .
-Proof. Admitted.
+Proof.
+  intros H; dependent induction H; eauto.
+  - constructor; trivial. now eapply IHcong.
+  - inv H. inv H1; inv H2; now repeat constructor.
+Qed.
 Lemma MSMon_is_MS As :
   MSMon.sat As ->
   Props.ms As

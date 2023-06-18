@@ -1,7 +1,6 @@
 Set Implicit Arguments.
 Require Import Strings.String CSC.Util CSC.Sets CSC.Props Coq.Program.Equality.
 
-Require Import Paco.paco.
 
 (** * This file defines the various monitors from the paper. *)
 
@@ -35,18 +34,20 @@ Module Monitor (M : MonitorT) <: MonitorT.
   (** The empty event is not relevant, in case you wondered. *)
   Inductive cong : Props.tracepref -> tracepref -> Prop :=
   | cong_refl : cong nil nil
-  | cong_stutter_L : forall (b : AbsEv)
+  | cong_stutter_L : forall (a : Props.Event)
+                       (b : AbsEv)
                        (Bs : tracepref)
                        (As : Props.tracepref),
       cong_e None (Some b) ->
-      cong As (List.cons b Bs) ->
-      cong As (List.cons b Bs)
+      cong (List.cons a As) Bs ->
+      cong (List.cons a As) (List.cons b Bs)
   | cong_stutter_R : forall (a : Props.Event)
+                       (b : AbsEv)
                        (Bs : tracepref)
                        (As : Props.tracepref),
       cong_e (Some a) None ->
-      cong (List.cons a As) Bs ->
-      cong (List.cons a As) Bs
+      cong              As (List.cons b Bs) ->
+      cong (List.cons a As) (List.cons b Bs)
   | cong_trans : forall (b : AbsEv)
                    (a : Props.Event)
                    (Bs : tracepref)
@@ -57,31 +58,6 @@ Module Monitor (M : MonitorT) <: MonitorT.
   .
   #[export]
   Hint Constructors cong : core.
-
-  CoInductive ccong : Props.tracepref -> tracepref -> Prop :=
-  | ccong_refl : ccong nil nil
-  | ccong_stutter_L : forall (b : AbsEv)
-                       (Bs : tracepref)
-                       (As : Props.tracepref),
-      cong_e None (Some b) ->
-      ccong As (List.cons b Bs) ->
-      ccong As (List.cons b Bs)
-  | ccong_stutter_R : forall (a : Props.Event)
-                       (Bs : tracepref)
-                       (As : Props.tracepref),
-      cong_e (Some a) None ->
-      ccong (List.cons a As) Bs ->
-      ccong (List.cons a As) Bs
-  | ccong_trans : forall (b : AbsEv)
-                   (a : Props.Event)
-                   (Bs : tracepref)
-                   (As : Props.tracepref),
-      cong_e (Some a) (Some b) ->
-      ccong As Bs ->
-      ccong (List.cons a As) (List.cons b Bs)
-  .
-  #[export]
-  Hint Constructors ccong : core.
 
   Definition sat (As : Props.tracepref) : Prop :=
     exists (Bs : tracepref) (T : State),
@@ -559,7 +535,7 @@ Proof.
              end) (zip (opt As__TMS) (opt As__SMS))) in H.
       destruct (zip(opt As__TMS) (opt As__SMS)); easy.
     + destruct H1 as [H1__a H1__b]; subst. clear H. dependent induction H0.
-      repeat constructor 1. now apply IHcong.
+      repeat constructor 1.
   - destruct a as [a__TMS a__SMS];
     symmetry in H; apply zip_cons in H; deex; destruct H as [H'__a [H'__b H'__c]].
     apply opt_some in H'__a, H'__b; deex; destruct H'__a as [H'a1 [H'a2 H'a3]]; destruct H'__b as [H'b1 [H'b2 H'b3]].
@@ -607,6 +583,7 @@ Proof.
     + inv Hx; clear H. exists (As0)%list; exists (As1)%list. split; econstructor 3; eauto.
   - inv H.
 Qed.
+(* TODO: change type of this, this doesn't hold! *)
 Lemma MSMon_cong_cons_split (As : tracepref) (a__TMS : option TMSMon.AbsEv) (a__SMS : option SMSMon.AbsEv) (As__MS : MSMon.tracepref) :
   MSMon.cong As (((a__TMS, a__SMS) :: As__MS)%list) ->
   (
@@ -625,7 +602,7 @@ Proof.
   revert a__TMS a__SMS As__MS; induction As; intros.
   - inv H; inv H3; right; repeat split; trivial.
   - dependent induction H; eauto.
-    inv H; left; exists a; exists As; now repeat split.
+    + inv H. left; exists a; exists As; repeat split.
 Qed.
 Lemma MSMon_cong_none_strip (As : tracepref) Bs :
   MSMon.ccong As ((None, None) :: Bs)%list ->

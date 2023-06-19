@@ -468,6 +468,27 @@ Proof.
   specialize (IHstar_step T1'' T1' T2'' T2' H__a H__b H__c).
   split; inv H.
 Qed.
+Lemma TMSMon_step_none_eq (T1 T1' : TMSMon.AbsState) :
+  @step TMSMon.MonInstance T1 None T1' ->
+  T1 = T1'
+.
+Proof.
+  now intros H; inv H.
+Qed.
+Lemma SMSMon_step_none_eq (T2 T2' : SMSMon.AbsState) :
+  @step SMSMon.MonInstance T2 None T2' ->
+  T2 = T2'
+.
+Proof.
+  now intros H; inv H.
+Qed.
+Lemma MSMon_step_none_none_eq (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) :
+  @step MSMon.MonInstance (T1, T2) (Some(None, None)) (T1', T2') ->
+  T1 = T1' /\ T2 = T2'
+.
+Proof.
+  intros H; inv H. apply TMSMon_step_none_eq in H3. apply SMSMon_step_none_eq in H7. now subst.
+Qed.
 Lemma MSMon_step_none_eq (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) :
   @step MSMon.MonInstance (T1, T2) None (T1', T2') ->
   T1 = T1' /\ T2 = T2'
@@ -581,22 +602,6 @@ Proof.
     + inv Hx; clear H. exists (As0)%list; exists (As1)%list. split; econstructor 3; eauto.
   - inv H.
 Qed.
-Lemma MSMon_cong_cons_split (As : tracepref) (a__TMS : option TMSMon.AbsEv) (a__SMS : option SMSMon.AbsEv) (As__MS : MSMon.tracepref) :
-  MSMon.cong As (((a__TMS, a__SMS) :: As__MS)%list) ->
-  (
-  exists a As', As = (a :: As')%list /\
-           TMSMon.cong_e (Some a) a__TMS /\
-           SMSMon.cong_e (Some a) a__SMS /\
-           MSMon.cong As' As__MS
-  ) \/ (
-    As = nil /\
-    TMSMon.cong_e None a__TMS /\
-    SMSMon.cong_e None a__SMS /\
-    MSMon.cong nil (((a__TMS, a__SMS) :: As__MS)%list)
-  )
-.
-Proof.
-Admitted.
 Lemma MSMon_cong_none_strip (As : tracepref) Bs :
   MSMon.cong As ((None, None) :: Bs)%list ->
   MSMon.cong As Bs
@@ -605,6 +610,71 @@ Proof.
   intros H; dependent induction H; eauto.
   econstructor 3; eauto.
   inv H; econstructor 3; trivial; constructor; eauto.
+Qed.
+Fixpoint noopt { A : Type } (As : list (option A)) : list A :=
+  match As with
+  | nil => nil
+  | (Some a :: As)%list => a :: (noopt As)
+  | (None :: As)%list => noopt As
+  end
+.
+Lemma MSMon_cong_split_zip (As : tracepref) As__MS :
+  MSMon.cong As As__MS ->
+  exists As__TMS As__SMS, Some As__MS = zip (As__TMS) (As__SMS)
+                   /\ MSMon.cong As As__MS
+                   /\ TMSMon.cong As (noopt As__TMS)
+                   /\ SMSMon.cong As (noopt As__SMS)
+.
+Proof.
+  intros H; dependent induction H; eauto.
+  - repeat exists nil; cbn; split; trivial; repeat constructor.
+  - deex; destruct IHcong as [IH1 [IH2 [IH3 IH4]]]. destruct b as [b1 b2]; inv H. exists (b1 :: As__TMS)%list. exists (b2 :: As__SMS)%list.
+    repeat split; trivial. cbn; now rewrite <- IH1. constructor 2; auto. now constructor.
+    now inv H1. now inv H2.
+  - deex; destruct IHcong as [IH1 [IH2 [IH3 IH4]]]. inv H. exists As__TMS. exists As__SMS. repeat split; eauto. econstructor. constructor; eauto.
+    easy. econstructor 3; eauto. econstructor 3; eauto.
+  - deex; destruct IHcong as [IH1 [IH2 [IH3 IH4]]]. destruct b as [b1 b2]. exists (b1 :: As__TMS)%list. exists (b2 :: As__SMS)%list.
+    repeat split. cbn; now rewrite <- IH1. now econstructor 4.
+    inv H. crush_option b1; cbn. inv Hx. now econstructor 4. inv Hx. now econstructor 3.
+    inv H. crush_option b2; cbn. inv Hx. now econstructor 4. inv Hx. now econstructor 3.
+Qed.
+Lemma MSMon_cong_split_zip_cons (As : tracepref) As__MS o__TMS o__SMS :
+  MSMon.cong As ((o__TMS, o__SMS) :: As__MS)%list ->
+  exists As__TMS As__SMS, Some ((o__TMS, o__SMS) :: As__MS)%list = zip (As__TMS)%list (As__SMS)%list
+                   /\ MSMon.cong As ((o__TMS, o__SMS) :: As__MS)%list
+                   /\ TMSMon.cong As (noopt (As__TMS))%list
+                   /\ SMSMon.cong As (noopt (As__SMS))%list
+.
+Proof.
+  intros H%MSMon_cong_split_zip; deex. destruct H as [H1 [H2 [H3 H4]]].
+  exists (As__TMS)%list. exists (As__SMS)%list.
+  repeat split. cbn; now rewrite <- H1. easy.
+  crush_option (o__TMS). inv Hx. cbn in *. symmetry in H1. apply zip_cons in H1; deex.
+  destruct H1 as [H1a [H1b H1c]]; subst. easy.
+  symmetry in H1. apply zip_cons in H1; deex.
+  destruct H1 as [H1a [H1b H1c]]; subst. easy.
+Qed.
+Lemma MSMon_steps_split' (T__TMS T1' : TMSMon.AbsState) (T__SMS T2' : SMSMon.AbsState) As0 As' Bs' :
+  @star_step MSMon.MonInstance (T__TMS, T__SMS) As0 (T1', T2') ->
+  Some As0 = zip As' Bs' ->
+  @star_step TMSMon.MonInstance T__TMS (noopt As') T1' /\
+  @star_step SMSMon.MonInstance T__SMS (noopt Bs') T2'
+.
+Proof.
+  intros H0 H; revert As' Bs' H; dependent induction H0; intros.
+  - repeat constructor; symmetry in H0; apply zip_empty in H0 as [H0a H0b]; subst; repeat constructor.
+  - destruct a as [o__TMS o__SMS]; destruct r2 as [T__TMS' T__SMS'].
+    inv H.
+    assert ((T__TMS', T__SMS') ~= (T__TMS', T__SMS') /\ (T1', T2') ~= (T1', T2')) as [Ha Hb] by repeat split.
+    specialize (IHstar_step T__TMS' T1' T__SMS' T2' Ha Hb); clear Ha Hb.
+    symmetry in H1; apply zip_cons in H1; deex; destruct H1 as [H1 [H2 H3]]; subst.
+    specialize (IHstar_step As'0 Bs'0 H3); destruct IHstar_step as [IH1 IH2].
+    crush_option o__TMS; crush_option o__SMS.
+    + inv Hx; clear H. split; econstructor 2; eauto.
+    + inv Hx; clear H. split. econstructor 2; eauto. econstructor 3; eauto.
+    + inv Hx; clear H. split. econstructor 3; eauto. econstructor 2; eauto.
+    + inv Hx; clear H. split; econstructor 3; eauto.
+  - inv H.
 Qed.
 Lemma MSMon_steps_split_cong (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) As Xs :
   MSMon.cong Xs As ->
@@ -618,25 +688,34 @@ Proof.
   intros H' H; revert Xs H'; dependent induction H; intros.
   - do 2 exists nil; repeat constructor. now apply MSMon_cong_TMSMon_cong_nil. now apply MSMon_cong_SMSMon_cong_nil.
   - destruct a as [o__TMS o__SMS]; destruct r2 as [T__TMS T__SMS].
-    assert ((T__TMS, T__SMS) ~= (T__TMS, T__SMS) /\ (As0 ~= As0) /\ (T1', T2') ~= (T1', T2')) as [Ha [Hb Hc]] by repeat split.
-    apply MSMon_cong_cons_split in H' as [[a [As' [H__a0 [H__a1 [H__a2 H__a3]]]]] | [H__a0 [H__a1 [H__a2 H__a3]]]].
-    + subst.
-      specialize (IHstar_step T__TMS T1' T__SMS T2' As0 Ha Hb Hc); clear Ha Hb Hc.
-      specialize (IHstar_step As' H__a3); deex. destruct IHstar_step as [IH1 [IH2 [IH3 IH4]]].
-      crush_option o__TMS; crush_option o__SMS.
-      * inv Hx; exists (x :: As1)%list; exists (x0 :: As2)%list; repeat split; inv H; try (econstructor 2; eassumption).
-        all: econstructor 4; easy.
-      * inv Hx; exists (x :: As1)%list; exists (As2)%list; repeat split; inv H. econstructor 2; eassumption.
-        econstructor 3; eassumption. econstructor 4; easy. econstructor 3; easy.
-      * inv Hx; exists (As1)%list; exists (x :: As2)%list; repeat split; inv H. econstructor 3; eassumption.
-        econstructor 2; eassumption. econstructor 3; easy. econstructor 4; easy.
-      * inv Hx; exists (As1)%list; exists (As2)%list; repeat split; inv H; (econstructor 3 + econstructor 4); eassumption.
-    + inv H. inv H__a1. inv H__a2.
-      specialize (IHstar_step T__TMS T1' T__SMS T2' As0 Ha Hb Hc); clear Ha Hb Hc.
-      apply MSMon_cong_none_strip in H__a3.
-      specialize (IHstar_step nil H__a3); deex; destruct IHstar_step as [IH1 [IH2 [IH3 IH4]]].
-      inv H4. inv H8. exists As1. exists As2. eauto.
+    apply MSMon_cong_split_zip in H'; deex; destruct H' as [H1 [H2 [H3 H4]]].
+    symmetry in H1; apply zip_cons in H1; deex; destruct H1 as [H1a [H1b H1c]]; subst.
+    eapply MSMon_steps_split' in H0 as [H0 H1]; eauto.
+    crush_option o__TMS; crush_option o__SMS; cbn in *; inv H.
+    + exists (x :: noopt As')%list. exists (x0 :: noopt Bs')%list.
+      repeat split. econstructor 2. eassumption. assumption.
+      econstructor 2. eassumption. assumption.
+      easy. easy.
+    + exists (x :: noopt As')%list. exists (noopt Bs')%list.
+      repeat split. econstructor 2. eassumption. assumption. apply SMSMon_step_none_eq in H12; subst. assumption.
+      easy. easy.
+    + exists (noopt As')%list. exists (x :: noopt Bs')%list.
+      repeat split. apply TMSMon_step_none_eq in H8; subst. assumption. econstructor 2. eassumption. assumption.
+      easy. easy.
+    + exists (noopt As')%list. exists (noopt Bs')%list.
+      repeat split. apply TMSMon_step_none_eq in H8; subst. assumption. apply SMSMon_step_none_eq in H12; subst. assumption.
+      easy. easy.
   - inv H.
+Qed.
+Lemma nil_ms :
+  Props.ms nil
+.
+Proof.
+  repeat split.
+  - intros. inv H. exfalso; revert H1; clear; intros H; induction x; try inv H.
+  - intros. inv H. exfalso; revert H1; clear; intros H; induction x; try inv H.
+  - intros. inv H. exfalso; revert H1; clear; intros H; induction x; try inv H.
+  - unfold sms; intros. inv H. exfalso; revert H2; clear; intros H; induction x; try inv H.
 Qed.
 Lemma MSMon_is_MS As :
   MSMon.sat As ->
@@ -645,7 +724,7 @@ Lemma MSMon_is_MS As :
 Proof.
   intros [Bs [T__TMS [H__a H__b]]].
   Ltac do_goal := split; (apply TMSMon_is_TMS || apply SMSMon_is_SMS).
-  remember MSMon.EmptyState as T__MS; dependent induction H__b; auto.
+  revert As H__a; remember MSMon.EmptyState as T__MS; dependent induction H__b; intros; auto.
   - (* As cong [] *)
     remember nil as Bs; induction H__a; auto.
     + do_goal; exists List.nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState);
@@ -661,42 +740,10 @@ Proof.
     + exfalso; revert HeqBs; clear; intros H; induction Bs; congruence.
   - (* As cong b::Bs0 *)
     destruct r2 as [T__TMS T__SMS]; destruct r3 as [T__TMS' T__SMS'].
-    inv H.
-    assert (H__a':=H__a); apply MSMon_cong_cons_split in H__a as [H__a | [H__a1 [H__a2 [H__a3 H__a4]]]]; deex;
-    try (destruct H__a as [H__a1 [H__a2 [H__a3 H__a4]]]; subst).
-    shelve.
-    inv H__a1. inv H__a2. inv H__a3. inv H2. inv H4. inv H5. apply IHH__b; auto.
-    now apply MSMon_cong_none_strip in H__a'.
-    Unshelve.
-    eapply MSMon_steps_split_cong in H__b as [As__TMS [As__SMS [H__b1 [H__b2 [H__b3 H__b4]]]]]; deex; eauto.
-    inv H2; inv H__a2; inv H__a3; do_goal.
-    + exists (TMSMonAux.AAlloc l :: As__TMS)%list. exists T__TMS'. split.
-        constructor 4. constructor. assumption. econstructor 2; eauto.
-    + exists (SMSMonAux.AAlloc l n :: As__SMS)%list. exists T__SMS'. split.
-        constructor 4. constructor. assumption. econstructor 2; eauto.
-    + exists (TMSMonAux.ADealloc l :: As__TMS)%list. exists T__TMS'. split.
-        constructor 4. constructor. assumption. econstructor 2; eauto.
-    + exists (As__SMS)%list. exists T__SMS'. split.
-        constructor 3. constructor. assumption. econstructor 3; eauto.
-    + exists (TMSMonAux.AUse l :: As__TMS)%list. exists T__TMS'. split.
-        constructor 4. constructor. assumption. econstructor 2; eauto.
-    + exists (SMSMonAux.AUse l n :: As__SMS)%list. exists T__SMS'. split.
-        constructor 4. constructor. assumption. econstructor 2; eauto.
-    + exists (As__TMS)%list. exists T__TMS'. split.
-        constructor 3. constructor. assumption. econstructor 3; eauto.
-    + exists (As__SMS)%list. exists T__SMS'. split.
-        constructor 3. constructor. assumption. econstructor 3; eauto.
-    + exists (As__TMS)%list. exists T__TMS'. split.
-        constructor 3. constructor. assumption. econstructor 3; eauto.
-    + exists (As__SMS)%list. exists T__SMS'. split.
-        constructor 3. constructor. assumption. econstructor 3; eauto.
-    + exists (TMSMonAux.AAbort :: As__TMS)%list. exists T__TMS'. split.
-        constructor 4. constructor. assumption. econstructor 2; eauto.
-    + exists (SMSMonAux.AAbort :: As__SMS)%list. exists T__SMS'. split.
-        constructor 4. constructor. assumption. econstructor 2; eauto.
+    inv H. admit.
   - (* As cong Bs *)
     apply IHH__b; auto; subst; inv H.
-Qed.
+Admitted.
 Lemma sCCTMon_is_sCCT As :
   sCCTMon.sat As ->
   Props.sCCT As

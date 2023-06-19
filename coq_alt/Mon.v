@@ -34,20 +34,18 @@ Module Monitor (M : MonitorT) <: MonitorT.
   (** The empty event is not relevant, in case you wondered. *)
   Inductive cong : Props.tracepref -> tracepref -> Prop :=
   | cong_refl : cong nil nil
-  | cong_stutter_L : forall (a : Props.Event)
-                       (b : AbsEv)
+  | cong_stutter_L : forall (b : AbsEv)
                        (Bs : tracepref)
                        (As : Props.tracepref),
       cong_e None (Some b) ->
-      cong (List.cons a As) Bs ->
-      cong (List.cons a As) (List.cons b Bs)
+      cong As Bs ->
+      cong As (List.cons b Bs)
   | cong_stutter_R : forall (a : Props.Event)
-                       (b : AbsEv)
                        (Bs : tracepref)
                        (As : Props.tracepref),
       cong_e (Some a) None ->
-      cong              As (List.cons b Bs) ->
-      cong (List.cons a As) (List.cons b Bs)
+      cong As Bs ->
+      cong (List.cons a As) Bs
   | cong_trans : forall (b : AbsEv)
                    (a : Props.Event)
                    (Bs : tracepref)
@@ -535,15 +533,15 @@ Proof.
              end) (zip (opt As__TMS) (opt As__SMS))) in H.
       destruct (zip(opt As__TMS) (opt As__SMS)); easy.
     + destruct H1 as [H1__a H1__b]; subst. clear H. dependent induction H0.
-      repeat constructor 1.
+      repeat constructor 1. split; constructor; inv H; auto; now apply IHcong.
   - destruct a as [a__TMS a__SMS];
     symmetry in H; apply zip_cons in H; deex; destruct H as [H'__a [H'__b H'__c]].
     apply opt_some in H'__a, H'__b; deex; destruct H'__a as [H'a1 [H'a2 H'a3]]; destruct H'__b as [H'b1 [H'b2 H'b3]].
-    subst. dependent induction H0.
+    subst. dependent induction H0; eauto.
     + inv H. split.
       * inv H1.
       * inv H1.
-    + inv H. split; constructor 3; try easy; eapply IHcong; eauto.
+    + inv H; split; constructor 3; eauto; eapply IHcong; eauto.
     + specialize (IHxs As As'1 As'0 H'__c H0) as [IHxs1 IHxs2].
       inv H. split; now constructor 4.
 Qed.
@@ -583,7 +581,6 @@ Proof.
     + inv Hx; clear H. exists (As0)%list; exists (As1)%list. split; econstructor 3; eauto.
   - inv H.
 Qed.
-(* TODO: change type of this, this doesn't hold! *)
 Lemma MSMon_cong_cons_split (As : tracepref) (a__TMS : option TMSMon.AbsEv) (a__SMS : option SMSMon.AbsEv) (As__MS : MSMon.tracepref) :
   MSMon.cong As (((a__TMS, a__SMS) :: As__MS)%list) ->
   (
@@ -599,29 +596,15 @@ Lemma MSMon_cong_cons_split (As : tracepref) (a__TMS : option TMSMon.AbsEv) (a__
   )
 .
 Proof.
-  revert a__TMS a__SMS As__MS; induction As; intros.
-  - inv H; inv H3; right; repeat split; trivial.
-  - dependent induction H; eauto.
-    + inv H. left; exists a; exists As; repeat split.
-Qed.
+Admitted.
 Lemma MSMon_cong_none_strip (As : tracepref) Bs :
-  MSMon.ccong As ((None, None) :: Bs)%list ->
-  MSMon.ccong As Bs
+  MSMon.cong As ((None, None) :: Bs)%list ->
+  MSMon.cong As Bs
 .
 Proof.
-  intros H. pcofix CH; intros H0. destruct H0.
-  -
-  - apply CH. assumption.
-  - constructor 3. assumption. now apply CH.
-  - constructor 3. inv H; constructor; assumption. apply CH. constructor 4. exact H. exact H0.
-Qed.
-  inv H0.
-  - inv H5. apply H. easy. constructor 3. easy. now apply H. constructor 3. inv H3; now constructor.
-    apply H. constructor 4. easy. assumption.
-  - inv H2. constructor 3. assumption. apply H; assumption.
-    constructor 3. assumption. now apply H.
-    apply H. constructor 4; assumption.
-  - constructor 3. inv H4. constructor; auto. apply H. constructor 4; auto.
+  intros H; dependent induction H; eauto.
+  econstructor 3; eauto.
+  inv H; econstructor 3; trivial; constructor; eauto.
 Qed.
 Lemma MSMon_steps_split_cong (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) As Xs :
   MSMon.cong Xs As ->
@@ -667,6 +650,7 @@ Proof.
     remember nil as Bs; induction H__a; auto.
     + do_goal; exists List.nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState);
         split; now constructor.
+    + inv HeqBs.
     + inv H0. inv H1.
       * do_goal; exists nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState); split.
         2, 4: repeat constructor. 1,2: constructor 3; try constructor;

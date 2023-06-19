@@ -717,6 +717,75 @@ Proof.
   - intros. inv H. exfalso; revert H1; clear; intros H; induction x; try inv H.
   - unfold sms; intros. inv H. exfalso; revert H2; clear; intros H; induction x; try inv H.
 Qed.
+
+
+Lemma eat_front_in_t a b As :
+  a <> b ->
+  in_t (a) (b :: As)%list <->
+  in_t (a) (As)%list
+.
+Proof.
+Admitted.
+Lemma eat_front_before a b c As :
+  a <> c ->
+  b <> c ->
+  before a b (As)%list <->
+  before a b (c :: As)%list
+.
+Proof.
+Admitted.
+Lemma binop_ms n t σ As :
+  ms As ->
+  ms (PreEv (Binop n) t σ :: As)%list
+.
+Proof.
+  intros [[H__TMS0 [H__TMS1 H__TMS2]] H__SMS]; split.
+  - clear H__SMS. repeat split; intros.
+    + assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+      assert (PreEv (Dealloc l) t' σ' <> PreEv (Binop n) t σ) by congruence.
+      rewrite (eat_front_in_t _ H1) in H; rewrite (eat_front_in_t _ H2) in H0.
+      rewrite <- (eat_front_before _ H1 H2). auto.
+    + intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+      assert (PreEv (Alloc l m) t' σ' <> PreEv (Binop n) t σ) by congruence.
+      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
+      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS1; eauto.
+    + intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+      assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
+      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
+      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS2; eauto.
+  - clear H__TMS0 H__TMS1 H__TMS2; unfold sms in *; intros.
+    assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
+    rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
+    rewrite <- (eat_front_before _ H2 H3) in H1.
+    eapply H__SMS; eauto.
+Qed.
+Lemma branch_ms n t σ As :
+  ms As ->
+  ms (PreEv (Branch n) t σ :: As)%list
+.
+Proof.
+  intros [[H__TMS0 [H__TMS1 H__TMS2]] H__SMS]; split.
+  - clear H__SMS. repeat split; intros.
+    + assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+      assert (PreEv (Dealloc l) t' σ' <> PreEv (Branch n) t σ) by congruence.
+      rewrite (eat_front_in_t _ H1) in H; rewrite (eat_front_in_t _ H2) in H0.
+      rewrite <- (eat_front_before _ H1 H2). auto.
+    + intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+      assert (PreEv (Alloc l m) t' σ' <> PreEv (Branch n) t σ) by congruence.
+      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
+      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS1; eauto.
+    + intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+      assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
+      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
+      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS2; eauto.
+  - clear H__TMS0 H__TMS1 H__TMS2; unfold sms in *; intros.
+    assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
+    rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
+    rewrite <- (eat_front_before _ H2 H3) in H1.
+    eapply H__SMS; eauto.
+Qed.
 Lemma MSMon_is_MS As :
   MSMon.sat As ->
   Props.ms As
@@ -724,26 +793,11 @@ Lemma MSMon_is_MS As :
 Proof.
   intros [Bs [T__TMS [H__a H__b]]].
   Ltac do_goal := split; (apply TMSMon_is_TMS || apply SMSMon_is_SMS).
-  revert As H__a; remember MSMon.EmptyState as T__MS; dependent induction H__b; intros; auto.
-  - (* As cong [] *)
-    remember nil as Bs; induction H__a; auto.
-    + do_goal; exists List.nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState);
-        split; now constructor.
-    + inv HeqBs.
-    + inv H0. inv H1.
-      * do_goal; exists nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState); split.
-        2, 4: repeat constructor. 1,2: constructor 3; try constructor;
-          now (apply MSMon_cong_TMSMon_cong_nil + apply MSMon_cong_SMSMon_cong_nil).
-      * do_goal; exists nil; (exists TMSMon.EmptyState || exists SMSMon.EmptyState); split.
-        2, 4: repeat constructor. 1,2: constructor 3; try constructor;
-          now (apply MSMon_cong_TMSMon_cong_nil + apply MSMon_cong_SMSMon_cong_nil).
-    + exfalso; revert HeqBs; clear; intros H; induction Bs; congruence.
-  - (* As cong b::Bs0 *)
-    destruct r2 as [T__TMS T__SMS]; destruct r3 as [T__TMS' T__SMS'].
-    inv H. admit.
-  - (* As cong Bs *)
-    apply IHH__b; auto; subst; inv H.
-Admitted.
+  apply MSMon_cong_split_zip in H__a; deex; destruct H__a as [H__a1 [H__a2 [H__a3 H__a4]]].
+  unfold MSMon.EmptyState in H__b; destruct T__TMS as [T__TMS T__SMS];
+  eapply MSMon_steps_split' in H__b as [H__b H__c]; eauto.
+  do_goal. exists (noopt As__TMS). exists T__TMS. repeat split; eauto. exists (noopt As__SMS). exists T__SMS. repeat split; eauto.
+Qed.
 Lemma sCCTMon_is_sCCT As :
   sCCTMon.sat As ->
   Props.sCCT As

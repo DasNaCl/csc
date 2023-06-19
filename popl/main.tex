@@ -39,7 +39,7 @@
 % Fixing: Too many math alphabets used in version normal.
 \newcommand\hmmax{0}
 \newcommand\bmmax{0}
-\documentclass[acmsmall,review,screen,dvipsnames]{acmart}
+\documentclass[utf8,acmsmall,review,screen,dvipsnames]{acmart}
 
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[inference]{semantic}
@@ -54,6 +54,10 @@
 \usepackage{xfrac}
 \usepackage{tikz}
 \usepackage{bm}
+
+% https://tex.stackexchange.com/questions/648845/sans-serif-uppercase-greek-no-longer-showing-in-acmart
+\DeclareMathAlphabet{\mathsf}{OT1}{LibertinusSans-LF}{m}{n}
+\SetMathAlphabet{\mathsf}{bold}{OT1}{LibertinusSans-LF}{bx}{n}
 
 \input{cmds.tex}
 
@@ -1018,24 +1022,124 @@ Context switches are checked by looking at the current control--tag and wether t
 \begin{gather*}
   \begin{aligned}
     \mi{(Pre\text{--}Types)}~\src{\type[_{e}]}&\bnfdef\src{\natt} \mid \src{\ptrn} \hspace{0.5cm}
-    \mi{(Pointer\ Qualifiers)}~\src{\ptrqual}\bnfdef\ \src{\fullq} \mid \src{\halfq} \hspace{0.5cm}
-    \mi{(Types)}~\src{\type}\bnfdef\src{\type_{e}} \mid \src{\type_{e}\to\bot} \\
+    \mi{(Pointer\ Qualifiers)}~\src{\ptrqual}\bnfdef\ \src{\fullq} \mid \src{\halfq} \\
+    \mi{(Type~Environment)}~\src{\typenv}&\bnfdef\ \src{\hole{\cdot}} \mid \hastype{\src{x}}{\src{\type}},\src{\typenv} \hspace{0.5cm}
+    \mi{(Types)}~\src{\type}\bnfdef\src{\type[_{e}]} \mid \src{\type[_{e}]\to\bot} \mid \src{\type[^{(1)}_{e}]\to\type[^{(2)}_{e}]}
   \end{aligned}
 \end{gather*}
-
-\hltt{some type rules}
+\begin{center}
+  \judgbox{\tcheck{\src{\typenv}}{\src{\expr}}{\src{\type}}}{,,Under environment $\src{\typenv}$, expression $\src{\expr}$ has type $\src{\type}$.''}
+  %
+  \typerule{t-$\src{x}$}{
+    \src{\typenv}(\src{x})=\src{\type} &
+    \notowned{\src{\typenv}}
+  }{
+    \tcheck{\src{\typenv}}{\src{x}}{\src{\type}}
+  }{t-x}
+  %
+  \typerule{t-$\src{get}$}{
+    \tcheck{\src{\typenv[_2]}}{\src{x}}{\src{\wptr}} &
+    \tcheck{\src{\typenv[_1]}}{\src{\expr}}{\src{\natt}} &
+  }{
+    \tcheck{\typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}}{\src{\lget{x}{\expr}}}{\src{\natt}}
+  }{t-get}
+  %
+  \typerule{t-$\src{let}$}{
+    \tcheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\type[_e]}} &
+    \tcheck{\hastype{\src{x}}{\src{\type[_e]}},\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\type}}
+  }{
+    \tcheck{\typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}}{\src{\llet{x}{\expr[_1]}{\expr[_2]}}}{\src{\type}}
+  }{t-let}
+  %
+  \typerule{t-$\src{delete}$}{
+    \src{\typenv}(\src{x})=\src{\ptr} &
+    \notowned{\src{\typenv}\setminus\left\{\hastype{\src{x}}{\src{\ptr}}\right\}}
+  }{
+    \tcheck{\src{\typenv}}{\src{\ldelete{x}}}{\src{\natt}}
+  }{t-delete}
+  %
+  \typerule{t-$\src{abort}$}{
+    \notowned{\src{\typenv}}
+  }{
+    \tcheck{\src{\typenv}}{\src{\labort}}{\src{\type}}
+  }{t-abort}
+  %
+  \typerule{t-$\src{call}$}{
+    \inttype{\src{\type[^{(1)}_e]}} &
+    \inttype{\src{\type[^{(2)}_e]}} \\
+    \tcheck{\src{\typenv}}{\src{foo}}{\src{\type[^{(1)}_e]\to\type[^{(2)}_e]}} &
+    \tcheck{\src{\typenv}}{\src{\expr}}{\src{\type[^{(1)}_e]}}
+  }{
+    \tcheck{\src{\typenv}}{\src{\lcall{foo}{\expr}}}{\src{\type[^{(2)}_e]}}
+  }{t-call}
+  %
+  \typerule{t-$\src{return}$}{
+    \inttype{\src{\type[_e]}} &
+    \tcheck{\src{\typenv}}{\src{\expr}}{\src{\type[_e]}}
+  }{
+    \tcheck{\src{\typenv}}{\src{\lreturn{\expr}}}{\src{\type[_e]\to\bot}}
+  }{t-return}
+\end{center}
 
 $\src{L_{\tmssafe}}$ is a statically typed language where each well-typed term is temporal memory safe.
+Most parts of the type system are entirely standard, so only the interesting bits are shown here.
 To enforce this, the language marks pointers with respect to their ownership, where $\src{\fullq}$ means {\em owned} and $\src{\halfq}$ means {\em not owned}.
-An owned pointer can only be used by a deallocation, whereas reads and writes must be done on non-owned pointers.
-One can convert owned to non-owned pointers implicitly.
+An owned pointer can only be used by a deallocation (\Cref{tr:t-delete}), whereas reads and writes must be done on non-owned pointers.
+One can convert owned to non-owned pointers implicitly through context splitting $\typenvsplit{\src{\typenv[_{1}]}}{\src{\typenv[_{2}]}}$.\MK{list some rules and explain it a bit}
 Syntactic constraints together with the type system ensure that non-owned pointers never ,,live'' longer than owned pointers.
-For example, in an expression $\src{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}$, if $y$ is a $\src{\wptr}$ in $\expr[_{1}]$, it must be a $\src{\ptr}$ in $\expr[_{2}]$.
+For example, in an expression $\src{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}$, if $y$ is a $\src{\ptr}$ in $\src{\expr[_{1}]}$, it cannot appear at all in $\src{\expr[_{2}]}$, but it can if it were of type $\src{\wptr}$ (\Cref{tr:t-let}).
+This mechanism also prevents terms like $\src{\lget{x}{\ldelete{x}}}$ from typechecking (\Cref{tr:t-get}).
+At leafs of the type derivation tree, the typing environment must not contain owned pointers, which is ensured with the $\notowned{\src{\typenv}}$ judgement (\Cref{tr:t-abort,tr:t-x}).
+Lastly, calling or returning requires passed values to have an interface type ($\inttype{\src{\type[_{e}]}}$), which are just $\src{\natt}$ (\Cref{tr:t-call,tr:t-return}).
+To ensure that no pointers live after a return, the type of a return is that of a continuation, which is only permitted to propagate towards the end of a term.
+For example, we cannot bind $\src{\lreturn{e}}$ to an identifier in the typecheck of $\src{let}$, because the expression whose result is written into the binder has to be a pre--type, which the type of $\src{\lreturn{e}}$ is not.
+
+\MKin{add filter $\theta$ projecting to specification events}
+
+\begin{theorem}[$\src{L}$-programs are \gls{tms}]\label{thm:wt:tms}
+  If $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\trace}}$, then $\montmssafe{\filterLtms{\src{\trace}}}$.\Coqed
+\end{theorem}
+
+\subsection{$\trg{L}$: An Unsafe Language}\label{subsec:ltms}
+
+\MKin{add definitions and description; some syntax + dynamics}
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
+
+\MKin{compiler $\src{L}\to\trg{L}$}
+\MKin{x-lang relations}
+\MKin{backtranslation}
+\MKin{rtp of tms}
+
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
+
+\MKin{compiler $\trg{L}\to\irl{L_{MS}}$}
+\MKin{backward sim}
+\MKin{rtp of sms}
+
+\MKin{composition: rtp of ms}
+
 \subsection{Optimizing Compilers}\label{subsec:cs:opts}
+
+\MKin{compiler $\irl{L_{MS}}\to\irl{L_{MS}}$ doing \gls{dce}}
+\MKin{compiler $\irl{L_{MS}}\to\irl{L_{MS}}$ doing \gls{cf}}
+
+\MKin{backward sims}
+\MKin{rtp of ms}
+\MKin{composition: rtp of ms, order independent}
+
+\subsection{$\obj{L_{\scct}}$: A Language with Access to a Model Specific Register}\label{subsec:ltms}
+
+\MKin{add definitions and description; some syntax + dynamics}
+
 \subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
+
+\MKin{compiler $\irl{L_{MS}}\to\obj{L_{\scct}}$}
+\MKin{x-lang relations}
+\MKin{backtranslation}
+\MKin{rtp of scct}
+
+\MKin{composition: rtp of everything}
 
 %\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']
 %if at <= bounds {

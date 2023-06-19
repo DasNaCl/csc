@@ -718,22 +718,6 @@ Proof.
   - unfold sms; intros. inv H. exfalso; revert H2; clear; intros H; induction x; try inv H.
 Qed.
 
-
-Lemma eat_front_in_t a b As :
-  a <> b ->
-  in_t (a) (b :: As)%list <->
-  in_t (a) (As)%list
-.
-Proof.
-Admitted.
-Lemma eat_front_before a b c As :
-  a <> c ->
-  b <> c ->
-  before a b (As)%list <->
-  before a b (c :: As)%list
-.
-Proof.
-Admitted.
 Lemma binop_ms n t σ As :
   ms As ->
   ms (PreEv (Binop n) t σ :: As)%list
@@ -743,22 +727,21 @@ Proof.
   - clear H__SMS. repeat split; intros.
     + assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
       assert (PreEv (Dealloc l) t' σ' <> PreEv (Binop n) t σ) by congruence.
-      rewrite (eat_front_in_t _ H1) in H; rewrite (eat_front_in_t _ H2) in H0.
-      rewrite <- (eat_front_before _ H1 H2). auto.
+      erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
+      erewrite <- eat_front_before; eauto. eauto.
     + intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
       assert (PreEv (Alloc l m) t' σ' <> PreEv (Binop n) t σ) by congruence.
-      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
-      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS1; eauto.
+      erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
+      erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
     + intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
       assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
-      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
-      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS2; eauto.
+      erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+      erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
   - clear H__TMS0 H__TMS1 H__TMS2; unfold sms in *; intros.
     assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
     assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
-    rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
-    rewrite <- (eat_front_before _ H2 H3) in H1.
-    eapply H__SMS; eauto.
+    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto.
 Qed.
 Lemma branch_ms n t σ As :
   ms As ->
@@ -769,22 +752,21 @@ Proof.
   - clear H__SMS. repeat split; intros.
     + assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
       assert (PreEv (Dealloc l) t' σ' <> PreEv (Branch n) t σ) by congruence.
-      rewrite (eat_front_in_t _ H1) in H; rewrite (eat_front_in_t _ H2) in H0.
-      rewrite <- (eat_front_before _ H1 H2). auto.
+      erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
+      erewrite <- eat_front_before; eauto. eauto.
     + intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
       assert (PreEv (Alloc l m) t' σ' <> PreEv (Branch n) t σ) by congruence.
-      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
-      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS1; eauto.
+      erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
+      erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
     + intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
       assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
-      rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
-      rewrite <- (eat_front_before _ H2 H3) in H1. eapply H__TMS2; eauto.
+      erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+      erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
   - clear H__TMS0 H__TMS1 H__TMS2; unfold sms in *; intros.
     assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
     assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
-    rewrite (eat_front_in_t _ H2) in H. rewrite (eat_front_in_t _ H3) in H0.
-    rewrite <- (eat_front_before _ H2 H3) in H1.
-    eapply H__SMS; eauto.
+    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto.
 Qed.
 Lemma MSMon_is_MS As :
   MSMon.sat As ->

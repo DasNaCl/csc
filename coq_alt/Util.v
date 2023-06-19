@@ -1111,6 +1111,42 @@ Section Trace.
       + apply wherein_implies_wherein_cons; trivial.
       + apply PeanoNat.Nat.add_pos_r, NPeano.Nat.lt_0_1.
   Qed.
+  Lemma eat_front_in_t a b As :
+    a <> b ->
+    in_t (a) (b :: As)%list <->
+    in_t (a) (As)%list
+  .
+  Proof.
+    intros H0; split; intros [n H1].
+    - destruct n; cbn in H1.
+      + contradiction.
+      + exists n. unfold wherein in H1. induction As; cbn in *. destruct n; cbn in H1; try easy. exact H1.
+    - exists (S n); easy.
+  Qed.
+  Lemma eat_front_wherein a b As n :
+    a <> b ->
+    wherein a (b :: As) (S n) <->
+    wherein a As n
+  .
+  Proof. Admitted.
+  Lemma eat_front_before a b c As :
+    a <> c ->
+    b <> c ->
+    before a b (As)%list <->
+    before a b (c :: As)%list
+  .
+  Proof.
+    intros H0 H1; split; intros [n0 [n1 [H__a [H__b H__c]]]].
+    - exists (S n0). exists (S n1). repeat split.
+      now rewrite eat_front_wherein.
+      now rewrite eat_front_wherein.
+      unfold "_ < _" in *. revert H__c; clear; induction 1; trivial.
+      etransitivity; auto.
+    - destruct n0, n1; try congruence.
+      unfold wherein in H__a, H__b. cbn in *. exists n0. exists n1. repeat split; try assumption.
+      revert H__c; clear; intros H.
+      inv H. constructor. inv H1. constructor. easy. constructor. etransitivity; try exact H. now constructor.
+  Qed.
   (** Use this to define a coercion *)
   Definition ev_to_tracepref (e : Ev) : tracepref := e :: nil.
   Coercion ev_to_tracepref : Ev >-> tracepref.

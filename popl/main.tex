@@ -1231,25 +1231,51 @@ The projection $\filterL{\trace}$ is entirely similar to $\filterLtms{\trace}$.
 
 The only case where the compiler does something interesting is for top-level functions.
 Here, a dynamic typecheck is inserted to respect the calling-convention.
-Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ calls this function expecting a natural number with $\trg{\lpair{17}{29}}$.
+Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ calls a symbol accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
 The compiler ensures that execution does not proceed in cases like that.
+This paper considers symbols on $\src{\natt}$.
 
-\MKin{x-lang relations}
+\MKin{x-lang relations $\approx_{\delta;\src{L}}$, $\multimap_{\delta;\src{L}}$, as well as $\cong_{\delta;\src{X}}$}
 \MKin{backtranslation}
-\MKin{rtp of tms}
+
+\begin{theorem}[Compiler $\cca$ is secure with respect to \gls{tms}]\label{thm:cca:rtp:tms}
+  $\rtp{\cca}{\tmssafe}$ % \Coqed
+\end{theorem}
 
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 
-\MKin{compiler $\trg{L}\to\irl{L_{MS}}$}
-\MKin{backward sim}
-\MKin{rtp of sms}
+In this section, the language $\irl{L_{\mssafe}}$ is exactly the same as $\trg{L}$ and are considered equal.
+However, it is still named and collored differently to emphasize the fact that after this section, compiled $\irl{L_{\mssafe}}$ programs are \gls{ms}.
 
-\MKin{composition: rtp of ms}
+\begin{center}
+  $$
+  \begin{array}{rcl}
+    \ccb(\trg{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{1}]})}{\lnew[\irl]{\irl{x}}{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{2}]})}} \\
+    \ccb(\trg{\lget{x}{\expr}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr})}{\irl{\lifz{0\le x_{n}<x_{SIZE}}{\lget{x}{x_{n}}}{\labort}}} \\
+    \ccb(\trg{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr[_{1}]})}{\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\lset[\irl]{\irl{x}}{\irl{x_{n}}}{\ccb(\trg{\expr[_{2}]})}}{\irl{\labort}}} \\
+  \end{array}
+  $$
+\end{center}
+
+Up to getting and setting memory, the compiler is the identity function.
+For memory accesses, however, a bounds--check is inserted that enforces \gls{sms}.
+To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
+
+\MKin{backward sim}
+\begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}
+  $\rtp{\ccb}{\smssafe}$ % \Coqed
+\end{theorem}
+
+The composition of $\cca$ and $\ccb$ attains full memory safety using \Cref{thm:rtp,thm:cca:rtp:tms,thm:ccb:rtp:sms}.
+
+\begin{theorem}[Compiler $\cca\circ\ccb$ is secure with respect to \gls{ms}]\label{thm:ccab:rtp:ms}
+  $\rtp{\cca\circ\ccb}{\mssafe}$ % \Coqed
+\end{theorem}
 
 \subsection{Optimizing Compilers}\label{subsec:cs:opts}
 
-\MKin{compiler $\irl{L_{MS}}\to\irl{L_{MS}}$ doing \gls{dce}}
-\MKin{compiler $\irl{L_{MS}}\to\irl{L_{MS}}$ doing \gls{cf}}
+\MKin{compiler $\ccdce$ doing \gls{dce}}
+\MKin{compiler $\cccf$ doing \gls{cf}}
 
 \MKin{backward sims}
 \MKin{rtp of ms}

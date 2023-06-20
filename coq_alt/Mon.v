@@ -346,17 +346,132 @@ Proof.
       inv H. induction H1.
    *)
 Admitted.
+Lemma nil_tms :
+  Props.tms nil
+.
+Proof.
+  repeat split; intros; inv H; exfalso; revert H1; clear; intros H; induction x; try inv H.
+Qed.
+Lemma nil_sms :
+  Props.sms nil
+.
+Proof.
+  unfold sms; intros; inv H; exfalso; revert H2; clear; intros H; induction x; try inv H.
+Qed.
+Lemma nil_ms :
+  Props.ms nil
+.
+Proof.
+  unfold Props.ms; eauto using nil_tms, nil_sms.
+Qed.
+Lemma binop_tms n t σ As :
+  tms As ->
+  tms (PreEv (Binop n) t σ :: As)%list
+.
+Proof.
+  intros [H__TMS0 [H__TMS1 H__TMS2]]; repeat split; intros.
+  - assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Dealloc l) t' σ' <> PreEv (Binop n) t σ) by congruence.
+    erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
+    erewrite <- eat_front_before; eauto. eauto.
+  - intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Alloc l m) t' σ' <> PreEv (Binop n) t σ) by congruence.
+    erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
+  - intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
+    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
+Qed.
+Lemma binop_sms n t σ As :
+  sms As ->
+  sms (PreEv (Binop n) t σ :: As)%list
+.
+Proof.
+  intros H__SMS; unfold sms in *; intros.
+    assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
+    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto.
+Qed.
+Lemma binop_ms n t σ As :
+  ms As ->
+  ms (PreEv (Binop n) t σ :: As)%list
+.
+Proof.
+  unfold ms; intros [H__TMS H__SMS]; eauto using binop_sms, binop_tms.
+Qed.
+Lemma branch_tms n t σ As :
+  tms As ->
+  tms (PreEv (Branch n) t σ :: As)%list
+.
+Proof.
+  intros [H__TMS0 [H__TMS1 H__TMS2]]; repeat split; intros.
+  - assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Dealloc l) t' σ' <> PreEv (Branch n) t σ) by congruence.
+    erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
+    erewrite <- eat_front_before; eauto. eauto.
+  - intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Alloc l m) t' σ' <> PreEv (Branch n) t σ) by congruence.
+    erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
+  - intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
+    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
+Qed.
+Lemma branch_sms n t σ As :
+  sms As ->
+  sms (PreEv (Branch n) t σ :: As)%list
+.
+Proof.
+  intros H__SMS; unfold sms in *; intros.
+    assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
+    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto.
+Qed.
+Lemma branch_ms n t σ As :
+  ms As ->
+  ms (PreEv (Branch n) t σ :: As)%list
+.
+Proof.
+  unfold ms; intros [H__TMS H__SMS]; eauto using branch_sms, branch_tms.
+Qed.
+Lemma dealloc_sms l t σ As :
+  sms As ->
+  sms (PreEv (Dealloc l) t σ :: As)%list
+.
+Proof.
+  intros H__SMS; unfold sms in *; intros.
+    assert (PreEv (Alloc l0 m) t0 σ0 <> PreEv (Dealloc l) t σ) by congruence.
+    assert (PreEv (Use l0 n) t' σ' <> PreEv (Dealloc l) t σ) by congruence.
+    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
+    erewrite <- eat_front_before in H1; eauto.
+Qed.
 Lemma TMSMon_is_TMS As :
   TMSMon.sat As ->
   Props.tms As
 .
 Proof.
+  unfold TMSMon.sat; intros H; deex; destruct H as [H0 H1].
+  dependent induction H1; eauto.
+  - induction As; cbn in *.
+    exact nil_tms. inv H0. inv H3; eauto using branch_tms, binop_tms.
+  - admit.
+  - inv H; eauto.
 Admitted.
 Lemma SMSMon_is_SMS As :
   SMSMon.sat As ->
   Props.sms As
 .
 Proof.
+  intros [Bs [T__SMS [H0 H1]]].
+  dependent induction H0; eauto using nil_sms.
+  - inv H.
+  - inv H; eauto using branch_sms, dealloc_sms, binop_sms.
+  - inv H.
+    + inv H1. admit. inv H.
 Admitted.
 Fixpoint opt { A : Type } (As : list A) : list(option A) :=
   match As with
@@ -706,67 +821,6 @@ Proof.
       repeat split. apply TMSMon_step_none_eq in H8; subst. assumption. apply SMSMon_step_none_eq in H12; subst. assumption.
       easy. easy.
   - inv H.
-Qed.
-Lemma nil_ms :
-  Props.ms nil
-.
-Proof.
-  repeat split.
-  - intros. inv H. exfalso; revert H1; clear; intros H; induction x; try inv H.
-  - intros. inv H. exfalso; revert H1; clear; intros H; induction x; try inv H.
-  - intros. inv H. exfalso; revert H1; clear; intros H; induction x; try inv H.
-  - unfold sms; intros. inv H. exfalso; revert H2; clear; intros H; induction x; try inv H.
-Qed.
-
-Lemma binop_ms n t σ As :
-  ms As ->
-  ms (PreEv (Binop n) t σ :: As)%list
-.
-Proof.
-  intros [[H__TMS0 [H__TMS1 H__TMS2]] H__SMS]; split.
-  - clear H__SMS. repeat split; intros.
-    + assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
-      assert (PreEv (Dealloc l) t' σ' <> PreEv (Binop n) t σ) by congruence.
-      erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
-      erewrite <- eat_front_before; eauto. eauto.
-    + intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
-      assert (PreEv (Alloc l m) t' σ' <> PreEv (Binop n) t σ) by congruence.
-      erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
-      erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
-    + intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
-      assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
-      erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
-      erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
-  - clear H__TMS0 H__TMS1 H__TMS2; unfold sms in *; intros.
-    assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
-    assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
-    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
-    erewrite <- eat_front_before in H1; eauto.
-Qed.
-Lemma branch_ms n t σ As :
-  ms As ->
-  ms (PreEv (Branch n) t σ :: As)%list
-.
-Proof.
-  intros [[H__TMS0 [H__TMS1 H__TMS2]] H__SMS]; split.
-  - clear H__SMS. repeat split; intros.
-    + assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
-      assert (PreEv (Dealloc l) t' σ' <> PreEv (Branch n) t σ) by congruence.
-      erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
-      erewrite <- eat_front_before; eauto. eauto.
-    + intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
-      assert (PreEv (Alloc l m) t' σ' <> PreEv (Branch n) t σ) by congruence.
-      erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
-      erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
-    + intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
-      assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
-      erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
-      erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
-  - clear H__TMS0 H__TMS1 H__TMS2; unfold sms in *; intros.
-    assert (PreEv (Alloc l m) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
-    assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
-    erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
-    erewrite <- eat_front_before in H1; eauto.
 Qed.
 Lemma MSMon_is_MS As :
   MSMon.sat As ->

@@ -1018,6 +1018,35 @@ For example, the call to the main function emits just $\ev{Start}$ (\Cref{tr:e-s
 Ordinary calls, however, need to check wether a context switch is happening or not and push the current continuation and the name of the invoked function on the stack in the state (\Cref{tr:e-call-notsame}).
 Context switches are checked by looking at the current control--tag and wether the involved function or surrounding context is part of the list of names of component--level symbols ($\commlib$) or not (\Cref{tr:ctx-to-comp,tr:comp-to-ctx}).
 
+\begin{center}
+  \judgbox{\progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\runtimetermvar}{\trace}}{,,Program $\prog{\library_{\ctx}}{\library_\comp}$ evaluates to $\runtimetermvar$, emitting trace $\trace$.''}
+  %
+  \typerule{ep-run}{
+    \link{\library_{\ctx}}{\library_{\comp}}=\library &
+    \commlib=\operatorname{dom}\library_{\comp} \\
+    \estepto{\rtt{\tup{\library}{\commlib,\emptyset}}{\lcall{\text{main}}{0}}}{\rtt{\statevar}{\valueexpr}}{\trace}
+  }{
+    \progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\rtt{\statevar}{\valueexpr}}{\trace}
+  }{ep-run}
+  %
+  \typerule{ep-crash}{
+    \link{\library_{\ctx}}{\library_{\comp}}=\library &
+    \commlib=\operatorname{dom}\library_{\comp} \\
+    \estepton{\rtt{\tup{\library}{\commlib,\emptyset}}{\lcall{\text{main}}{0}}}{\lightning}{\trace\cdot\lightning}
+  }{
+    \progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\lightning}{\trace\cdot\lightning}
+  }{ep-crash}
+\end{center}
+
+The notation $\tup{\library}{\commlib,\emptyset}$ unfolds to $\statevar=\tup{\cfstate}{\comp,\memstate}$, where $\cfstate=\tup{\library}{\commlib,\hole{\cdot}}$ and $\memstate=\tup{\hole{\cdot}}{\hole{\cdot},\hole{\cdot}}$.
+Linking $\link{\library_{\ctx}}{\library_{\comp}}$, while gluing $\library_{\ctx}$ and $\library_{\comp}$ together, ensures that there is no symbol with the name $\text{main}$ in $\library_{\comp}$.
+Programs can either be run successfully (\Cref{tr:ep-run}) or fail (\Cref{tr:ep-crash}), which requires the n-step relation instead of star step, since star step models a big--step style semantics without failure.
+To make use of \Cref{def:propsat,def:proprsat}, {\em behavior} is introduced as follows.
+
+\begin{definition}[Program Behavior]\label{def:behav}
+  Given a program $\prog{\library_{\ctx}}{\library_{\comp}}$, the behavior of it is a set containing all traces $\trace$ such that there is a runtime--term $\runtimetermvar$ with $\progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\runtimetermvar}{\trace}$.
+\end{definition}
+
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 \begin{gather*}
   \begin{aligned}

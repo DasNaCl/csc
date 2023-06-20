@@ -941,7 +941,7 @@ The operation to set the fifth position in heap $\heap$ to value $\valueexpr$ is
     \statevar.\store(x) = \tup{\loc}{\statevar.\sandboxtag,\poison,n} &
     \store[_1]=\seth{\statevar.\store}{x}{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}
   }{
-    \pstepto{\rtt{\statevar}{\ldelete{x}}}{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}{\tup{\ev{Dealoc}\ \loc}{\sandboxtag}}
+    \pstepto{\rtt{\statevar}{\ldelete{x}}}{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}{\tup{\ev{Dealloc}\ \loc}{\sandboxtag}}
   }{e-dealloc}
   %
   \typerule{$e-\text{abort}$}{
@@ -1053,7 +1053,8 @@ To make use of \Cref{def:propsat,def:proprsat}, {\em behavior} is introduced as 
     \mi{(Pre\text{--}Types)}~\src{\type[_{e}]}&\bnfdef\src{\natt} \mid \src{\ptrn} \hspace{0.5cm}
     \mi{(Pointer\ Qualifiers)}~\src{\ptrqual}\bnfdef\ \src{\fullq} \mid \src{\halfq} \\
     \mi{(Type~Environment)}~\src{\typenv}&\bnfdef\ \src{\hole{\cdot}} \mid \hastype{\src{x}}{\src{\type}},\src{\typenv} \hspace{0.5cm}
-    \mi{(Types)}~\src{\type}\bnfdef\src{\type[_{e}]} \mid \src{\type[_{e}]\to\bot} \mid \src{\type[^{(1)}_{e}]\to\type[^{(2)}_{e}]}
+    \mi{(Types)}~\src{\type}\bnfdef\src{\type[_{e}]} \mid \src{\type[_{e}]\to\bot} \mid \src{\type[^{(1)}_{e}]\to\type[^{(2)}_{e}]} \\
+    \mi{(Symbols)}~\src{\function}&\bnfdef\src{\lfunction{g}{x:\type[_{e}]\to\type[_{e}]}{\expr}} \\
   \end{aligned}
 \end{gather*}
 \begin{center}
@@ -1165,13 +1166,74 @@ Events that carry locations make use of a location--map from blue $\src{L_{\tmss
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
 \end{theorem}
 
-\subsection{$\trg{L}$: An Unsafe Language}\label{subsec:ltms}
+\subsection{$\trg{L}$: An Unsafe Language}\label{subsec:lsms}
 
-\MKin{add definitions and description; some syntax + dynamics}
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Expressions)}~\trg{\expr}\bnfdef\ \dots \mid \trg{\lispoisoned{x}} \mid \trg{\lpair{\expr[_{1}]}{\expr[_{2}]}} &\mid \trg{\lproja{\expr}} \mid \trg{\lprojb{\expr}} \mid \trg{\lhast{\expr}{\type}} \hspace{0.5cm}
+    \mi{(Types)}~\trg{\type}\bnfdef\ \trg{\natt} \mid \trg{\natt\times\natt} \\
+    \mi{(Values)}~\trg{\valueexpr}&\bnfdef\ \dots \mid \trg{\lpair{n_{1}}{n_{2}}}
+  \end{aligned}
+\end{gather*}
+\begin{center}
+  \typerule{e-$\trg{\lispoisoned{}}$-yes}{
+    \trg{\statevar.\store}(\trg{x})=\trg{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}
+  }{
+    \pstepto{\rtt{\trg{\statevar}}{\trg{\lispoisoned{x}}}}{\rtt{\trg{\statevar}}{\trg{0}}}{\trg{\emptyevent}}
+  }{e-ispoisoned-yes}
+  %
+  \typerule{e-$\trg{\lispoisoned{}}$-no}{
+    \trg{\statevar.\store}(\trg{x})=\trg{\tup{\loc}{\statevar.\sandboxtag,\poisonless,n}}
+  }{
+    \pstepto{\rtt{\trg{\statevar}}{\trg{\lispoisoned{x}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
+  }{e-ispoisoned-no}
+  %
+  \typerule{e-proj1}{
+  }{
+    \pstepto{\rtt{\trg{\statevar}}{\trg{\lproja{\lpair{n_1}{n_2}}}}}{\rtt{\trg{\statevar}}{\trg{n_1}}}{\trg{\emptyevent}}
+  }{e-proj1}
+  %
+  \typerule{e-$\trg{\lhast{n}{\natt}}$}{
+  }{
+    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{n}{\natt}}}}{\rtt{\trg{\statevar}}{\trg{0}}}{\trg{\emptyevent}}
+  }{e-n-has-nat}
+  %
+  \typerule{e-$\trg{\lhast{x}{\natt}}$}{
+  }{
+    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{x}{\natt}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
+  }{e-x-has-nat}
+  %
+  \typerule{e-$\trg{\lhast{n}{\natt\times\natt}}$}{
+  }{
+    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{n}{\natt\times\natt}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
+  }{e-n-has-nattimesnat}
+\end{center}
+
+The $\trg{L}$ language does not provide any guarantees with regards to memory safety.
+The syntax of it extends the unified syntax for all languages (\Cref{subsec:cs:defs}) with pairs of natural numbers (\Cref{tr:e-proj1}) and two different kinds of dynamic checks.
+One of those checks allows programmers to investigate wether a pointer is freed or not (\Cref{tr:e-ispoisoned-yes,tr:e-ispoisoned-no}).
+The other check is a simple dynamic type check that evaluates to $\trg{0}$ if the check suceeds and to $\trg{1}$ otherwise (\Cref{tr:e-n-has-nat,tr:e-x-has-nat,tr:e-n-has-nattimesnat}).
+As before, not all rules are shown due to their straightforwardness.
+The projection $\filterL{\trace}$ is entirely similar to $\filterLtms{\trace}$.
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 
-\MKin{compiler $\src{L}\to\trg{L}$}
+\begin{center}
+  $$
+  \begin{array}{rcl}
+    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\ [0.33cm]
+    \cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}}) & = & \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{%
+                                                                                                \left[\cca(\src{\expr})\right] %
+                                                                                                 }{\labort[\trg]}}
+  \end{array}
+  $$
+\end{center}
+
+The only case where the compiler does something interesting is for top-level functions.
+Here, a dynamic typecheck is inserted to respect the calling-convention.
+Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ calls this function expecting a natural number with $\trg{\lpair{17}{29}}$.
+The compiler ensures that execution does not proceed in cases like that.
+
 \MKin{x-lang relations}
 \MKin{backtranslation}
 \MKin{rtp of tms}
@@ -1193,7 +1255,7 @@ Events that carry locations make use of a location--map from blue $\src{L_{\tmss
 \MKin{rtp of ms}
 \MKin{composition: rtp of ms, order independent}
 
-\subsection{$\obj{L_{\scctsafe}}$: A Language with Access to a Model Specific Register}\label{subsec:ltms}
+\subsection{$\obj{L_{\scctsafe}}$: A Language with Access to a Model Specific Register}\label{subsec:lscct}
 
 \MKin{add definitions and description; some syntax + dynamics}
 

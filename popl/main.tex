@@ -1094,10 +1094,46 @@ Lastly, calling or returning requires passed values to have an interface type ($
 To ensure that no pointers live after a return, the type of a return is that of a continuation, which is only permitted to propagate towards the end of a term.
 For example, we cannot bind $\src{\lreturn{e}}$ to an identifier in the typecheck of $\src{let}$, because the expression whose result is written into the binder has to be a pre--type, which the type of $\src{\lreturn{e}}$ is not.
 
-\MKin{add filter $\theta$ projecting to specification events}
+\begin{center}
+  \judgbox{\thelocmap(\src{\loc})=\loc}{,,Map an $\src{L_{\tmssafe}}$ location to a specification location $\loc$.''}
+  \judgbox{\filterLtms{\src{\event}}=\event}{,,Project an $\src{L_{\tmssafe}}$ event $\src{\event}$ to a specification event $\event$.''}
+  \typerule{$\src{L_{\tmssafe}}$-filter-context}{
+    \src{\event[_b]}\not=\src{\lightning}
+  }{
+    \filterLtms{\src{\tup{\event[_b]}{\ctx}} = \emptyevent}
+  }{ltms-filter-context}
+  %
+  \typerule{$\src{L_{\tmssafe}}$-filter-abort}{
+  }{
+    \filterLtms{\src{\lightning}} = \lightning
+  }{ltms-filter-abort}
+  %
+%  \typerule{$\src{L_{\tmssafe}}$-filter-start}{
+%  }{
+%    \filterLtms{\src{\tup{Start}{\comp}}} = \emptyevent
+%  }{ltms-filter-start}
+  %
+  \typerule{$\src{L_{\tmssafe}}$-filter-alloc}{
+    \locmapsto{\src{\loc}}{\loc} &
+    \src{n}=n
+  }{
+    \filterLtms{\src{\tup{Alloc\ \loc\ n}{\comp}}} = \tup{\ev{Alloc}\ \loc\ n}{\comp,\unlock}
+  }{ltms-filter-alloc}
+\end{center}
+To prove that well-typed $\src{L_{\tmssafe}}$ programs are temporal memory safe, a map from $\src{L_{\tmssafe}}$ to specification events (see \Cref{subsec:propdefs}) allows the use of \Cref{def:monsat}.
+The map is mostly entirely straight-forward.
+Most notably, it filters any action that the context does (\Cref{tr:ltms-filter-context}), since a context is free to do anything.
+Of course, a context invoking $\src{\labort}$ to crash the program must not go undetected (\Cref{tr:ltms-filter-abort}).
+As for the component, pre--events are essentially recolored to go from blue $\src{L_{\tmssafe}}$ events to the events of the most general trace model (\Cref{tr:ltms-filter-alloc}).
+Events that carry locations make use of a location--map from blue $\src{L_{\tmssafe}}$ locations to the more abstract ones.
 
-\begin{theorem}[$\src{L}$-programs are \gls{tms}]\label{thm:wt:tms}
+\MKin{show at least one forward sim lemma or not?}
+
+\begin{lemma}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{lem:wt:tmsmon}
   If $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\trace}}$, then $\montmssafe{\filterLtms{\src{\trace}}}$.\Coqed
+\end{lemma}
+\begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
+  For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
 \end{theorem}
 
 \subsection{$\trg{L}$: An Unsafe Language}\label{subsec:ltms}
@@ -1128,13 +1164,13 @@ For example, we cannot bind $\src{\lreturn{e}}$ to an identifier in the typechec
 \MKin{rtp of ms}
 \MKin{composition: rtp of ms, order independent}
 
-\subsection{$\obj{L_{\scct}}$: A Language with Access to a Model Specific Register}\label{subsec:ltms}
+\subsection{$\obj{L_{\scctsafe}}$: A Language with Access to a Model Specific Register}\label{subsec:ltms}
 
 \MKin{add definitions and description; some syntax + dynamics}
 
 \subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
 
-\MKin{compiler $\irl{L_{MS}}\to\obj{L_{\scct}}$}
+\MKin{compiler $\irl{L_{MS}}\to\obj{L_{\scctsafe}}$}
 \MKin{x-lang relations}
 \MKin{backtranslation}
 \MKin{rtp of scct}

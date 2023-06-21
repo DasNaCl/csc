@@ -27,6 +27,92 @@ Instance MGT__Instance : TraceParams := {
   Ev := Event ;
   string_of_event := fun _ => ""%string ;
 }.
+
+Definition control_tag_eq c0 c1 :=
+  match c0, c1 with
+  | CCtx, CCtx | CComp, CComp => true
+  | _, _ => false
+  end
+.
+Lemma control_tag_eqb_eq c0 c1 :
+  control_tag_eq c0 c1 = true <-> c0 = c1.
+Proof. destruct c0, c1; now cbn. Qed.
+#[export]
+Instance ControlTag__Instance : HasEquality ControlTag := {
+  eq := control_tag_eq ;
+  eqb_eq := control_tag_eqb_eq
+}.
+Definition security_tag_eq s0 s1 :=
+  match s0, s1 with
+  | SLock, SLock | SUnlock, SUnlock => true
+  | _, _ => false
+  end
+.
+Lemma security_tag_eqb_eq c0 c1 :
+  security_tag_eq c0 c1 = true <-> c0 = c1.
+Proof. destruct c0, c1; now cbn. Qed.
+#[export]
+Instance SecurityTag__Instance : HasEquality SecurityTag := {
+  eq := security_tag_eq ;
+  eqb_eq := security_tag_eqb_eq
+}.
+Definition preevent_eq p0 p1 :=
+  match p0, p1 with
+  | Alloc l0 n0, Alloc l1 n1 => andb (eq l0 l1) (Nat.eqb n0 n1)
+  | Use l0 n0, Use l1 n1 => andb (eq l0 l1) (Nat.eqb n0 n1)
+  | Dealloc l0, Dealloc l1 => eq l0 l1
+  | Branch n0, Branch n1 => Nat.eqb n0 n1
+  | Binop n0, Binop n1 => Nat.eqb n0 n1
+  | _, _ => false
+  end
+.
+Lemma preevent_eqb_eq p0 p1 :
+  preevent_eq p0 p1 = true <-> p0 = p1.
+Proof.
+  destruct p0, p1; cbn; try easy; split; intros; repeat rewrite bool_and_equiv_prop in *.
+  all: try
+    (destruct H as [H0 H1]; change ((l == l0) = true) in H0; rewrite eqb_eq in H0; apply PeanoNat.Nat.eqb_eq in H1; now subst).
+  - inv H; split. change ((l0 == l0) = true); apply eq_refl. apply PeanoNat.Nat.eqb_refl.
+  - inv H; split. change ((l0 == l0) = true); apply eq_refl. apply PeanoNat.Nat.eqb_refl.
+  - change ((l == l0) = true) in H; rewrite eqb_eq in H; now subst.
+  - inv H; change ((l0 == l0) = true); apply eq_refl.
+  - apply PeanoNat.Nat.eqb_eq in H; now subst.
+  - inv H; apply PeanoNat.Nat.eqb_refl.
+  - apply PeanoNat.Nat.eqb_eq in H; now subst.
+  - inv H; apply PeanoNat.Nat.eqb_refl.
+Qed.
+#[export]
+Instance PreEvent__Instance : HasEquality PreEvent := {
+  eq := preevent_eq ;
+  eqb_eq := preevent_eqb_eq
+}.
+Definition event_eq e0 e1 :=
+  match e0, e1 with
+  | Aborted, Aborted => true
+  | PreEv a0 t0 σ0, PreEv a1 t1 σ1 => andb (preevent_eq a0 a1)
+                                          (andb (control_tag_eq t0 t1) (security_tag_eq σ0 σ1))
+  | _, _ => false
+  end
+.
+Lemma event_eqb_eq e0 e1 :
+  event_eq e0 e1 = true <-> e0 = e1.
+Proof.
+  destruct e0, e1; cbn; split; intros; try easy.
+  - repeat rewrite bool_and_equiv_prop in H. destruct H as [H0 [H1 H2]].
+    change ((a__b == a__b0) = true) in H0.
+    change ((t == t0) = true) in H1.
+    change ((σ == σ0) = true) in H2.
+    apply eqb_eq in H0, H1, H2; now subst.
+  - inv H; repeat rewrite bool_and_equiv_prop; repeat split.
+    change ((a__b0 == a__b0) = true); apply eq_refl.
+    change ((t0 == t0) = true); apply eq_refl.
+    change ((σ0 == σ0) = true); apply eq_refl.
+Qed.
+#[export]
+Instance Event__Instance : HasEquality Event := {
+  eq := event_eq ;
+  eqb_eq := event_eqb_eq
+}.
 Definition tracepref := Util.tracepref.
 
 (** Trace property definitions *)

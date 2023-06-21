@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String CSC.Util CSC.Sets CSC.Props Coq.Program.Equality.
+Require Import Strings.String CSC.Util CSC.Sets CSC.Props Coq.Program.Equality Lia.
 
 
 (** * This file defines the various monitors from the paper. *)
@@ -461,7 +461,7 @@ Proof.
   - admit.
   - inv H; eauto.
 Admitted.
-Lemma SMSMon_is_SMS As T0 As0 :
+Lemma SMSMon_is_gSMS As T0 As0 :
   SMSMon.gsat (List.app As0 As) T0 ->
   Props.sms (List.app As0 As)
 .
@@ -470,22 +470,50 @@ Proof.
   revert T0 H1; dependent induction H0; intros; try rewrite <- x; eauto using nil_sms.
   - inv H.
   - inv H; eauto using branch_sms, dealloc_sms, binop_sms;
-    (apply dealloc_sms || apply binop_sms || apply branch_sms).
-    + destruct As0; cbn in x.
-      * destruct As; inv x. change (sms (nil ++ As))%list; eauto.
-      * inv x; eauto.
-    + destruct As0; cbn in x.
-      * destruct As; inv x. change (sms (nil ++ As))%list; eauto.
-      * inv x; eauto.
-    + destruct As0; cbn in x.
-      * destruct As; inv x. change (sms (nil ++ As))%list; eauto.
-      * inv x; eauto.
-  - inv H.
+    (apply dealloc_sms || apply binop_sms || apply branch_sms);
+    destruct As0; cbn in x; inv x; eauto; change (sms (nil ++ As1))%list; eauto.
+  - inv H1.
     + destruct As0; cbn in *.
       * destruct As; inv x. admit.
-      * inv x. assert (As0 ++ As ~= As0 ++ As)%list as H by easy.
-        inv H1. specialize (IHcong As As0 H).
+      * inv x. assert (As0 ++ As ~= As0 ++ As)%list as H4 by easy.
+        specialize (IHcong As As0 H4 r2 H7).
+        inv H.
+        -- unfold sms; intros. assert (H':=H); inv H. inv H1. destruct x; cbn in H3.
+           ++ inv H3. destruct H2 as [m0 [m1 [H2a [H2b H2c]]]].
+              (* can't be sms, because As0 doesn't contain the right alloc that we need *)
+              admit.
+           ++ destruct x0; cbn in H; try easy.
+              destruct (eq_dec (PreEv (Alloc l0 m) t0 σ0) (PreEv (Alloc l n) t σ)).
+              inv H1. inv H3. congruence. eapply IHcong. exists x. inv H3. eassumption. inv H. exists x0. eassumption.
+              destruct H2 as [m0 [m1 [H2a [H2b H2c]]]].
+              change (wherein (PreEv (Alloc l0 m) t0 σ0) (PreEv (Alloc l n) t σ :: As0 ++ As)%list (1 + x)) in H3.
+              change (wherein (PreEv (Use l0 n0) t' σ') (PreEv (Alloc l n) t σ :: As0 ++ As)%list (1 + x0)) in H.
+              rewrite PeanoNat.Nat.add_comm in H, H3.
+              exists x; exists x0; repeat split; try erewrite wherein_equiv_wherein_cons; eauto; try easy.
+              eapply wherein_eq in H2a, H2b; eauto; subst.
+              lia.
+        -- unfold sms; intros. assert (H':=H); inv H. inv H1. destruct x; cbn in H3; try easy.
+           destruct x0; cbn in H.
+           ++ assert (H'':=H). destruct H2 as [m0 [m1 [H2a [H2b H2c]]]].
+              eapply wherein_eq in H2a, H2b; eauto. subst. inv H2c.
+           ++ inv H3; inv H. eapply IHcong. exists x; eassumption. exists x0; eassumption. exists x; exists x0.
+              destruct H2 as [m0 [m1 [H2a [H2b H2c]]]].
+              assert (H11':=H11); assert (H12':=H12);
+              erewrite wherein_equiv_wherein_cons in H11, H12; eauto.
+              eapply wherein_eq in H2a, H2b; eauto; subst.
+              repeat split; eauto. lia.
+        -- unfold sms; intros. assert (H':=H); inv H. inv H1. destruct x; cbn in H3; inv H3.
+           destruct x0; cbn in H; inv H. eapply IHcong. exists x; eassumption. exists x0; eassumption.
+           erewrite <- eat_front_before in H2; eauto.
+  + inv x. (* ugh *)
 Admitted.
+Lemma SMSMon_is_SMS As :
+  SMSMon.sat As ->
+  Props.sms As
+.
+Proof.
+  intros H. change (SMSMon.sat (nil ++ As))%list in H. eapply SMSMon_is_gSMS in H. now cbn in H.
+Qed.
 Fixpoint opt { A : Type } (As : list A) : list(option A) :=
   match As with
   | nil => nil

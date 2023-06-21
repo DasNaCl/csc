@@ -1,5 +1,6 @@
 Set Implicit Arguments.
-Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano List Coq.Logic.Decidable RelationClasses.
+Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano List Coq.Logic.Decidable.
+Require Import RelationClasses Coq.Program.Equality.
 
 #[global]
 Ltac inv H := (inversion H; subst; clear H).
@@ -1058,36 +1059,35 @@ Section Trace.
       end in
     aux t (""%string)
   .
-  Definition wherein (a : Ev) (As : tracepref) (n : nat) :=
-    match List.nth_error As n with
-    | None => False
-    | Some x => a = x
-  end.
+  Inductive wherein : Ev -> tracepref -> nat -> Prop :=
+  | whereinIn : forall a As, wherein a (a :: As) 0
+  | whereinLook : forall a As b n, a <> b -> wherein a As n -> wherein a (b :: As) (S n)
+  .
+  Hint Constructors wherein : core.
   Definition in_t (a : Ev) (As : tracepref) := exists (n : nat), wherein a As n.
   Lemma wherein_nil (a : Ev) :
     forall n, wherein a nil n -> False.
   Proof. now induction n. Qed.
-  Lemma whereinE (a : Ev) (As : tracepref) :
-    forall n, wherein a As n <-> List.nth_error As n = Some a.
-  Proof.
-    split; intros; unfold wherein in *; destruct (nth_error As n); subst; try easy; now inv H.
-  Qed.
   Lemma wherein_predecessor (a b: Ev) (As : tracepref) :
     forall n, a <> b -> wherein a (b :: As) n -> wherein a As (pred n).
-  Proof. now induction n. Qed.
-  Lemma wherein_eq (a : Ev) (As : tracepref) :
-  forall n m, wherein a As n -> wherein a As m -> n = m.
   Proof.
-  Admitted.
-  Lemma wherein_nth As a : In a As -> exists n, wherein a As n.
-  Proof.
-    intros H; apply In_nth_error in H; deex; exists n; apply whereinE; easy.
+    intros.
+    inv H0. congruence. destruct As. inv H6. now cbn.
   Qed.
-  Lemma wherein_implies_wherein_cons (a b : Ev) (As : tracepref) :
-    forall n, wherein a As n -> wherein a (b :: As) (n + 1).
+  Lemma wherein_eq (a : Ev) (As : tracepref) n m :
+    wherein a As n -> wherein a As m -> n = m.
   Proof.
-    intros n H; apply whereinE in H; apply whereinE; rewrite <- H;
-    destruct n; trivial; cbn; destruct As; now rewrite PeanoNat.Nat.add_1_r.
+    intros H; revert m; induction H; intros. inv H; easy.
+    destruct m. inv H1. congruence. inv H1; auto.
+  Qed.
+  Lemma wherein_equiv_wherein_cons (a b : Ev) (As : tracepref) n :
+    a <> b ->
+    wherein a As n <-> wherein a (b :: As) (n + 1).
+  Proof.
+    split.
+    - induction 1; intros. now constructor. specialize (IHwherein H). inv IHwherein; try easy.
+      constructor; trivial. rewrite Nat.add_comm. now constructor.
+    - intros H0. inv H0. rewrite Nat.add_comm in H5; congruence. rewrite Nat.add_comm in H4. now inv H4.
   Qed.
   Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
     exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
@@ -1099,17 +1099,15 @@ Section Trace.
     induction n0, n1; easy.
   Qed.
   Lemma before_split a As a0 a1 n :
+    a <> a0 -> a <> a1 ->
     (before a0 a1 As) \/ (a0 = a /\ wherein a1 As n) ->
     before a0 a1 (a :: As)
   .
   Proof.
-    intros [H1 | [H1 H2]].
-    - unfold before in *; deex; destruct H1 as [H1 [H2 H3]];
-      exists (n0 + 1); exists (n1 + 1); repeat split; try apply wherein_implies_wherein_cons; try apply Nat.add_lt_mono_r; trivial.
-    - exists 0; exists (n + 1); repeat split.
-      + apply whereinE; simpl; subst; easy.
-      + apply wherein_implies_wherein_cons; trivial.
-      + apply PeanoNat.Nat.add_pos_r, NPeano.Nat.lt_0_1.
+    intros Ha Hb [H1 | [H1 H2]].
+    - destruct H1 as [n0 [n1 [H0 [H1 H2]]]].
+      exists (S n0); exists (S n1); repeat split; auto. now apply Arith_prebase.lt_n_S_stt.
+    - subst; congruence.
   Qed.
   Lemma eat_front_in_t a b As :
     a <> b ->
@@ -1119,16 +1117,20 @@ Section Trace.
   Proof.
     intros H0; split; intros [n H1].
     - destruct n; cbn in H1.
-      + contradiction.
-      + exists n. unfold wherein in H1. induction As; cbn in *. destruct n; cbn in H1; try easy. exact H1.
-    - exists (S n); easy.
+      + inv H1; contradiction.
+      + exists n. now inv H1.
+    - exists (S n); auto.
   Qed.
   Lemma eat_front_wherein a b As n :
     a <> b ->
     wherein a (b :: As) (S n) <->
     wherein a As n
   .
-  Proof. Admitted.
+  Proof.
+    intros H0; split; intros H1.
+    - now inv H1.
+    - now constructor.
+  Qed.
   Lemma eat_front_before a b c As :
     a <> c ->
     b <> c ->
@@ -1143,10 +1145,21 @@ Section Trace.
       unfold "_ < _" in *. revert H__c; clear; induction 1; trivial.
       etransitivity; auto.
     - destruct n0, n1; try congruence.
-      unfold wherein in H__a, H__b. cbn in *. exists n0. exists n1. repeat split; try assumption.
-      revert H__c; clear; intros H.
-      inv H. constructor. inv H1. constructor. easy. constructor. etransitivity; try exact H. now constructor.
+      now inv H__a. now inv H__a. now inv H__b.
+      inv H__a. inv H__b. exists n0; exists n1; repeat split; auto.
+      inv H__c. constructor. unfold "_ < _". etransitivity; try eassumption. etransitivity; eauto.
   Qed.
+  Lemma before_from_wherein a b As x x0 :
+    before (a) (b) (As)%list ->
+    wherein (a) (As)%list (x) ->
+    wherein (b) (As)%list (x0) ->
+    x < x0
+  .
+  Proof.
+    intros. unfold before in H; deex; destruct H as [H2 [H3 H4]].
+    eapply wherein_eq in H2, H3; eauto; subst. easy.
+  Qed.
+
   (** Use this to define a coercion *)
   Definition ev_to_tracepref (e : Ev) : tracepref := e :: nil.
   Coercion ev_to_tracepref : Ev >-> tracepref.

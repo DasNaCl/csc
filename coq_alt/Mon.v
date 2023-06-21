@@ -461,17 +461,30 @@ Proof.
   - admit.
   - inv H; eauto.
 Admitted.
-Lemma SMSMon_is_SMS As :
-  SMSMon.sat As ->
-  Props.sms As
+Lemma SMSMon_is_SMS As T0 As0 :
+  SMSMon.gsat (List.app As0 As) T0 ->
+  Props.sms (List.app As0 As)
 .
 Proof.
   intros [Bs [T__SMS [H0 H1]]].
-  dependent induction H0; eauto using nil_sms.
+  revert T0 H1; dependent induction H0; intros; try rewrite <- x; eauto using nil_sms.
   - inv H.
-  - inv H; eauto using branch_sms, dealloc_sms, binop_sms.
+  - inv H; eauto using branch_sms, dealloc_sms, binop_sms;
+    (apply dealloc_sms || apply binop_sms || apply branch_sms).
+    + destruct As0; cbn in x.
+      * destruct As; inv x. change (sms (nil ++ As))%list; eauto.
+      * inv x; eauto.
+    + destruct As0; cbn in x.
+      * destruct As; inv x. change (sms (nil ++ As))%list; eauto.
+      * inv x; eauto.
+    + destruct As0; cbn in x.
+      * destruct As; inv x. change (sms (nil ++ As))%list; eauto.
+      * inv x; eauto.
   - inv H.
-    + inv H1. admit. inv H.
+    + destruct As0; cbn in *.
+      * destruct As; inv x. admit.
+      * inv x. assert (As0 ++ As ~= As0 ++ As)%list as H by easy.
+        inv H1. specialize (IHcong As As0 H).
 Admitted.
 Fixpoint opt { A : Type } (As : list A) : list(option A) :=
   match As with

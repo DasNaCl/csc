@@ -1068,30 +1068,32 @@ Lastly, calling or returning requires passed values to have an interface type ($
 To ensure that no pointers live after a return, the type of a return is that of a continuation, which is only permitted to propagate towards the end of a term.
 For example, we cannot bind $\src{\lreturn{e}}$ to an identifier in the typecheck of $\src{let}$, because the expression whose result is written into the binder has to be a pre--type, which the type of $\src{\lreturn{e}}$ is not.
 
+\subsubsection{All Well-Typed $\Ltms$ Programs are Temporal Memory Safe}
+
 \begin{center}
   \judgbox{\thelocmap(\src{\loc})=\loc}{,,Map an $\src{L_{\tmssafe}}$ location to a specification location $\loc$.''}
-  \judgbox{\filterLtms{\src{\event}}=\event}{,,Project an $\src{L_{\tmssafe}}$ event $\src{\event}$ to a specification event $\event$.''}
+  \judgbox{\msfilterLtms{\src{\event}}=\event}{,,Project an $\src{L_{\tmssafe}}$ event $\src{\event}$ to a specification event $\event$.''}
   \typerule{$\src{L_{\tmssafe}}$-filter-context}{
     \src{\event[_b]}\not=\src{\lightning}
   }{
-    \filterLtms{\src{\tup{\event[_b]}{\ctx}} = \emptyevent}
+    \msfilterLtms{\src{\tup{\event[_b]}{\ctx}} = \emptyevent}
   }{ltms-filter-context}
   %
   \typerule{$\src{L_{\tmssafe}}$-filter-abort}{
   }{
-    \filterLtms{\src{\lightning}} = \lightning
+    \msfilterLtms{\src{\lightning}} = \lightning
   }{ltms-filter-abort}
   %
 %  \typerule{$\src{L_{\tmssafe}}$-filter-start}{
 %  }{
-%    \filterLtms{\src{\tup{Start}{\comp}}} = \emptyevent
+%    \msfilterLtms{\src{\tup{Start}{\comp}}} = \emptyevent
 %  }{ltms-filter-start}
   %
   \typerule{$\src{L_{\tmssafe}}$-filter-alloc}{
     \locmapsto{\src{\loc}}{\loc} &
     \src{n}=n
   }{
-    \filterLtms{\src{\tup{Alloc\ \loc\ n}{\comp}}} = \tup{\ev{Alloc}\ \loc\ n}{\comp,\unlock}
+    \msfilterLtms{\src{\tup{Alloc\ \loc\ n}{\comp}}} = \tup{\ev{Alloc}\ \loc\ n}{\comp,\unlock}
   }{ltms-filter-alloc}
 \end{center}
 To prove that well-typed $\src{L_{\tmssafe}}$ programs are temporal memory safe, a map from $\src{L_{\tmssafe}}$ to specification events (see \Cref{subsec:propdefs}) allows the use of \Cref{def:monsat}.
@@ -1102,7 +1104,7 @@ As for the component, pre--events are essentially recolored to go from blue $\sr
 Events that carry locations make use of a location--map from blue $\src{L_{\tmssafe}}$ locations to the more abstract ones.
 
 \begin{lemma}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{lem:wt:tmsmon}
-  If $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\trace}}$, then $\montmssafe{\filterLtms{\src{\trace}}}$.\Coqed
+  If $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\trace}}$, then $\montmssafe{\msfilterLtms{\src{\trace}}}$.\Coqed
 \end{lemma}
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
@@ -1150,15 +1152,26 @@ The $\Ltrg$ language does not provide any guarantees with regards to memory safe
 The syntax of it extends the unified syntax for all languages (\Cref{subsec:cs:defs}) with pairs of natural numbers (\Cref{tr:e-proj1}) and two different kinds of dynamic checks.
 One of those checks allows programmers to investigate wether a pointer is freed or not (\Cref{tr:e-ispoisoned-yes}).
 The other check is a simple dynamic type check that evaluates to $\trg{0}$ if the check suceeds and to $\trg{1}$ otherwise (\Cref{tr:e-n-has-nat,tr:e-n-has-nattimesnat}).
-The projection $\filterL{\trace}$ is entirely similar to $\filterLtms{\trace}$.
-\MKin{add note about \gls{sms} projection}
+The projection $\msfilterL{\trace}$ is entirely similar to $\msfilterLtms{\trace}$.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
 
 This paper chooses to introduce $\Lms$, despite it being exactly equal to $\Ltrg$.
 The main purpose of this decision is to enhance readability.
+One thing that is added to $\Lms$ is another projection to the most general trace model for reasoning about \gls{scct}.
+Here, any information irrelevant to \gls{scct} is filtered.
 
-\MKin{add note about \gls{sms} projection}
+\begin{center}
+  \typerule{$\Lms$-filter-alloc}{
+  }{
+    \scctfilterLms{\irl{\tup{Get\ \loc\ n}{\comp}}} = \emptyevent
+  }{lms-filter-get}
+  %
+  \typerule{$\Lms$-filter-abort}{
+  }{
+    \scctfilterLms{\irl{\lightning}} = \lightning
+  }{lms-filter-abort}
+\end{center}
 
 \subsection{$\Lscct$: An Unsafe Language}\label{subsec:lscct}
 
@@ -1206,34 +1219,32 @@ Since this language should not have a mechanism to hide memory unsafety, pre--ev
   \begin{center}
     \begin{tikzpicture}
       \node (S) {$\src{L_{\tmssafe}}$};
-      \node[right=1.0 of S] (T) {$\trg{L}$};
-      \node[right=1.0 of T] (M) {$\irl{L_{\mssafe}}$};
+      \node[right=1.5 of S] (T) {$\trg{L}$};
+      \node[right=1.5 of T] (M) {$\irl{L_{\mssafe}}$};
       \node[below right=0.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
       \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
-      \node[right=1.0 of D0] (D1) {$\irl{L_{\mssafe}}$};
-      \node[right=1.0 of C0] (C1) {$\irl{L_{\mssafe}}$};
-      \node[right=4.5 of M] (O) {$\obj{L_{\scctsafe}}$};
+      \node[right=3.0 of M] (E) {$\irl{L_{\mssafe}}$};
+      \node[right=1.5 of E] (O) {$\obj{L_{\scctsafe}}$};
 
-      \draw[->] (S) to[sloped,above] node (tmsedge) {\text{\scriptsize\gls{tms}}} (T);
-      \draw[->] (T) to[sloped,above] node {\text{\scriptsize\gls{sms}}} (M);
-      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (D0);
-      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (C0);
-      \draw[->] (D0) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (D1);
-      \draw[->] (C0) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (C1);
-      \draw[->] (D1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
-      \draw[->] (C1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
+      \draw[->] (S) to[sloped] node[align=center,font=\scriptsize] (tmsedge) {\gls{tms}\\ \Cref{thm:cca:rtp:tms}} (T);
+      \draw[->] (T) to[sloped] node[align=center,font=\scriptsize] {\gls{sms}\\ \Cref{thm:ccb:rtp:sms}} (M);
+      \draw[->] (M) to[sloped] node[align=center,font=\scriptsize] {\gls{dce}\\ \Cref{thm:ccdce:rtp:ms}} (D0);
+      \draw[->] (M) to[sloped] node[align=center,font=\scriptsize] {\gls{cf}\\ \Cref{thm:cccf:rtp:ms}} (C0);
+      \draw[->] (D0) to[sloped] node[align=center,font=\scriptsize] {\gls{cf}\\ \Cref{thm:cccf:rtp:ms}} (E);
+      \draw[->] (C0) to[sloped] node[align=center,font=\scriptsize] {\gls{dce}\\ \Cref{thm:ccdce:rtp:ms}} (E);
+      \draw[->] (E) to[sloped] node[align=center,font=\scriptsize] {\gls{scct}\\ \Cref{thm:ccscct:rtp:scct}} (O);
 
       % Sections
-      \node[above=1.5 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
-      \node[right=0.0 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
-      \node[right=1.25 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
-      \node[right=1.25 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
+      \node[above=1.0 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
+      \node[right=0.5 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
+      \node[right=1.75 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
+      \node[right=1.75 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
 
-      \draw[dashed] ($(sectms)-(0.7,0)$) -- ($(sectms)-(0.7,1.75)$);
-      \draw[dashed] ($(sectms)-(-0.7,0)$) -- ($(sectms)-(-0.7,1.75)$);
-      \draw[dashed] ($(secsms)-(-0.7,0)$) -- ($(secsms)-(-0.7,1.75)$);
-      \draw[dashed] ($(secscct)-(0.7,0)$) -- ($(secscct)-(0.7,0.75)$);
-      \draw[dashed] ($(secscct)-(-0.7,0)$) -- ($(secscct)-(-0.7,1.25)$);
+      \draw[dashed] ($(sectms)-(0.8,0)$) -- ($(sectms)-(0.8,1.25)$);
+      \draw[dashed] ($(sectms)-(-0.9,0)$) -- ($(sectms)-(-0.9,1.25)$);
+      \draw[dashed] ($(secsms)-(-1.2,0)$) -- ($(secsms)-(-1.2,1.25)$);
+      \draw[dashed] ($(secscct)-(1.2,0)$) -- ($(secscct)-(1.2,1.25)$);
+      \draw[dashed] ($(secscct)-(-1.1,0)$) -- ($(secscct)-(-1.1,1.25)$);
     \end{tikzpicture}
   \end{center}
   \caption{Visualisation of the optimizing compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}\label{fig:pipeline}
@@ -1298,7 +1309,6 @@ Up to getting and setting memory, the compiler is the identity function.
 For memory accesses, however, a bounds--check is inserted that enforces \gls{sms}.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
 
-\MKin{backward sim}
 \begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}
   $\rtp{\ccb}{\smssafe}$ % \Coqed
 \end{theorem}
@@ -1310,23 +1320,57 @@ The composition of $\cca$ and $\ccb$ attains full memory safety using \Cref{thm:
 \end{theorem}
 
 \subsection{Optimizing Compilers}\label{subsec:cs:opts}
-\MKin{rework this}
 
-\MKin{compiler $\ccdce$ doing \gls{dce}}
-\MKin{compiler $\cccf$ doing \gls{cf}}
+\begin{center}
+  $$
+  \begin{array}{rcl}
+    \ccdce(\irl{\lifz{true}{\expr[_{1}]}{\expr[_{2}]}}) & = & \ccdce(\irl{\expr[_{1}]}) \\
+    \ccdce(\irl{\lifz{false}{\expr[_{1}]}{\expr[_{2}]}}) & = & \ccdce(\irl{\expr[_{2}]}) \\
+  \end{array}
+  $$
+\end{center}
 
-\MKin{backward sims}
-\MKin{rtp of ms}
-\MKin{composition: rtp of ms, order independent}
+\begin{center}
+  $$
+  \begin{array}{rcll}
+    \cccf(\irl{\llet{x}{n}{\expr}}) & = & \cccf(\irl{\expr\subst{n}{x}}) &\\
+    \cccf(\irl{\lbinop{n_{1}}{n_{2}}}) & = & \irl{n_{3}} & \text{where }\irl{n_{3}}\text{ is }\lbinop{\irl{n_{1}}}{\irl{n_{2}}}\\
+  \end{array}
+  $$
+\end{center}
+
+\begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls{ms}]\label{thm:ccdce:rtp:ms}
+  $\rtp{\ccdce}{\mssafe}$ % \Coqed
+\end{theorem}
+\begin{theorem}[Compiler $\cccf$ is secure with respect to \gls{ms}]\label{thm:cccf:rtp:ms}
+  $\rtp{\cccf}{\mssafe}$ % \Coqed
+\end{theorem}
+
+\begin{theorem}[Compilers $\cccf\circ\ccdce$ and $\cccf\circ\ccdce$ are secure with respect to \gls{ms}]\label{thm:cccfccdce:rtp:ms}
+  $\rtp{\cccf\circ\ccdce}{\mssafe}$ and $\rtp{\ccdce\circ\cccf}{\mssafe}$ % \Coqed
+\end{theorem}
 
 \subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
 
-\MKin{compiler $\irl{L_{MS}}\to\obj{L_{\scctsafe}}$}
-\MKin{x-lang relations}
-\MKin{backtranslation}
-\MKin{rtp of scct}
+\begin{center}
+  $$
+  \begin{array}{rcl}
+    \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = & \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{1};}\ccscct(\irl{\expr})}
+  \end{array}
+  $$
+\end{center}
 
-\MKin{composition: rtp of everything}
+\begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls{scct}]\label{thm:ccscct:rtp:scct}
+  $\rtp{\ccscct}{\scctsafe}$ % \Coqed
+\end{theorem}
+
+\subsection{Robust Preservation of Intersection of Memory Safety and Strict Cryptographic Constant Time}
+
+Let $\cc{\Ltms}{\Lscct}$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, and $\ccscct$, then the following theorem can be shown.
+
+\begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls{scct}]\label{thm:ccscct:rtp:scct}
+  $\rtp{\ccscct}{\scctsafe}$ % \Coqed
+\end{theorem}
 
 %\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']
 %if at <= bounds {

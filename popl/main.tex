@@ -338,58 +338,9 @@ For languages used in this paper, a small-step style semantics is used.
 That is, there is a step relation between states $\runtimetermvar$ and an event $\event$: $\stepto[]{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\event}$.
 Also, a program's syntax $p$ is encoded in the state $\runtimetermvar$ which is written as $p\in\runtimetermvar$.
 For states $\runtimetermvar$, it is assumed that there exists a judgement $\isval{\runtimetermvar}$ that determines wether $\runtimetermvar$ is a final state or not.
-\Cref{fig:starstep:and:nstep}\MK{appendix?} defines the star-step relation $\stepto{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$, essentially modelling a big-step style evaluation, and the $n$-step relation $\stepton{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$ that evaluates a program for $n$ steps.
+Another assumption is the existence of a generic star-step relation $\stepto{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$, essentially modelling a big-step style evaluation, and the existence of an $n$-step relation $\stepton{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$ that evaluates a program for $n$ steps.
 Both relations filter $\varepsilon$ events.
 
-\begin{figure}[t]
-  \judgbox{\stepto{r}{r'}{\trace}}{,,State $\runtimetermvar$ steps to final state $\runtimetermvar[']$, emitting events $\trace$.''}$\;$\\
-  %
-  \typerule{star-step-refl}{
-    \isval{\runtimetermvar}
-  }{
-    \stepto{\runtimetermvar}{\runtimetermvar}{\hole{\cdot}}
-  }{star-step-refl}
-  %
-  \typerule{star-step-trans}{
-    \event\not=\varepsilon &
-    \stepto[]{\runtimetermvar}{\runtimetermvar[']}{\event} &
-    \stepto{\runtimetermvar[']}{\runtimetermvar['']}{\trace}
-  }{
-    \stepto{\runtimetermvar}{\runtimetermvar['']}{\event\cdot\trace}
-  }{star-step-trans}
-  %
-  \typerule{star-step-ign}{
-    \stepto[]{\runtimetermvar}{\runtimetermvar[']}{\varepsilon} &
-    \stepto{\runtimetermvar[']}{\runtimetermvar['']}{\trace}
-  }{
-    \stepto{\runtimetermvar}{\runtimetermvar['']}{\trace}
-  }{star-step-ign}
-
-  \judgbox{\stepton{\runtimetermvar}{\runtimetermvar[']}{\trace}}{,,State $r$ does $n$ steps to final state $\runtimetermvar[']$, emitting events $\trace$.''}$\;$\\
-  %
-  \typerule{n-step-refl}{
-  }{
-    \stepton[0]{\runtimetermvar}{\runtimetermvar}{\hole{\cdot}}
-  }{n-step-refl}
-  %
-  \typerule{n-step-trans}{
-    \event\not=\varepsilon &
-    \stepto[]{\runtimetermvar}{\runtimetermvar[']}{\event} &
-    \stepton{\runtimetermvar[']}{\runtimetermvar['']}{\trace}
-  }{
-    \stepton[n+1]{\runtimetermvar}{\runtimetermvar['']}{\event\cdot\trace}
-  }{n-step-trans}
-  %
-  \typerule{n-step-ign}{
-    \stepto[]{\runtimetermvar}{\runtimetermvar[']}{\varepsilon} &
-    \stepton{\runtimetermvar[']}{\runtimetermvar['']}{\trace}
-  }{
-    \stepton[n+1]{\runtimetermvar}{\runtimetermvar['']}{\trace}
-  }{n-step-ign}
-
-  \caption{Star-step and $n$-step relation for a given step relation $\stepto{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\event}$}\label{fig:starstep:and:nstep}
-\end{figure}
-%
 The \emph{behavior} of a whole program $w$ ($\behav{w}$) is a set containing all traces the program may emit during execution.
 Note that for deterministic languages, $\behav{w}$ is a singleton set for any $w$.
 The behavior of programs gives rise to the definition of satisfaction:
@@ -808,7 +759,7 @@ A corollary of \Cref{thm:rtp} is that optimization passes that have the input an
       \node[right=1.0 of C0] (C1) {$\irl{L_{\mssafe}}$};
       \node[right=4.5 of M] (O) {$\obj{L_{\scctsafe}}$};
 
-      \draw[->] (S) to[sloped,above] node {\text{\scriptsize\gls{tms}}} (T);
+      \draw[->] (S) to[sloped,above] node (tmsedge) {\text{\scriptsize\gls{tms}}} (T);
       \draw[->] (T) to[sloped,above] node {\text{\scriptsize\gls{sms}}} (M);
       \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (D0);
       \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (C0);
@@ -816,6 +767,18 @@ A corollary of \Cref{thm:rtp} is that optimization passes that have the input an
       \draw[->] (C0) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (C1);
       \draw[->] (D1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
       \draw[->] (C1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
+
+      % Sections
+      \node[above=1.5 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
+      \node[right=0.0 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
+      \node[right=1.25 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
+      \node[right=1.25 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
+
+      \draw[dashed] ($(sectms)-(0.7,0)$) -- ($(sectms)-(0.7,1.75)$);
+      \draw[dashed] ($(sectms)-(-0.7,0)$) -- ($(sectms)-(-0.7,1.75)$);
+      \draw[dashed] ($(secsms)-(-0.7,0)$) -- ($(secsms)-(-0.7,1.75)$);
+      \draw[dashed] ($(secscct)-(0.7,0)$) -- ($(secscct)-(0.7,0.75)$);
+      \draw[dashed] ($(secscct)-(-0.7,0)$) -- ($(secscct)-(-0.7,0.75)$);
     \end{tikzpicture}
   \end{center}
   \caption{Visualisation of the optimizing compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}\label{fig:pipeline}
@@ -1050,11 +1013,11 @@ To make use of \Cref{def:propsat,def:proprsat}, {\em behavior} is introduced as 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 \begin{gather*}
   \begin{aligned}
-    \mi{(Pre\text{--}Types)}~\src{\type[_{e}]}&\bnfdef\src{\natt} \mid \src{\ptrn} \hspace{0.5cm}
-    \mi{(Pointer\ Qualifiers)}~\src{\ptrqual}\bnfdef\ \src{\fullq} \mid \src{\halfq} \\
-    \mi{(Type~Environment)}~\src{\typenv}&\bnfdef\ \src{\hole{\cdot}} \mid \hastype{\src{x}}{\src{\type}},\src{\typenv} \hspace{0.5cm}
-    \mi{(Types)}~\src{\type}\bnfdef\src{\type[_{e}]} \mid \src{\type[_{e}]\to\bot} \mid \src{\type[^{(1)}_{e}]\to\type[^{(2)}_{e}]} \\
-    \mi{(Symbols)}~\src{\function}&\bnfdef\src{\lfunction{g}{x:\type[_{e}]\to\type[_{e}]}{\expr}} \\
+    \mi{(Pre\text{--}Types)}~\src{\type[_{e}]}\bnfdef&\ \src{\natt} \mid \src{\ptrn} &
+    \mi{(Type~Environment)}~\src{\typenv}\bnfdef&\ \src{\hole{\cdot}} \mid \hastype{\src{x}}{\src{\type}},\src{\typenv} \\
+    \mi{(Types)}~\src{\type}\bnfdef&\ \src{\type[_{e}]} \mid \src{\type[_{e}]\to\bot} \mid \src{\type[^{(1)}_{e}]\to\type[^{(2)}_{e}]} &
+    \mi{(Pointer\ Qualifiers)}~\src{\ptrqual}\bnfdef&\ \src{\fullq} \mid \src{\halfq} \\
+    \mi{(Symbols)}~\src{\function}\bnfdef&\src{\lfunction{g}{x:\type[_{e}]\to\type[_{e}]}{\expr}} \\
   \end{aligned}
 \end{gather*}
 \begin{center}
@@ -1182,26 +1145,21 @@ Events that carry locations make use of a location--map from blue $\src{L_{\tmss
     \pstepto{\rtt{\trg{\statevar}}{\trg{\lispoisoned{x}}}}{\rtt{\trg{\statevar}}{\trg{0}}}{\trg{\emptyevent}}
   }{e-ispoisoned-yes}
   %
-  \typerule{e-$\trg{\lispoisoned{}}$-no}{
-    \trg{\statevar.\store}(\trg{x})=\trg{\tup{\loc}{\statevar.\sandboxtag,\poisonless,n}}
-  }{
-    \pstepto{\rtt{\trg{\statevar}}{\trg{\lispoisoned{x}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
-  }{e-ispoisoned-no}
-  %
-  \typerule{e-proj1}{
-  }{
-    \pstepto{\rtt{\trg{\statevar}}{\trg{\lproja{\lpair{n_1}{n_2}}}}}{\rtt{\trg{\statevar}}{\trg{n_1}}}{\trg{\emptyevent}}
-  }{e-proj1}
+%  \typerule{e-$\trg{\lispoisoned{}}$-no}{
+%    \trg{\statevar.\store}(\trg{x})=\trg{\tup{\loc}{\statevar.\sandboxtag,\poisonless,n}}
+%  }{
+%    \pstepto{\rtt{\trg{\statevar}}{\trg{\lispoisoned{x}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
+%  }{e-ispoisoned-no}
   %
   \typerule{e-$\trg{\lhast{n}{\natt}}$}{
   }{
     \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{n}{\natt}}}}{\rtt{\trg{\statevar}}{\trg{0}}}{\trg{\emptyevent}}
   }{e-n-has-nat}
   %
-  \typerule{e-$\trg{\lhast{x}{\natt}}$}{
-  }{
-    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{x}{\natt}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
-  }{e-x-has-nat}
+%  \typerule{e-$\trg{\lhast{x}{\natt}}$}{
+%  }{
+%    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{x}{\natt}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
+%  }{e-x-has-nat}
   %
   \typerule{e-$\trg{\lhast{n}{\natt\times\natt}}$}{
   }{
@@ -1211,9 +1169,8 @@ Events that carry locations make use of a location--map from blue $\src{L_{\tmss
 
 The $\trg{L}$ language does not provide any guarantees with regards to memory safety.
 The syntax of it extends the unified syntax for all languages (\Cref{subsec:cs:defs}) with pairs of natural numbers (\Cref{tr:e-proj1}) and two different kinds of dynamic checks.
-One of those checks allows programmers to investigate wether a pointer is freed or not (\Cref{tr:e-ispoisoned-yes,tr:e-ispoisoned-no}).
-The other check is a simple dynamic type check that evaluates to $\trg{0}$ if the check suceeds and to $\trg{1}$ otherwise (\Cref{tr:e-n-has-nat,tr:e-x-has-nat,tr:e-n-has-nattimesnat}).
-As before, not all rules are shown due to their straightforwardness.
+One of those checks allows programmers to investigate wether a pointer is freed or not (\Cref{tr:e-ispoisoned-yes}).
+The other check is a simple dynamic type check that evaluates to $\trg{0}$ if the check suceeds and to $\trg{1}$ otherwise (\Cref{tr:e-n-has-nat,tr:e-n-has-nattimesnat}).
 The projection $\filterL{\trace}$ is entirely similar to $\filterLtms{\trace}$.
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
@@ -1221,7 +1178,7 @@ The projection $\filterL{\trace}$ is entirely similar to $\filterLtms{\trace}$.
 \begin{center}
   $$
   \begin{array}{rcl}
-    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\ [0.33cm]
+%    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\ [0.33cm]
     \cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}}) & = & \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{%
                                                                                                 \left[\cca(\src{\expr})\right] %
                                                                                                  }{\labort[\trg]}}

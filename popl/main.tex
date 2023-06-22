@@ -59,6 +59,9 @@
 \DeclareMathAlphabet{\mathsf}{OT1}{LibertinusSans-LF}{m}{n}
 \SetMathAlphabet{\mathsf}{bold}{OT1}{LibertinusSans-LF}{bx}{n}
 
+\DeclareMathAlphabet{\mathtt}{OT1}{lmtt}{m}{n}
+\SetMathAlphabet{\mathtt}{bold}{OT1}{lmtt}{bx}{n}
+
 \input{cmds.tex}
 
 \loadglsentries{acronyms}
@@ -746,91 +749,37 @@ A corollary of \Cref{thm:rtp} is that optimization passes that have the input an
   Then, $\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{V}}}{\class[_{2}]\cap\class[_{1}]}$. \Coqed
 \end{corollary}
 
-\section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
-\begin{figure}[h]
-  \begin{center}
-    \begin{tikzpicture}
-      \node (S) {$\src{L_{\tmssafe}}$};
-      \node[right=1.0 of S] (T) {$\trg{L}$};
-      \node[right=1.0 of T] (M) {$\irl{L_{\mssafe}}$};
-      \node[below right=0.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
-      \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
-      \node[right=1.0 of D0] (D1) {$\irl{L_{\mssafe}}$};
-      \node[right=1.0 of C0] (C1) {$\irl{L_{\mssafe}}$};
-      \node[right=4.5 of M] (O) {$\obj{L_{\scctsafe}}$};
+%\section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
+\section{Case Study: Preliminary Definitions}\label{sec:casestud:defs}
 
-      \draw[->] (S) to[sloped,above] node (tmsedge) {\text{\scriptsize\gls{tms}}} (T);
-      \draw[->] (T) to[sloped,above] node {\text{\scriptsize\gls{sms}}} (M);
-      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (D0);
-      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (C0);
-      \draw[->] (D0) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (D1);
-      \draw[->] (C0) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (C1);
-      \draw[->] (D1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
-      \draw[->] (C1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
+In order to define secure compilers one needs programming languages.
+To this end, this section defines the languages $\Ltms$, $\Ltrg$, $\Lms$, and $\Lscct$.
+In this paper, $\Ltms$ is the only statically typed language and exhibits the property that all well-typed programs are \gls{tms}.
+However, one can still write and evaluate $\Ltms$ programs that are well-typed, but perform out-of-bounds memory accesses, so the language is not \gls{sms}.
+In contrast, $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls{ms}.
+$\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability.
+For all these languages, so $\Ltms$, $\Ltrg$, and $\Lms$, programmers assume \gls{cct} to hold, because the compiler is said to ensure it, similarily to what is being done in literature~\cite{cauligi2019fact}.
+This assumption does not hold anymore for the language $\Lscct$, which leaks information on branches and binary operations.
+But, contrary to the other languages, one can read and write to a model-specific register indicating a ``\gls{cct}-mode''.
 
-      % Sections
-      \node[above=1.5 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
-      \node[right=0.0 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
-      \node[right=1.25 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
-      \node[right=1.25 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
-
-      \draw[dashed] ($(sectms)-(0.7,0)$) -- ($(sectms)-(0.7,1.75)$);
-      \draw[dashed] ($(sectms)-(-0.7,0)$) -- ($(sectms)-(-0.7,1.75)$);
-      \draw[dashed] ($(secsms)-(-0.7,0)$) -- ($(secsms)-(-0.7,1.75)$);
-      \draw[dashed] ($(secscct)-(0.7,0)$) -- ($(secscct)-(0.7,0.75)$);
-      \draw[dashed] ($(secscct)-(-0.7,0)$) -- ($(secscct)-(-0.7,0.75)$);
-    \end{tikzpicture}
-  \end{center}
-  \caption{Visualisation of the optimizing compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}\label{fig:pipeline}
-\end{figure}
-
-This section defines several secure compilers, each of which robustly preserves a different property of interest (\Cref{fig:pipeline}).
-The power of the framework (\Cref{sec:compprop,sec:compcomp}) is demonstrated by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
-Concretely, the section starts with a base-line definition for the used languages (\Cref{subsec:cs:defs}) and extends that to define languages $\src{L_{TMS}}$ and $\trg{L}$.
-For programmers using $\src{L_{TMS}}$, their mental model should be that their code is temporal memory safe and cryptographic constant time.
-The former is proven to be enforced by the static semantics of $\src{L_{TMS}}$, where each well-typed program is temporal memory safe.
-The latter is completely untyped.
-Having languages defined, this section continues with a compiler $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ and proves that $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ robustly preserves \gls{tms} (\Cref{subsec:cs:tms}).
-For readability purposes, it defines $\irl{L_{MS}}$ to be exactly the same as $\trg{L}$ and continues to present a compiler $\cc{\trg{L}}{\irl{L_{MS}}}$ that robustly preserves \gls{sms} (\Cref{subsec:cs:ms}).
-Now leaveraging the power of the framework that this paper introduces (\Cref{sec:compcomp,sec:compprop}), a compiler $\rtp{\cc{\src{L_{TMS}}}{\irl{L_{MS}}}}{\mssafe}$ is attained.
-The next steps in the compilation pipeline are two secure compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ that perform \glsfirst{dce} and \glsfirst{cf}, respectively, to model an optimzing pipeline happening somewhere in the compilation chain (\Cref{subsec:cs:opts}).
-Finally, this section defines the language $\obj{L_{\scctsafe}}$ that is, in contrast to the other languages, not cryptographic constant time by definition.
-Concluding, a compiler $\cc{\irl{L_{MS}}}{\obj{L_{CCT}}}$ that robustly preserves \gls{cct} (\Cref{subsec:cs:scct}) is shown and composed with $\cc{\src{L_{TMS}}}{\irl{L_{MS}}}$ and the optimizing compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$.
-In turn, this yields $\cc{\src{L_{TMS}}}{\obj{L_{CCT}}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
-
-\subsection{Preliminary Definitions}\label{subsec:cs:defs}
+\subsection{Shared Language Definitions}\label{subsec:cs:defs}
 \begin{gather*}
   \begin{aligned}
-  &\mi{(Finals)}~\finalexpr\bnfdef\ \valueexpr \mid x\hspace{1.5cm}
-  \mi{(Values)}~\valueexpr\bnfdef\ n\\
+  &\mi{(Finals)}~\finalexpr\bnfdef\ \valueexpr \mid x \hspace{0.5cm}
+  \mi{(Values)}~\valueexpr\bnfdef\ n \hspace{0.5cm}
+  \mi{(Types)}~\type\bnfdef\ \natt \\
   \mi{(Expressions)}~\expr&\bnfdef\ \finalexpr \mid \lbinop{\expr[_{1}]}{\expr[_{2}]} \mid \lget{x}{\expr} \mid \lnew{x}{\expr[_{1}]}{\expr[_{2}]} \mid \ldelete{x} \mid \lset{x}{\expr[_{1}]}{\expr[_{2}]} \\
-    & \mid \llet{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lreturn{\expr} \mid \lcall{g}{\expr} \mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \mid \labort \\
-  \mi{(State)}~\statevar&\bnfdef \tup{\cfstate}{\sandboxtag,\memstate} \hspace{0.5cm}
-  \mi{(Runtime~Terms)}~\runtimetermvar\bnfdef\rtt{\statevar}{\expr} \mid \lightning \hspace{0.5cm}
-    \text{where}\ \lbinop{}{}\in\left\{+,-,\times,<,/\right\}\\
+    & \mid \llet{x}{\expr[_{1}]}{\expr[_{2}]}  \mid \lreturn{\expr} \mid \lcall{g}{\expr} \mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \mid \labort \\
   \mi{(Symbols)}~\function&\bnfdef\ \lfunction{g}{x}{e}\hspace{0.5cm}
-  \mi{(Types)}~\type\bnfdef\ \natt\hspace{0.5cm}
-  \mi{(Locations)}~\loc\in\nat \\
-  \mi{(Eval.~Ctx.)}~\ectx&\bnfdef\ \hole{\cdot} \mid \lbinop{\ectx}{\expr} \mid \lbinop{\valueexpr}{\ectx} \mid \lget{x}{\ectx} \mid \lnew{x}{\ectx}{\expr} \mid \lset{x}{\ectx}{\expr}\\
-    & \mid \lset{x}{\valueexpr}{\ectx} \mid \lreturn{\ectx} \mid \lcall{g}{\ectx} \mid \lifz{\ectx}{\expr[_{1}]}{\expr[_{2}]} \\
-  \mi{(Poison)}~\poison&\bnfdef\ \poisoned \mid \poisonless \hspace{0.5cm}
-  \mi{(Store)}~\store\bnfdef\ \hole{\cdot} \mid \storeel{x}{\loc}{\sandboxtag}{\poison}{n},\store \\
-  \mi{(Transfer~Tag)}~\comm&\bnfdef\ \nocomm \mid\ \ctxtocomp \mid\ \comptoctx \hspace{0.5cm}
-  \mi{(Heaps)}~\heap\bnfdef\ \hole{\cdot} \mid n,\heap \hspace{0.5cm}
-  \mi{(Library)}~\library\bnfdef\ \hole{\cdot} \mid \function,\library \\
-  \mi{(Component~Names)}~\commlib&\bnfdef\ \hole{\cdot} \mid g,\commlib \hspace{0.5cm}
-  \mi{(Continuation~Stack)}~\ectxstack\bnfdef\ \hole{\cdot} \mid \tup{\ectx}{g},\ectxstack \\
-  \mi{(Flow~State)}~\cfstate&\bnfdef\ \tup{\commlib}{\library,\ectxstack} \hspace{0.5cm}
-  \mi{(Memory~State)}~\memstate\bnfdef\ \tup{\heap[^{\ctx}]}{\heap[^{\comp}],\store} \\
-  \mi{(Programs)}~&\prog{\library_{\ctx}}{\library_{\comp}}\hspace{0.5cm}
+  \mi{(Libraries)}~\library\bnfdef\ \hole{\cdot} \mid \function,\library \hspace{1.00cm}
+    \text{where}\ \lbinop{}{}\in\left\{+,-,\times,<,/\right\}\\
+  &\mi{(Programs)}~\prog{\library_{\ctx}}{\library_{\comp}}\hspace{0.5cm}
   \mi{(Substitutions)}~\substvar\bnfdef \hole{\cdot} \mid \subst{\valueexpr}{x},\gamma \\
-  \mi{(Pre\text{--}Events)}~\event[_{b}]&\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr \mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr\\
-    & \mid \ev{Start} \mid \ev{End}\ \valueexpr\hspace{0.5cm}
-  \mi{(Events)}~\event\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag} \\
   \end{aligned}
 \end{gather*}
 
 Above is the base syntax of all the programming languages of this paper.
+\MK{this needs a complete rewrite}
 Expressions ($\expr$) can only be evaluated in the form of runtime--terms ($\rtt{\statevar}{\expr}$).
 States ($\statevar$) have a flow- ($\cfstate$) and a memory state ($\memstate$).
 As for the flow state, the list of component--level names ($\commlib$), the list of symbols ($\library$), and a stack of continuations tagged with the name of a symbol ($\ectxstack$) are necessary for calling and returning while emitting the right transfer tag ($\sandboxtag$) depending on whether there is a context switch from context to component ($\comptoctx$), from component to context ($\ctxtocomp$), or whether control flow stays internal to either ($\nocomm$).
@@ -847,6 +796,29 @@ If one removes an entry, for example, by evaluating $\ldelete{x}$, then there is
 The latter should render evaluation as stuck, while the former should emit a $\ev{Dealloc}\ \loc$ event regardless of wether the object a pointer points to is still allocated or not.
 Programs ($\prog{\library_{\ctx}}{\library_{\comp}}$) have disjoint sets of symbols, one for context-level ($\library_{\ctx}$) and one for component-level symbols ($\library_{\comp}$).
 
+\begin{gather*}
+  \begin{aligned}
+  \mi{(Eval.~Ctx.)}~\ectx&\bnfdef\ \hole{\cdot} \mid \lbinop{\ectx}{\expr} \mid \lbinop{\valueexpr}{\ectx} \mid \lget{x}{\ectx} \mid \lnew{x}{\ectx}{\expr} \mid \lset{x}{\ectx}{\expr}\\
+    & \mid \lset{x}{\valueexpr}{\ectx} \mid \lreturn{\ectx} \mid \lcall{g}{\ectx} \mid \lifz{\ectx}{\expr[_{1}]}{\expr[_{2}]} \\
+  \end{aligned}\\
+  \begin{aligned}
+  \mi{(States)}~\statevar&\bnfdef \tup{\cfstate}{\sandboxtag,\memstate} &
+  \mi{(Poison)}~\poison&\bnfdef\ \poisoned \mid \poisonless &
+  \mi{(Locations)}~\loc\in\nat \\
+  \end{aligned}\\
+  \begin{aligned}
+  \mi{(Heaps)}~\heap&\bnfdef\ \hole{\cdot} \mid n,\heap &
+  \mi{(Stores)}~\store&\bnfdef\ \hole{\cdot} \mid \storeel{x}{\loc}{\sandboxtag}{\poison}{n},\store &
+  \mi{(Transfer~Tags)}~\comm\bnfdef\ \nocomm \mid\ \ctxtocomp \mid\ \comptoctx \\
+  \end{aligned}\\
+  \begin{aligned}
+  \mi{(Runtime~Terms)}~\runtimetermvar&\bnfdef\rtt{\statevar}{\expr} \mid \lightning &
+  \mi{(Component~Names)}~\commlib&\bnfdef\ \hole{\cdot} \mid g,\commlib \\
+  \end{aligned}\\
+  \begin{aligned}
+  \mi{(Continuation~Stacks)}~&\ectxstack\bnfdef\ \hole{\cdot} \mid \tup{\ectx}{g},\ectxstack \\
+  \end{aligned}
+\end{gather*}
 All programming languages presented in this section have an environmental semantics and all but $\src{L_{\tmssafe}}$ are dynamically typed.
 Each evaluation may emit the empty event ($\emptyevent$), a program crash token ($\lightning$), or a pair containing a pre--event ($\event[_{b}]$) and the corresponding control--tag ($\sandboxtag$) indicating whether the event fired during an evaluation of a context or a component.
 Note that the reflexive-transitive closure used in this paper behaves like a big-step semantics, where the reflexive case is ony for the empty trace and finals, and the emitted trace does not contain empty events.
@@ -855,6 +827,15 @@ Heaps may need to grow when allocating, which the section writes as $\growh{\hea
 Indexing into a heap, looking up symbols in libraries, or accessing the metadata of a pointer from a store are all written as a function call.
 For example, the value located at the fifth position in heap $\heap$ is written as $\heap(5)$.
 The operation to set the fifth position in heap $\heap$ to value $\valueexpr$ is written as $\seth{\heap}{5}{\valueexpr}$ and yields a new heap that is entirely the same to $\heap$ modulo the fifth position.
+
+\begin{gather*}
+  \begin{aligned}
+  \mi{(Pre\text{--}Events)}~\event[_{b}]\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr &\mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
+  \mi{(Events)}~\event&\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag} \\
+  \end{aligned}
+\end{gather*}
+
+\MKin{now is time to talk about events? or maybe right after presenting the rules}
 
 \begin{center}
   \judgbox{\pstepto{\runtimetermvar}{\runtimetermvar[']}{\event}}{,,Primitive step from runtime--term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
@@ -1014,7 +995,7 @@ To make use of \Cref{def:propsat,def:proprsat}, {\em behavior} is introduced as 
 \begin{gather*}
   \begin{aligned}
     \mi{(Pre\text{--}Types)}~\src{\type[_{e}]}\bnfdef&\ \src{\natt} \mid \src{\ptrn} &
-    \mi{(Type~Environment)}~\src{\typenv}\bnfdef&\ \src{\hole{\cdot}} \mid \hastype{\src{x}}{\src{\type}},\src{\typenv} \\
+    \mi{(Type~Environments)}~\src{\typenv}\bnfdef&\ \src{\hole{\cdot}} \mid \hastype{\src{x}}{\src{\type}},\src{\typenv} \\
     \mi{(Types)}~\src{\type}\bnfdef&\ \src{\type[_{e}]} \mid \src{\type[_{e}]\to\bot} \mid \src{\type[^{(1)}_{e}]\to\type[^{(2)}_{e}]} &
     \mi{(Pointer\ Qualifiers)}~\src{\ptrqual}\bnfdef&\ \src{\fullq} \mid \src{\halfq} \\
     \mi{(Symbols)}~\src{\function}\bnfdef&\src{\lfunction{g}{x:\type[_{e}]\to\type[_{e}]}{\expr}} \\
@@ -1120,8 +1101,6 @@ Of course, a context invoking $\src{\labort}$ to crash the program must not go u
 As for the component, pre--events are essentially recolored to go from blue $\src{L_{\tmssafe}}$ events to the events of the most general trace model (\Cref{tr:ltms-filter-alloc}).
 Events that carry locations make use of a location--map from blue $\src{L_{\tmssafe}}$ locations to the more abstract ones.
 
-\MKin{show at least one forward sim lemma or not?}
-
 \begin{lemma}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{lem:wt:tmsmon}
   If $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\trace}}$, then $\montmssafe{\filterLtms{\src{\trace}}}$.\Coqed
 \end{lemma}
@@ -1129,7 +1108,7 @@ Events that carry locations make use of a location--map from blue $\src{L_{\tmss
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
 \end{theorem}
 
-\subsection{$\trg{L}$: An Unsafe Language}\label{subsec:lsms}
+\subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
 \begin{gather*}
   \begin{aligned}
@@ -1167,11 +1146,113 @@ Events that carry locations make use of a location--map from blue $\src{L_{\tmss
   }{e-n-has-nattimesnat}
 \end{center}
 
-The $\trg{L}$ language does not provide any guarantees with regards to memory safety.
+The $\Ltrg$ language does not provide any guarantees with regards to memory safety.
 The syntax of it extends the unified syntax for all languages (\Cref{subsec:cs:defs}) with pairs of natural numbers (\Cref{tr:e-proj1}) and two different kinds of dynamic checks.
 One of those checks allows programmers to investigate wether a pointer is freed or not (\Cref{tr:e-ispoisoned-yes}).
 The other check is a simple dynamic type check that evaluates to $\trg{0}$ if the check suceeds and to $\trg{1}$ otherwise (\Cref{tr:e-n-has-nat,tr:e-n-has-nattimesnat}).
 The projection $\filterL{\trace}$ is entirely similar to $\filterLtms{\trace}$.
+\MKin{add note about \gls{sms} projection}
+
+\subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
+
+This paper chooses to introduce $\Lms$, despite it being exactly equal to $\Ltrg$.
+The main purpose of this decision is to enhance readability.
+
+\MKin{add note about \gls{sms} projection}
+
+\subsection{$\Lscct$: An Unsafe Language}\label{subsec:lscct}
+
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Expressions)}~\obj{\expr}\bnfdef&\dots \mid \obj{\lwrdoit{\expr}} \mid \obj{\lrddoit{x}{\expr}} &
+    \mi{(States)}~\obj{\statevar}\bnfdef&\obj{\tup{\cfstate}{\sandboxtag,n,\memstate}}
+  \end{aligned}
+\end{gather*}
+
+$\Lscct$ extends the state presented earlier (\Cref{subsec:cs:defs}) with another entry that models the value of a register for a data (operand) independent timing mode.
+To modify the register, $\Lscct$ extends expressions with a way to write a value to the register ($\obj{\lwrdoit{\expr}}$) and a way to read it ($\obj{\lrddoit{x}{\expr}}$).
+Finals carry a secrecy annotation, indicating high ($\obj{\lock}$) or low ($\obj{\unlock}$) secrecy.
+Whenever the register is marked as active, parts of the dynamics of $\Lscct$ do not leak information.
+In general, $\Lscct$ can leak more information than the other languages:
+
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Pre\text{--}Events)}~\obj{\event[_{b}]}&\bnfdef\ \dots \mid \obj{{Branch}\ n} \mid \obj{{Binop}\ n} \mid \obj{\widehat{{Get}}\ \loc\ \valueexpr} \mid \obj{\widehat{{Set}}\ \loc\ \valueexpr\ \valueexpr[']} &
+    \mi{(Events)}~\obj{\event}&\bnfdef\ \obj{\varepsilon} \mid \obj{\lightning} \mid \obj{\tup{\event[_{b}]}{\sandboxtag,\securitytag}}
+  \end{aligned}
+\end{gather*}
+
+Events carry a secrecy tag instead of the data they carry.
+Branches and binary operations leak information about the data they compute on.
+If the data (object) independent timing register is set to be active, the read and write to memory events should not leak.
+However, to emit $\obj{\emptyevent}$ in this case would mean that memory unsafe operations are hidden as well.
+Since this language should not have a mechanism to hide memory unsafety, pre--events are extended to model reading from ($\obj{\widehat{{Get}}\ \loc\ \valueexpr}$) and writing to ($\obj{\widehat{Set}\ \loc\ \valueexpr}$) memory without leaking secret information involved in the access.
+
+\begin{center}
+  \typerule{e-$\obj{\lbinop{}{}}$-leak}{
+    \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
+    \obj{\securitytag}\sqcap\obj{\securitytag[']}=\obj{\securitytag['']} &
+    \obj{\oplus}\notin\left\{\obj{\times}, \obj{/}, \obj{<}\right\}
+  }{
+    \pstepto{\rtt{\obj{\tup{\cfstate}{\sandboxtag,0,\memstate}}}{\obj{\lbinop{n_1^{\securitytag}}{n_2^{\securitytag[']}}}}}{\rtt{\obj{\tup{\cfstate}{\sandboxtag,0,\memstate}}}{\obj{n_3^{\securitytag['']}}}}{\obj{\tup{Binop\ n_3}{\sandboxtag,\securitytag['']}}}
+  }{e-binop-leak}
+\end{center}
+
+\MKin{filters to spec events}
+
+\section{Case Study: Secure Compiler Compositions in the Wild}\label{sec:casestud:rtp}
+
+\begin{figure}[h]
+  \begin{center}
+    \begin{tikzpicture}
+      \node (S) {$\src{L_{\tmssafe}}$};
+      \node[right=1.0 of S] (T) {$\trg{L}$};
+      \node[right=1.0 of T] (M) {$\irl{L_{\mssafe}}$};
+      \node[below right=0.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
+      \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
+      \node[right=1.0 of D0] (D1) {$\irl{L_{\mssafe}}$};
+      \node[right=1.0 of C0] (C1) {$\irl{L_{\mssafe}}$};
+      \node[right=4.5 of M] (O) {$\obj{L_{\scctsafe}}$};
+
+      \draw[->] (S) to[sloped,above] node (tmsedge) {\text{\scriptsize\gls{tms}}} (T);
+      \draw[->] (T) to[sloped,above] node {\text{\scriptsize\gls{sms}}} (M);
+      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (D0);
+      \draw[->] (M) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (C0);
+      \draw[->] (D0) to[sloped,above] node {\text{\scriptsize\gls{cf}}} (D1);
+      \draw[->] (C0) to[sloped,above] node {\text{\scriptsize\gls{dce}}} (C1);
+      \draw[->] (D1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
+      \draw[->] (C1) to[sloped,above] node {\text{\scriptsize\gls{scct}}} (O);
+
+      % Sections
+      \node[above=1.5 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
+      \node[right=0.0 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
+      \node[right=1.25 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
+      \node[right=1.25 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
+
+      \draw[dashed] ($(sectms)-(0.7,0)$) -- ($(sectms)-(0.7,1.75)$);
+      \draw[dashed] ($(sectms)-(-0.7,0)$) -- ($(sectms)-(-0.7,1.75)$);
+      \draw[dashed] ($(secsms)-(-0.7,0)$) -- ($(secsms)-(-0.7,1.75)$);
+      \draw[dashed] ($(secscct)-(0.7,0)$) -- ($(secscct)-(0.7,0.75)$);
+      \draw[dashed] ($(secscct)-(-0.7,0)$) -- ($(secscct)-(-0.7,1.25)$);
+    \end{tikzpicture}
+  \end{center}
+  \caption{Visualisation of the optimizing compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}\label{fig:pipeline}
+\end{figure}
+This section defines several secure compilers, each of which robustly preserves a different property of interest (\Cref{fig:pipeline}).
+The power of the framework (\Cref{sec:compprop,sec:compcomp}) is demonstrated by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
+Concretely, the section starts with a base-line definition for the used languages (\Cref{subsec:cs:defs}) and extends that to define languages $\src{L_{TMS}}$ and $\trg{L}$.
+For programmers using $\src{L_{TMS}}$, their mental model should be that their code is temporal memory safe and cryptographic constant time.
+The former is proven to be enforced by the static semantics of $\src{L_{TMS}}$, where each well-typed program is temporal memory safe.
+The latter is completely untyped.
+Having languages defined, this section continues with a compiler $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ and proves that $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ robustly preserves \gls{tms} (\Cref{subsec:cs:tms}).
+For readability purposes, it defines $\irl{L_{MS}}$ to be exactly the same as $\trg{L}$ and continues to present a compiler $\cc{\trg{L}}{\irl{L_{MS}}}$ that robustly preserves \gls{sms} (\Cref{subsec:cs:ms}).
+Now leaveraging the power of the framework that this paper introduces (\Cref{sec:compcomp,sec:compprop}), a compiler $\rtp{\cc{\src{L_{TMS}}}{\irl{L_{MS}}}}{\mssafe}$ is attained.
+The next steps in the compilation pipeline are two secure compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ that perform \glsfirst{dce} and \glsfirst{cf}, respectively, to model an optimzing pipeline happening somewhere in the compilation chain (\Cref{subsec:cs:opts}).
+Finally, this section defines the language $\obj{L_{\scctsafe}}$ that is, in contrast to the other languages, not cryptographic constant time by definition.
+Concluding, a compiler $\cc{\irl{L_{MS}}}{\obj{L_{CCT}}}$ that robustly preserves \gls{cct} (\Cref{subsec:cs:scct}) is shown and composed with $\cc{\src{L_{TMS}}}{\irl{L_{MS}}}$ and the optimizing compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$.
+In turn, this yields $\cc{\src{L_{TMS}}}{\obj{L_{CCT}}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
+
+
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 
@@ -1192,8 +1273,7 @@ Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $
 The compiler ensures that execution does not proceed in cases like that.
 This paper considers symbols on $\src{\natt}$.
 
-\MKin{x-lang relations $\approx_{\delta;\src{L}}$, $\multimap_{\delta;\src{L}}$, as well as $\cong_{\delta;\src{X}}$}
-\MKin{backtranslation}
+\MKin{sketch proof with backtranslation and the x-lang rels}
 
 \begin{theorem}[Compiler $\cca$ is secure with respect to \gls{tms}]\label{thm:cca:rtp:tms}
   $\rtp{\cca}{\tmssafe}$ % \Coqed
@@ -1230,6 +1310,7 @@ The composition of $\cca$ and $\ccb$ attains full memory safety using \Cref{thm:
 \end{theorem}
 
 \subsection{Optimizing Compilers}\label{subsec:cs:opts}
+\MKin{rework this}
 
 \MKin{compiler $\ccdce$ doing \gls{dce}}
 \MKin{compiler $\cccf$ doing \gls{cf}}
@@ -1237,10 +1318,6 @@ The composition of $\cca$ and $\ccb$ attains full memory safety using \Cref{thm:
 \MKin{backward sims}
 \MKin{rtp of ms}
 \MKin{composition: rtp of ms, order independent}
-
-\subsection{$\obj{L_{\scctsafe}}$: A Language with Access to a Model Specific Register}\label{subsec:lscct}
-
-\MKin{add definitions and description; some syntax + dynamics}
 
 \subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
 

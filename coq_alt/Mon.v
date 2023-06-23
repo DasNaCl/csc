@@ -368,7 +368,7 @@ Qed.
 Fixpoint allocs_from_smsmon (T : SMSMon.AbsState) : tracepref :=
   match T with
   | nil => nil
-  | ((l, n, t, σ)::T)%list => ((PreEv (Alloc l n) t σ) :: allocs_from_smsmon T)%list
+  | ((l, n, t, σ)::T)%list => ((allocs_from_smsmon T) ++ (PreEv (Alloc l n) t σ) :: nil)%list
   end
 .
 Definition gsms (T__SMS : SMSMon.AbsState) : Props.prop :=
@@ -380,14 +380,10 @@ Lemma nil_gsms T__SMS :
 Proof.
   induction T__SMS; unfold gsms; cbn; eauto using nil_sms.
   destruct a as [[[l n] t] c]. rewrite List.app_nil_r. unfold sms; intros.
-  eapply IHT__SMS. rewrite List.app_nil_r. erewrite <- eat_front_before in H; eauto; try easy.
   unfold_before.
-  revert H__before0; clear; intros H; exfalso.
-  revert l0 n0 t' σ' l n t c T__SMS H; induction n2; intros.
-  inv H. inv H.
-  destruct T__SMS. inv H5. destruct a as [[[l1 n1] t1] c1]; cbn in *.
-  eapply IHn2; eauto.
-Qed.
+  eapply IHT__SMS. rewrite List.app_nil_r. exists n1; exists n2; repeat split; eauto.
+  admit. admit.
+Admitted.
 Lemma nil_ms :
   Props.ms nil
 .
@@ -423,16 +419,6 @@ Proof.
     assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
     erewrite <- eat_front_before in H; eauto.
 Qed.
-Lemma binop_sms_anywhere n t σ Bs As :
-  sms (Bs ++ As)%list ->
-  sms (Bs ++ PreEv (Binop n) t σ :: As)%list
-.
-Proof.
-  induction Bs; cbn; intros.
-  - now apply binop_sms.
-  - unfold sms; intros. unfold_before.
-    inv H0; inv H__before0.
-Admitted.
 Lemma binop_gsms n t σ As T__SMS :
   gsms T__SMS As ->
   gsms T__SMS (PreEv (Binop n) t σ :: As)%list
@@ -532,11 +518,22 @@ Proof.
     assert (PreEv (Use l n) t' σ' <> Aborted) by congruence.
     erewrite <- eat_front_before in H; eauto.
 Qed.
+Lemma gsms_comm a T__SMS As :
+  gsms (a :: T__SMS)%list As <->
+  gsms T__SMS ((allocs_from_smsmon (a :: nil)) ++ As)%list
+.
+Proof.
+  split; intros H; destruct a as [[[l n] t] σ]; cbn in *.
+  unfold gsms in H. unfold gsms. cbn in H. repeat rewrite <- List.app_assoc in H. cbn in H. easy.
+  unfold gsms in *; cbn in *. repeat rewrite <- List.app_assoc; cbn. easy.
+Qed.
 Lemma aborted_gsms As T__SMS :
   gsms T__SMS As ->
   gsms T__SMS (Aborted :: As)%list
 .
 Proof.
+  remember (Aborted :: As)%list as xs; revert As Heqxs; induction T__SMS; cbn; intros.
+  - unfold gsms in *; cbn in *; subst; now apply aborted_sms.
 Admitted.
 Lemma TMSMon_is_TMS As :
   TMSMon.sat As ->
@@ -565,9 +562,6 @@ Lemma SMSMon_step_alloc (T0 T1 : SMSMon.AbsState) l n t σ As :
   gsms T0 (PreEv (Alloc l n) t σ :: As)%list
 .
 Proof.
-  intros H0 H1. inv H0; unfold gsms in *; cbn in *.
-  unfold sms; intros. specialize (H1 l0 n0 m t t' σ σ').
-  eapply H1.
 Admitted.
 Lemma SMSMon_is_gSMS As T0 As0 :
   SMSMon.gsat (List.app As0 As) T0 ->

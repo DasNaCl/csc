@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano List Coq.Logic.Decidable.
-Require Import RelationClasses Coq.Program.Equality.
+Require Import RelationClasses Coq.Program.Equality Lia.
 
 #[global]
 Ltac inv H := (inversion H; subst; clear H).
@@ -1092,11 +1092,16 @@ Section Trace.
   Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
     exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
   .
+  Ltac unfold_before := match goal with
+                       | [H: before _ _ _ |- _] =>
+                         let H0 := fresh "H__before" in
+                         let H1 := fresh "H__before" in
+                         unfold before in H; deex; destruct H as [H [H1 H2]]
+                       end.
   Lemma before_nothing a0 a1 :
     before a0 a1 nil -> False.
   Proof.
-    unfold before; intros H; deex; destruct H as [H1 [H2 H3]];
-    induction n0, n1; easy.
+    intros. unfold_before; now induction n0, n1.
   Qed.
   Lemma before_split a As a0 a1 n :
     a <> a0 -> a <> a1 ->
@@ -1104,9 +1109,8 @@ Section Trace.
     before a0 a1 (a :: As)
   .
   Proof.
-    intros Ha Hb [H1 | [H1 H2]].
-    - destruct H1 as [n0 [n1 [H0 [H1 H2]]]].
-      exists (S n0); exists (S n1); repeat split; auto. now apply Arith_prebase.lt_n_S_stt.
+    intros Ha Hb [H1 | [H1 H2]]; try unfold_before.
+    - exists (S n0); exists (S n1); repeat split; auto. now apply Arith_prebase.lt_n_S_stt.
     - subst; congruence.
   Qed.
   Lemma eat_front_in_t a b As :
@@ -1138,17 +1142,24 @@ Section Trace.
     before a b (c :: As)%list
   .
   Proof.
-    intros H0 H1; split; intros [n0 [n1 [H__a [H__b H__c]]]].
-    - exists (S n0). exists (S n1). repeat split.
+    intros H0 H1; split; intros.
+    - unfold_before; exists (S n0). exists (S n1). repeat split.
       now rewrite eat_front_wherein.
       now rewrite eat_front_wherein.
-      unfold "_ < _" in *. revert H__c; clear; induction 1; trivial.
-      etransitivity; auto.
-    - destruct n0, n1; try congruence.
-      now inv H__a. now inv H__a. now inv H__b.
-      inv H__a. inv H__b. exists n0; exists n1; repeat split; auto.
-      inv H__c. constructor. unfold "_ < _". etransitivity; try eassumption. etransitivity; eauto.
+      unfold "_ < _" in *. lia.
+    - unfold_before.
+      destruct n0, n1.
+      inv H2. inv H; congruence. inv H__before0; congruence.
+      inv H; inv H__before0. exists n0; exists n1; repeat split; auto; lia.
   Qed.
+  Lemma eat_middle_before a b c As Bs :
+    a <> c ->
+    b <> c ->
+    before a b (Bs ++ As)%list <->
+    before a b (Bs ++ c :: As)%list
+  .
+  Proof.
+  Admitted.
   Lemma before_from_wherein a b As x x0 :
     before (a) (b) (As)%list ->
     wherein (a) (As)%list (x) ->
@@ -1156,8 +1167,8 @@ Section Trace.
     x < x0
   .
   Proof.
-    intros. unfold before in H; deex; destruct H as [H2 [H3 H4]].
-    eapply wherein_eq in H2, H3; eauto; subst. easy.
+    intros. unfold_before.
+    eapply wherein_eq in H, H__before0; eauto; subst; easy.
   Qed.
 
   (** Use this to define a coercion *)
@@ -1187,12 +1198,20 @@ Section Lang.
       step r1 (Some a) r2 ->
       star_step r2 As r3 ->
       star_step r1 (a :: As) r3
-  | ES_trans_unimportant : forall (r1 r2 r3 : State) (As : tracepref),
-      step r1 None r2 ->
-      star_step r2 As r3 ->
-      star_step r1 As r3
+  | ES_trans_unimportant : forall (r1 r2 : State) (As : tracepref),
+      step r1 None r1 ->
+      star_step r1 As r2 ->
+      star_step r1 As r2
   .
   Hint Constructors star_step : core.
+
+  Lemma must_step_once (S0 S2 : State) a (As : tracepref) :
+    star_step S0 (a :: As)%list S2 ->
+    exists S1, step S0 (Some a) S1 /\ star_step S1 As S2
+  .
+  Proof.
+    intros H; dependent induction H; eauto.
+  Qed.
 
   Inductive n_step : State -> nat -> tracepref -> State -> Prop :=
   | ENS_refl : forall (r1 : State),
@@ -1225,3 +1244,12 @@ Module LangNotations.
   Notation "e0 '=(' n ')=[' a ']==>' e1" := (n_step e0 n a e1) (at level 82, e1 at next level) : LangNotationsScope.
   Notation "e0 '=()=[]==>' e1" := (n_step e0 0 nil e1) (at level 82, e1 at next level) : LangNotationsScope.
 End LangNotations.
+
+#[global]
+Ltac unfold_before := match goal with
+                      | [H: before _ _ _ |- _] =>
+                        let H0 := fresh "H__before" in
+                        let H1 := fresh "H__before" in
+                        unfold before in H; deex; destruct H as [H [H1 H2]]
+                      end
+.

@@ -134,10 +134,8 @@ Definition tms : prop := fun (As : tracepref) =>
 .
 (** Spatial Memory Safety *)
 Definition sms : prop := fun (As : tracepref) =>
-                           forall l n m t t' σ σ', in_t (PreEv (Alloc l m) t σ) As ->
-                                              in_t (PreEv (Use l n) t' σ') As ->
-                                              before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As ->
-                                              n < m
+                           (forall l n m t t' σ σ', before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As ->
+                                              n < m)
 .
 (** Memory Safety *)
 Definition ms : prop := fun (As : tracepref) =>

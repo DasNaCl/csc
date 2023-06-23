@@ -1404,22 +1404,12 @@ Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
   Some(S res)
 .
 
-
 Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
   Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
   nodupinv Ω ->
   nodupinv Ω'
 .
 Proof.
-  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
-  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy.
-  intros H__star; dependent induction H__star; try (inv H; inv H0; easy); try easy.
-  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
-    eapply estep_is_nodupinv_invariant in H; eauto.
-    admit.
-  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x.
-    eapply estep_is_nodupinv_invariant in H; eauto.
-    admit.
 Admitted.
 (** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
 Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=

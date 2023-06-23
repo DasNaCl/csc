@@ -195,11 +195,15 @@ End TMSMonAux.
 Module TMSMon := Monitor TMSMonAux.
 (** Spatial Memory Safety Monitor *)
 Module LocNatList <: ListBase.
-  Definition A : Type := loc * nat.
+  (* The need for the control and security tags is purely technical, the monitor doesn't need it. *)
+  (* However, it is needed in the generalisation of sms, gsms, to regenerate events from the AbsState faithfully *)
+  Definition A : Type := loc * nat * ControlTag * SecurityTag.
   Definition eqb := fun x y =>
-                      let '(l0, n0) := x in
-                      let '(l1, n1) := y in
-                      andb (loc_eqb l0 l1) (Nat.eqb n0 n1).
+                      let '(l0, n0, t0, σ0) := x in
+                      let '(l1, n1, t1, σ1) := y in
+                      andb (andb (loc_eqb l0 l1) (Nat.eqb n0 n1))
+                           (andb (control_tag_eq t0 t1) (security_tag_eq σ0 σ1))
+.
 End LocNatList.
 Module LocNatListSets <: Sig := SetTheoryList (LocNatList).
 Definition LocNatListSet := LocNatListSets.set.
@@ -208,10 +212,12 @@ Module SMSMonAux <: MonitorT.
   #[export]
   Hint Unfold AbsState : core.
   Definition EmptyState : AbsState := List.nil.
+  (* The need for the control and security tags is purely technical, the monitor doesn't need it. *)
+  (* However, it is needed in the generalisation of sms, gsms, to regenerate events from the AbsState faithfully *)
   Variant AbsEv_d : Type :=
   | AAbort
-  | AAlloc (l : loc) (n : nat)
-  | AUse (l : loc) (n : nat)
+  | AAlloc (l : loc) (n : nat) (t : ControlTag) (σ : SecurityTag)
+  | AUse (l : loc) (n : nat) (t : ControlTag) (σ : SecurityTag)
   .
   Definition AbsEv := AbsEv_d.
   #[export]
@@ -220,14 +226,14 @@ Module SMSMonAux <: MonitorT.
   Inductive MonCheck_i : AbsState -> option AbsEv -> AbsState -> Prop :=
   | sms_uninteresting (T : AbsState) : MonCheck_i T None T
   | sms_abort (T : AbsState) : MonCheck_i T (Some AAbort) T
-  | sms_use (T : AbsState) (l : loc) (n m : nat) :
-    LocNatListSets.el (l, m) T ->
+  | sms_use (T : AbsState) (l : loc) (n m : nat) t σ :
+    LocNatListSets.el (l, m, t, σ) T ->
     n < m ->
-    MonCheck_i T (Some(AUse l n)) T
-  | sms_alloc (T T' : AbsState) (l : loc) (n : nat) :
-    (forall (m : nat), ~ LocNatListSets.el (l, m) T) ->
-    T' = (List.cons (l,n) T) ->
-    MonCheck_i T (Some(AAlloc l n)) T'
+    MonCheck_i T (Some(AUse l n t σ)) T
+  | sms_alloc (T T' : AbsState) (l : loc) (n : nat) t σ :
+    (forall (m : nat), ~ LocNatListSets.el (l, m, t, σ) T) ->
+    T' = (List.cons (l,n,t,σ) T) ->
+    MonCheck_i T (Some(AAlloc l n t σ)) T'
   .
   Definition MonCheck := MonCheck_i.
   #[export]
@@ -235,20 +241,20 @@ Module SMSMonAux <: MonitorT.
   Definition string_of_absev :=
     fun a => match a with
           | AAbort => "abs↯"%string
-          | AAlloc (addr _n) n => "absAlloc ℓ"%string
-          | AUse (addr _n) n => "absUse ℓ"%string
+          | AAlloc (addr _n) n _ _ => "absAlloc ℓ"%string
+          | AUse (addr _n) n _ _ => "absUse ℓ"%string
           end
   .
   Inductive cong_i : option Props.Event -> option AbsEv -> Prop :=
   | sms_alloc_authentic : forall l n t σ,
       cong_i (Some(Props.PreEv (Props.Alloc l n) t σ))
-             (Some(AAlloc l n))
+             (Some(AAlloc l n t σ))
   | sms_dealloc_authentic : forall l t σ,
       cong_i (Some(Props.PreEv (Props.Dealloc l) t σ))
              None
   | sms_use_authentic : forall l n t σ,
       cong_i (Some(Props.PreEv (Props.Use l n) t σ))
-             (Some(AUse l n))
+             (Some(AUse l n t σ))
   | sms_branch_authentic : forall n t σ,
       cong_i (Some(Props.PreEv (Props.Branch n) t σ))
              None
@@ -362,26 +368,25 @@ Qed.
 Fixpoint allocs_from_smsmon (T : SMSMon.AbsState) : tracepref :=
   match T with
   | nil => nil
-  | ((l, n)::T)%list => ((PreEv (Alloc l n) CComp SUnlock) :: allocs_from_smsmon T)%list
+  | ((l, n, t, σ)::T)%list => ((PreEv (Alloc l n) t σ) :: allocs_from_smsmon T)%list
   end
 .
 Definition gsms (T__SMS : SMSMon.AbsState) : Props.prop :=
   fun As => Props.sms ((allocs_from_smsmon T__SMS) ++ As)%list
 .
-
 Lemma nil_gsms T__SMS :
   gsms T__SMS nil
 .
 Proof.
   induction T__SMS; unfold gsms; cbn; eauto using nil_sms.
-  destruct a as [l n]. rewrite List.app_nil_r. unfold sms; intros.
+  destruct a as [[[l n] t] c]. rewrite List.app_nil_r. unfold sms; intros.
   eapply IHT__SMS. rewrite List.app_nil_r. erewrite <- eat_front_before in H; eauto; try easy.
   unfold_before.
   revert H__before0; clear; intros H; exfalso.
-  revert l0 n0 t' σ' l n T__SMS H; induction n2; intros.
+  revert l0 n0 t' σ' l n t c T__SMS H; induction n2; intros.
   inv H. inv H.
-  destruct T__SMS. inv H5. destruct a as [l1 n1]; cbn in *.
-  eauto.
+  destruct T__SMS. inv H5. destruct a as [[[l1 n1] t1] c1]; cbn in *.
+  eapply IHn2; eauto.
 Qed.
 Lemma nil_ms :
   Props.ms nil
@@ -418,15 +423,21 @@ Proof.
     assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
     erewrite <- eat_front_before in H; eauto.
 Qed.
+Lemma binop_sms_anywhere n t σ Bs As :
+  sms (Bs ++ As)%list ->
+  sms (Bs ++ PreEv (Binop n) t σ :: As)%list
+.
+Proof.
+  induction Bs; cbn; intros.
+  - now apply binop_sms.
+  - unfold sms; intros. unfold_before.
+    inv H0; inv H__before0.
+Admitted.
 Lemma binop_gsms n t σ As T__SMS :
   gsms T__SMS As ->
   gsms T__SMS (PreEv (Binop n) t σ :: As)%list
 .
 Proof.
-  induction As; cbn; intros.
-  - unfold gsms in *; rewrite List.app_nil_r in *.
-    induction T__SMS; cbn in *.
-    now apply binop_sms. destruct a as [l0 n0].
 Admitted.
 Lemma binop_ms n t σ As :
   ms As ->
@@ -538,8 +549,8 @@ Proof.
     exact nil_tms. inv H0. inv H3; eauto using branch_tms, binop_tms.
   - admit.
 Admitted.
-Lemma SMSMon_step_use (T0 T1 : SMSMon.AbsState) l n :
-  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AUse l n)) T1 ->
+Lemma SMSMon_step_use (T0 T1 : SMSMon.AbsState) l n t σ:
+  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AUse l n t σ)) T1 ->
   T0 = T1
 .
 Proof. intros H; now inv H. Qed.
@@ -549,14 +560,14 @@ Lemma SMSMon_step_aborted (T0 T1 : SMSMon.AbsState) :
 .
 Proof. intros H; now inv H. Qed.
 Lemma SMSMon_step_alloc (T0 T1 : SMSMon.AbsState) l n t σ As :
-  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AAlloc l n)) T1 ->
+  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AAlloc l n t σ)) T1 ->
   gsms T1 (As)%list ->
   gsms T0 (PreEv (Alloc l n) t σ :: As)%list
 .
 Proof.
   intros H0 H1. inv H0; unfold gsms in *; cbn in *.
   unfold sms; intros. specialize (H1 l0 n0 m t t' σ σ').
-  eapply H1. (* may need to know about t and σ, but otherwise should go through *)
+  eapply H1.
 Admitted.
 Lemma SMSMon_is_gSMS As T0 As0 :
   SMSMon.gsat (List.app As0 As) T0 ->
@@ -734,7 +745,7 @@ Lemma MSMon_steps_split_cons_nil (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.Abs
 Proof.
   intros H; dependent induction H.
   destruct r2; apply MSMon_steps_nil_eq in H0 as [H0a H0b]; subst.
-  inv H; split; assumption. destruct r2 as [T__TMS T__SMS]; apply MSMon_step_none_eq in H as [Ha Hb]; subst.
+  inv H; split; assumption. apply MSMon_step_none_eq in H as [Ha Hb]; subst.
   now eapply IHstar_step.
 Qed.
 Lemma MSMon_steps_split_cons (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) a1 a2 As :
@@ -746,7 +757,7 @@ Lemma MSMon_steps_split_cons (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsStat
 Proof.
   intros H; dependent induction H.
   destruct r2 as [T1'' T2'']; inv H; eauto.
-  destruct r2 as [T1'' T2'']; eapply MSMon_step_none_eq in H as [H__a H__b]; subst.
+  eapply MSMon_step_none_eq in H as [H__a H__b]; subst.
   now eapply IHstar_step.
 Qed.
 Lemma MSMon_cong_split (As : tracepref) (As__TMS : TMSMon.tracepref) (As__SMS : SMSMon.tracepref) xs :
@@ -821,9 +832,9 @@ Proof.
     deex; destruct IHstar_step as [IH1 IH2].
     crush_option o__TMS; crush_option o__SMS.
     + inv Hx; clear H. exists (x :: As0)%list; exists (x0 :: As1)%list. split; econstructor 2; eauto.
-    + inv Hx; clear H. exists (x :: As0)%list; exists As1%list. split. econstructor 2; eauto. econstructor 3; eauto.
-    + inv Hx; clear H. exists (As0)%list; exists (x :: As1)%list. split. econstructor 3; eauto. econstructor 2; eauto.
-    + inv Hx; clear H. exists (As0)%list; exists (As1)%list. split; econstructor 3; eauto.
+    + inv Hx; clear H. exists (x :: As0)%list; exists As1%list. split. econstructor 2; eauto. apply SMSMon_step_none_eq in H8; subst. assumption.
+    + inv Hx; clear H. exists (As0)%list; exists (x :: As1)%list. split. apply TMSMon_step_none_eq in H4; subst. assumption. econstructor 2; eauto.
+    + inv Hx; clear H. exists (As0)%list; exists (As1)%list. split; (apply TMSMon_step_none_eq in H4 + apply SMSMon_step_none_eq in H8); subst; assumption.
   - inv H.
 Qed.
 Lemma MSMon_cong_none_strip (As : tracepref) Bs :
@@ -886,7 +897,7 @@ Lemma MSMon_steps_split' (T__TMS T1' : TMSMon.AbsState) (T__SMS T2' : SMSMon.Abs
 .
 Proof.
   intros H0 H; revert As' Bs' H; dependent induction H0; intros.
-  - repeat constructor; symmetry in H0; apply zip_empty in H0 as [H0a H0b]; subst; repeat constructor.
+  - split; constructor. 1,3: constructor. all: symmetry in H0; apply zip_empty in H0 as [H0a H0b]; subst; repeat constructor.
   - destruct a as [o__TMS o__SMS]; destruct r2 as [T__TMS' T__SMS'].
     inv H.
     assert ((T__TMS', T__SMS') ~= (T__TMS', T__SMS') /\ (T1', T2') ~= (T1', T2')) as [Ha Hb] by repeat split.
@@ -895,9 +906,10 @@ Proof.
     specialize (IHstar_step As'0 Bs'0 H3); destruct IHstar_step as [IH1 IH2].
     crush_option o__TMS; crush_option o__SMS.
     + inv Hx; clear H. split; econstructor 2; eauto.
-    + inv Hx; clear H. split. econstructor 2; eauto. econstructor 3; eauto.
-    + inv Hx; clear H. split. econstructor 3; eauto. econstructor 2; eauto.
-    + inv Hx; clear H. split; econstructor 3; eauto.
+    + inv Hx; clear H. split. econstructor 2; eauto. apply SMSMon_step_none_eq in H9; subst. econstructor 3; eauto. constructor.
+    + inv Hx; clear H. split. apply TMSMon_step_none_eq in H5; subst. econstructor 3; eauto. constructor. econstructor 2; eauto.
+    + inv Hx; clear H. split; apply TMSMon_step_none_eq in H5; apply SMSMon_step_none_eq in H9; subst;
+      econstructor 3; eauto; constructor.
   - inv H.
 Qed.
 Lemma MSMon_steps_split_cong (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) As Xs :

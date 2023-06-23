@@ -135,7 +135,7 @@ Definition tms : prop := fun (As : tracepref) =>
 (** Spatial Memory Safety *)
 Definition sms : prop := fun (As : tracepref) =>
                            (forall l n m t t' σ σ', before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As ->
-                                              n < m)
+                                               n < m)
 .
 (** Memory Safety *)
 Definition ms : prop := fun (As : tracepref) =>

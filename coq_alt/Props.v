@@ -48,6 +48,12 @@ Definition string_of_controltag (t : ControlTag) : string :=
   | CComp => "comp"%string
   end
 .
+Definition neg_controltag (t : ControlTag) : ControlTag :=
+  match t with
+  | CCtx => CComp
+  | CComp => CCtx
+  end
+.
 Definition security_tag_eq s0 s1 :=
   match s0, s1 with
   | SLock, SLock | SUnlock, SUnlock => true

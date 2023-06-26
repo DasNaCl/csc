@@ -4,7 +4,6 @@ Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Props.
 
 From RecordUpdate Require Import RecordSet.
 
-
 (** * Syntax *)
 
 (** These are the locs from the L³ paper by Ahmed, Fluet, and Morrisett *)
@@ -938,110 +937,167 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
   match e with
   | Xval _ => None
   | Xvar _ => None
-  | Xdel x => Some(Khole, Xdel x)
   | Xabort => Some(Khole, Xabort)
   | Xbinop b e1 e2 =>
     match e1, e2 with
-    | Xres(Fres(Fval(Vnat n1))), Xres(Fres(Fval(Vnat n2))) =>
-      Some(Khole, Xbinop b n1 n2)
-    | Xres(Fres(Fval(Vnat n1))), en2 =>
+    | Xval(Vnat n1), Xval(Vnat n2) =>
+      Some(Khole, Xbinop b (Xval n1) (Xval n2))
+    | Xval(Vnat n1), en2 =>
       let* (K, e2') := evalctx_of_expr en2 in
       Some(KbinopR b n1 K, e2')
     | _, _ =>
       let* (K, e1') := evalctx_of_expr e1 in
       Some(KbinopL b K e2, e1')
     end
-  | Xget x en =>
-    match en with
-    | Xres(Fres(Fval(Vnat n))) =>
-      Some(Khole, Xget x n)
-    | _ => let* (K, en') := evalctx_of_expr en in
-          Some(Kget x K, en')
+  | Xget e0 e1 e2 =>
+    match e0, e1, e2 with
+    | Xval(v0), Xval(v1), Xval(v2) =>
+      Some(Khole, Xget (Xval v0) (Xval v1) (Xval v2))
+    | Xval(v0), Xval(v1), en2 =>
+      let* (K, e2') := evalctx_of_expr en2 in
+      Some(KgetR v0 v1 K, e2')
+    | Xval(v), en1, e2 =>
+      let* (K, e1') := evalctx_of_expr en1 in
+      Some(KgetM v K e2, e1')
+    | _, _, _ =>
+      let* (K, e0') := evalctx_of_expr e0 in
+      Some(KgetL K e1 e2, e0')
     end
-  | Xset x en ev =>
-    match en, ev with
-    | Xres(Fres(Fval(Vnat n))), Xres(Fres(Fval(Vnat v))) =>
-      Some (Khole, Xset x n v)
-    | Xres(Fres(Fval(Vnat n))), ev =>
-      let* (K, ev') := evalctx_of_expr ev in
-      Some(KsetR x n K, ev')
-    | en, ev =>
-      let* (K, en') := evalctx_of_expr en in
-      Some(KsetL x K ev, en')
+  | Xset e0 e1 e2 e3 =>
+    match e0, e1, e2, e3 with
+    | Xval(v0), Xval(v1), Xval(v2), Xval(v3) =>
+      Some (Khole, Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
+    | Xval(v0), Xval(v1), Xval(v2), en3 =>
+      let* (K, e3') := evalctx_of_expr en3 in
+      Some (KsetR v0 v1 v2 K, e3')
+    | Xval(v0), Xval(v1), en2, en3 =>
+      let* (K, e2') := evalctx_of_expr en2 in
+      Some (KsetM1 v0 v1 K en3, e2')
+    | Xval(v0), en1, en2, en3 =>
+      let* (K, e1') := evalctx_of_expr en1 in
+      Some (KsetM0 v0 K en2 en3, e1')
+    | _, _, _, _ =>
+      let* (K, e0') := evalctx_of_expr e0 in
+      Some (KsetL K e1 e2 e3, e0')
     end
   | Xlet x e1 e2 =>
     match e1 with
-    | Xres(Fres f) =>
-      Some(Khole, Xlet x f e2)
+    | Xval(v) =>
+      Some(Khole, Xlet x (Xval v) e2)
     | _ => let* (K, e1') := evalctx_of_expr e1 in
           Some(Klet x K e2, e1')
     end
-  | Xnew x e1 e2 =>
+  | Xunpair x1 x2 e1 e2 =>
     match e1 with
-    | Xres(Fres(Fval(Vnat n))) =>
-      Some(Khole, Xnew x n e2)
+    | Xval(v) =>
+      Some(Khole, Xunpair x1 x2 (Xval v) e2)
     | _ => let* (K, e1') := evalctx_of_expr e1 in
-          Some(Knew x K e2, e1')
+          Some(Kunpair x1 x2 K e2, e1')
+    end
+  | Xnew e =>
+    match e  with
+    | Xval(v) =>
+      Some(Khole, Xnew (Xval v))
+    | _ => let* (K, e') := evalctx_of_expr e in
+          Some(Knew K, e')
+    end
+  | Xdel e =>
+    match e  with
+    | Xval(v) =>
+      Some(Khole, Xdel (Xval v))
+    | _ => let* (K, e') := evalctx_of_expr e in
+          Some(Kdel K, e')
+    end
+  | Xunpack γ x e0 e1 =>
+    match e0 with
+    | Xval(v0) =>
+      Some(Khole, Xunpack γ x (Xval v0) e1)
+    | en0 =>
+      let* (K, e0') := evalctx_of_expr en0 in
+      Some(Kunpack γ x K e1, e0')
+    end
+  | Xpack x e =>
+    match e with
+    | Xval(v) =>
+      Some(Khole, Xpack x (Xval v))
+    | _ =>
+      let* (K, e') := evalctx_of_expr e in
+      Some(Kpack x K, e')
+    end
+  | Xpair e1 e2 =>
+    match e1, e2 with
+    | Xval(v1), Xval(v2) =>
+      Some(Khole, Xpair (Xval v1) (Xval v2))
+    | Xval(v1), en2 =>
+      let* (K, e2') := evalctx_of_expr en2 in
+      Some(KpairR v1 K, e2')
+    | _, _ =>
+      let* (K, e1') := evalctx_of_expr e1 in
+      Some(KpairL K e2, e1')
     end
   | Xreturn e =>
     match e with
-    | Xres f =>
-      Some(Khole, Xreturn f)
+    | Xval v =>
+      Some(Khole, Xreturn (Xval v))
     | _ => let* (K, e') := evalctx_of_expr e in
           Some(Kreturn K, e')
     end
   | Xcall foo e =>
     match e with
-    | Xres f =>
-      Some(Khole, Xcall foo f)
+    | Xval v =>
+      Some(Khole, Xcall foo (Xval v))
     | _ => let* (K, e') := evalctx_of_expr e in
           Some(Kcall foo K, e')
     end
   | Xifz c e0 e1 =>
     match c with
-    | Xres(Fres(Fval(Vnat v))) =>
-      Some(Khole, Xifz v e0 e1)
+    | Xval(v) =>
+      Some(Khole, Xifz (Xval v) e0 e1)
     | _ => let* (K, c') := evalctx_of_expr c in
           Some(Kifz K e0 e1, c')
     end
   end
 .
-(* Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
+(** Checks wether the thing that is filled into the hole is somehow structurually compatible with pstep *)
+(** This check does not apply to contextual steps *)
 Definition pstep_compatible (e : expr) : option expr :=
   match e with
-  | Xifz 0 e0 e1 => Some (Xifz 0 e0 e1)
-  | Xifz (S n) e0 e1 => Some (Xifz (S n) e0 e1)
+  | Xifz (Xval v) e0 e1 => Some (Xifz (Xval v) e0 e1)
   | Xabort => Some (Xabort)
-  | Xdel x => Some (Xdel x)
-  | Xbinop b (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some (Xbinop b n1 n2)
-  | Xget x (Xres(Fres(Fval(Vnat n)))) => Some(Xget x n)
-  | Xset x (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some(Xset x n1 n2)
-  | Xnew x (Xres(Fres(Fval(Vnat n)))) e => Some(Xnew x n e)
-  | Xlet x (Xres(Fres f)) e => Some(Xlet x f e)
+  | Xbinop b (Xval v1) (Xval v2) => Some(Xbinop b (Xval v1) (Xval v2))
+  | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
+  | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
+  | Xnew (Xval v) => Some(Xnew (Xval v))
+  | Xdel (Xval v) => Some(Xdel (Xval v))
+  | Xget (Xval v0) (Xval v1) (Xval v2) => Some(Xget (Xval v0) (Xval v1) (Xval v2))
+  | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
+  | Xunpack γ x (Xval v) e => Some(Xunpack γ x (Xval v) e)
   | _ => None
   end
 .
+(** This function subsumes `pstep_compatible`, but it also includes the contextual steps. *)
 Definition pestep_compatible (e : expr) : option expr :=
   match e with
-  | Xifz 0 e0 e1 => Some (Xifz 0 e0 e1)
-  | Xifz (S n) e0 e1 => Some (Xifz (S n) e0 e1)
+  | Xifz (Xval v) e0 e1 => Some (Xifz (Xval v) e0 e1)
   | Xabort => Some (Xabort)
-  | Xdel x => Some (Xdel x)
-  | Xbinop b (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some (Xbinop b n1 n2)
-  | Xget x (Xres(Fres(Fval(Vnat n)))) => Some(Xget x n)
-  | Xset x (Xres(Fres(Fval(Vnat n1)))) (Xres(Fres(Fval(Vnat n2)))) => Some(Xset x n1 n2)
-  | Xnew x (Xres(Fres(Fval(Vnat n)))) e => Some(Xnew x n e)
-  | Xlet x (Xres(Fres f)) e => Some(Xlet x f e)
-  | Xcall foo (Xres(Fres f)) => Some(Xcall foo f)
-  | Xreturn (Xres(Fres f)) => Some(Xreturn f)
+  | Xbinop b (Xval v1) (Xval v2) => Some(Xbinop b (Xval v1) (Xval v2))
+  | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
+  | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
+  | Xnew (Xval v) => Some(Xnew (Xval v))
+  | Xdel (Xval v) => Some(Xdel (Xval v))
+  | Xget (Xval v0) (Xval v1) (Xval v2) => Some(Xget (Xval v0) (Xval v1) (Xval v2))
+  | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
+  | Xunpack γ x (Xval v) e => Some(Xunpack γ x (Xval v) e)
+  | Xcall foo (Xval v) => Some(Xcall foo (Xval v))
+  | Xreturn (Xval v) => Some(Xreturn (Xval v))
   | _ => None
   end
 .
-Lemma return_pestep_compat (f : fnoerr) :
-  Some(Xreturn f) = pestep_compatible (Xreturn f).
+Lemma return_pestep_compat (v : value) :
+  Some(Xreturn (Xval v)) = pestep_compatible (Xreturn (Xval v)).
 Proof. now cbn. Qed.
-Lemma call_pestep_compat foo (f : fnoerr) :
-  Some(Xcall foo f) = pestep_compatible (Xcall foo f).
+Lemma call_pestep_compat foo (v : value) :
+  Some(Xcall foo (Xval v)) = pestep_compatible (Xcall foo (Xval v)).
 Proof. now cbn. Qed.
 Lemma pstep_compat_weaken e :
   Some e = pstep_compatible e ->
@@ -1050,36 +1106,7 @@ Proof. induction e; now cbn. Qed.
 #[global]
 Hint Resolve pstep_compat_weaken call_pestep_compat return_pestep_compat : core.
 
-(** ** Environment Semantics extended with context switches *)
-(** ρ__call judgement takes care of emitting Qinternal or Qctxtocomp/Qcomptoctx, depending on whether
-    the current context and the new context is in the list of components ξ or not. *)
-Inductive ρ__call : commlib -> vart -> vart -> fnoerr -> option event -> comms -> Prop :=
-| comm_call_comptoctx : forall ξ foo bar iv,
-    ~(List.In foo ξ) ->
-    List.In bar ξ ->
-    ρ__call ξ foo bar iv (Some(Scall Qcomptoctx foo iv)) Qctxtocomp
-| comm_call_ctxtocomp : forall ξ foo bar iv,
-    List.In foo ξ ->
-    ~(List.In bar ξ) ->
-    ρ__call ξ foo bar iv (Some(Scall Qctxtocomp foo iv)) Qcomptoctx
-| comm_call_internal_comp : forall ξ foo bar iv,
-    List.In foo ξ ->
-    List.In bar ξ ->
-    ρ__call ξ foo bar iv None Qinternal
-| comm_call_internal_ctx : forall ξ foo bar iv,
-    ~(List.In foo ξ) ->
-    ~(List.In bar ξ) ->
-    ρ__call ξ foo bar iv None Qinternal
-.
-Definition ρf__call (ξ : commlib) (new cur : vart) (f : fnoerr) : (option event) * comms :=
-  match List.find (fun x => vareq x new) ξ, List.find (fun x => vareq x cur) ξ with
-  | None, None | Some _, Some _ => (None, Qinternal)
-  | None, Some _ => (* we call from component into context, so this is Qcomptoctx *)
-    (Some(Scall Qcomptoctx new f), Qctxtocomp)
-  | Some _, None => (* we call from context into component, so this is Qctxtocomp *)
-    (Some(Scall Qctxtocomp new f), Qcomptoctx)
-  end
-.
+(** ** Environment Semantics  *)
 Ltac In_find_resolve_contr_hook Hx Hy := fail.
 Ltac In_find_resolve_contr := (
       match goal with
@@ -1101,65 +1128,73 @@ Ltac In_find_resolve_contr := (
         In_find_resolve_contr_hook Hx Hy
       end)
 .
-Lemma dup (A : Prop) : A -> A /\ A.
-Proof. now split. Qed.
-Ltac option_boilerplate H := (
-    let Hx := fresh "Hx" in
-    let Hx' := fresh "Hx" in
-    let x := fresh "x" in
-    destruct (option_dec H) as [Hx | Hx]; try
-    (apply not_eq_None_Some in Hx as [x Hx']; apply dup in Hx' as [Hx Hx'])
-    )
-.
-Lemma ρ__call_equiv_ρf__call (ξ : commlib) (new cur : vart) (f : fnoerr) (a : option event) (q : comms) :
-  ρ__call ξ new cur f a q <-> ρf__call ξ new cur f = (a, q)
-.
-Proof.
-  split.
-  - Ltac In_find_resolve_contr_hook Hx Hy ::= now (unfold ρf__call; rewrite Hx, Hy).
-    option_boilerplate (List.find (fun x => vareq x new) ξ); option_boilerplate (List.find (fun x => vareq x cur) ξ);
-    destruct 1; try In_find_resolve_contr; try now unfold ρf__call; rewrite Hx, Hx1.
-  - option_boilerplate (List.find (fun x => vareq x new) ξ); option_boilerplate (List.find (fun x => vareq x cur) ξ);
-    unfold ρf__call; intros H.
-    + rewrite Hx, Hx1 in H; inv H. apply List.find_some in Hx as [Hy1 Hy2], Hx1 as [Hy3 Hy4].
-      apply String.eqb_eq in Hy2, Hy4; subst.
-      now constructor.
-    + rewrite Hx, Hx1 in H; inv H. eapply List.find_some in Hx as [Hy1 Hy2].
-      eapply String.eqb_eq in Hy2; subst.
-      constructor; eauto. intros H.
-      apply (List.find_none _ _ Hx1) in H. apply String.eqb_neq in H; contradiction.
-    + rewrite Hx, Hx0 in H; inv H. apply List.find_some in Hx0 as [Hy1 Hy2].
-      eapply String.eqb_eq in Hy2; subst.
-      constructor; eauto; intros H.
-      apply (List.find_none _ _ Hx) in H. apply String.eqb_neq in H; contradiction.
-    + rewrite Hx, Hx0 in H; inv H.
-      constructor 4; intros H.
-      apply (List.find_none _ _ Hx) in H; apply String.eqb_neq in H; contradiction.
-      apply (List.find_none _ _ Hx0) in H; apply String.eqb_neq in H; contradiction.
-Qed.
-
-Inductive ρ__ret : comms -> fnoerr -> option event -> Prop :=
-| comm_ret_ctxtocomp : forall f,
-    ρ__ret Qctxtocomp f (Some(Sret Qctxtocomp f))
-| comm_ret_comptoctx : forall f,
-    ρ__ret Qcomptoctx f (Some(Sret Qcomptoctx f))
-| comm_ret_internal : forall f,
-    ρ__ret Qinternal f None
-.
-Definition ρf__ret (a : comms) (b : fnoerr) : option event :=
-  match a with
-  | Qctxtocomp | Qcomptoctx => Some(Sret a b)
-  | _ => None
+Definition comm (t : ControlTag) : comms :=
+  match t with
+  | CCtx => Qctxtocomp
+  | CComp => Qcomptoctx
   end
 .
-Lemma ρ__ret_equiv_ρf__ret (a : comms) (b : fnoerr) (c : option event) :
-  ρ__ret a b c <-> ρf__ret a b = c
+Inductive context_switched : commlib -> vart -> ControlTag -> comms -> Prop :=
+| SwitchCtxToComp : forall (ξ : commlib) (foo : vart),
+    (* foo is called, foo is part of component, so for switch the call must've been CCtx *)
+    List.In foo ξ ->
+    context_switched ξ foo CCtx Qctxtocomp
+| SwitchCompToCtx : forall (ξ : commlib) (foo : vart),
+    (* foo is called, foo is not part of component, so for switch the call must've been CComp *)
+    ~(List.In foo ξ) ->
+    context_switched ξ foo CComp Qcomptoctx
+| NoSwitchComp : forall (ξ : commlib) (foo : vart),
+    (* component calling foo, which is in component, is an internal fn call *)
+    List.In foo ξ ->
+    context_switched ξ foo CComp Qinternal
+| NoSwitchCtx : forall (ξ : commlib) (foo : vart),
+    (* context calling foo, which is in context, is an internal fn call *)
+    ~(List.In foo ξ) ->
+    context_switched ξ foo CCtx Qinternal
 .
+Definition context_switchedf (ξ : commlib) (foo : vart) (t : ControlTag) : comms :=
+  match List.find (fun x => foo == x) ξ with
+  | Some _ =>
+    match t with
+    | CCtx => (* SwitchCtxToComp *)
+      Qctxtocomp
+    | CComp => (* NoSwitchComp *)
+      Qinternal
+    end
+  | None =>
+    match t with
+    | CCtx => (* NoSwitchCtx *)
+      Qinternal
+    | CComp => (* SwitchCompToCtx *)
+      Qcomptoctx
+    end
+  end
+.
+Lemma context_switched_equiv (ξ : commlib) (foo : vart) (t : ControlTag) (q : comms) :
+  context_switched ξ foo t q <-> context_switchedf ξ foo t = q.
 Proof.
-  split.
-  - now destruct 1.
-  - destruct a; cbn; inversion 1; auto using comm_ret_ctxtocomp, comm_ret_comptoctx, comm_ret_internal.
+  split; intros H.
+  - inv H; unfold context_switchedf.
+    + crush_option (List.find (fun x => foo == x) ξ). easy. eapply List.find_none in H0; eauto.
+      cbn in H0; eq_to_defeq vareq; apply neqb_neq in H0. contradiction.
+    + crush_option (List.find (fun x => foo == x) ξ).
+      apply List.find_some in Hx as [Hx Hy]. apply eqb_eq in Hy; subst. contradiction.
+    + crush_option (List.find (fun x => foo == x) ξ). easy. eapply List.find_none in Hx; eauto.
+      apply neqb_neq in Hx. contradiction.
+    + crush_option (List.find (fun x => foo == x) ξ). eapply List.find_some in Hx as [Hx Hy]; eauto.
+      apply eqb_eq in Hy; subst; contradiction.
+  - unfold context_switchedf in H.
+    crush_option (List.find (fun x => foo == x) ξ); destruct t; inv H.
+    + constructor. apply List.find_some in Hx as [Hx Hy].
+      apply eqb_eq in Hy; subst; assumption.
+    + constructor. apply List.find_some in Hx as [Hx Hy].
+      apply eqb_eq in Hy; subst; assumption.
+    + rewrite Hx. constructor. intros H. eapply List.find_none in Hx; eauto.
+      apply neqb_neq in Hx; contradiction.
+    + rewrite Hx. constructor. intros H. eapply List.find_none in Hx; eauto.
+      apply neqb_neq in Hx; contradiction.
 Qed.
+
 Inductive estep : CtxStep :=
 | E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)

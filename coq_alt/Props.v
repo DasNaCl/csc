@@ -42,6 +42,12 @@ Instance ControlTag__Instance : HasEquality ControlTag := {
   eq := control_tag_eq ;
   eqb_eq := control_tag_eqb_eq
 }.
+Definition string_of_controltag (t : ControlTag) : string :=
+  match t with
+  | CCtx => "ctx"%string
+  | CComp => "comp"%string
+  end
+.
 Definition security_tag_eq s0 s1 :=
   match s0, s1 with
   | SLock, SLock | SUnlock, SUnlock => true

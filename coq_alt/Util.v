@@ -188,6 +188,38 @@ Class HasEquality (A : Type) := {
 }.
 #[global]
 Infix "==" := eq (at level 81, left associativity).
+(** The type used for variable names. *)
+Definition vart := string.
+Definition vareq := fun x y => (x =? y)%string.
+Definition dontcare := "_"%string.
+#[export]
+Instance varteq__Instance : HasEquality vart := {
+  eq := vareq ;
+  eqb_eq := String.eqb_eq ;
+}.
+(** References *)
+Inductive loc : Type :=
+| addr : nat -> loc
+.
+Definition loc_eqb :=
+  fun ℓ1 ℓ2 =>
+    match ℓ1, ℓ2 with
+    | addr n1, addr n2 => Nat.eqb n1 n2
+    end
+.
+Lemma loc_eqb_eq ℓ0 ℓ1 :
+  loc_eqb ℓ0 ℓ1 = true <-> ℓ0 = ℓ1.
+Proof.
+  destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
+  - cbn in H; rewrite Nat.eqb_eq in H; now subst.
+  - inv H; apply Nat.eqb_refl.
+Qed.
+#[export]
+Instance loceq__Instance : HasEquality loc := {
+  eq := loc_eqb ;
+  eqb_eq := loc_eqb_eq ;
+}.
+
 Lemma eq_refl { A : Type } { H : HasEquality A } (a : A) :
   eq a a = true.
 Proof. now apply eqb_eq. Qed.
@@ -223,9 +255,27 @@ Proof.
   apply eqb_eq in H0. now left.
   apply neqb_neq in H0. now right.
 Qed.
-
 #[global]
 Hint Resolve eq_refl eqb_dec eqb_equiv_neqb neqb_equiv_eqb neqb_neq eq_dec : core.
+
+Ltac eq_to_defeq eq := repeat match goal with
+  | [H: context E [eq ?x ?x0] |- _] =>
+    let new := context E [(x == x0)] in
+    change new in H
+  | [ |- context E [eq ?x ?x0] ] =>
+    let new := context E [(x == x0)] in
+    change new
+  | [H: (?x == ?x0) = true |- _ ] =>
+    apply eqb_eq in H; subst
+  | [H: context E [ andb ?x ?y ] |- _] =>
+    rewrite bool_and_equiv_prop in H;
+    destruct H; subst
+  | [ |- context E [ andb ?x ?y ] ] =>
+    rewrite bool_and_equiv_prop
+  | [ |- (?x == ?x) = true ] =>
+    apply eq_refl
+  end; try easy
+.
 
 Section Util.
 
@@ -367,6 +417,7 @@ Definition append { A : Type } {H : HasEquality A} {B : Type} (m0 m1 : mapind H 
 (* '↦' is `\mapsto` and '◘' is `\inversebullet`*)
 Notation "a '↦' b '◘' M" := (push a b M) (at level 81, b at next level).
 Notation "M1 '◘' M2" := (append M1 M2) (at level 82, M2 at next level).
+Notation "[⋅]" := (mapNil _ _) (at level 1).
 
 Lemma append_nil { A : Type } {H : HasEquality A} {B : Type} (m : mapind H B) :
   append m (mapNil H B) = m
@@ -750,39 +801,12 @@ Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H
 .
 Proof. intros Ha Hb; specialize (Hb x v); apply mget_min in Ha; apply mget_min; auto. Qed.
 
-(** These are synthetic. They simply allow us to write e.g. `PrimStep` instead of supplying it with parameters *)
-Class ExprClass (Expr : Type) := {}.
-Class RuntimeExprClass (Expr : Type) := {}.
-Class EvalCtxClass (Ectx : Type) := {}.
-Class TraceEvent (Ev : Type) := {}.
-Class TyClass (T : Type) := {}.
-
-Definition Gamma {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} := mapind H TheTy.
-Definition Gnil {K TheTy : Type} `{TyClass TheTy} `{H: HasEquality K} : Gamma := mapNil H TheTy.
-
-(* Step-Relation typeclasses. Used as a hack for "overloading" notations *)
-Class PrimStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := pstep__Class : A -> (option Ev) -> A -> Prop.
-Class CtxStep (A : Type) (Ev : Type) `{RuntimeExprClass A} `{TraceEvent Ev} := estep__Class : A -> (option Ev) -> A -> Prop.
-Class VDash {K Expr TheTy : Type} `{ExprClass Expr} `{T: TyClass TheTy} `{H: HasEquality K} := vDash__Class : Gamma -> Expr -> TheTy -> Prop.
-
 End Util.
 
 #[global]
 Notation "a '↦' b '◘' M" := (mapCons a b M) (at level 81, b at next level).
 #[global]
 Notation "M1 '◘' M2" := (append M1 M2) (at level 82, M2 at next level).
-#[global]
-Notation "e0 '--[]-->' e1" := (pstep__Class e0 (None) e1) (at level 82, e1 at next level).
-#[global]
-Notation "e0 '==[]==>' e1" := (estep__Class e0 (None) e1) (at level 82, e1 at next level).
-#[global]
-Notation "e0 '--[,' a ']-->' e1" := (pstep__Class e0 a e1) (at level 82, e1 at next level).
-#[global]
-Notation "e0 '==[,' a ']==>' e1" := (estep__Class e0 a e1) (at level 82, e1 at next level).
-#[global]
-Notation "e0 '--[' a ']-->' e1" := (pstep__Class e0 (Some a) e1) (at level 82, e1 at next level).
-#[global]
-Notation "e0 '==[' a ']==>' e1" := (estep__Class e0 (Some a) e1) (at level 82, e1 at next level).
 
 Lemma notin_dom_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) (v : B) :
   ~ In x (dom(m1 ◘ m2)) ->
@@ -994,28 +1018,6 @@ Ltac elim_split :=
      assert (H2':=H2); rewrite H1 in H2'; apply splitat_elim in H2'; auto; rewrite H2'
   end
 .
-
-Inductive loc : Type :=
-| addr : nat -> loc
-.
-Definition loc_eqb :=
-  fun ℓ1 ℓ2 =>
-    match ℓ1, ℓ2 with
-    | addr n1, addr n2 => Nat.eqb n1 n2
-    end
-.
-Lemma loc_eqb_eq ℓ0 ℓ1 :
-  loc_eqb ℓ0 ℓ1 = true <-> ℓ0 = ℓ1.
-Proof.
-  destruct ℓ0 as [n0], ℓ1 as [n1]; split; intros H.
-  - cbn in H; rewrite Nat.eqb_eq in H; now subst.
-  - inv H; apply Nat.eqb_refl.
-Qed.
-#[export]
-Instance loceq__Instance : HasEquality loc := {
-  eq := loc_eqb ;
-  eqb_eq := loc_eqb_eq ;
-}.
 #[export]
 Hint Resolve eqb_eq String.eqb_refl : core.
 
@@ -1176,6 +1178,13 @@ Section Trace.
   Coercion ev_to_tracepref : Ev >-> tracepref.
 
 End Trace.
+
+Class PrimStep (State : Type) (Event : Type) : Type :=
+  Pstep : State -> option Event -> State -> Prop
+.
+Notation "e0 '--[' a ']-->' e1" := (Pstep e0 (Some a) e1) (at level 82, e1 at next level).
+Notation "e0 '--[,' a ']-->' e1" := (Pstep e0 a e1) (at level 82, e1 at next level).
+Notation "e0 '--[]-->' e1" := (Pstep e0 None e1) (at level 82, e1 at next level).
 
 (** Typeclass to define language with star step and all that. *)
 Class LangParams : Type := {

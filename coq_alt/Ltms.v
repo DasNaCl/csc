@@ -867,14 +867,14 @@ Inductive pstep : PrimStep rtexpr event :=
     Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     (mget (getH Φ t) (ℓ + n) = Some(Some v) \/ v = Vnat 1729) ->
-    Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval v
+    Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval (Vpair Vcap v)
 | e_set : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
             (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     (mset (getH Φ t) (ℓ + n) (Some w) = Some H' \/ H' = getH Φ t) ->
     Φ' = setH Φ t H' ->
-    Ωa(F ; Ψ ; t ; Φ) ▷ Xset (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) (Xval w) --[ ev( Sset (addr ℓ) n w ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval w
+    Ωa(F ; Ψ ; t ; Φ) ▷ Xset (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) (Xval w) --[ ev( Sset (addr ℓ) n w ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval (Vpair Vcap w)
 | e_unpack : forall (Ω : state) (γ x : vart) (ℓ : loc) (v : value) (e e' : expr),
     e' = subst γ (subst x e (Xval v)) (Xval (Vptr ℓ)) ->
     Ω ▷ Xunpack γ x (Xval (Vpack (LConst ℓ) v)) e --[]--> Ω ▷ e'
@@ -948,7 +948,7 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
                  | _ => Vnat 1729
                  end
         in
-        Some(Some(ev(Sget (addr ℓ) n ; Ω.(St))), Ω ▷ Xval v)
+        Some(Some(ev(Sget (addr ℓ) n ; Ω.(St))), Ω ▷ Xval(Vpair Vcap v))
       else
         None
     | Xset (Xval Vcap) (Xval(Vptr(addr ℓ))) (Xval(Vnat n)) (Xval w) =>
@@ -963,7 +963,7 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
         in
         let Φ' := setH Ω.(SΦ) Ω.(St) H' in
         let Ω' := Ω <| SΦ := Φ' |> in
-        Some(Some(ev(Sset (addr ℓ) (Vnat n) w ; Ω.(St))), Ω' ▷ Xval w)
+        Some(Some(ev(Sset (addr ℓ) (Vnat n) w ; Ω.(St))), Ω' ▷ Xval(Vpair Vcap w))
       else
         None
     | Xunpack γ x (Xval(Vpack (LConst ℓ) v)) e =>

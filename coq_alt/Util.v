@@ -120,6 +120,14 @@ Proof. now destruct x,y. Qed.
 Lemma nbool_and_equiv_nprop (x y : bool) : (x && y)%bool = false <-> (x = false) \/ (y = false).
 Proof. destruct x,y; split; cbn in *; (try now (left + right)); intros []; congruence. Qed.
 
+Lemma bool_or_equiv_prop (x y : bool) : (x || y)%bool = true <-> (x = true) \/ (y = true).
+Proof. destruct x,y; split; try now (left + right). all: intros []; easy. Qed.
+Lemma nbool_or_equiv_prop (x y : bool) : (x || y)%bool = false <-> (x = false) /\ (y = false).
+Proof. now destruct x,y. Qed.
+
+Lemma bool_eqb_eq (x y : bool) : (Bool.eqb x y = true) <-> x = y.
+Proof. now destruct x, y. Qed.
+
 Lemma subset_equiv_bool_in_subset (X Y : StrListSet) : X ⊆ Y <-> (forall x, bool_In X x = true -> bool_In Y x = true).
 Proof.
   split.
@@ -277,7 +285,6 @@ Ltac eq_to_defeq eq := repeat match goal with
     apply eq_refl
   end; try easy
 .
-
 Section Util.
 
 Inductive mapind {A : Type} (H : HasEquality A) (B : Type) : Type :=
@@ -1270,3 +1277,10 @@ Ltac unfold_before := match goal with
                         unfold before in H; deex; destruct H as [H [H1 H2]]
                       end
 .
+Module BoolEqb.
+#[export]
+Instance eqb__Instance : HasEquality bool := {
+  eq := Bool.eqb ;
+  eqb_eq := bool_eqb_eq ;
+}.
+End BoolEqb.

@@ -274,16 +274,6 @@ Definition ty_of_symbol (s : symbol) := let '(v, t, e) := s in t.
 
 (** Type for list of relevant functions, i.e. those that are part of the component. *)
 Definition commlib := list vart.
-
-(** A program is just a collection of context and of component symbols.
-    The symbol `main` is the associated entry-point. *)
-Inductive prog : Type := Cprog : symbols -> symbols -> prog.
-
-
-Definition string_of_prog (p : prog) :=
-  let '(Cprog Ξ__ctx Ξ__comp) := p in
-  "prog"%string (*TODO*)
-.
 (** Fill hole in evaluation context. *)
 Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   let R := fun k => insert k withh in
@@ -363,12 +353,14 @@ Instance poisoneq__Instance : HasEquality poison := {
 }.
 
 (* A "dynamic" location contains the location and its poison *)
-Record dynloc : Type := {
+Record dynloc : Type := mkdL {
   dℓ : loc ;        (* concrete location on heap *)
   dρ : poison ;     (* wether the location is already deallocated *)
   dt : ControlTag ; (* which heap the data lies on  *)
   dn : nat ;          (* allocation size *)
 }.
+#[local]
+Instance etaDynloc : Settable _ := settable! mkdL <dℓ; dρ; dt; dn>.
 Definition dynloc_eqb :=
   fun (dℓ1 dℓ2 : dynloc) =>
     andb  (dℓ1.(dℓ) == dℓ2.(dℓ))
@@ -858,13 +850,12 @@ Inductive pstep : PrimStep rtexpr event :=
 | e_unpair : forall (Ω : state) (v1 v2 : value) (x1 x2 : vart) (e e' : expr),
     e' = subst x1 (subst x2 e (Xval v2)) (Xval v1) ->
     Ω ▷ Xunpair x1 x2 (Xval(Vpair v1 v2)) e --[]--> Ω ▷ e'
-| e_alloc : forall (F F' : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
+| e_alloc : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
               (Φ Φ' : MemState) (n : nat) (ℓ : loc) (Δ' : ptrstore),
-    ℓ = addr(Fresh.fresh F) ->
-    F' = Fresh.advance F ->
+    ℓ = addr(Util.length (getH Φ t)) ->
     push ℓ (dL(ℓ ; ◻ ; t ; n)) Φ.(MΔ) = Some Δ' ->
     Some Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t ->
-    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F' ; Ψ ; t ; Φ')) ▷ (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
+    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F ; Ψ ; t ; Φ')) ▷ (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
 | e_delete : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
                (Φ Φ' : MemState) (n : nat) (ℓ : loc) (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ ℓ ↦ (dL(ℓ ; ρ ; t ; n)) ◘ Δ2) ->
@@ -909,7 +900,80 @@ Admitted.
 
 (** functional version of the above *)
 Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
-  None (* TODO *)
+  match r with
+  | RCrash => None
+  | RTerm Ω e =>
+    match e with
+    | Xbinop b (Xval v1) (Xval v2) =>
+      let* v3 := eval_binop b v1 v2 in
+      Some(None, Ω ▷ Xval v3)
+    | Xifz (Xval(Vnat n)) e1 e2 =>
+      match n with
+      | 0 => Some(None, Ω ▷ e1)
+      | _ => Some(None, Ω ▷ e2)
+      end
+    | Xpair (Xval v1) (Xval v2) =>
+      Some(None, Ω ▷ Xval(Vpair v1 v2))
+    | Xabort => Some(Some SCrash, ↯ ▷ stuck)
+    | Xlet x (Xval v) e =>
+      Some(None, Ω ▷ subst x e (Xval v))
+    | Xunpair x1 x2 (Xval(Vpair v1 v2)) e =>
+      Some(None, Ω ▷ subst x1 (subst x2 e (Xval v2)) (Xval v1))
+    | Xnew (Xval(Vnat n)) =>
+      let ℓ := addr(Util.length (getH Ω.(SΦ) Ω.(St))) in
+      let* Δ' := push ℓ (dL(ℓ ; ◻ ; Ω.(St) ; n)) Ω.(SΦ).(MΔ) in
+      let* Φ' := Htgrow (Ω.(SΦ) <| MΔ := Δ' |>) n Ω.(St) in
+      let Ω' := Ω <| SΦ := Φ' |> in
+      Some(Some(ev(Salloc ℓ n ; Ω.(St))), Ω' ▷ Xval(Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
+    | Xdel (Xval(Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ')))) =>
+      if ℓ == ℓ' then
+        let* Δ := undup Ω.(SΦ).(MΔ) in
+        let* (Δ1, l, dl, Δ2) := splitat Δ ℓ in
+        if ℓ == l then
+          let dl' := dl <| dρ := ☣ |> in
+          let Φ' := Ω.(SΦ) <| MΔ := Δ1 ◘ ℓ ↦ dl' ◘ Δ2 |> in
+          let Ω' := Ω <| SΦ := Φ' |> in
+          Some(Some(ev(Sdealloc ℓ ; Ω.(St))), Ω' ▷ Xval 0)
+        else
+          None
+      else
+        None
+    | Xget (Xval Vcap) (Xval(Vptr(addr ℓ))) (Xval(Vnat n)) =>
+      let* Δ := undup Ω.(SΦ).(MΔ) in
+      let* (Δ1, l, dl, Δ2) := splitat Δ (addr ℓ) in
+      let '(addr ln) := l in
+      if ℓ == ln then
+        let v := match mget (getH Ω.(SΦ) Ω.(St)) (ℓ+n) with
+                 | Some(Some v) => v
+                 | _ => Vnat 1729
+                 end
+        in
+        Some(Some(ev(Sget (addr ℓ) n ; Ω.(St))), Ω ▷ Xval v)
+      else
+        None
+    | Xset (Xval Vcap) (Xval(Vptr(addr ℓ))) (Xval(Vnat n)) (Xval w) =>
+      let* Δ := undup Ω.(SΦ).(MΔ) in
+      let* (Δ1, l, dl, Δ2) := splitat Δ (addr ℓ) in
+      let '(addr ln) := l in
+      if ℓ == ln then
+        let H' := match mset (getH Ω.(SΦ) Ω.(St)) (ℓ+n) (Some w) with
+                  | Some(H') => H'
+                  | _ => getH Ω.(SΦ) Ω.(St)
+                  end
+        in
+        let Φ' := setH Ω.(SΦ) Ω.(St) H' in
+        let Ω' := Ω <| SΦ := Φ' |> in
+        Some(Some(ev(Sset (addr ℓ) (Vnat n) w ; Ω.(St))), Ω' ▷ Xval w)
+      else
+        None
+    | Xunpack γ x (Xval(Vpack (LConst ℓ) v)) e =>
+      let e' := subst γ (subst x e (Xval v)) (Xval(Vptr ℓ)) in
+      Some(None, Ω ▷ e')
+    | Xpack (Xval(Vptr ℓ)) (Xval v) =>
+      Some(None, Ω ▷ Xval(Vpack (LConst ℓ) v))
+    | _ => None
+    end
+  end
 .
 Ltac grab_value e :=
   let n := fresh "n" in
@@ -1158,44 +1222,44 @@ Definition comm (t : ControlTag) : comms :=
   | CComp => Qcomptoctx
   end
 .
-Inductive context_switched : commlib -> vart -> ControlTag -> comms -> Prop :=
+Inductive context_switched : commlib -> vart -> ControlTag -> comms -> ControlTag -> Prop :=
 | SwitchCtxToComp : forall (ξ : commlib) (foo : vart),
     (* foo is called, foo is part of component, so for switch the call must've been CCtx *)
     List.In foo ξ ->
-    context_switched ξ foo CCtx Qctxtocomp
+    context_switched ξ foo CCtx Qctxtocomp CComp
 | SwitchCompToCtx : forall (ξ : commlib) (foo : vart),
     (* foo is called, foo is not part of component, so for switch the call must've been CComp *)
     ~(List.In foo ξ) ->
-    context_switched ξ foo CComp Qcomptoctx
+    context_switched ξ foo CComp Qcomptoctx CCtx
 | NoSwitchComp : forall (ξ : commlib) (foo : vart),
     (* component calling foo, which is in component, is an internal fn call *)
     List.In foo ξ ->
-    context_switched ξ foo CComp Qinternal
+    context_switched ξ foo CComp Qinternal CComp
 | NoSwitchCtx : forall (ξ : commlib) (foo : vart),
     (* context calling foo, which is in context, is an internal fn call *)
     ~(List.In foo ξ) ->
-    context_switched ξ foo CCtx Qinternal
+    context_switched ξ foo CCtx Qinternal CCtx
 .
-Definition context_switchedf (ξ : commlib) (foo : vart) (t : ControlTag) : comms :=
+Definition context_switchedf (ξ : commlib) (foo : vart) (t : ControlTag) : (comms * ControlTag) :=
   match List.find (fun x => foo == x) ξ with
   | Some _ =>
     match t with
     | CCtx => (* SwitchCtxToComp *)
-      Qctxtocomp
+      (Qctxtocomp, CComp)
     | CComp => (* NoSwitchComp *)
-      Qinternal
+      (Qinternal, CComp)
     end
   | None =>
     match t with
     | CCtx => (* NoSwitchCtx *)
-      Qinternal
+      (Qinternal, CCtx)
     | CComp => (* SwitchCompToCtx *)
-      Qcomptoctx
+      (Qcomptoctx, CCtx)
     end
   end
 .
-Lemma context_switched_equiv (ξ : commlib) (foo : vart) (t : ControlTag) (q : comms) :
-  context_switched ξ foo t q <-> context_switchedf ξ foo t = q.
+Lemma context_switched_equiv (ξ : commlib) (foo : vart) (t t' : ControlTag) (q : comms) :
+  context_switched ξ foo t q t' <-> context_switchedf ξ foo t = (q, t').
 Proof.
   split; intros H.
   - inv H; unfold context_switchedf.
@@ -1213,10 +1277,10 @@ Proof.
       apply eqb_eq in Hy; subst; assumption.
     + constructor. apply List.find_some in Hx as [Hx Hy].
       apply eqb_eq in Hy; subst; assumption.
-    + rewrite Hx. constructor. intros H. eapply List.find_none in Hx; eauto.
-      apply neqb_neq in Hx; contradiction.
-    + rewrite Hx. constructor. intros H. eapply List.find_none in Hx; eauto.
-      apply neqb_neq in Hx; contradiction.
+    + cbn in Hx. rewrite Hx in H1. inv H1. constructor. intros H. eapply List.find_none in Hx; eauto.
+      eq_to_defeq vareq. apply neqb_neq in Hx; contradiction.
+    + cbn in Hx. rewrite Hx in H1. inv H1. constructor. intros H. eapply List.find_none in Hx; eauto.
+      eq_to_defeq vareq. apply neqb_neq in Hx; contradiction.
 Qed.
 
 Inductive estep : EctxStep rtexpr event :=
@@ -1242,21 +1306,21 @@ Inductive estep : EctxStep rtexpr event :=
     Ω' = Ω <| St := CCtx |> <| SΨ := Ψ' |> ->
     Ω ▷ Xcall "main"%string (Xval 0) --[ ev(Sstart ; CComp) ]--> Ω' ▷ e
 | E_call : forall (Ω Ω' : state) (Ξ1 Ξ2 : symbols) (foov : vart) (foo : symbol) (Ψ' : CfState)
-             (x : vart) (v : value) (K : evalctx) (e0 e0' : expr) (q : comms),
+             (x : vart) (v : value) (K : evalctx) (e0 e0' : expr) (q : comms) (t' : ControlTag),
     Ω.(SΨ).(CΞ) = (Ξ1 ◘ foov ↦ foo ◘ Ξ2) ->
-    context_switched Ω.(SΨ).(Cξ) foov Ω.(St) q ->
+    context_switched Ω.(SΨ).(Cξ) foov Ω.(St) q t' ->
     e0' = subst (vart_of_symbol foo) (expr_of_symbol foo) (Xval v) ->
     Ψ' = Ω.(SΨ) <| CKs := ((K, foov) :: Ω.(SΨ).(CKs)) |> ->
-    Ω' = Ω <| St := neg_controltag Ω.(St) |> <| SΨ := Ψ' |> ->
+    Ω' = Ω <| St := t' |> <| SΨ := Ψ' |> ->
     e0 = insert K (Xcall foov (Xval v)) ->
     Ω ▷ e0 ==[ ev(Scall q foov v ; Ω.(St)) ]==> Ω' ▷ e0'
 | E_ret : forall (Ω Ω' : state) (foov : vart) (K K__foo : evalctx) (Ψ' : CfState)
-            (e0 e0' : expr) (v : value) (q : comms) (Ks : active_ectx),
-    context_switched Ω.(SΨ).(Cξ) foov Ω.(St) q ->
+            (e0 e0' : expr) (v : value) (q : comms) (Ks : active_ectx) (t' : ControlTag),
+    context_switched Ω.(SΨ).(Cξ) foov Ω.(St) q t' ->
     Ω.(SΨ).(CKs) = ((K__foo, foov) :: Ks)%list ->
     Ks <> nil -> (* <- prevent E_end from firing *)
     Ψ' = Ω.(SΨ) <| CKs := Ks |> ->
-    Ω' = Ω <| St := neg_controltag Ω.(St) |> <| SΨ := Ψ' |> ->
+    Ω' = Ω <| St := t' |> <| SΨ := Ψ' |> ->
     e0 = insert K (Xreturn (Xval v)) ->
     e0' = insert K__foo (Xval v) ->
     Ω ▷ e0 ==[ ev(Sret q v ; Ω.(St)) ]==> Ω' ▷ e0'
@@ -1287,7 +1351,65 @@ Qed.
 Local Set Warnings "-cast-in-pattern".
 
 Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
-  None
+  match r with
+  | RCrash => None
+  | RTerm Ω e =>
+    let* (K, e0) := evalctx_of_expr e in
+    match e0 with
+    | Xcall foo (Xval v) =>
+      let* (Ξ1, foof, foo, Ξ2) := splitat Ω.(SΨ).(CΞ) (foo) in
+      let e := subst (vart_of_symbol foo) (expr_of_symbol foo) (Xval v) in
+      let Ψ' := Ω.(SΨ) <| CKs := ((K, foof) :: Ω.(SΨ).(CKs))%list |> in
+      let (q, t') := context_switchedf Ω.(SΨ).(Cξ) foof Ω.(St) in
+      let Ω' := Ω <| St := t' |> <| SΨ := Ψ' |> in
+      if String.eqb foof "main"%string then
+        if andb (Nat.eqb (List.length Ω.(SΨ).(CKs)) 0)
+           (andb (Ω.(St) == CComp)
+           (andb (Nat.eqb (Util.length Ω.(SΦ).(MH__ctx)) 0)
+           (andb (Nat.eqb (Util.length Ω.(SΦ).(MH__comp)) 0)
+                 (Nat.eqb (Util.length Ω.(SΦ).(MΔ)) 0)))) then
+          match v, K, Ω.(SΨ).(CKs), Ω.(St) with
+          | Vnat 0, Khole, nil, CComp =>
+            Some(Some(ev(Sstart ; CComp)), Ω' ▷ e)
+          | _, _, _, _ => None
+          end
+        else
+          (* just a recursive function call to "main", not the initial call, though *)
+          Some(Some(ev(Scall q foof v ; Ω.(St))), Ω' ▷ e)
+      else
+        Some(Some(ev(Scall q foof v ; Ω.(St))), Ω' ▷ e)
+    | Xreturn(Xval v) =>
+      match Ω.(SΨ).(CKs) with
+      | nil => None
+      | ((Khole, main)::nil)%list =>
+        if String.eqb main "main"%string then
+          match Ω.(St) with
+          | CCtx =>
+            let Ψ' := Ω.(SΨ) <| CKs := nil |> in
+            let Ω' := Ω <| St := CComp |> <| SΨ := Ψ' |> in
+            Some(Some(ev(Send v ; CCtx)), Ω ▷ Xval v)
+          | CComp => None
+          end
+        else
+          None
+      | ((K__foo, foo)::Ks)%list =>
+        let (q, t') := context_switchedf Ω.(SΨ).(Cξ) foo Ω.(St) in
+        let Ψ' := Ω.(SΨ) <| CKs := Ks |> in
+        let Ω' := Ω <| St := t' |> <| SΨ := Ψ' |> in
+        let e0' := insert K__foo (Xval v) in
+        Some(Some(ev(Sret q v ; Ω.(St))), Ω' ▷ e0')
+      end
+    | _ =>
+      let* _ := pstep_compatible e0 in
+      let* (a, r') := pstepf (Ω ▷ e0) in
+      match r' with
+      | RCrash => Some(Some SCrash, ↯ ▷ stuck)
+      | RTerm Ω' e0' =>
+        let e' := insert K e0' in
+        Some(a, Ω' ▷ e')
+      end
+    end
+  end
 .
 
 Ltac crush_insert :=
@@ -1411,8 +1533,114 @@ Instance TMS__LangParams : LangParams := {
   step := estep ;
   is_value := rtexpr_is_val ;
 }.
+Definition tracepref : Type := @Util.tracepref TMS__TraceParams.
 Import LangNotations.
 Open Scope LangNotationsScope.
+
+(** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
+Definition star_stepf (fuel : nat) (r : rtexpr) : option(tracepref * rtexpr) :=
+  let fix doo (fuel : nat) (r : rtexpr) :=
+    match r with
+    | RCrash => Some((SCrash :: nil)%list, (↯ ▷ stuck))
+    | RTerm Ω e =>
+      match fuel, e with
+      | _, Xval _ => (* refl *)
+        Some(nil, (Ω ▷ e))
+      | S fuel', _ => (* trans variants *)
+        let* (o, r') := estepf (Ω ▷ e) in
+        let* (As, r'') := doo fuel' r' in
+        match o with
+        | None => (* trans-unimportant *) Some(As, r'')
+        | Some a => (* trans-important *) Some(a :: As, r'')
+        end
+      | _, _ => (* garbage *)
+        Some(nil, Ω ▷ e)
+      end
+    end
+  in doo fuel r
+.
+
+Lemma different_reduction Ω Ω' e v v' As :
+  ((Ω ▷ e ==[As]==>* Ω' ▷ v) -> False) ->
+  Ω ▷ e ==[As]==>* Ω' ▷ v' ->
+  v <> v'
+.
+Proof. intros H0 H1 H2; now subst. Qed.
+
+Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
+  Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
+  nodupinv Ω ->
+  nodupinv Ω'
+.
+Proof.
+Admitted.
+
+(** Inductive relation modelling linking *)
+(* FIXME: perform typechecking *)
+Inductive link : symbols -> symbols -> symbols -> Prop :=
+| linkEmptyL : forall (Ξ__ctx : symbols), link (mapNil _ _) Ξ__ctx Ξ__ctx
+| linkConsL : forall (name : vart) (s : symbol) (Ξ__ctx Ξ__comp Ξ : symbols),
+    ~(In name (dom Ξ)) ->
+    ~(In name (dom Ξ__ctx)) ->
+    ~(In name (dom Ξ__comp)) ->
+    link Ξ__ctx Ξ__comp Ξ ->
+    link (name ↦ s ◘ Ξ__ctx) Ξ__comp (name ↦ s ◘ Ξ)
+.
+#[local] Hint Constructors link : core.
+Fixpoint linkf (Ξ__ctx Ξ__comp : symbols) : option symbols :=
+  match Ξ__ctx with
+  | mapNil _ _ => Some(Ξ__comp)
+  | (name ↦ s ◘ Ξ__ctx) =>
+    let* Ξ := linkf Ξ__ctx Ξ__comp in
+    match List.find (fun x => x == name) (dom Ξ),
+          List.find (fun x => x == name) (dom Ξ__ctx),
+          List.find (fun x => x == name) (dom Ξ__comp) with
+    | None, None, None => Some(name ↦ s ◘ Ξ)
+    | _, _, _ => None
+    end
+  end
+.
+Lemma linkf_equiv_link (Ξ__ctx Ξ__comp Ξ : symbols) :
+  linkf Ξ__ctx Ξ__comp = Some Ξ <-> link Ξ__ctx Ξ__comp Ξ
+.
+Proof.
+  split; intros.
+  - revert Ξ__comp Ξ H; induction Ξ__ctx; intros; cbn in H.
+    + inv H; constructor.
+    + crush_option (linkf Ξ__ctx Ξ__comp).
+      crush_option (List.find (fun x : vart => vareq x a) (dom x)).
+      inv H.
+      crush_option (List.find (fun x : vart => vareq x a) (dom Ξ__ctx)).
+      rewrite Hx0 in H. inv H.
+      crush_option (List.find (fun x : vart => vareq x a) (dom (Ξ__comp))).
+      rewrite Hx0, Hx1 in H. inv H.
+      rewrite Hx0, Hx1, Hx2 in H. inv H.
+      constructor. intros Hy; eapply List.find_none in Hx0; eauto. eq_to_defeq vareq.
+      apply neqb_neq in Hx0; contradiction.
+      intros Hy; eapply List.find_none in Hx1; eauto. eq_to_defeq vareq.
+      apply neqb_neq in Hx1; contradiction.
+      intros Hy; eapply List.find_none in Hx2; eauto. eq_to_defeq vareq.
+      apply neqb_neq in Hx2; contradiction.
+      eauto.
+  - induction H; cbn; try easy.
+    rewrite IHlink.
+    crush_option (List.find (fun x : vart => vareq x name) (dom Ξ)).
+    apply List.find_some in Hx as [Hx1 Hx2]; eq_to_defeq vareq.
+    rewrite Hx.
+    crush_option (List.find (fun x : vart => vareq x name) (dom Ξ__ctx)).
+    apply List.find_some in Hx0 as [Hx1 Hx2]; eq_to_defeq vareq.
+    rewrite Hx0.
+    crush_option (List.find (fun x : vart => vareq x name) (dom (Ξ__comp))).
+    apply List.find_some in Hx1 as [Hx2 Hx3]; eq_to_defeq vareq.
+    rewrite Hx1.
+    easy.
+Qed.
+
+Definition initΩ (Ξ__ctx Ξ__comp : symbols) : option state :=
+  let* Ξ := linkf Ξ__ctx Ξ__comp in
+  let ξ := dom Ξ__comp in
+  Some(Ω(Fresh.empty_fresh; Ξ ; ξ ; nil ; CComp ; hNil ; hNil ; snil))
+.
 
 (* Allocate an array of size 5. *)
 Example binop57 :=
@@ -1442,167 +1670,117 @@ Example binop57 :=
       )
   )
 .
-Example Ξ__ctx : symbols := ("main"%string ↦ ("x"%string, Tfun Tℕ Tℕ, binop57) ◘ (mapNil _ _)).
-Example Ξ__comp : symbols := mapNil _ _.
-Example ξ : commlib := nil.
+(** Copy one string into another *)
 
-Goal exists r As, Ω(Fresh.empty_fresh ; Ξ__ctx ; ξ ; nil ; CComp ; hNil ; hNil ; snil) ▷ (Xcall "main"%string (Xval 0)) ==[ As ]==>* r.
-Proof.
-  eexists; exists (ev(Sstart ; CComp) ::
-              ev(Salloc (addr 0) 5 ; CCtx) ::
-              ev(Sset (addr 0) 2 42 ; CCtx) ::
-              ev(Sget (addr 0) 2 ; CCtx) ::
-              ev(Sdealloc (addr 0) ; CCtx) ::
-              ev(Send 69 ; CCtx) :: nil)%list.
-  eapply @ES_trans_important.
-  eapply E_start; try easy.
-  instantiate (1:=mapNil _ _). instantiate (2:=mapNil _ _). cbn. reflexivity.
-  unfold binop57; cbn.
+(** packs up a pointer's location and its capability + ptr constant *)
+Definition L_packptr xloc xcap xptr : expr :=
+  Xpack xloc (Xpair xcap xptr)
+.
+(** Unpacks "what" into xloc, xcap, xptr. Expects another expression as a continuation,
+    which may now use xloc, xcap, xptr. They are not bound outside due to the existential! *)
+Definition L_unpackptr xloc xcap xptr what : expr -> expr :=
+  fun e =>
+  Xunpack xloc
+          (String.append xcap xptr)
+          what (Xunpair xcap xptr (Xvar (String.append xcap xptr)) e)
+.
+Definition strncpy_get_params from i n x y : expr -> expr := (
+  fun e =>
+    let pxy := String.append "p" (String.append x y) in
+    let px := String.append "p" x in
+    let py := String.append "p" y in
+    let xℓ := String.append x "ℓ" in
+    let xcap := String.append x "cap" in
+    let xptr := String.append x "ptr" in
+    let yℓ := String.append y "ℓ" in
+    let ycap := String.append y "cap" in
+    let yptr := String.append y "ptr" in
+  Xunpair i "p0" from
+ (Xunpair n pxy (Xvar "p0")
+ (Xunpair px py (Xvar pxy)
+ (L_unpackptr xℓ xcap xptr (Xvar px)
+ (L_unpackptr yℓ ycap yptr (Xvar py)
+          e))))
+)%string.
 
-  (* Do the alloc *)
-  eapply @ES_trans_important.
-  remember
-       (Xunpair "cap"%string "ptr"%string (Xvar "p"%string)
-          (Xlet "y"%string
-             (Xlet dontcare
-                (Xset (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2) (Xval 42))
-                (Xget (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2)))
-             (Xbinop Badd
-                (Xdel
-                   (Xpack (Xvar "ℓ"%string)
-                      (Xpair (Xvar "cap"%string) (Xvar "ptr"%string))))
-                (Xbinop Badd (Xvar "y"%string) (Xval 27))))) as e__unpack.
-  remember (Kreturn (Kunpack "ℓ"%string "p"%string Khole e__unpack)) as K__unpack.
-  eapply E_ectx with (K:=K__unpack).
-  instantiate (1:=Xnew (Xval 5)). now cbn.
-  rewrite HeqK__unpack. now cbn.
-  2: eapply e_alloc; try easy. rewrite HeqK__unpack. cbn.
-  now rewrite Heqe__unpack.
+(* parameters are < i, <n, < ∃ xℓ. <xcap, xptr ℓ>,  ∃ yℓ. <ycap, y ℓ> > > > *)
+Definition strncpy_pack_params (i n : expr) x y : expr := (
+    Xpair i (
+      Xpair n (
+        Xpair (L_packptr (Xvar (String.append x "ℓ"))
+                         (Xvar (String.append x "cap"))
+                         (Xvar (String.append x "ptr"))
+              )
+              (L_packptr (Xvar (String.append y "ℓ"))
+                         (Xvar (String.append y "cap"))
+                         (Xvar (String.append y "ptr"))
+              )
+        )
+    )
+)%string.
 
-  (* Do the unpack *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn Khole).
-  instantiate (1:=
-   (Xunpack "ℓ"%string "p"%string
-      (Xval (Vpack (LConst (addr 0)) (Vpair Vcap (Vptr (addr 0)))))
-      (Xunpair "cap"%string "ptr"%string (Xvar "p"%string)
-         (Xlet "y"%string
-            (Xlet dontcare
-               (Xset (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2) (Xval 42))
-               (Xget (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2)))
-            (Xbinop Badd
-               (Xdel
-                  (Xpack (Xvar "ℓ"%string)
-                     (Xpair (Xvar "cap"%string) (Xvar "ptr"%string))))
-               (Xbinop Badd (Xvar "y"%string) (Xval 27))))))).
-  now cbn. now cbn.
-  2: eapply e_unpack; try easy. now cbn.
+Definition seq (e0 e1 : expr) : expr := Xlet dontcare e0 e1.
 
-  (* Do the unpair *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn Khole).
-  instantiate (1:=
-   (Xunpair "cap"%string "ptr"%string (Xval (Vpair Vcap (Vptr (addr 0))))
-      (Xlet "y"%string
-         (Xlet dontcare
-            (Xset (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2) (Xval 42))
-            (Xget (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2)))
-         (Xbinop Badd
-            (Xdel
-               (Xpack (Xval (Vptr(addr 0)))
-                  (Xpair (Xvar "cap"%string) (Xvar "ptr"%string))))
-            (Xbinop Badd (Xvar "y"%string) (Xval 27)))))).
-  now cbn. now cbn.
-  2: eapply e_unpair; now cbn. now cbn.
+(* strncpy(p) with p=<i; n; x; y>, where x and y are pointers and i index and n size of buffers x, y *)
+(* this is supposed to be an unsafe version of strncpy *)
+Example strncpy := (
+  strncpy_get_params (Xvar "p") "i" "n" "x" "y" (
+    (* function body after unpacking parameters *)
+    (* ifz x[i] = 0 then *)
+    Xifz (Xget (Xvar "xcap") (Xvar "xptr") (Xvar "i"))
+      (Xreturn (strncpy_pack_params (Xvar "i") (Xvar "n") "x" "y"))
+    (* else if i < n then *)
+      (Xifz (Xbinop Bless (Xvar "i") (Xvar "n"))
+        (seq
+          (* y[i] = x[i] *)
+          (Xset (Xvar "ycap") (Xvar "yptr") (Xvar "i")
+              (Xget (Xvar "xcap") (Xvar "xptr") (Xvar "i")))
+          (* recursive call to simulate the loop *)
+          (Xreturn (Xcall "strncpy" (strncpy_pack_params (Xbinop Badd (Xvar "i") (Xval 1)) (Xvar "n") "x" "y")))
+        )
+        (Xreturn (strncpy_pack_params (Xvar "i") (Xvar "n") "x" "y"))
+      )
+  )
+)%string.
 
-  (* Do the set *)
-  eapply @ES_trans_important.
-  remember
-          (Xbinop Badd
-             (Xdel
-                (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0))))))
-             (Xbinop Badd (Xvar "y"%string) (Xval 27))) as e__set.
-  eapply E_ectx with (K:=Kreturn(Klet "y"%string (Klet dontcare Khole (Xget (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2))) e__set)).
-  instantiate (1:=Xset (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2) (Xval 42)).
-  now cbn. rewrite Heqe__set; now cbn.
-  rewrite Heqe__set; now cbn.
-  rewrite Heqe__set; eapply e_set; try easy.
-  2: cbn; instantiate (1:=snil); instantiate (3:=snil); now cbn.
-  cbn; repeat constructor; easy.
-  left; now cbn.
-  cbn.
+(* Simple, correct context that calls strncpy *)
+Example main' := (
+  L_unpackptr "xℓ" "xcap" "xptr" (Xnew (Xval 3)) (
+    L_unpackptr "yℓ" "ycap" "yptr" (Xnew (Xval 3)) (
+      seq (Xset (Xvar "xcap") (Xvar "xptr") (Xval 0) (Xval 1))
+     (seq (Xset (Xvar "xcap") (Xvar "xptr") (Xval 1) (Xval 2))
+       (seq (Xset (Xvar "xcap") (Xvar "xptr") (Xval 2) (Xval 3))
+         (seq
+             (Xlet "r" (Xcall "strncpy" (strncpy_pack_params (Xval 0) (Xval 3) "x" "y"))
+                   (strncpy_get_params (Xvar "r") "i" "n" "x" "y" (
+                       seq (Xdel (L_packptr (Xvar "xℓ") (Xvar "xcap") (Xvar "xptr")))
+                           (Xdel (L_packptr (Xvar "yℓ") (Xvar "ycap") (Xvar "yptr")))
+                     )
+                   )
+             ) (Xreturn (Xval 69))
+         )
+       )
+     )
+    )
+  )
+)%string.
 
-  (* Do the let *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn(Klet "y"%string Khole (Xbinop Badd (Xdel (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0)))))) (Xbinop Badd (Xvar "y"%string) (Xval 27))))).
-  instantiate (1:=Xlet dontcare (Xval 42) (Xget (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2))).
-  now cbn. now cbn. now cbn.
-  eapply e_let; try easy.
-  cbn.
+Example main := (Xcall "main'"%string (Xval 0)).
 
-  (* Do the get *)
-  eapply @ES_trans_important.
-  eapply E_ectx with (K:=Kreturn(Klet "y"%string Khole (Xbinop Badd (Xdel (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0)))))) (Xbinop Badd (Xvar "y"%string) (Xval 27))))).
-  instantiate (1:=Xget (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2)).
-  now cbn. now cbn. now cbn.
-  eapply e_get; try easy.
-  2: cbn; instantiate (1:=snil); instantiate (3:=snil); now cbn.
-  cbn; repeat constructor; easy.
-  left; now cbn.
+Example Ξ__ctx : symbols := ("main"%string ↦ (dontcare, Tfun Tℕ Tℕ, main) ◘ (mapNil _ _)).
+Example Ξ__comp : symbols := ("main'"%string ↦ (dontcare, Tfun Tℕ Tℕ, main') ◘ ("strncpy"%string ↦ ("p"%string, Tfun Tℕ Tℕ, strncpy) ◘ (mapNil _ _))).
 
-  (* Do the let *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn Khole).
-  instantiate (1:=Xlet "y"%string (Xval 42) (Xbinop Badd (Xdel (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0)))))) (Xbinop Badd (Xvar "y"%string) (Xval 27)))).
-  now cbn. now cbn. now cbn.
-  eapply e_let; easy.
-  cbn.
+Local Set Warnings "-abstract-large-number".
+Compute ((fun n => (let* iΩ := initΩ Ξ__ctx Ξ__comp in
+         let* (As, r) := star_stepf n (iΩ ▷ (Xcall "main"%string (Xval 0))) in
+         match r with
+         | RCrash => None
+         | RTerm Ω e => Some(As, e)
+         end
+        ))
+135).
 
-  (* Do the pair *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn(KbinopL Badd (Kdel(KpackR (Vptr (addr 0)) Khole)) (Xbinop Badd (Xval 42) (Xval 27)))).
-  instantiate (1:=(Xpair (Xval Vcap) (Xval (Vptr (addr 0))))).
-  now cbn. now cbn. now cbn.
-  eapply e_pair.
-
-  (* Do the pack *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn(KbinopL Badd (Kdel Khole) (Xbinop Badd (Xval 42) (Xval 27)))).
-  instantiate (1:=Xpack (Xval(Vptr(addr 0))) (Xval(Vpair Vcap (Vptr(addr 0))))).
-  now cbn. now cbn. now cbn.
-  eapply e_pack.
-
-  (* Do the dealloc *)
-  eapply @ES_trans_important.
-  eapply E_ectx with (K:=Kreturn(KbinopL Badd (Khole) (Xbinop Badd (Xval 42) (Xval 27)))).
-  instantiate (1:=Xdel(Xval(Vpack (LConst (addr 0)) (Vpair Vcap (Vptr (addr 0)))))).
-  now cbn. now cbn. now cbn.
-  eapply e_delete.
-  2: instantiate (1:=snil); instantiate (3:=snil); cbn; reflexivity.
-  cbn; repeat constructor; easy.
-  easy.
-
-  (* Do the binop *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn(KbinopR Badd 0 (Khole))).
-  instantiate (1:=Xbinop Badd (Xval 42) (Xval 27)).
-  now cbn. now cbn. now cbn.
-  eapply e_binop. now cbn.
-
-  (* Do the binop *)
-  eapply @ES_trans_unimportant.
-  eapply E_ectx with (K:=Kreturn(Khole)).
-  instantiate (1:=Xbinop Badd (Xval 0) (Xval 69)).
-  now cbn. now cbn. now cbn.
-  eapply e_binop. now cbn.
-
-  eapply @ES_trans_important.
-  eapply E_end; try easy.
-  instantiate (1:=Khole). now cbn.
-
-  eapply @ES_refl.
-  eapply CRTval. reflexivity.
-Qed.
+Abort.
 
 (** Context splitting *)
 Reserved Notation "Γ '≡' Γ1 '∘' Γ2 '⊣' e" (at level 81, Γ1 at next level, Γ2 at next level, e at next level).
@@ -2079,30 +2257,6 @@ End ModAux.
 Module SMod := CSC.Langs.Util.Mod(ModAux).
 Import SMod.
 
-Lemma different_reduction Ω Ω' e v v' As :
-  ((Ω ▷ e ==[As]==>* Ω' ▷ v) -> False) ->
-  Ω ▷ e ==[As]==>* Ω' ▷ v' ->
-  v <> v'
-.
-Proof.
-  intros H0 H1 H2; now subst.
-Qed.
-
-Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
-  Ω ▷ e ==[ As ]==>* Ω' ▷ e' ->
-  nodupinv Ω ->
-  nodupinv Ω'
-.
-Proof.
-  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
-  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy.
-  intros H__star; dependent induction H__star; try (inv H; inv H0; easy); try easy.
-  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x;
-    eapply estep_is_nodupinv_invariant in H; eauto.
-  - destruct r2 as [[Ω2|] e2]; try (cbn in H0; contradiction); intros H__x;
-    eapply estep_is_nodupinv_invariant in H; eauto.
-Qed.
-
 (** Qualification to mark whether we go from context to component or vice versa *)
 Variant Qcall : Type :=
 | ctx_to_comp : Qcall
@@ -2145,25 +2299,6 @@ Instance FEvent__Instance : TraceEvent fevent := {}.
 (** Pretty-printing function for better debuggability *)
 Definition string_of_fevent (e : fevent) := ""%string.
 
-(** Functional style version of star step from above. We need another parameter "fuel" to sidestep termination. *)
-Definition star_stepf (fuel : nat) (r : rtexpr) : option (tracepref * rtexpr) :=
-  let fix doo (fuel : nat) (r : rtexpr) :=
-    let (oΩ, e) := r in
-    let* Ω := oΩ in
-    match fuel, e with
-    | 0, Xres(Fres _) => (* refl *)
-      Some(nil, r)
-    | S fuel', _ => (* trans *)
-      let* (a, r') := estepf r in
-      let* (As, r'') := doo fuel' r' in
-      match a with
-      | None => Some(As, r'')
-      | Some(a') => Some(a' :: As, r'')
-      end
-    | _, _ => None
-    end
-  in doo fuel r
-.
 
 (** Finds the amount of fuel necessary to run an expression. *)
 Fixpoint get_fuel (e : expr) : option nat :=

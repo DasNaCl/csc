@@ -1327,7 +1327,6 @@ Inductive estep : EctxStep rtexpr event :=
 | E_end : forall (Ω Ω' : state) (K : evalctx) (Ψ' : CfState)
             (e0 : expr) (v : value),
     Ω.(SΨ).(CKs) = ((Khole, "main"%string) :: nil)%list ->
-    Ω.(St) = CCtx ->
     Ψ' = Ω.(SΨ) <| CKs := nil |> ->
     Ω' = Ω <| St := CComp |> <| SΨ := Ψ' |> ->
     e0 = insert K (Xreturn (Xval v)) ->
@@ -1383,13 +1382,9 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
       | nil => None
       | ((Khole, main)::nil)%list =>
         if String.eqb main "main"%string then
-          match Ω.(St) with
-          | CCtx =>
-            let Ψ' := Ω.(SΨ) <| CKs := nil |> in
-            let Ω' := Ω <| St := CComp |> <| SΨ := Ψ' |> in
-            Some(Some(ev(Send v ; CCtx)), Ω ▷ Xval v)
-          | CComp => None
-          end
+          let Ψ' := Ω.(SΨ) <| CKs := nil |> in
+          let Ω' := Ω <| St := CComp |> <| SΨ := Ψ' |> in
+          Some(Some(ev(Send v ; CCtx)), Ω' ▷ Xval v)
         else
           None
       | ((K__foo, foo)::Ks)%list =>
@@ -1726,20 +1721,21 @@ Definition seq (e0 e1 : expr) : expr := Xlet dontcare e0 e1.
 Example strncpy := (
   strncpy_get_params (Xvar "p") "i" "n" "x" "y" (
     (* function body after unpacking parameters *)
+    Xunpair "xcap" "x[i]" (Xget (Xvar "xcap") (Xvar "xptr") (Xvar "i"))
     (* ifz x[i] = 0 then *)
-    Xifz (Xget (Xvar "xcap") (Xvar "xptr") (Xvar "i"))
+    (Xifz (Xvar "x[i]")
       (Xreturn (strncpy_pack_params (Xvar "i") (Xvar "n") "x" "y"))
     (* else if i < n then *)
       (Xifz (Xbinop Bless (Xvar "i") (Xvar "n"))
-        (seq
+        (Xunpair "ycap" dontcare
           (* y[i] = x[i] *)
-          (Xset (Xvar "ycap") (Xvar "yptr") (Xvar "i")
-              (Xget (Xvar "xcap") (Xvar "xptr") (Xvar "i")))
+          (Xset (Xvar "ycap") (Xvar "yptr") (Xvar "i") (Xvar "x[i]"))
           (* recursive call to simulate the loop *)
           (Xreturn (Xcall "strncpy" (strncpy_pack_params (Xbinop Badd (Xvar "i") (Xval 1)) (Xvar "n") "x" "y")))
         )
         (Xreturn (strncpy_pack_params (Xvar "i") (Xvar "n") "x" "y"))
       )
+    )
   )
 )%string.
 
@@ -1747,16 +1743,17 @@ Example strncpy := (
 Example main' := (
   L_unpackptr "xℓ" "xcap" "xptr" (Xnew (Xval 3)) (
     L_unpackptr "yℓ" "ycap" "yptr" (Xnew (Xval 3)) (
-      seq (Xset (Xvar "xcap") (Xvar "xptr") (Xval 0) (Xval 1))
-     (seq (Xset (Xvar "xcap") (Xvar "xptr") (Xval 1) (Xval 2))
-       (seq (Xset (Xvar "xcap") (Xvar "xptr") (Xval 2) (Xval 3))
+      Xunpair "xcap" dontcare (Xset (Xvar "xcap") (Xvar "xptr") (Xval 0) (Xval 1))
+     (Xunpair "xcap" dontcare (Xset (Xvar "xcap") (Xvar "xptr") (Xval 1) (Xval 2))
+       (Xunpair "xcap" dontcare (Xset (Xvar "xcap") (Xvar "xptr") (Xval 2) (Xval 3))
          (seq
-             (Xlet "r" (Xcall "strncpy" (strncpy_pack_params (Xval 0) (Xval 3) "x" "y"))
-                   (strncpy_get_params (Xvar "r") "i" "n" "x" "y" (
-                       seq (Xdel (L_packptr (Xvar "xℓ") (Xvar "xcap") (Xvar "xptr")))
-                           (Xdel (L_packptr (Xvar "yℓ") (Xvar "ycap") (Xvar "yptr")))
-                     )
-                   )
+             (Xlet "r"
+                (Xcall "strncpy" (strncpy_pack_params (Xval 0) (Xval 3) "x" "y"))
+                (strncpy_get_params (Xvar "r") "i" "n" "x" "y" (
+                    seq (Xdel (L_packptr (Xvar "xℓ") (Xvar "xcap") (Xvar "xptr")))
+                        (Xdel (L_packptr (Xvar "yℓ") (Xvar "ycap") (Xvar "yptr")))
+                  )
+                )
              ) (Xreturn (Xval 69))
          )
        )
@@ -1765,7 +1762,7 @@ Example main' := (
   )
 )%string.
 
-Example main := (Xcall "main'"%string (Xval 0)).
+Example main := (Xreturn (Xcall "main'"%string (Xval 0))).
 
 Example Ξ__ctx : symbols := ("main"%string ↦ (dontcare, Tfun Tℕ Tℕ, main) ◘ (mapNil _ _)).
 Example Ξ__comp : symbols := ("main'"%string ↦ (dontcare, Tfun Tℕ Tℕ, main') ◘ ("strncpy"%string ↦ ("p"%string, Tfun Tℕ Tℕ, strncpy) ◘ (mapNil _ _))).
@@ -1775,10 +1772,10 @@ Compute ((fun n => (let* iΩ := initΩ Ξ__ctx Ξ__comp in
          let* (As, r) := star_stepf n (iΩ ▷ (Xcall "main"%string (Xval 0))) in
          match r with
          | RCrash => None
-         | RTerm Ω e => Some(As, e)
+         | RTerm Ω e => Some(As, Ω.(SΦ), e)
          end
         ))
-135).
+133).
 
 Abort.
 

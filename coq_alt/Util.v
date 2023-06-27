@@ -2,6 +2,7 @@ Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano List Coq.Logic.Decidable.
 Require Import RelationClasses Coq.Program.Equality Lia.
 
+
 #[global]
 Ltac inv H := (inversion H; subst; clear H).
 #[global]
@@ -349,7 +350,7 @@ Proof.
     destruct (option_dec (undup m)) as [Hx | Hy']; try rewrite Hy' in H0; inv H0.
     apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H2; inv H2.
     constructor; try apply IHm; eauto.
-    intros Ha. eapply List.find_none in Hy; eauto. rewrite eq_refl in Hy. inv Hy.
+    intros Ha. eapply List.find_none in Hy; eauto. apply neqb_neq in Hy; contradiction.
   - intros H0; inv H0; destruct (option_dec (List.find (fun x : A => eq a x) (dom m))) as [Hx | Hy].
     apply not_eq_None_Some in Hx as [a' Hx].
     apply List.find_some in Hx as [Hx1 Hx2].
@@ -928,7 +929,7 @@ Proof.
     destruct (option_dec (undup xs)) as [Hx | Hy']; try rewrite Hy' in H0; inv H0.
     apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H2; inv H2.
     constructor; try apply IHxs; eauto.
-    intros Ha. eapply List.find_none in Hy; eauto. rewrite eq_refl in Hy. easy.
+    intros Ha. eapply List.find_none in Hy; eauto. apply neqb_neq in Hy; contradiction.
   - intros H0; inv H0; destruct (option_dec (List.find (fun x : A => eq a x) xs)) as [Hx | Hy].
     apply not_eq_None_Some in Hx as [a' Hx].
     apply List.find_some in Hx as [Hx1 Hx2].
@@ -1186,6 +1187,13 @@ Notation "e0 '--[' a ']-->' e1" := (Pstep e0 (Some a) e1) (at level 82, e1 at ne
 Notation "e0 '--[,' a ']-->' e1" := (Pstep e0 a e1) (at level 82, e1 at next level).
 Notation "e0 '--[]-->' e1" := (Pstep e0 None e1) (at level 82, e1 at next level).
 
+Class EctxStep (State : Type) (Event : Type) : Type :=
+  Estep : State -> option Event -> State -> Prop
+.
+Notation "e0 '==[' a ']==>' e1" := (Estep e0 (Some a) e1) (at level 82, e1 at next level).
+Notation "e0 '==[,' a ']==>' e1" := (Estep e0 a e1) (at level 82, e1 at next level).
+Notation "e0 '==[]==>' e1" := (Estep e0 None e1) (at level 82, e1 at next level).
+
 (** Typeclass to define language with star step and all that. *)
 Class LangParams : Type := {
   State : Type ;
@@ -1207,16 +1215,16 @@ Section Lang.
       step r1 (Some a) r2 ->
       star_step r2 As r3 ->
       star_step r1 (a :: As) r3
-  | ES_trans_unimportant : forall (r1 r2 : State) (As : tracepref),
-      step r1 None r1 ->
-      star_step r1 As r2 ->
-      star_step r1 As r2
+  | ES_trans_unimportant : forall (r1 r2 r3 : State) (As : tracepref),
+      step r1 None r2 ->
+      star_step r2 As r3 ->
+      star_step r1 As r3
   .
   Hint Constructors star_step : core.
 
   Lemma must_step_once (S0 S2 : State) a (As : tracepref) :
     star_step S0 (a :: As)%list S2 ->
-    exists S1, step S0 (Some a) S1 /\ star_step S1 As S2
+    exists S0' S1, step S0' (Some a) S1 /\ star_step S1 As S2
   .
   Proof.
     intros H; dependent induction H; eauto.

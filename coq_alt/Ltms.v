@@ -94,7 +94,7 @@ Inductive expr : Type :=
 | Xnew (e : expr) : expr
 | Xdel (e : expr) : expr
 | Xunpack (γ x : vart) (e0 e1 : expr) : expr
-| Xpack (ℓ : Loc) (e : expr) : expr
+| Xpack (ℓ e : expr) : expr
 | Xpair (e1 e2 : expr) : expr
 | Xunpair (x1 x2 : vart) (e1 e2 : expr) : expr
 | Xreturn (e : expr) : expr
@@ -137,7 +137,8 @@ Inductive evalctx : Type :=
 | Knew (K : evalctx) : evalctx
 | Kdel (K : evalctx) : evalctx
 | Kunpack (γ x : vart) (K : evalctx) (e : expr) : evalctx
-| Kpack (ℓ : Loc) (K : evalctx) : evalctx
+| KpackL (K : evalctx) (e : expr) : evalctx
+| KpackR (ℓ : value) (K : evalctx) : evalctx
 | KpairL (K : evalctx) (e : expr) : evalctx
 | KpairR (v : value) (K : evalctx) : evalctx
 | Kunpair (x1 x2 : vart) (K : evalctx) (e : expr) : evalctx
@@ -301,7 +302,8 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   | Knew K' => Xnew (R K')
   | Kdel K' => Xdel (R K')
   | Kunpack γ x K' e => Xunpack γ x (R K') e
-  | Kpack ℓ K' => Xpack ℓ (R K')
+  | KpackL K' e => Xpack (R K') e
+  | KpackR ℓ K' => Xpack (Xval ℓ) (R K')
   | KpairL K' e => Xpair (R K') e
   | KpairR v K' => Xpair (Xval v) (R K')
   | Kunpair x1 x2 K' e => Xunpair x1 x2 (R K') e
@@ -627,6 +629,7 @@ Record MemState : Type := mkΦ {
 }.
 #[local]
 Instance etaMemState : Settable _ := settable! mkΦ <MH__ctx; MH__comp; MΔ>.
+Definition EmptyΦ : MemState := mkΦ hNil hNil snil.
 Record state : Type := mkΩ {
   SF : CSC.Fresh.fresh_state ;
   SΨ : CfState ;
@@ -826,7 +829,7 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
     | Xreturn e => Xreturn (R e)
     | Xcall foo e => Xcall foo (R e)
     | Xunpack γ x e0 e1 => if vareq what x then Xunpack γ x (R e0) e1 else Xunpack γ x (R e0) (R e1)
-    | Xpack ℓ e => Xpack ℓ (R e)
+    | Xpack ℓ e => Xpack (R ℓ) (R e)
     | Xpair e0 e1 => Xpair (R e0) (R e1)
     | Xunpair x1 x2 e0 e1 => if orb (vareq what x1) (vareq what x2) then
                               Xunpair x1 x2 (R e0) e1
@@ -845,6 +848,8 @@ Inductive pstep : PrimStep rtexpr event :=
 | e_ifz_false : forall (Ω : state) (e1 e2 : expr) (n : nat),
     n <> 0 ->
     Ω ▷ Xifz (Xval n) e1 e2 --[]--> Ω ▷ e2
+| e_pair : forall (Ω : state) (v1 v2 : value),
+    Ω ▷ Xpair (Xval v1) (Xval v2) --[]--> Ω ▷ Xval(Vpair v1 v2)
 | e_abort : forall (Ω : state),
     Ω ▷ Xabort --[ (SCrash) ]--> ↯ ▷ stuck
 | e_let : forall (Ω : state) (x : vart) (v : value) (e e' : expr),
@@ -859,26 +864,31 @@ Inductive pstep : PrimStep rtexpr event :=
     F' = Fresh.advance F ->
     push ℓ (dL(ℓ ; ◻ ; t ; n)) Φ.(MΔ) = Some Δ' ->
     Some Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t ->
-    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F' ; Ψ ; t ; Φ)) ▷ (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
+    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F' ; Ψ ; t ; Φ')) ▷ (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
 | e_delete : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
                (Φ Φ' : MemState) (n : nat) (ℓ : loc) (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ ℓ ↦ (dL(ℓ ; ρ ; t ; n)) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ ℓ ↦ dL(ℓ ; ρ ; t ; n) ◘ Δ2) ->
     Φ' = Φ <| MΔ := Δ1 ◘ ℓ ↦ (dL(ℓ ; ☣ ; t ; n)) ◘ Δ2 |> ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xdel (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))) --[ ev( Sdealloc ℓ ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval 0
 | e_get : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
             (Φ : MemState) (n m ℓ : nat) (v : value)  (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; n) ◘ Δ2) ->
+    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     (mget (getH Φ t) (ℓ + n) = Some(Some v) \/ v = Vnat 1729) ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval v
 | e_set : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
-            (Φ Φ' : MemState) (n m ℓ v : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; n) ◘ Δ2) ->
+            (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore),
+    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     (mset (getH Φ t) (ℓ + n) (Some w) = Some H' \/ H' = getH Φ t) ->
     Φ' = setH Φ t H' ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xset (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) (Xval w) --[ ev( Sset (addr ℓ) n w ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval w
 | e_unpack : forall (Ω : state) (γ x : vart) (ℓ : loc) (v : value) (e e' : expr),
     e' = subst γ (subst x e (Xval v)) (Xval (Vptr ℓ)) ->
     Ω ▷ Xunpack γ x (Xval (Vpack (LConst ℓ) v)) e --[]--> Ω ▷ e'
+| e_pack : forall (Ω : state) (ℓ : loc) (v : value),
+    Ω ▷ Xpack (Xval (Vptr ℓ)) (Xval v) --[]--> Ω ▷ Xval(Vpack (LConst ℓ) v)
 .
 #[global]
 Existing Instance pstep.
@@ -902,9 +912,16 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   None (* TODO *)
 .
 Ltac grab_value e :=
-  (destruct e as [[[[e]|]|]| | | | | | | | | |]; try congruence)
+  let n := fresh "n" in
+  let v0 := fresh "v0" in
+  let v1 := fresh "v1" in
+  let l := fresh "ℓ" in
+  let v := fresh "v" in
+  (destruct e as [[n | v0 v1 | (* Vcap *) | l | l v]| | | | | | | | | | | | | | |]; try congruence)
 .
 Ltac grab_value2 e1 e2 := (grab_value e1; grab_value e2).
+Ltac grab_value3 e1 e2 e3 := (grab_value e1; grab_value e2; grab_value e3).
+Ltac grab_value4 e1 e2 e3 e4 := (grab_value e1; grab_value e2; grab_value e3; grab_value e4).
 
 Lemma Hget_none (H : heap) (n : nat) :
   n >= length H -> mget H n = None.
@@ -1016,13 +1033,16 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
       let* (K, e0') := evalctx_of_expr en0 in
       Some(Kunpack γ x K e1, e0')
     end
-  | Xpack x e =>
-    match e with
-    | Xval(v) =>
-      Some(Khole, Xpack x (Xval v))
-    | _ =>
-      let* (K, e') := evalctx_of_expr e in
-      Some(Kpack x K, e')
+  | Xpack e1 e2 =>
+    match e1, e2 with
+    | Xval(v1), Xval(v2) =>
+      Some(Khole, Xpack (Xval v1) (Xval v2))
+    | Xval(v1), en2 =>
+      let* (K, e2') := evalctx_of_expr en2 in
+      Some(KpackR v1 K, e2')
+    | _, _ =>
+      let* (K, e1') := evalctx_of_expr e1 in
+      Some(KpackL K e2, e1')
     end
   | Xpair e1 e2 =>
     match e1, e2 with
@@ -1066,11 +1086,13 @@ Definition pstep_compatible (e : expr) : option expr :=
   | Xabort => Some (Xabort)
   | Xbinop b (Xval v1) (Xval v2) => Some(Xbinop b (Xval v1) (Xval v2))
   | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
+  | Xpair (Xval v1) (Xval v2) => Some(Xpair (Xval v1) (Xval v2))
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
   | Xnew (Xval v) => Some(Xnew (Xval v))
   | Xdel (Xval v) => Some(Xdel (Xval v))
   | Xget (Xval v0) (Xval v1) (Xval v2) => Some(Xget (Xval v0) (Xval v1) (Xval v2))
   | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
+  | Xpack (Xval v1) (Xval v2) => Some(Xpack (Xval v1) (Xval v2))
   | Xunpack γ x (Xval v) e => Some(Xunpack γ x (Xval v) e)
   | _ => None
   end
@@ -1082,11 +1104,13 @@ Definition pestep_compatible (e : expr) : option expr :=
   | Xabort => Some (Xabort)
   | Xbinop b (Xval v1) (Xval v2) => Some(Xbinop b (Xval v1) (Xval v2))
   | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
+  | Xpair (Xval v1) (Xval v2) => Some(Xpair (Xval v1) (Xval v2))
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
   | Xnew (Xval v) => Some(Xnew (Xval v))
   | Xdel (Xval v) => Some(Xdel (Xval v))
   | Xget (Xval v0) (Xval v1) (Xval v2) => Some(Xget (Xval v0) (Xval v1) (Xval v2))
   | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
+  | Xpack (Xval v1) (Xval v2) => Some(Xpack (Xval v1) (Xval v2))
   | Xunpack γ x (Xval v) e => Some(Xunpack γ x (Xval v) e)
   | Xcall foo (Xval v) => Some(Xcall foo (Xval v))
   | Xreturn (Xval v) => Some(Xreturn (Xval v))
@@ -1195,36 +1219,55 @@ Proof.
       apply neqb_neq in Hx; contradiction.
 Qed.
 
-Inductive estep : CtxStep :=
-| E_ctx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (a : option event) (K : evalctx),
+Inductive estep : EctxStep rtexpr event :=
+| E_ectx : forall (Ω Ω' : state) (e e' e0 e0' : expr) (o : option event) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
     e0 = insert K e ->
     e0' = insert K e' ->
-    Ω ▷ e --[, a ]--> Ω' ▷ e' ->
-    Ω ▷ e0 ==[, a ]==> Ω' ▷ e0'
-| E_abrt_ctx : forall (Ω : state) (e e0 : expr) (K : evalctx),
+    Ω ▷ e --[, o ]--> Ω' ▷ e' ->
+    Ω ▷ e0 ==[, o ]==> Ω' ▷ e0'
+| E_stuck : forall (Ω : state) (e e0 : expr) (K : evalctx),
     (*Some(K,e) = evalctx_of_expr e0 ->*)
     Some e = pstep_compatible e ->
     e0 = insert K e ->
-    Ω ▷ e --[ Scrash ]--> ↯ ▷ stuck ->
-    Ω ▷ e0 ==[ Scrash ]==> ↯ ▷ stuck
-| E_call_main : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (H : heap) (Δ : store)
-                  (e__foo : expr) (x__arg : vart),
-    Some (x__arg, (Tectx(Tarrow Tℕ Tℕ)), e__foo) = mget Ξ "main"%string ->
-    (F ; Ξ ; ξ ; List.nil ; H ; Δ ▷ insert Khole (Xcall "main"%string 0) ==[ Sstart ]==> F ; Ξ ; ξ ; (Khole, "main"%string, Qctxtocomp) :: List.nil ; H ; Δ ▷ Xreturn (subst x__arg e__foo 0))
-| E_call : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H : heap) (Δ : store)
-             (E E__K : evalctx) (e__foo : expr) (τ__foo : Ty) f (x__arg foo foo__K : vart) (q q__K : comms) (a : option event),
-    Some (x__arg, τ__foo, e__foo) = mget Ξ foo ->
-    ρ__call ξ foo foo__K f a q ->
-    (F ; Ξ ; ξ ; (E__K, foo__K, q__K) :: K ; H ; Δ ▷ insert E (Xcall foo f) ==[, a ]==> F ; Ξ ; ξ ; (E, foo, q) :: (E__K, foo__K, q__K) :: K ; H ; Δ ▷ Xreturn (subst x__arg e__foo f))
-| E_ret : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H : heap) (Δ : store)
-            (E E' : evalctx) (foo : vart) (q : comms) f (a : option event),
-    ρ__ret q f a ->
-    K <> List.nil ->
-    (F ; Ξ ; ξ ; (E, foo, q) :: K ; H ; Δ ▷ insert E' (Xreturn f) ==[, a ]==> F ; Ξ ; ξ ; K ; H ; Δ ▷ insert E f)
-| E_ret_end : forall (F : CSC.Fresh.fresh_state) (Ξ : symbols) (ξ : commlib) (K : active_ectx) (H : heap) (Δ : store) f (E : evalctx),
-    (F ; Ξ ; ξ ; (Khole, "main"%string, Qcomptoctx) :: List.nil ; H ; Δ ▷ insert E (Xreturn (Fval f)) ==[ Send f ]==> F ; Ξ ; ξ ; List.nil ; H ; Δ ▷ f)
+    Ω ▷ e --[ SCrash ]--> ↯ ▷ stuck
+| E_start : forall (Ω Ω' : state) (Ξ1 Ξ2 : symbols) (main : symbol) (Ψ' : CfState) (e : expr),
+    Ω.(SΨ).(CKs) = nil ->
+    Ω.(St) = CComp ->
+    Ω.(SΦ) = EmptyΦ ->
+    ((Ω.(SΨ).(CΞ)) = (Ξ1 ◘ "main"%string ↦ main ◘ Ξ2)) ->
+    e = subst (vart_of_symbol main) (expr_of_symbol main) (Xval 0) ->
+    Ψ' = Ω.(SΨ) <| CKs := ((Khole, "main"%string) :: nil)%list |> ->
+    Ω' = Ω <| St := CCtx |> <| SΨ := Ψ' |> ->
+    Ω ▷ Xcall "main"%string (Xval 0) --[ ev(Sstart ; CComp) ]--> Ω' ▷ e
+| E_call : forall (Ω Ω' : state) (Ξ1 Ξ2 : symbols) (foov : vart) (foo : symbol) (Ψ' : CfState)
+             (x : vart) (v : value) (K : evalctx) (e0 e0' : expr) (q : comms),
+    Ω.(SΨ).(CΞ) = (Ξ1 ◘ foov ↦ foo ◘ Ξ2) ->
+    context_switched Ω.(SΨ).(Cξ) foov Ω.(St) q ->
+    e0' = subst (vart_of_symbol foo) (expr_of_symbol foo) (Xval v) ->
+    Ψ' = Ω.(SΨ) <| CKs := ((K, foov) :: Ω.(SΨ).(CKs)) |> ->
+    Ω' = Ω <| St := neg_controltag Ω.(St) |> <| SΨ := Ψ' |> ->
+    e0 = insert K (Xcall foov (Xval v)) ->
+    Ω ▷ e0 ==[ ev(Scall q foov v ; Ω.(St)) ]==> Ω' ▷ e0'
+| E_ret : forall (Ω Ω' : state) (foov : vart) (K K__foo : evalctx) (Ψ' : CfState)
+            (e0 e0' : expr) (v : value) (q : comms) (Ks : active_ectx),
+    context_switched Ω.(SΨ).(Cξ) foov Ω.(St) q ->
+    Ω.(SΨ).(CKs) = ((K__foo, foov) :: Ks)%list ->
+    Ks <> nil -> (* <- prevent E_end from firing *)
+    Ψ' = Ω.(SΨ) <| CKs := Ks |> ->
+    Ω' = Ω <| St := neg_controltag Ω.(St) |> <| SΨ := Ψ' |> ->
+    e0 = insert K (Xreturn (Xval v)) ->
+    e0' = insert K__foo (Xval v) ->
+    Ω ▷ e0 ==[ ev(Sret q v ; Ω.(St)) ]==> Ω' ▷ e0'
+| E_end : forall (Ω Ω' : state) (K : evalctx) (Ψ' : CfState)
+            (e0 : expr) (v : value),
+    Ω.(SΨ).(CKs) = ((Khole, "main"%string) :: nil)%list ->
+    Ω.(St) = CCtx ->
+    Ψ' = Ω.(SΨ) <| CKs := nil |> ->
+    Ω' = Ω <| St := CComp |> <| SΨ := Ψ' |> ->
+    e0 = insert K (Xreturn (Xval v)) ->
+    Ω ▷ e0 ==[ ev(Send v ; CCtx) ]==> Ω' ▷ (Xval v)
 .
 #[global]
 Existing Instance estep.
@@ -1237,85 +1280,14 @@ Lemma estep_is_nodupinv_invariant Ω e Ω' e' a :
   nodupinv Ω'
 .
 Proof.
-  assert (Some Ω = let (oΩ, e) := Ω ▷ e in oΩ) by easy;
-  assert (Some Ω' = let (oΩ', e') := Ω' ▷ e' in oΩ') by easy;
-  induction 1; try (inv H; inv H0; easy);
-  inv H; inv H0; intros H0; apply pstep_is_nodupinv_invariant in H4; eauto.
+  remember (Ω ▷ e) as r0; remember (Ω' ▷ e') as r1.
+  induction 1; inv Heqr0; inv Heqr1; try easy.
+  intros H0; apply pstep_is_nodupinv_invariant in H2; eauto.
 Qed.
 Local Set Warnings "-cast-in-pattern".
-Ltac crush_estep := (match goal with
-                     | [H: _ ▷ (Xres ?f) ==[ ?a ]==> ?r |- _] =>
-                       inv H
-                     | [H: _ ▷ (Xres ?f) ==[]==> ?r |- _] =>
-                       inv H
-                     | [H: _ ▷ (Xres ?f) ==[, ?a ]==> ?r |- _] =>
-                       inv H
-                     end);
-  (repeat match goal with
-   | [H: insert ?E (Xreturn (Xres(Fres ?f0))) = Xres ?f |- _] => induction E; try congruence; inv H
-   | [H: insert ?E (Xcall ?foo (Xres(Fres ?f0))) = Xres ?f |- _] => induction E; try congruence; inv H
-   | [H: Xres ?f = insert ?K ?e |- _] =>
-     induction K; cbn in H; try congruence; inv H
-   | [H: _ ▷ (Xres ?f) --[]--> ?r |- _] =>
-     inv H
-   | [H: _ ▷ (Xres ?f) --[, ?a ]--> ?r |- _] =>
-     inv H
-   | [H: _ ▷ (Xres ?f) --[ ?a ]--> ?r |- _] =>
-     inv H
-   end)
-.
-Ltac unfold_estep := (match goal with
-                      | [H: _ ▷ _ ==[ _ ]==> _ ▷ _ |- _ ] => inv H
-                      end);
-  (match goal with
-   | [H: _ = insert ?K _ |- _] =>
-     induction K; cbn in H; try congruence; inv H
-   end).
 
 Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
-  let '(oΩ, e) := r in
-  let* Ω := oΩ in
-  let* (K, e0) := evalctx_of_expr e in
-  match e0 with
-  | Xcall foo (Xres(Fres f)) =>
-    let '(F, Ξ, ξ, Ks', H, Δ) := Ω in
-    match mget Ξ foo with
-    | None => None
-    | Some (argx, τ__arg, e__foo) =>
-      match Ks' with
-      | List.nil =>
-        if vareq foo "main"%string then
-          Some(Some Sstart, (F ; Ξ ; ξ ; (Khole, "main"%string, Qctxtocomp) :: List.nil ; H ; Δ ▷ (Xreturn (subst argx e__foo 0))))
-        else
-          None
-      | (K__bar, bar, q) :: Ks =>
-        match ρf__call ξ foo bar f with
-        | (a, q') =>
-          Some(a, (F ; Ξ ; ξ ; ((K, foo, q') :: (K__bar, bar, q) :: Ks) ; H ; Δ ▷ (Xreturn (subst argx e__foo f))))
-        end
-      end
-    end
-  | Xreturn(Xres(Fres f)) =>
-    let '(F, Ξ, ξ, Ks', H, Δ) := Ω in
-    match Ks' with
-    | nil => None
-    | (Khole, "main"%string, Qctxtocomp) :: List.nil =>
-      match f with
-      | Fval(v) => Some(Some(Send v), F ; Ξ ; ξ ; List.nil ; H ; Δ ▷ f)
-      | _ => None
-      end
-    | (K__foo, _foo, q) :: Ks =>
-      let a := ρf__ret q f in
-      Some(a, F ; Ξ ; ξ ; Ks ; H ; Δ ▷ insert K__foo f)
-    end
-  | _ =>
-    let* _ := pstep_compatible e0 in
-    let* (a, (oΩ, e0')) := pstepf (Ω ▷ e0) in
-    match oΩ with
-    | None => Some(Some(Scrash), ↯ ▷ stuck)
-    | Some Ω' => Some(a, Ω' ▷ insert K e0')
-    end
-  end
+  None
 .
 
 Ltac crush_insert :=
@@ -1331,104 +1303,31 @@ Ltac crush_insert :=
 .
 
 Inductive is_val : expr -> Prop :=
-| Cfres : forall e f, e = Xres(Fres(Fval(Vnat f))) -> is_val e
+| Cval : forall (e : expr) (v : value), e = Xval v -> is_val e
 .
-
+Inductive rtexpr_is_val : rtexpr -> Prop :=
+| CRTval : forall (Ω : state) (e : expr) (v : value), e = Xval v -> rtexpr_is_val (Ω ▷ e)
+| CRTfail : rtexpr_is_val (↯ ▷ stuck) (* this will let star_step terminate with a crash *)
+.
 Lemma expr_val_dec e :
   { is_val e } + { ~is_val e }.
 Proof.
   induction e.
-  1: destruct f. destruct f. destruct v. left; eauto using Cfres.
+  1: destruct v; left; eauto using Cval.
   all: right; intros H; inv H; inv H0.
 Qed.
-#[local]
-Ltac crush_grab_ectx :=
-      (repeat match goal with
-      | [H: Some(Xres ?f) = pestep_compatible(Xres ?f) |- _] => inv H
-      | [H: Some(?e) = pestep_compatible ?e |- _] => cbn in H
-      | [H: Some(_) = match ?e with
-                      | Xres _ => _
-                      | _ => _
-                      end |- _] => grab_value e
-      | [H: Some _ = None |- _] => inv H
-      end; try now cbn;
-      match goal with
-      | [v : value |- _] => destruct v
-      | [ |- _ ] => trivial
-      end;
-      cbn; repeat match goal with
-           | [H1: _ = insert _ _ |- _] => cbn in H1
-           | [H: Some ?e0 = pestep_compatible ?e0 |- match insert ?K ?e0 with
-                                                   | Xres _ => _
-                                                   | _ => _
-                                                   end = _] => let ek := fresh "ek" in
-                                                              let H2 := fresh "H2" in
-                                                              remember (insert K e0) as ek;
-                                                              destruct (expr_val_dec ek) as [H2|H2];
-                                                              try (inv H2; crush_insert; match goal with
-                                                              | [H: Some ?f = pestep_compatible ?f, f: nat |- _] => inv H
-                                                              end)
-           | [H: Some(?e0) = pestep_compatible ?e0,
-             H1: _ = insert _ _ |- _] => cbn in H
-           end;
-      match goal with
-      | [K: evalctx, e0: expr, ek: expr,
-         H: Some ?e0 = pestep_compatible ?e0,
-         Heqek: ?ek = insert ?K ?e0,
-         IHe: (forall (K' : evalctx) (e0' : expr), Some e0' = pestep_compatible e0' ->
-                                              ?ek = insert K' e0' ->
-                                              evalctx_of_expr ?ek = Some(K', e0'))
-         |- _] =>
-         specialize (IHe K e0 H Heqek) as ->
-      end;
-      repeat match goal with
-      | [H: ~ is_val ?ek |- match ?ek with
-                           | Xres _ => _
-                           | _ => _
-                           end = _] => destruct ek; trivial
-      | [H: ~ is_val (Xres ?f) |- match ?f with
-                          | Fres _ => _
-                          | _ => _
-                          end = _] => destruct f; trivial
-      | [H: ~ is_val (Xres(Fres ?f)) |- match ?f with
-                          | Fval _ => _
-                          | _ => _
-                          end = _] => destruct f; trivial
-      | [H: ~ is_val (Xres(Fres(Fval ?v))) |- _ ] => destruct v; destruct H; eauto using Cfres
-      end).
 Lemma grab_ectx e K e0 :
   Some e0 = pestep_compatible e0 ->
   e = insert K e0 ->
   evalctx_of_expr e = Some(K, e0)
 .
 Proof.
-  revert K e0; induction e; intros; crush_insert; crush_grab_ectx.
-  cbn. remember (insert K e0) as ek.
-  destruct (expr_val_dec ek) as [H2|H2];
-  try (inv H2; crush_insert; inv H).
-  specialize (IHe1 K e0 H Heqek) as ->.
-  destruct ek; trivial. destruct f; trivial.
-  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
-
-  cbn; remember (insert K e0) as ek.
-  destruct (expr_val_dec ek) as [H2|H2];
-  try (inv H2; crush_insert; inv H).
-  specialize (IHe K e0 H Heqek) as ->;
-  destruct ek; trivial.
-  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
-
-  cbn; remember (insert K e0) as ek.
-  destruct (expr_val_dec ek) as [H2|H2];
-  try (inv H2; crush_insert; inv H).
-  specialize (IHe K e0 H Heqek) as ->;
-  destruct ek; trivial.
-  induction K; cbn in Heqek; try congruence; inv Heqek; inv H.
-Qed.
+Admitted.
 
 Lemma easy_ectx e0 :
   Some e0 = pestep_compatible e0 ->
   evalctx_of_expr e0 = Some(Khole, e0).
-Proof. induction e0; cbn in *; intros H; crush_grab_ectx. Qed.
+Proof. Admitted.
 
 Lemma injective_ectx e0 K e e' :
   Some e0 = pestep_compatible e0 ->
@@ -1451,11 +1350,16 @@ Lemma pstep_compatible_some e e' :
 Proof.
   revert e'; induction e; intros; cbn in H; try congruence.
   - (* binop *) grab_value2 e1 e2.
-  - (* get *) grab_value e.
-  - (* set *) grab_value2 e1 e2.
+  - (* get *) grab_value3 e1 e2 e3.
+  - (* set *) grab_value4 e1 e2 e3 e4.
   - (* let *) grab_value e1.
-  - (* new *) grab_value e1.
-  - (* ifz *) grab_value e1; destruct e1; now inv H.
+  - (* new *) grab_value e.
+  - (* del *) grab_value e.
+  - (* unpack *) grab_value e1.
+  - (* pack *) grab_value2 e1 e2.
+  - (* pair *) grab_value2 e1 e2.
+  - (* unpair *) grab_value e1.
+  - (* ifz *) grab_value e1.
 Qed.
 
 Lemma pestep_compatible_some e e' :
@@ -1463,111 +1367,29 @@ Lemma pestep_compatible_some e e' :
 Proof.
   revert e'; induction e; intros; cbn in H; try congruence.
   - (* binop *) grab_value2 e1 e2.
-  - (* get *) grab_value e.
-  - (* set *) grab_value2 e1 e2.
+  - (* get *) grab_value3 e1 e2 e3.
+  - (* set *) grab_value4 e1 e2 e3 e4.
   - (* let *) grab_value e1.
-  - (* new *) grab_value e1.
-  - (* ret *) grab_value e.
+  - (* new *) grab_value e.
+  - (* del *) grab_value e.
+  - (* unpack *) grab_value e1.
+  - (* pack *) grab_value2 e1 e2.
+  - (* pair *) grab_value2 e1 e2.
+  - (* unpair *) grab_value e1.
+  - (* return *) grab_value e.
   - (* call *) grab_value e.
-  - (* ifz *) grab_value e1; destruct e1; now inv H.
+  - (* ifz *) grab_value e1.
 Qed.
-Lemma elim_ectx_ret K (f : fnoerr) :
-  evalctx_of_expr (insert K (Xreturn f)) = Some(K, Xreturn f).
-Proof. remember (insert K (Xreturn f)); eapply grab_ectx in Heqe; eauto. Qed.
-Lemma elim_ectx_call K foo (f : fnoerr) :
-  evalctx_of_expr (insert K (Xcall foo f)) = Some(K, Xcall foo f).
-Proof. remember (insert K (Xcall foo f)); eapply grab_ectx in Heqe; eauto. Qed.
+Lemma elim_ectx_ret K (v : value) :
+  evalctx_of_expr (insert K (Xreturn (Xval v))) = Some(K, Xreturn (Xval v)).
+Proof. remember (insert K (Xreturn (Xval v))); eapply grab_ectx in Heqe; eauto. Qed.
+Lemma elim_ectx_call K foo (v : value) :
+  evalctx_of_expr (insert K (Xcall foo (Xval v))) = Some(K, Xcall foo (Xval v)).
+Proof. remember (insert K (Xcall foo (Xval v))); eapply grab_ectx in Heqe; eauto. Qed.
 
 Lemma equiv_estep r0 a r1 :
   r0 ==[, a ]==> r1 <-> estepf r0 = Some(a, r1).
 Proof.
-  (* FIXME: This proof is broken *)
-  (*
-  split.
-  - induction 1.
-    + (* ret *)
-      unfold estepf.
-      rewrite (get_rid_of_letstar (F, Ξ, E__foo :: ξ, H, Δ)).
-      rewrite elim_ectx_ret.
-      now rewrite (get_rid_of_letstar (E, Xreturn f)).
-    + (* call *)
-      unfold estepf.
-      rewrite (get_rid_of_letstar (F, Ξ, ξ, H, Δ)).
-      rewrite elim_ectx_call.
-      rewrite (get_rid_of_letstar (E, Xcall foo f)).
-      change ((fun o => (
-        match o with
-        | Some (argx0, _, e__foo0) =>
-            Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx0 e__foo0 f)))
-        | None => None
-        end = Some (Some (Scall foo f), (Some (F, Ξ, E :: ξ, H, Δ), Xreturn (subst argx e__foo f)))
-      )) (mget Ξ foo)).
-      now rewrite <- H0.
-    + (* normal step *) assert (H':=H); eapply pstep_compat_weaken in H.
-      apply (@grab_ectx e0 K e H) in H0 as H0';
-      unfold estepf; rewrite H0'; rewrite equiv_pstep in H2;
-      rewrite (get_rid_of_letstar Ω). rewrite (get_rid_of_letstar (K, e)).
-      inv H'. rewrite (get_rid_of_letstar e);
-      rewrite H2; rewrite (get_rid_of_letstar (a, (Some Ω', e')));
-      destruct e; trivial; inv H4.
-    + (* crash *) assert (H':=H); eapply pstep_compat_weaken in H.
-      apply (@grab_ectx e0 K e H) in H0 as H0'.
-      unfold estepf; rewrite H0'; rewrite equiv_pstep in H1;
-      rewrite (get_rid_of_letstar Ω). rewrite (get_rid_of_letstar (K, e)).
-      inv H'. rewrite (get_rid_of_letstar e);
-      rewrite H1; destruct e; trivial; inv H3.
-  - destruct r0 as [Ω e], r1 as [Ω' e'].
-    intros H; unfold estepf in H.
-    destruct Ω as [Ω|].
-    destruct (option_dec (evalctx_of_expr e)) as [Hx0 | Hy0]; try rewrite Hy0 in H.
-    2,3: inv H.
-    rewrite (get_rid_of_letstar Ω) in H.
-    apply not_eq_None_Some in Hx0 as [[K e0] Hx0].
-    rewrite Hx0 in H.
-    rewrite (get_rid_of_letstar (K, e0)) in H.
-    destruct (option_dec (pstep_compatible e0)) as [Hx1 | Hy1]; try rewrite Hy1 in H.
-    + apply not_eq_None_Some in Hx1 as [e0p Hx1].
-      rewrite Hx1 in H.
-      rewrite (get_rid_of_letstar e0p) in H.
-      destruct (option_dec (pstepf (Some Ω, e0))) as [Hx|Hy].
-      -- apply (not_eq_None_Some) in Hx as [[ap [oΩ' oe0']] Hx].
-         rewrite Hx in H.
-         rewrite (get_rid_of_letstar (ap, (oΩ', oe0'))) in H.
-         destruct oΩ' as [oΩ'|].
-         * apply pstep_compatible_some in Hx1 as Hx1'; subst.
-           destruct (e0p); try inversion Hx1;
-           assert (H':=H); inv H; eapply E_ctx; eauto using ungrab_ectx;
-           apply equiv_pstep; try eapply Hx.
-         * apply pstep_compatible_some in Hx1 as Hx1'; subst.
-           destruct e0p; try inversion Hx1; inv H;
-           eapply E_abrt_ctx; eauto using ungrab_ectx;
-           apply equiv_pstep in Hx; inv Hx; try apply e_abort.
-      -- rewrite Hy in H; inv H.
-         destruct e0; try congruence; inv Hx1.
-    + destruct e0; try congruence; inv Hy1; inv H.
-      * (* ret *)
-        grab_value e0.
-        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
-           inv H1;
-           eapply ungrab_ectx in Hx0; subst; eauto using E_return.
-        -- destruct Ω as [[[[F Ξ] [|K__foo ξ]] H] Δ]; try congruence.
-           inv H1;
-           eapply ungrab_ectx in Hx0; subst; eauto using E_return.
-      * (* call *)
-        grab_value e0.
-        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
-           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-          apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
-           rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; try rewrite Hx0; eauto.
-           eapply E_call; symmetry; eassumption.
-        -- destruct Ω as [[[[F Ξ] ξ] H] Δ].
-           destruct (option_dec (mget Ξ foo)) as [Hx|Hy]; try (rewrite Hy in H1; congruence).
-           apply (not_eq_None_Some) in Hx as [[[x__arg τ__int] e__foo] Hx].
-           rewrite Hx in H1. inv H1.
-           eapply ungrab_ectx in Hx0; subst; eauto.
-           eapply E_call; symmetry; eassumption.
-  *)
 Admitted.
 
 Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :
@@ -1576,6 +1398,211 @@ Lemma estepf_is_nodupinv_invariant Ω e Ω' e' a :
   nodupinv Ω'
 .
 Proof. intros H0 H1; apply equiv_estep in H0; apply estep_is_nodupinv_invariant in H0; eauto. Qed.
+
+#[local]
+Instance TMS__TraceParams : TraceParams := {
+  Ev := event ;
+  string_of_event := string_of_event;
+}.
+#[local]
+Instance TMS__LangParams : LangParams := {
+  State := rtexpr ;
+  Trace__Instance := TMS__TraceParams ;
+  step := estep ;
+  is_value := rtexpr_is_val ;
+}.
+Import LangNotations.
+Open Scope LangNotationsScope.
+
+(* Allocate an array of size 5. *)
+Example binop57 :=
+  Xreturn (
+    Xunpack "ℓ"%string "p"%string
+      (Xnew (Xval 5))
+      (Xunpair "cap"%string "ptr"%string
+          (Xvar "p"%string)
+          (Xlet "y"%string
+            (Xlet dontcare (Xset (Xvar "cap"%string)
+                              (Xvar "ptr"%string)
+                              (Xval 2)
+                              (Xval 42)
+                            )
+                  (Xget (Xvar "cap"%string)
+                        (Xvar "ptr"%string)
+                        (Xval 2)
+                  )
+            )
+            (Xbinop Badd (Xdel (Xpack (Xvar "ℓ"%string) (Xpair (Xvar "cap"%string)
+                                                               (Xvar "ptr"%string))
+                               )
+                         )
+                         (Xbinop Badd (Xvar "y"%string) (Xval 27))
+            )
+          )
+      )
+  )
+.
+Example Ξ__ctx : symbols := ("main"%string ↦ ("x"%string, Tfun Tℕ Tℕ, binop57) ◘ (mapNil _ _)).
+Example Ξ__comp : symbols := mapNil _ _.
+Example ξ : commlib := nil.
+
+Goal exists r As, Ω(Fresh.empty_fresh ; Ξ__ctx ; ξ ; nil ; CComp ; hNil ; hNil ; snil) ▷ (Xcall "main"%string (Xval 0)) ==[ As ]==>* r.
+Proof.
+  eexists; exists (ev(Sstart ; CComp) ::
+              ev(Salloc (addr 0) 5 ; CCtx) ::
+              ev(Sset (addr 0) 2 42 ; CCtx) ::
+              ev(Sget (addr 0) 2 ; CCtx) ::
+              ev(Sdealloc (addr 0) ; CCtx) ::
+              ev(Send 69 ; CCtx) :: nil)%list.
+  eapply @ES_trans_important.
+  eapply E_start; try easy.
+  instantiate (1:=mapNil _ _). instantiate (2:=mapNil _ _). cbn. reflexivity.
+  unfold binop57; cbn.
+
+  (* Do the alloc *)
+  eapply @ES_trans_important.
+  remember
+       (Xunpair "cap"%string "ptr"%string (Xvar "p"%string)
+          (Xlet "y"%string
+             (Xlet dontcare
+                (Xset (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2) (Xval 42))
+                (Xget (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2)))
+             (Xbinop Badd
+                (Xdel
+                   (Xpack (Xvar "ℓ"%string)
+                      (Xpair (Xvar "cap"%string) (Xvar "ptr"%string))))
+                (Xbinop Badd (Xvar "y"%string) (Xval 27))))) as e__unpack.
+  remember (Kreturn (Kunpack "ℓ"%string "p"%string Khole e__unpack)) as K__unpack.
+  eapply E_ectx with (K:=K__unpack).
+  instantiate (1:=Xnew (Xval 5)). now cbn.
+  rewrite HeqK__unpack. now cbn.
+  2: eapply e_alloc; try easy. rewrite HeqK__unpack. cbn.
+  now rewrite Heqe__unpack.
+
+  (* Do the unpack *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn Khole).
+  instantiate (1:=
+   (Xunpack "ℓ"%string "p"%string
+      (Xval (Vpack (LConst (addr 0)) (Vpair Vcap (Vptr (addr 0)))))
+      (Xunpair "cap"%string "ptr"%string (Xvar "p"%string)
+         (Xlet "y"%string
+            (Xlet dontcare
+               (Xset (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2) (Xval 42))
+               (Xget (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2)))
+            (Xbinop Badd
+               (Xdel
+                  (Xpack (Xvar "ℓ"%string)
+                     (Xpair (Xvar "cap"%string) (Xvar "ptr"%string))))
+               (Xbinop Badd (Xvar "y"%string) (Xval 27))))))).
+  now cbn. now cbn.
+  2: eapply e_unpack; try easy. now cbn.
+
+  (* Do the unpair *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn Khole).
+  instantiate (1:=
+   (Xunpair "cap"%string "ptr"%string (Xval (Vpair Vcap (Vptr (addr 0))))
+      (Xlet "y"%string
+         (Xlet dontcare
+            (Xset (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2) (Xval 42))
+            (Xget (Xvar "cap"%string) (Xvar "ptr"%string) (Xval 2)))
+         (Xbinop Badd
+            (Xdel
+               (Xpack (Xval (Vptr(addr 0)))
+                  (Xpair (Xvar "cap"%string) (Xvar "ptr"%string))))
+            (Xbinop Badd (Xvar "y"%string) (Xval 27)))))).
+  now cbn. now cbn.
+  2: eapply e_unpair; now cbn. now cbn.
+
+  (* Do the set *)
+  eapply @ES_trans_important.
+  remember
+          (Xbinop Badd
+             (Xdel
+                (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0))))))
+             (Xbinop Badd (Xvar "y"%string) (Xval 27))) as e__set.
+  eapply E_ectx with (K:=Kreturn(Klet "y"%string (Klet dontcare Khole (Xget (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2))) e__set)).
+  instantiate (1:=Xset (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2) (Xval 42)).
+  now cbn. rewrite Heqe__set; now cbn.
+  rewrite Heqe__set; now cbn.
+  rewrite Heqe__set; eapply e_set; try easy.
+  2: cbn; instantiate (1:=snil); instantiate (3:=snil); now cbn.
+  cbn; repeat constructor; easy.
+  left; now cbn.
+  cbn.
+
+  (* Do the let *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn(Klet "y"%string Khole (Xbinop Badd (Xdel (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0)))))) (Xbinop Badd (Xvar "y"%string) (Xval 27))))).
+  instantiate (1:=Xlet dontcare (Xval 42) (Xget (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2))).
+  now cbn. now cbn. now cbn.
+  eapply e_let; try easy.
+  cbn.
+
+  (* Do the get *)
+  eapply @ES_trans_important.
+  eapply E_ectx with (K:=Kreturn(Klet "y"%string Khole (Xbinop Badd (Xdel (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0)))))) (Xbinop Badd (Xvar "y"%string) (Xval 27))))).
+  instantiate (1:=Xget (Xval Vcap) (Xval (Vptr (addr 0))) (Xval 2)).
+  now cbn. now cbn. now cbn.
+  eapply e_get; try easy.
+  2: cbn; instantiate (1:=snil); instantiate (3:=snil); now cbn.
+  cbn; repeat constructor; easy.
+  left; now cbn.
+
+  (* Do the let *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn Khole).
+  instantiate (1:=Xlet "y"%string (Xval 42) (Xbinop Badd (Xdel (Xpack (Xval(Vptr(addr 0))) (Xpair (Xval Vcap) (Xval (Vptr (addr 0)))))) (Xbinop Badd (Xvar "y"%string) (Xval 27)))).
+  now cbn. now cbn. now cbn.
+  eapply e_let; easy.
+  cbn.
+
+  (* Do the pair *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn(KbinopL Badd (Kdel(KpackR (Vptr (addr 0)) Khole)) (Xbinop Badd (Xval 42) (Xval 27)))).
+  instantiate (1:=(Xpair (Xval Vcap) (Xval (Vptr (addr 0))))).
+  now cbn. now cbn. now cbn.
+  eapply e_pair.
+
+  (* Do the pack *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn(KbinopL Badd (Kdel Khole) (Xbinop Badd (Xval 42) (Xval 27)))).
+  instantiate (1:=Xpack (Xval(Vptr(addr 0))) (Xval(Vpair Vcap (Vptr(addr 0))))).
+  now cbn. now cbn. now cbn.
+  eapply e_pack.
+
+  (* Do the dealloc *)
+  eapply @ES_trans_important.
+  eapply E_ectx with (K:=Kreturn(KbinopL Badd (Khole) (Xbinop Badd (Xval 42) (Xval 27)))).
+  instantiate (1:=Xdel(Xval(Vpack (LConst (addr 0)) (Vpair Vcap (Vptr (addr 0)))))).
+  now cbn. now cbn. now cbn.
+  eapply e_delete.
+  2: instantiate (1:=snil); instantiate (3:=snil); cbn; reflexivity.
+  cbn; repeat constructor; easy.
+  easy.
+
+  (* Do the binop *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn(KbinopR Badd 0 (Khole))).
+  instantiate (1:=Xbinop Badd (Xval 42) (Xval 27)).
+  now cbn. now cbn. now cbn.
+  eapply e_binop. now cbn.
+
+  (* Do the binop *)
+  eapply @ES_trans_unimportant.
+  eapply E_ectx with (K:=Kreturn(Khole)).
+  instantiate (1:=Xbinop Badd (Xval 0) (Xval 69)).
+  now cbn. now cbn. now cbn.
+  eapply e_binop. now cbn.
+
+  eapply @ES_trans_important.
+  eapply E_end; try easy.
+  instantiate (1:=Khole). now cbn.
+
+  eapply @ES_refl.
+  eapply CRTval. reflexivity.
+Qed.
 
 (** Context splitting *)
 Reserved Notation "Γ '≡' Γ1 '∘' Γ2 '⊣' e" (at level 81, Γ1 at next level, Γ2 at next level, e at next level).

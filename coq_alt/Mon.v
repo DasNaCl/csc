@@ -584,6 +584,13 @@ Proof.
   - specialize (H0 l0 n0 m t t' σ σ'). eapply H0. right; split; destruct Hb as [Ha Hb].
     inv Ha. inv H. exists n1; easy. apply List.in_cons. eassumption.
 Qed.
+Lemma smsmon_must_step_once (S0 S2 : SMSMon.AbsState) a (As : SMSMon.tracepref) :
+  @star_step SMSMon.MonInstance S0 (a :: As)%list S2 ->
+  exists S1, @step SMSMon.MonInstance S0 (Some a) S1 /\ star_step S1 As S2
+.
+Proof.
+  intros H; dependent induction H; eauto. inv H; eauto.
+Qed.
 Lemma SMSMon_is_gSMS As T0 As0 :
   SMSMon.gsat (List.app As0 As) T0 ->
   gsms T0 (List.app As0 As)
@@ -597,7 +604,7 @@ Proof.
     inv H; (eapply dealloc_gsms || eapply branch_gsms || eapply binop_gsms); change (gsms T0 (nil ++ As1))%list; eauto.
   - (* Useful events *)
     inv H; eauto;
-    eapply @must_step_once in H1 as [T1 [H1 H2]]; deex.
+    eapply smsmon_must_step_once in H1 as [T1 [H1 H2]]; deex.
     3: (eapply aborted_gsms; change (gsms T0 (nil ++ As1))%list; eapply IHcong; trivial;
     eapply SMSMon_step_aborted in H1 as H1'; now subst).
     eapply SMSMon_step_alloc; eauto; change (gsms T1 (nil ++ As1))%list; eauto.
@@ -745,8 +752,9 @@ Lemma MSMon_steps_split_nil (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState
 Proof.
   intros H; dependent induction H.
   split; repeat constructor.
-  assert ((T1, T2) ~= (T1, T2) /\ ((nil : list MSMon.AbsEv) ~= nil) /\ (T1', T2') ~= (T1', T2')) as [H__a [H__b H__c]] by repeat split;
-  specialize (IHstar_step T1 T1' T2 T2' H__a H__b H__c).
+  destruct r2 as [T1'' T2''].
+  assert ((T1'', T2'') ~= (T1'', T2'') /\ ((nil : list MSMon.AbsEv) ~= (nil : list MSMon.AbsEv)) /\ (T1', T2') ~= (T1', T2')) as [H__a [H__b H__c]] by repeat split.
+  specialize (IHstar_step T1'' T1' T2'' T2' H__a H__b H__c).
   split; inv H.
 Qed.
 Lemma TMSMon_step_none_eq (T1 T1' : TMSMon.AbsState) :
@@ -791,7 +799,7 @@ Lemma MSMon_steps_split_cons_nil (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.Abs
 Proof.
   intros H; dependent induction H.
   destruct r2; apply MSMon_steps_nil_eq in H0 as [H0a H0b]; subst.
-  inv H; split; assumption. apply MSMon_step_none_eq in H as [Ha Hb]; subst.
+  inv H; split; assumption. destruct r2. apply MSMon_step_none_eq in H as [Ha Hb]; subst.
   now eapply IHstar_step.
 Qed.
 Lemma MSMon_steps_split_cons (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) a1 a2 As :
@@ -803,7 +811,7 @@ Lemma MSMon_steps_split_cons (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsStat
 Proof.
   intros H; dependent induction H.
   destruct r2 as [T1'' T2'']; inv H; eauto.
-  eapply MSMon_step_none_eq in H as [H__a H__b]; subst.
+  destruct r2; eapply MSMon_step_none_eq in H as [H__a H__b]; subst.
   now eapply IHstar_step.
 Qed.
 Lemma MSMon_cong_split (As : tracepref) (As__TMS : TMSMon.tracepref) (As__SMS : SMSMon.tracepref) xs :
@@ -943,7 +951,7 @@ Lemma MSMon_steps_split' (T__TMS T1' : TMSMon.AbsState) (T__SMS T2' : SMSMon.Abs
 .
 Proof.
   intros H0 H; revert As' Bs' H; dependent induction H0; intros.
-  - split; constructor. 1,3: constructor. all: symmetry in H0; apply zip_empty in H0 as [H0a H0b]; subst; repeat constructor.
+  - split; econstructor. 1,3: constructor. all: symmetry in H0; apply zip_empty in H0 as [H0a H0b]; subst; repeat constructor.
   - destruct a as [o__TMS o__SMS]; destruct r2 as [T__TMS' T__SMS'].
     inv H.
     assert ((T__TMS', T__SMS') ~= (T__TMS', T__SMS') /\ (T1', T2') ~= (T1', T2')) as [Ha Hb] by repeat split.

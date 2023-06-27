@@ -3,15 +3,15 @@ Require Import Strings.String CSC.Util.
 
 (** * This file defines the trace properties of the paper. *)
 
-Variant ControlTag : Type :=
+Inductive ControlTag : Type :=
 | CCtx
 | CComp
 .
-Variant SecurityTag : Type :=
+Inductive SecurityTag : Type :=
 | SLock
 | SUnlock
 .
-Variant PreEvent : Type :=
+Inductive PreEvent : Type :=
 | Alloc (l : loc) (n : nat)
 | Use (l : loc) (n : nat)
 | Dealloc (l : loc)

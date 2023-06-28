@@ -120,6 +120,14 @@ Module TMSMonAux <: MonitorT.
     alloced := List.nil ;
     freed := List.nil ;
   |}.
+  Definition append (T__TMS T__TMS' : AbsState) := {|
+    alloced := List.app T__TMS.(alloced) T__TMS'.(alloced) ;
+    freed := List.app T__TMS.(freed) T__TMS'.(freed)
+  |}.
+  Definition singleton (ℓ : loc) := {|
+    alloced := List.cons ℓ nil ;
+    freed := nil
+  |}.
   Variant AbsEv_d : Type :=
   | AAbort
   | AAlloc (l : loc)

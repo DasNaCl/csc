@@ -91,7 +91,7 @@ Inductive expr : Type :=
 | Xget (e0 e1 e2 : expr) : expr
 | Xset (e0 e1 e2 e3 : expr) : expr
 | Xlet (x : vart) (e0 e1 : expr) : expr
-| Xnew (e : expr) : expr
+| Xnew (e__object e__count : expr) : expr
 | Xdel (e : expr) : expr
 | Xunpack (γ x : vart) (e0 e1 : expr) : expr
 | Xpack (ℓ e : expr) : expr
@@ -109,7 +109,7 @@ Definition exprmap (h : expr -> expr) (e : expr) :=
   | Xget e0 e1 e2 => Xget (h e0) (h e1) (h e2)
   | Xset e0 e1 e2 e3 => Xset (h e0) (h e1) (h e2) (h e3)
   | Xlet x e0 e1 => Xlet x (h e0) (h e1)
-  | Xnew e => Xnew (h e)
+  | Xnew e1 e2 => Xnew (h e1) (h e2)
   | Xdel e => Xdel (h e)
   | Xunpack x ℓ e0 e1 => Xunpack x ℓ (h e0) (h e1)
   | Xpack ℓ e => Xpack ℓ (h e)
@@ -134,7 +134,8 @@ Inductive evalctx : Type :=
 | KsetM1 (v0 v1 : value) (K : evalctx) (e : expr) : evalctx
 | KsetR (v0 v1 v2 : value) (K : evalctx) : evalctx
 | Klet (x : vart) (K : evalctx) (e : expr) : evalctx
-| Knew (K : evalctx) : evalctx
+| KnewL (K : evalctx) (e : expr) : evalctx
+| KnewR (v : value) (K : evalctx) : evalctx
 | Kdel (K : evalctx) : evalctx
 | Kunpack (γ x : vart) (K : evalctx) (e : expr) : evalctx
 | KpackL (K : evalctx) (e : expr) : evalctx
@@ -200,6 +201,7 @@ Inductive ty : Type :=
 | Tret : pre_ty -> ty
 | Tfun : pre_ty -> pre_ty -> ty
 .
+Coercion Tpre : pre_ty >-> ty.
 Definition ty_eqb (t1 t2 : ty) : bool :=
   match t1, t2 with
   | Tpre t1, Tpre t2 => (t1 == t2)
@@ -221,48 +223,6 @@ Instance tyeq__Instance : HasEquality ty := {
 }.
 #[local]
 Existing Instance varteq__Instance.
-
-(** Static Environments. Value Contexts and Location Contexts *)
-Definition Gamma : Type := mapind varteq__Instance ty.
-Definition Delta : Type := list vart.
-
-(** Interface types. These are the only things allowed to be passed
-    across the boundary, i.e., context to comp (!) or vice versa (?). *)
-Inductive int : ty -> Prop :=
-| intℕ : int (Tpre Tℕ)
-.
-Definition intf (τ : ty) : option ty :=
-  match τ with
-  | Tpre Tℕ => Some(Tpre Tℕ)
-  | _ => None
-  end
-.
-Lemma intf_refl τ τ' :
-  intf τ = Some τ' -> τ = τ'.
-Proof. induction τ; cbn; intros; inv H; try easy. destruct p; try easy. now inv H1. Qed.
-Lemma int_equiv_intf τ :
-  int τ <-> intf τ = Some τ
-.
-Proof.
-  destruct τ; cbn; try easy.
-  now induction p; cbn.
-Qed.
-Ltac crush_intf τ :=
-  let Hx' := fresh "Hx'" in
-  let Hx := fresh "Hx" in
-  let x := fresh "x" in
-  destruct (option_dec (intf τ)) as [Hx | Hx];
-  try (rewrite Hx in *; congruence);
-  try (apply not_eq_None_Some in Hx as [x Hx]; eapply intf_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
-.
-Lemma int_equiv_intf_none τ :
-  (~ int τ) <-> intf τ = None
-.
-Proof.
-  split; intros H.
-  - crush_intf τ; apply int_equiv_intf in Hx; contradiction.
-  - intros H0%int_equiv_intf; congruence.
-Qed.
 
 (** Symbols look like `fn foo x : τ := e` *)
 Definition symbol : Type := vart * ty * expr.
@@ -289,7 +249,8 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   | KsetM1 v0 v1 K' e => Xset (Xval v0) (Xval v1) (R K') e
   | KsetR v0 v1 v2 K' => Xset (Xval v0) (Xval v1) (Xval v2) (R K')
   | Klet x K' e => Xlet x (R K') e
-  | Knew K' => Xnew (R K')
+  | KnewL K' e => Xnew (R K') e
+  | KnewR v K' => Xnew (Xval v) (R K')
   | Kdel K' => Xdel (R K')
   | Kunpack γ x K' e => Xunpack γ x (R K') e
   | KpackL K' e => Xpack (R K') e
@@ -302,19 +263,6 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   | Kcall foo K' => Xcall foo (R K')
   end
 .
-
-(** Simple projection giving us the names of the symbols *)
-Fixpoint interfaces (s : symbols) : option(Gamma) :=
-  match s with
-  | mapNil _ _ => Some (mapNil _ _)
-  | mapCons name EL s' =>
-    let ty := ty_of_symbol EL in
-    let name := vart_of_symbol EL in
-    let* a := interfaces s' in
-    Some(name ↦ ty ◘ a)
-  end
-.
-
 (** * Dynamics *)
 
 (** Evaluation of binary expressions. Note that 0 means `true` in S, so `5 < 42` evals to `0`. *)
@@ -560,16 +508,16 @@ Instance nateq__Instance : HasEquality nat := {
 }.
 Definition heap := mapind nateq__Instance (option value).
 Definition hNil : heap := mapNil nateq__Instance (option value).
-Fixpoint Hgrow_aux (H : heap) (s len : nat) : option heap :=
+Fixpoint Hgrow_aux (H : heap) (s len : nat) (default : value) : option heap :=
   match s with
   | 0 => Some(H)
   | S n' =>
-    let* Hi := Hgrow_aux H n' len in
-    push (len + n') None Hi
+    let* Hi := Hgrow_aux H n' len default in
+    push (len + n') (Some default) Hi
   end
 .
-Definition Hgrow (H : heap) (s : nat) : option heap :=
-  Hgrow_aux H s (List.length (dom H))
+Definition Hgrow (H : heap) (s : nat) (default : value) : option heap :=
+  Hgrow_aux H s (List.length (dom H)) default
 .
 (* Context switch indicators. The paper calls these Transfer Tags *)
 Variant comms : Type :=
@@ -633,10 +581,10 @@ Instance etaState : Settable _ := settable! mkΩ <SF; SΨ; St; SΦ>.
 
 Import RecordSetNotations.
 
-Definition Htgrow (Φ : MemState) (s : nat) (t : ControlTag) : option MemState :=
+Definition Htgrow (Φ : MemState) (s : nat) (t : ControlTag) (default : value) : option MemState :=
   match t with
-  | CCtx => let* H := Hgrow Φ.(MH__ctx) s in Some(Φ <| MH__ctx := H |>)
-  | CComp => let* H := Hgrow Φ.(MH__comp) s in Some(Φ <| MH__comp := H |>)
+  | CCtx => let* H := Hgrow Φ.(MH__ctx) s default in Some(Φ <| MH__ctx := H |>)
+  | CComp => let* H := Hgrow Φ.(MH__comp) s default in Some(Φ <| MH__comp := H |>)
   end
 .
 Definition getH (Φ : MemState) (t : ControlTag) : heap :=
@@ -664,30 +612,30 @@ Lemma nodupinv_empty (Ξ : symbols) (ξ : commlib) :
   Util.nodupinv Ξ ->
   nodupinv (Ω(Fresh.empty_fresh; Ξ; ξ; List.nil; CComp; hNil; hNil; snil)).
 Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
-Lemma nodupinv_grow_H__ctx F Ξ ξ Ks t H__ctx H__comp Δ n H__ctx':
+Lemma nodupinv_grow_H__ctx F Ξ ξ Ks t H__ctx H__comp Δ n H__ctx' default:
   nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp;Δ)) ->
-  Hgrow H__ctx n = Some H__ctx' ->
+  Hgrow H__ctx n default = Some H__ctx' ->
   nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx';H__comp;Δ))
 .
 Proof.
   intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in Ha, Hb, Hc, Hd.
   revert H__ctx' H__ctx Hb H; induction n; intros H' H Hb H0.
   - now inv H0.
-  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)))) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
+  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)) default)) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
     apply not_eq_None_Some in Hx as [H__x Hx].
     rewrite Hx in H0.
     cbn in H0. now apply push_ok in H0.
 Qed.
-Lemma nodupinv_grow_H__comp F Ξ ξ Ks t H__ctx H__comp Δ n H__comp':
+Lemma nodupinv_grow_H__comp F Ξ ξ Ks t H__ctx H__comp Δ n H__comp' default:
   nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp;Δ)) ->
-  Hgrow H__comp n = Some H__comp' ->
+  Hgrow H__comp n default = Some H__comp' ->
   nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp';Δ))
 .
 Proof.
   intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in Ha, Hb, Hc, Hd.
   revert H__comp' H__comp Hc H; induction n; intros H' H Hc H0.
   - now inv H0.
-  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)))) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
+  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)) default)) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
     apply not_eq_None_Some in Hx as [H__x Hx].
     rewrite Hx in H0.
     cbn in H0. now apply push_ok in H0.
@@ -811,7 +759,7 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
     | Xval _ => e
     | Xabort => Xabort
     | Xlet x e0 e1 => if vareq what x then Xlet x (R e0) e1 else Xlet x (R e0) (R e1)
-    | Xnew e => Xnew (R e)
+    | Xnew e0 e1 => Xnew (R e0) (R e1)
     | Xdel e => Xdel (R e)
     | Xget e0 e1 e2 => Xget (R e0) (R e1) (R e2)
     | Xset e0 e1 e2 e3 => Xset (R e0) (R e1) (R e2) (R e3)
@@ -851,11 +799,11 @@ Inductive pstep : PrimStep rtexpr event :=
     e' = subst x1 (subst x2 e (Xval v2)) (Xval v1) ->
     Ω ▷ Xunpair x1 x2 (Xval(Vpair v1 v2)) e --[]--> Ω ▷ e'
 | e_alloc : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
-              (Φ Φ' : MemState) (n : nat) (ℓ : loc) (Δ' : ptrstore),
+              (Φ Φ' : MemState) (v : value) (n : nat) (ℓ : loc) (Δ' : ptrstore),
     ℓ = addr(Util.length (getH Φ t)) ->
     push ℓ (dL(ℓ ; ◻ ; t ; n)) Φ.(MΔ) = Some Δ' ->
-    Some Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t ->
-    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F ; Ψ ; t ; Φ')) ▷ (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
+    Some Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t v ->
+    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval v) (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F ; Ψ ; t ; Φ')) ▷ Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))
 | e_delete : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
                (Φ Φ' : MemState) (n : nat) (ℓ : loc) (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ ℓ ↦ (dL(ℓ ; ρ ; t ; n)) ◘ Δ2) ->
@@ -919,10 +867,10 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       Some(None, Ω ▷ subst x e (Xval v))
     | Xunpair x1 x2 (Xval(Vpair v1 v2)) e =>
       Some(None, Ω ▷ subst x1 (subst x2 e (Xval v2)) (Xval v1))
-    | Xnew (Xval(Vnat n)) =>
+    | Xnew (Xval v) (Xval(Vnat n)) =>
       let ℓ := addr(Util.length (getH Ω.(SΦ) Ω.(St))) in
       let* Δ' := push ℓ (dL(ℓ ; ◻ ; Ω.(St) ; n)) Ω.(SΦ).(MΔ) in
-      let* Φ' := Htgrow (Ω.(SΦ) <| MΔ := Δ' |>) n Ω.(St) in
+      let* Φ' := Htgrow (Ω.(SΦ) <| MΔ := Δ' |>) n Ω.(St) v in
       let Ω' := Ω <| SΦ := Φ' |> in
       Some(Some(ev(Salloc ℓ n ; Ω.(St))), Ω' ▷ Xval(Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
     | Xdel (Xval(Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ')))) =>
@@ -1075,12 +1023,16 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     | _ => let* (K, e1') := evalctx_of_expr e1 in
           Some(Kunpair x1 x2 K e2, e1')
     end
-  | Xnew e =>
-    match e  with
-    | Xval(v) =>
-      Some(Khole, Xnew (Xval v))
-    | _ => let* (K, e') := evalctx_of_expr e in
-          Some(Knew K, e')
+  | Xnew e1 e2 =>
+    match e1, e2 with
+    | Xval(v1), Xval(v2) =>
+      Some(Khole, Xnew (Xval v1) (Xval v2))
+    | Xval(v1), en2 =>
+      let* (K, e2') := evalctx_of_expr en2 in
+      Some(KnewR v1 K, e2')
+    | _, _ =>
+      let* (K, e1') := evalctx_of_expr e1 in
+      Some(KnewL K e2, e1')
     end
   | Xdel e =>
     match e  with
@@ -1152,7 +1104,7 @@ Definition pstep_compatible (e : expr) : option expr :=
   | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
   | Xpair (Xval v1) (Xval v2) => Some(Xpair (Xval v1) (Xval v2))
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
-  | Xnew (Xval v) => Some(Xnew (Xval v))
+  | Xnew (Xval v1) (Xval v2) => Some(Xnew (Xval v1) (Xval v2))
   | Xdel (Xval v) => Some(Xdel (Xval v))
   | Xget (Xval v0) (Xval v1) (Xval v2) => Some(Xget (Xval v0) (Xval v1) (Xval v2))
   | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
@@ -1170,7 +1122,7 @@ Definition pestep_compatible (e : expr) : option expr :=
   | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
   | Xpair (Xval v1) (Xval v2) => Some(Xpair (Xval v1) (Xval v2))
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
-  | Xnew (Xval v) => Some(Xnew (Xval v))
+  | Xnew (Xval v1) (Xval v2) => Some(Xnew (Xval v1) (Xval v2))
   | Xdel (Xval v) => Some(Xdel (Xval v))
   | Xget (Xval v0) (Xval v1) (Xval v2) => Some(Xget (Xval v0) (Xval v1) (Xval v2))
   | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
@@ -1470,7 +1422,7 @@ Proof.
   - (* get *) grab_value3 e1 e2 e3.
   - (* set *) grab_value4 e1 e2 e3 e4.
   - (* let *) grab_value e1.
-  - (* new *) grab_value e.
+  - (* new *) grab_value2 e1 e2.
   - (* del *) grab_value e.
   - (* unpack *) grab_value e1.
   - (* pack *) grab_value2 e1 e2.
@@ -1487,7 +1439,7 @@ Proof.
   - (* get *) grab_value3 e1 e2 e3.
   - (* set *) grab_value4 e1 e2 e3 e4.
   - (* let *) grab_value e1.
-  - (* new *) grab_value e.
+  - (* new *) grab_value2 e1 e2.
   - (* del *) grab_value e.
   - (* unpack *) grab_value e1.
   - (* pack *) grab_value2 e1 e2.
@@ -1631,42 +1583,280 @@ Proof.
     easy.
 Qed.
 
+(** Static Environments. Value Contexts and Location Contexts *)
+Definition Gamma : Type := mapind varteq__Instance ty.
+Definition Delta : Type := list vart.
+
+(** Interface types. These are the only things allowed to be passed
+    across the boundary, i.e., context to comp (!) or vice versa (?). *)
+Inductive int : ty -> Prop :=
+| intℕ : int (Tpre Tℕ)
+.
+Definition intf (τ : ty) : option ty :=
+  match τ with
+  | Tpre Tℕ => Some(Tpre Tℕ)
+  | _ => None
+  end
+.
+Lemma intf_refl τ τ' :
+  intf τ = Some τ' -> τ = τ'.
+Proof. induction τ; cbn; intros; inv H; try easy. destruct p; try easy. now inv H1. Qed.
+Lemma int_equiv_intf τ :
+  int τ <-> intf τ = Some τ
+.
+Proof.
+  destruct τ; cbn; try easy.
+  now induction p; cbn.
+Qed.
+Ltac crush_intf τ :=
+  let Hx' := fresh "Hx'" in
+  let Hx := fresh "Hx" in
+  let x := fresh "x" in
+  destruct (option_dec (intf τ)) as [Hx | Hx];
+  try (rewrite Hx in *; congruence);
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply intf_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
+.
+Lemma int_equiv_intf_none τ :
+  (~ int τ) <-> intf τ = None
+.
+Proof.
+  split; intros H.
+  - crush_intf τ; apply int_equiv_intf in Hx; contradiction.
+  - intros H0%int_equiv_intf; congruence.
+Qed.
+
+Notation "[⋅]" := (mapNil _ _).
+
+Reserved Notation "Γ '≡' Γ1 '∘' Γ2" (at level 81, Γ1 at next level, Γ2 at next level).
+Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
+| splitEmpty : [⋅] ≡ [⋅] ∘ [⋅]
+| splitSymb : forall (foo : vart) (τ1 τ2 : pre_ty) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (foo ↦ Tfun τ1 τ2 ◘ Γ) ≡ (foo ↦ Tfun τ1 τ2 ◘ Γ1) ∘ (foo ↦ Tfun τ1 τ2 ◘ Γ2)
+| splitNat : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre Tℕ ◘ Γ) ≡ (x ↦ Tpre Tℕ ◘ Γ1) ∘ (x ↦ Tpre Tℕ ◘ Γ2)
+| splitPtr : forall (x : vart) (ℓ : Loc) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre(Tptr ℓ) ◘ Γ) ≡ (x ↦ Tpre(Tptr ℓ) ◘ Γ1) ∘ (x ↦ Tpre(Tptr ℓ) ◘ Γ2)
+| splitCapL : forall (x : vart) (ℓ : Loc) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre(Tcap ℓ τ) ◘ Γ) ≡ (x ↦ Tpre(Tcap ℓ τ) ◘ Γ1) ∘ Γ2
+| splitCapR : forall (x : vart) (ℓ : Loc) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre(Tcap ℓ τ) ◘ Γ) ≡ Γ1 ∘ (x ↦ Tpre(Tcap ℓ τ) ◘ Γ2)
+| splitPairL : forall (x : vart) (τ1 τ2 : pre_ty) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre(Tpair τ1 τ2) ◘ Γ) ≡ (x ↦ Tpre(Tpair τ1 τ2) ◘ Γ1) ∘ Γ2
+| splitPairR : forall (x : vart) (τ1 τ2 : pre_ty) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre(Tpair τ1 τ2) ◘ Γ) ≡ Γ1 ∘ (x ↦ Tpre(Tpair τ1 τ2) ◘ Γ2)
+| splitExistsL : forall (γ x : vart) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre(Texists γ τ) ◘ Γ) ≡ (x ↦ Tpre(Texists γ τ) ◘ Γ1) ∘ Γ2
+| splitExistsR : forall (γ x : vart) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    (x ↦ Tpre(Texists γ τ) ◘ Γ) ≡ Γ1 ∘ (x ↦ Tpre(Texists γ τ) ◘ Γ1)
+where "Γ '≡' Γ1 '∘' Γ2" := (splitting Γ Γ1 Γ2)
+.
+
+(* There must not be any capability in Γ whatsoever, i.e., nothing is owned *)
+Fixpoint NoOwnedPtrpreτ (τ : pre_ty) :=
+  match τ with
+  | Tcap _ _ => False
+  | Tpair τ1 τ2 => NoOwnedPtrpreτ τ1 /\ NoOwnedPtrpreτ τ2
+  | Texists γ τ => False
+  | _ => True
+  end
+.
+Definition NoOwnedPtrτ (τ : ty) :=
+  match τ with
+  | Tpre τ => NoOwnedPtrpreτ τ
+  | Tret τ => NoOwnedPtrpreτ τ
+  | Tfun _ _ => True
+  end
+.
+Definition NoOwnedPtr (Γ : Gamma) :=
+  List.fold_left (fun acc τ => acc /\ NoOwnedPtrτ τ) (img Γ) True
+.
+
+Fixpoint substτ (what : vart) (inn : pre_ty) (forr : vart) :=
+  match inn with
+  | Tptr(LVar x) => if x == what then Tptr(LVar forr) else Tptr(LVar x)
+  | Tcap(LVar x) τ => if x == what then Tcap (LVar forr) (substτ what τ forr) else Tcap(LVar x) (substτ what τ forr)
+  | Tpair τ1 τ2 => Tpair (substτ what τ1 forr) (substτ what τ2 forr)
+  | Texists γ τ => if γ == what then Texists γ τ else Texists γ (substτ what τ forr)
+  | _ => inn
+  end
+.
+Fixpoint flv (τ : pre_ty) : list vart :=
+  (match τ with
+  | Tptr(LVar x) => x :: nil
+  | Tcap(LVar x) τ => x :: flv τ
+  | Tpair τ1 τ2 => flv τ1 ++ flv τ2
+  | Texists γ τ => List.filter (fun x => negb(x == γ)) (flv τ)
+  | _ => nil
+  end)%list
+.
+Definition flvt (τ : ty) : list vart :=
+  (match τ with
+  | Tpre τ => flv τ
+  | Tret τ => flv τ
+  | Tfun τ1 τ2 => flv τ1 ++ flv τ2
+  end)%list
+.
+
+(** Type system spec *)
+Reserved Notation "'[' Δ ';' Γ '|-' e ':' τ  ']'" (at level 81, Γ at next level, e at next level, τ at next level).
+Inductive check : Delta -> Gamma -> expr -> ty -> Prop :=
+| T_var : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x : vart) (τ : pre_ty),
+    (forall x, List.In x (flv τ) -> List.In x Δ) ->
+    Γ = (Γ1 ◘ x ↦ (Tpre τ) ◘ Γ2) ->
+    NoOwnedPtr (Γ1 ◘ Γ2) ->
+    [ Δ ; Γ |- Xvar x : τ ]
+| T_foo : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (foo : vart) (τ1 τ2 : pre_ty),
+    (forall x, List.In x (flv τ1) -> List.In x Δ) ->
+    (forall x, List.In x (flv τ2) -> List.In x Δ) ->
+    Γ = (Γ1 ◘ foo ↦ (Tfun τ1 τ2) ◘ Γ2) ->
+    NoOwnedPtr (Γ1 ◘ Γ2) ->
+    [ Δ ; Γ |- Xvar foo : Tfun τ1 τ2 ]
+| T_abort : forall (Δ : Delta) (Γ : Gamma) (τ : ty),
+    NoOwnedPtr Γ ->
+    [ Δ ; Γ |- Xabort : τ ]
+| T_vnat : forall (Δ : Delta) (Γ : Gamma) (n : nat),
+    NoOwnedPtr Γ ->
+    [ Δ ; Γ |- Xval(Vnat n) : Tpre Tℕ ]
+| T_vpair : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (v1 v2 : value) (τ1 τ2 : pre_ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- Xval v1 : τ1] ->
+    [Δ ; Γ2 |- Xval v2 : τ2] ->
+    [Δ ; Γ |- Xval(Vpair v1 v2) : Tpair τ1 τ2]
+| T_vpack : forall (Δ : Delta) (Γ : Gamma) (γ γ' : vart) (v : value) (τ : pre_ty),
+    List.In γ' Δ ->
+    [Δ ; Γ |- Xval v: substτ γ τ γ'] ->
+    [Δ ; Γ |- Xval(Vpack (LVar γ) v) : Texists γ τ]
+| T_pair : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ1 τ2 : pre_ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- e1 : τ1] ->
+    [Δ ; Γ2 |- e2 : τ2] ->
+    [Δ ; Γ |- Xpair e1 e2 : Tpair τ1 τ2]
+| T_unpair : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x1 x2 : vart) (e0 e1 : expr) (τ1 τ2 : pre_ty) (τ3 : ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- e0 : Tpair τ1 τ2] ->
+    [Δ ; x1 ↦ (Tpre τ1) ◘ (x2 ↦ (Tpre τ2) ◘ Γ2) |- e1 : τ3]%list ->
+    [Δ ; Γ |- Xunpair x1 x2 e0 e1 : τ3]
+| T_binop : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (b : binopsymb) (e1 e2 : expr),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- e1 : Tℕ] ->
+    [Δ ; Γ2 |- e2 : Tℕ] ->
+    [Δ ; Γ |- Xbinop b e1 e2 : Tℕ]
+| T_pack : forall (Δ : Delta) (Γ : Gamma) (γ γ' : vart) (e : expr) (τ : pre_ty),
+    List.In γ' Δ ->
+    [Δ ; Γ |- e : substτ γ τ γ'] ->
+    [Δ ; Γ |- Xpack (Xvar γ) e : Texists γ τ ]
+| T_unpack : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (γ x : vart) (e1 e2 : expr) (τ1 : pre_ty) (τ2 : ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- e1 : Texists γ τ1] ->
+    (forall x, List.In x (flvt τ2) -> List.In x Δ) ->
+    [γ :: Δ ; x ↦ (Tpre τ1) ◘ Γ2 |- e2 : τ2]%list ->
+    [Δ ; Γ |- Xunpack γ x e1 e2 : τ2]
+| T_new : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (γ : vart) (e0 e1 : expr) (τ : pre_ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- e0 : τ] ->
+    [Δ ; Γ2 |- e1 : Tnat] ->
+    [Δ ; Γ |- Xnew e0 e1 : Texists γ (Tpair (Tcap (LVar γ) τ) (Tptr (LVar γ)))]
+| T_del : forall (Δ : Delta) (Γ : Gamma) (γ : vart) (e : expr) (τ : pre_ty),
+    [Δ ; Γ |- e : Texists γ (Tpair (Tcap (LVar γ) τ) (Tptr (LVar γ)))] ->
+    [Δ ; Γ |- Xdel e : Tℕ]
+| T_get : forall (Δ : Delta) (Γ Γ' Γ1 Γ2 Γ3 : Gamma) (γ : vart) (e0 e1 e2 : expr) (τ : pre_ty),
+    Γ' ≡ Γ1 ∘ Γ2 ->
+    Γ ≡ Γ' ∘ Γ3 ->
+    [Δ ; Γ1 |- e0 : Tcap (LVar γ) τ] ->
+    [Δ ; Γ2 |- e1 : Tptr (LVar γ)] ->
+    [Δ ; Γ3 |- e2 : Tℕ] ->
+    [Δ ; Γ |- Xget e0 e1 e2 : Tpair (Tcap (LVar γ) τ) τ]
+| T_set : forall (Δ : Delta) (Γ Γ' Γ'' Γ1 Γ2 Γ3 Γ4 : Gamma) (γ : vart) (e0 e1 e2 e3 : expr) (τ : pre_ty),
+    Γ' ≡ Γ1 ∘ Γ2 ->
+    Γ'' ≡ Γ' ∘ Γ3 ->
+    Γ ≡ Γ'' ∘ Γ4 ->
+    [Δ ; Γ1 |- e0 : Tcap (LVar γ) τ] ->
+    [Δ ; Γ2 |- e1 : Tptr (LVar γ)] ->
+    [Δ ; Γ3 |- e2 : Tℕ] ->
+    [Δ ; Γ4 |- e3 : τ] ->
+    [Δ ; Γ |- Xset e0 e1 e2 e3 : Tpair (Tcap (LVar γ) τ) τ]
+| T_let : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x : vart) (e0 e1 : expr) (τ1 : pre_ty) (τ2 : ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- e0 : τ1] ->
+    [Δ ; x ↦ (Tpre τ1) ◘ Γ2 |- e1 : τ2]%list ->
+    [Δ ; Γ |- Xlet x e0 e1 : τ2]
+| T_ifz : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (e0 e1 e2 : expr) (τ : ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- e0 : Tℕ] ->
+    [Δ ; Γ2 |- e1 : τ] ->
+    [Δ ; Γ2 |- e2 : τ] ->
+    [Δ ; Γ |- Xifz e0 e1 e2 : τ]
+| T_return : forall (Δ : Delta) (Γ : Gamma) (e : expr) (τ : pre_ty),
+    [Δ ; Γ |- e : τ] ->
+    [Δ ; Γ |- Xreturn e : Tret τ]
+| T_call : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (foo : vart) (e : expr) (τ1 τ2 : pre_ty),
+    Γ ≡ Γ1 ∘ Γ2 ->
+    [Δ ; Γ1 |- Xvar foo : Tfun τ1 τ2] ->
+    [Δ ; Γ2 |- e : τ1] ->
+    [Δ ; Γ |- Xcall foo e : τ2]
+where "'[' Δ ';' Γ '|-' e ':' τ ']'" := (check Δ Γ e τ)
+.
+(** Collect symbol names and their types into static type env. *)
+Fixpoint gamma_from_symbols (Ξ : symbols) : Gamma :=
+  match Ξ with
+  | [⋅] => [⋅]
+  | foo ↦ s ◘ Ξ =>
+    let Γ := gamma_from_symbols Ξ in
+    (foo ↦ ty_of_symbol s ◘ Γ)
+  end
+.
+(** Check all symbols *)
+Fixpoint check_symbols (Γ : Gamma) (Ξ : symbols) : Prop :=
+  match Ξ with
+  | [⋅] => True
+  | foo ↦ s ◘ Ξ =>
+    let x := vart_of_symbol s in
+    let τ := ty_of_symbol s in
+    let e := expr_of_symbol s in
+    match τ with
+    | Tfun τ1 τ2 => [ nil ; x ↦ (Tpre τ1) ◘ Γ |- e : Tret τ2 ]
+                   /\ (check_symbols Γ Ξ)
+    | _ => False
+    end
+  end
+.
+(** Top-level programs *)
+Inductive prog : Type := Cprog (Ξ__ctx Ξ__comp : symbols) : prog.
+
+Definition prog_check (p : prog) : Prop :=
+  let '(Cprog Ξ__ctx Ξ__comp) := p in
+  ~(List.In "main"%string (dom Ξ__comp)) /\
+  List.In "main"%string (dom Ξ__ctx) /\
+  exists Ξ, link Ξ__ctx Ξ__comp Ξ /\
+      let Γ0 := gamma_from_symbols Ξ in
+      check_symbols Γ0 Ξ
+.
+Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
+| e_wprog : forall (Ξ Ξ__ctx Ξ__comp : symbols) (ξ : commlib) (As : tracepref) (r : rtexpr),
+    link Ξ__ctx Ξ__comp Ξ ->
+    ξ = dom Ξ__comp ->
+    (Ω(Fresh.empty_fresh; Ξ ; ξ ; nil ; CComp ; hNil ; hNil ; snil) ▷ Xcall "main"%string (Xval 0) ==[ As ]==>* r) ->
+    prog_check (Cprog Ξ__ctx Ξ__comp) ->
+    wstep (Cprog Ξ__ctx Ξ__comp) As r
+.
+
 Definition initΩ (Ξ__ctx Ξ__comp : symbols) : option state :=
   let* Ξ := linkf Ξ__ctx Ξ__comp in
   let ξ := dom Ξ__comp in
   Some(Ω(Fresh.empty_fresh; Ξ ; ξ ; nil ; CComp ; hNil ; hNil ; snil))
 .
 
-(* Allocate an array of size 5. *)
-Example binop57 :=
-  Xreturn (
-    Xunpack "ℓ"%string "p"%string
-      (Xnew (Xval 5))
-      (Xunpair "cap"%string "ptr"%string
-          (Xvar "p"%string)
-          (Xlet "y"%string
-            (Xlet dontcare (Xset (Xvar "cap"%string)
-                              (Xvar "ptr"%string)
-                              (Xval 2)
-                              (Xval 42)
-                            )
-                  (Xget (Xvar "cap"%string)
-                        (Xvar "ptr"%string)
-                        (Xval 2)
-                  )
-            )
-            (Xbinop Badd (Xdel (Xpack (Xvar "ℓ"%string) (Xpair (Xvar "cap"%string)
-                                                               (Xvar "ptr"%string))
-                               )
-                         )
-                         (Xbinop Badd (Xvar "y"%string) (Xval 27))
-            )
-          )
-      )
-  )
-.
+(** * Example: strncpy *)
 (** Copy one string into another *)
-
 (** packs up a pointer's location and its capability + ptr constant *)
 Definition L_packptr xloc xcap xptr : expr :=
   Xpack xloc (Xpair xcap xptr)
@@ -1741,8 +1931,8 @@ Example strncpy := (
 
 (* Simple, correct context that calls strncpy *)
 Example main' := (
-  L_unpackptr "xℓ" "xcap" "xptr" (Xnew (Xval 3)) (
-    L_unpackptr "yℓ" "ycap" "yptr" (Xnew (Xval 3)) (
+  L_unpackptr "xℓ" "xcap" "xptr" (Xnew (Xval 0) (Xval 3)) (
+    L_unpackptr "yℓ" "ycap" "yptr" (Xnew (Xval 0) (Xval 3)) (
       Xunpair "xcap" dontcare (Xset (Xvar "xcap") (Xvar "xptr") (Xval 0) (Xval 1))
      (Xunpair "xcap" dontcare (Xset (Xvar "xcap") (Xvar "xptr") (Xval 1) (Xval 2))
        (Xunpair "xcap" dontcare (Xset (Xvar "xcap") (Xvar "xptr") (Xval 2) (Xval 3))
@@ -1764,8 +1954,16 @@ Example main' := (
 
 Example main := (Xreturn (Xcall "main'"%string (Xval 0))).
 
+Definition strncpyparams__ty := (
+  Tpair Tℕ (Tpair Tℕ (Tpair (Texists "xℓ" (Tpair (Tcap (LVar "xℓ") Tℕ) (Tptr (LVar "xℓ"))))
+                            (Texists "yℓ" (Tpair (Tcap (LVar "yℓ") Tℕ) (Tptr (LVar "yℓ"))))))
+)%string.
+Definition strncpy__ty := Tfun strncpyparams__ty strncpyparams__ty.
+
 Example Ξ__ctx : symbols := ("main"%string ↦ (dontcare, Tfun Tℕ Tℕ, main) ◘ (mapNil _ _)).
-Example Ξ__comp : symbols := ("main'"%string ↦ (dontcare, Tfun Tℕ Tℕ, main') ◘ ("strncpy"%string ↦ ("p"%string, Tfun Tℕ Tℕ, strncpy) ◘ (mapNil _ _))).
+Example Ξ__comp : symbols := ("main'"%string ↦ (dontcare, Tfun Tℕ Tℕ, main') ◘
+                            ("strncpy"%string ↦ ("p"%string, strncpy__ty, strncpy) ◘
+                             (mapNil _ _))).
 
 Local Set Warnings "-abstract-large-number".
 Compute ((fun n => (let* iΩ := initΩ Ξ__ctx Ξ__comp in
@@ -1777,1055 +1975,530 @@ Compute ((fun n => (let* iΩ := initΩ Ξ__ctx Ξ__comp in
         ))
 133).
 
+Example strncpy_prog := Cprog Ξ__ctx Ξ__comp.
+
+Goal prog_check strncpy_prog.
+Proof.
+  unfold strncpy_prog; repeat split; try (eexists; split).
+  - (* main not component *) unfold Ξ__comp; cbn; intros [H | [H | H]]; congruence.
+  - (* main in context *) unfold Ξ__ctx; cbn; now left.
+  - (* link Ξ__ctx Ξ__comp *) unfold Ξ__ctx; unfold Ξ__comp;
+    apply linkf_equiv_link; cbn; reflexivity.
+  - (* actual typechecking *)
+    assert (NoOwnedPtr
+   (dontcare ↦ Tpre Tℕ
+    ◘ ("main"%string ↦ Tfun Tℕ Tℕ
+       ◘ ("main'"%string ↦ Tfun Tℕ Tℕ ◘ ("strncpy"%string ↦ strncpy__ty ◘ [⋅]))))) as H__NoOwnedPtrInit by easy.
+    cbn; repeat split.
+    + (* typechecking main *)
+      constructor; econstructor.
+      eapply splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (1:= Tℕ). 2: now constructor.
+      econstructor; try easy.
+      instantiate (2:=dontcare ↦ Tpre Tℕ ◘ ("main"%string ↦ Tfun Tℕ Tℕ ◘ [⋅]));
+      reflexivity.
+      easy.
+    + (* typechecking main' *)
+      econstructor; try easy.
+
+      eapply splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+
+      2: instantiate (1:=Tpair (Tcap (LVar "xℓ"%string) Tℕ) (Tptr (LVar "xℓ"%string)));
+      econstructor. econstructor.
+      eapply splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      1,2: constructor; try easy.
+      eapply splitPairL, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      eapply T_var. 2: instantiate (4:=[⋅]); try reflexivity.
+      intros x [H | [H | H]]; (now left + now right).
+      easy.
+
+      econstructor; try easy.
+      eapply splitCapR, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+
+      instantiate (1:=Tpair (Tcap (LVar "yℓ"%string) Tℕ) (Tptr (LVar "yℓ"%string)));
+      econstructor.
+      eapply splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      1,2: now constructor.
+
+      econstructor; try easy.
+      eapply splitPairL, splitCapR, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor.
+      2: instantiate (4:=[⋅]); reflexivity.
+      intros x [H | [H | H]]; (now left + now right).
+      easy.
+
+      econstructor; try easy.
+      eapply splitCapR, splitPtr, splitCapL, splitPtr,
+             splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (1:=Tℕ); instantiate (1:=Tcap (LVar "xℓ"%string) Tℕ).
+      econstructor.
+      1,2,3: eapply splitPtr, splitCapL, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      all: try now econstructor.
+      econstructor. intros x [H | H]; (now left + right; subst; now left).
+      now instantiate (2:="yptr"%string ↦ Tpre(Tptr(LVar "yℓ"%string)) ◘ [⋅]).
+      easy.
+      econstructor. intros x [H | H]; (now left + right; subst; now left).
+      now instantiate (2:="yptr"%string ↦ Tpre(Tptr(LVar "yℓ"%string)) ◘ [⋅]).
+      easy.
+
+      econstructor; try easy.
+      eapply splitCapL, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (1:=Tℕ); instantiate (1:=Tcap (LVar "xℓ"%string) Tℕ).
+      econstructor.
+      1,2,3: eapply splitCapL, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      all: try now econstructor.
+      econstructor. intros x [H | H]; (now left + right; subst; now left).
+      now instantiate (2:=[⋅]).
+      easy.
+      econstructor. intros x [H | H]; (now left + right; subst; now left).
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ ("yptr"%string ↦ Tpre(Tptr(LVar "yℓ"%string)) ◘ [⋅])).
+      easy.
+
+      econstructor; try easy.
+      eapply splitCapL, splitNat, splitNat, splitCapR, splitPtr, splitPtr,
+             splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (1:=Tℕ); instantiate (1:=Tcap (LVar "xℓ"%string) Tℕ).
+      econstructor.
+      1,2,3: eapply splitCapL, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      all: try now econstructor.
+      econstructor. intros x [H | H]; (now left + right; subst; now left).
+      now instantiate (2:=[⋅]).
+      easy.
+      econstructor. intros x [H | H]; (now left + right; subst; now left).
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ (dontcare ↦ Tpre Tℕ ◘ ("yptr"%string ↦ Tpre(Tptr(LVar "yℓ"%string)) ◘ [⋅]))).
+      easy.
+
+      econstructor.
+      eapply splitCapL, splitNat, splitNat, splitNat, splitCapL, splitPtr, splitPtr,
+             splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+
+      2: repeat econstructor; instantiate (1:=Tℕ); easy.
+
+      econstructor.
+      eapply splitCapL, splitNat, splitNat, splitNat, splitCapL, splitPtr, splitPtr,
+             splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (1:=strncpyparams__ty).
+
+      econstructor; try instantiate (1:=strncpyparams__ty).
+      eapply splitCapR, splitNat, splitNat, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor; try easy.
+      now instantiate (2:=(dontcare ↦ Tpre Tℕ ◘ (dontcare ↦ Tpre Tℕ ◘ (dontcare ↦ Tpre Tℕ ◘
+        ("yptr"%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+         ◘ ("xptr"%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+          ◘ (dontcare ↦ Tpre Tℕ
+            ◘ ("main"%string ↦ Tfun Tℕ Tℕ
+               ◘ ("main'"%string ↦ Tfun Tℕ Tℕ ◘ [⋅]))))))))).
+      easy.
+      econstructor.
+      eapply splitCapR, splitNat, splitNat, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      now econstructor.
+      econstructor.
+      eapply splitCapR, splitNat, splitNat, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      now econstructor.
+      econstructor.
+      eapply splitCapL, splitNat, splitNat, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+
+      econstructor. instantiate (1:="xℓ"%string); right; now left.
+      econstructor.
+      eapply splitCapL, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. econstructor.
+      intros x [H | H]; (now left + right; now left).
+      now instantiate (2:=[⋅]).
+      easy.
+      rewrite eq_refl.
+      econstructor. intros x [H | H]; (now left + right; now left).
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ (
+                          dontcare ↦ Tpre Tℕ ◘ (
+                          dontcare ↦ Tpre Tℕ ◘ ("yptr"%string ↦ Tpre(Tptr (LVar "yℓ"%string)) ◘ [⋅])))).
+      easy.
+
+      econstructor. instantiate (1:="yℓ"%string); now left.
+      econstructor.
+      eapply splitNat, splitNat, splitNat, splitCapL, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. econstructor.
+      intros x [H | H]; (now left).
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ (dontcare ↦ Tpre Tℕ ◘ (dontcare ↦ Tpre Tℕ ◘ [⋅]))).
+      easy.
+      rewrite eq_refl.
+      econstructor. intros x [H | H]; (now left).
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ (dontcare ↦ Tpre Tℕ ◘ (dontcare ↦ Tpre Tℕ ◘ [⋅]))).
+      easy.
+
+      econstructor; cbn.
+      eapply splitPairL, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (1:=
+          (Tpair Tℕ (Tpair
+             (Texists "xℓ"%string
+                (Tpair (Tcap (LVar "xℓ"%string) Tℕ) (Tptr (LVar "xℓ"%string))))
+             (Texists "yℓ"%string
+                (Tpair (Tcap (LVar "yℓ"%string) Tℕ) (Tptr (LVar "yℓ"%string))))))).
+      instantiate (1:=Tℕ).
+      econstructor; cbn.
+      intros x [].
+      now instantiate (2:= [⋅]).
+      easy.
+
+      econstructor.
+      eapply splitNat, splitPairL, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (2:=Tℕ).
+      instantiate (1:=
+          Tpair
+             (Texists "xℓ"%string
+                (Tpair (Tcap (LVar "xℓ"%string) Tℕ) (Tptr (LVar "xℓ"%string))))
+             (Texists "yℓ"%string
+                (Tpair (Tcap (LVar "yℓ"%string) Tℕ) (Tptr (LVar "yℓ"%string))))).
+      econstructor; cbn.
+      intros x [].
+      now instantiate (2:="i"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+
+      econstructor.
+      eapply splitNat, splitPairL, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (2:=
+             (Texists "xℓ"%string
+                (Tpair (Tcap (LVar "xℓ"%string) Tℕ) (Tptr (LVar "xℓ"%string))))).
+
+      instantiate (1:=
+             (Texists "yℓ"%string
+                (Tpair (Tcap (LVar "yℓ"%string) Tℕ) (Tptr (LVar "yℓ"%string))))).
+      econstructor; cbn.
+      intros x [].
+      now instantiate (2:="n"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+
+      econstructor; cbn.
+      eapply splitExistsL, splitExistsR, splitNat, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      2: intros x [].
+      instantiate (1:=
+             (
+                (Tpair (Tcap (LVar "xℓ"%string) Tℕ) (Tptr (LVar "xℓ"%string))))).
+      econstructor; cbn.
+      intros x [].
+      now instantiate (2:=[⋅]).
+      easy.
+
+      econstructor; cbn.
+      eapply splitPairL, splitExistsR, splitNat, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (2:=Tcap(LVar "xℓ"%string) Tℕ).
+      instantiate (1:=Tptr(LVar "xℓ"%string)).
+      econstructor; cbn.
+      intros x [H | [H | H]]; ((now left) + (right; now left)).
+      now instantiate (2:=[⋅]).
+      easy.
+
+      econstructor; cbn.
+      eapply splitCapR, splitPtr, splitExistsL, splitNat, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (1:=Tpair (Tcap (LVar "yℓ"%string) Tℕ) (Tptr (LVar "yℓ"%string))).
+      econstructor; cbn.
+      intros x [].
+      now instantiate (2:="xptr"%string ↦ Tpre(Tptr(LVar "xℓ"%string)) ◘ [⋅]).
+      easy.
+      intros x [].
+
+      econstructor; cbn.
+      eapply splitPairL, splitCapR, splitPtr, splitNat, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (2:=Tcap(LVar "yℓ"%string) Tℕ).
+      instantiate (1:=Tptr(LVar "yℓ"%string)).
+      econstructor; cbn.
+      intros x [H | [H | H]]; ((now left) + (right; now left)).
+      now instantiate (2:=[⋅]).
+      easy.
+
+      econstructor; cbn.
+      eapply splitCapR, splitPtr, splitCapL, splitPtr, splitNat, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+
+      econstructor. econstructor.
+      instantiate (1:="xℓ"%string).
+      right; now left.
+
+      econstructor.
+      eapply splitPtr, splitCapL, splitPtr, splitNat, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. instantiate (1:=Tℕ); cbn. econstructor; cbn.
+      intros x [H | H]; right; now left.
+      now instantiate (2:="yptr"%string ↦ Tpre(Tptr (LVar "yℓ"%string)) ◘ [⋅]).
+      easy.
+      rewrite eq_refl. econstructor; cbn.
+      intros x [H | H]; right; now left.
+      now instantiate (2:="yptr"%string ↦ Tpre(Tptr (LVar "yℓ"%string)) ◘ [⋅]).
+      easy.
+
+      econstructor. econstructor.
+      instantiate (1:="yℓ"%string).
+      now left.
+
+      econstructor.
+      eapply splitNat, splitCapL, splitPtr, splitPtr, splitNat, splitNat, splitNat, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. instantiate (1:=Tℕ); cbn. econstructor; cbn.
+      intros x [H | H]; now left.
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+      rewrite eq_refl. econstructor; cbn.
+      intros x [H | H]; now left.
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+    + (* typechecking strncpy *)
+      econstructor.
+      eapply splitPairL, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. 2: now instantiate (4:=[⋅]).
+      intros x []. easy.
+
+      econstructor. eapply splitNat, splitPairL, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. 2: now instantiate (4:="i"%string ↦ Tpre Tℕ ◘ ([⋅])).
+      easy. easy.
+
+      econstructor. eapply splitNat, splitPairL, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. 2: now instantiate (4:="n"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy. easy.
+
+      econstructor. eapply splitExistsL, splitExistsR, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. 2: now instantiate (3:=[⋅]).
+      easy. easy.
+      easy.
+
+      econstructor. eapply splitPairL, splitExistsR, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. 2: now instantiate (4:=[⋅]).
+      intros x [H|[H|H]]; now left.
+      easy.
+
+      econstructor. eapply splitCapR, splitPtr, splitExistsL, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. 2: now instantiate (3:="xptr"%string ↦ Tpre(Tptr(LVar "xℓ"%string)) ◘ [⋅]).
+      easy. easy. easy.
+
+      econstructor. eapply splitPairL, splitCapR, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. 2: now instantiate (4:=[⋅]).
+      intros x [H|[H|H]]; now left.
+      easy.
+
+      econstructor. eapply splitCapR, splitPtr, splitCapL, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor.
+      2,1: eapply splitPtr, splitCapL, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor.
+      2: now instantiate (4:="yptr"%string ↦ Tpre(Tptr(LVar "yℓ"%string)) ◘ [⋅]).
+      intros x [H|H]; now right; left. easy.
+      econstructor.
+      intros x [H|H]; now right; left.
+      now instantiate (2:="yptr"%string ↦ Tpre(Tptr(LVar "yℓ"%string)) ◘ [⋅]).
+      easy.
+      econstructor. easy.
+      now instantiate (2:=
+  (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+   ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+      ◘ ("n"%string ↦ Tpre Tℕ ◘ [⋅])))).
+      easy.
+
+      econstructor. eapply splitCapR, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. easy.
+      now instantiate (2:=[⋅]).
+      easy.
+
+      econstructor. econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. easy.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+      ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+         ◘ ("n"%string ↦ Tpre Tℕ ◘ [⋅]))))).
+      easy. econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. easy.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+      ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string)) ◘ [⋅])))).
+      easy.
+      econstructor.
+      eapply splitCapL, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+
+      econstructor. instantiate (1:="xℓ"%string); right; now left.
+      econstructor.
+      eapply splitCapL, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. econstructor.
+      intros x [H|H]; right; now left.
+      now instantiate (2:=[⋅]).
+      easy.
+      rewrite eq_refl. econstructor. intros x [H|H]; right; now left.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string)) ◘ [⋅]
+                  ))).
+      easy.
+
+      econstructor. instantiate (1:="yℓ"%string); now left.
+      econstructor.
+      eapply splitNat, splitCapL, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. econstructor.
+      intros x [H|H]; now left.
+      now instantiate (2:="x[i]"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+      rewrite eq_refl. econstructor.
+      intros x [H|H]; now left.
+      now instantiate (2:="x[i]"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+
+      econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor.
+      eapply splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. easy.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+      ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+         ◘ ("n"%string ↦ Tpre Tℕ ◘ [⋅]))))).
+      easy. econstructor. easy.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+      ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string)) ◘ [⋅])))).
+      easy.
+
+      econstructor.
+      eapply splitCapR, splitNat, splitCapL, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor.
+      3,2,1: eapply splitNat, splitCapL, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      instantiate (2:="yℓ"%string).
+      econstructor.
+      2: now instantiate (3:="x[i]"%string ↦ Tpre Tℕ ◘ [⋅]).
+      intros x [H|H]; now left.
+      easy.
+      econstructor.
+      intros x [H|H]; now left.
+      now instantiate (2:="x[i]"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+      econstructor. easy.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+      ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+         ◘ ("n"%string ↦ Tpre Tℕ ◘ [⋅]))))).
+      easy.
+      econstructor. easy.
+      now instantiate (2:=[⋅]).
+      easy.
+      econstructor.
+      econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. instantiate (1:=strncpyparams__ty).
+      easy. easy.
+      now instantiate (2:=
+  (dontcare ↦ Tpre Tℕ
+   ◘ ("x[i]"%string ↦ Tpre Tℕ
+      ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+         ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+            ◘ ("n"%string ↦ Tpre Tℕ
+               ◘ ("i"%string ↦ Tpre Tℕ
+                  ◘ ("main"%string ↦ Tfun Tℕ Tℕ
+                     ◘ ("main'"%string ↦ Tfun Tℕ Tℕ ◘ [⋅]))))))))).
+      easy.
+      econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor.
+      eapply splitNat, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor.
+      easy.
+      now instantiate (2:=
+  (dontcare ↦ Tpre Tℕ
+   ◘ ("x[i]"%string ↦ Tpre Tℕ
+      ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+         ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+            ◘ ("n"%string ↦ Tpre Tℕ ◘ [⋅])))))).
+      easy. econstructor. easy.
+
+      econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. easy.
+      now instantiate (2:=
+  (dontcare ↦ Tpre Tℕ
+   ◘ ("x[i]"%string ↦ Tpre Tℕ
+      ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+         ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string)) ◘ [⋅]))))).
+      easy.
+
+      econstructor.
+      eapply splitCapR, splitNat, splitCapL, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. instantiate (1:="xℓ"%string).
+      right; now left.
+
+      econstructor.
+      eapply splitNat, splitCapL, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      1,2: rewrite eq_refl. econstructor.
+      intros x [H|H]; right; now left.
+      now instantiate (2:=dontcare ↦ Tpre Tℕ ◘ [⋅]).
+      easy. econstructor.
+      intros x [H|H]; right; now left.
+      now instantiate (2:=
+  (dontcare ↦ Tpre Tℕ
+   ◘ ("x[i]"%string ↦ Tpre Tℕ
+      ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string)) ◘ [⋅])))
+      ).
+      easy.
+
+      econstructor. instantiate (1:="yℓ"%string).
+      now left.
+
+      econstructor.
+      eapply splitCapL, splitNat, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      1,2: rewrite eq_refl. econstructor.
+      intros x [H|H]; now left.
+      now instantiate (2:=[⋅]).
+      easy. econstructor.
+      intros x [H|H]; now left.
+      now instantiate (2:=
+  (dontcare ↦ Tpre Tℕ
+   ◘ ("x[i]"%string ↦ Tpre Tℕ ◘ [⋅]))).
+      easy.
+
+      econstructor. econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. easy.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+      ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string))
+         ◘ ("n"%string ↦ Tpre Tℕ ◘ [⋅]))))).
+      easy. econstructor.
+      eapply splitCapR, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      econstructor. easy.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string))
+      ◘ (("x" ++ "ptr")%string ↦ Tpre(Tptr (LVar "xℓ"%string)) ◘ [⋅])))).
+      easy.
+      econstructor.
+      eapply splitCapL, splitNat, splitCapR, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+
+      econstructor. instantiate (1:="xℓ"%string); right; now left.
+      econstructor.
+      eapply splitCapL, splitNat, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. econstructor.
+      intros x [H|H]; right; now left.
+      now instantiate (2:=[⋅]).
+      easy.
+      rewrite eq_refl. econstructor. intros x [H|H]; right; now left.
+      now instantiate (2:=
+  ("x[i]"%string ↦ Tpre Tℕ
+   ◘ (("y" ++ "ptr")%string ↦ Tpre(Tptr (LVar "yℓ"%string)) ◘ [⋅]
+                  ))).
+      easy.
+
+      econstructor. instantiate (1:="yℓ"%string); now left.
+      econstructor.
+      eapply splitNat, splitCapL, splitPtr, splitPtr, splitNat, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      rewrite eq_refl. econstructor.
+      intros x [H|H]; now left.
+      now instantiate (2:="x[i]"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+      rewrite eq_refl. econstructor.
+      intros x [H|H]; now left.
+      now instantiate (2:="x[i]"%string ↦ Tpre Tℕ ◘ [⋅]).
+      easy.
+Qed.
+
+
 Abort.
 
-(** Context splitting *)
-Reserved Notation "Γ '≡' Γ1 '∘' Γ2 '⊣' e" (at level 81, Γ1 at next level, Γ2 at next level, e at next level).
-Inductive splitting : Gamma -> Gamma -> Gamma -> expr -> Prop :=
-| splitEmpty : forall (e : expr), [⋅] ≡ [⋅] ∘ [⋅] ⊣ e
-| ℕsplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma) (e : expr),
-    Γ ≡ Γ1 ∘ Γ2 ⊣ e ->
-    x ↦ (Texpr Tℕ) ◘ Γ ≡ x ↦ (Texpr Tℕ) ◘ Γ1 ∘ (x ↦ (Texpr Tℕ) ◘ Γ2) ⊣ e
-| weakPtrSplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma) (e : expr),
-    Γ ≡ Γ1 ∘ Γ2 ⊣ e ->
-    x ↦ (Texpr Twptr) ◘ Γ ≡ x ↦ (Texpr Twptr) ◘ Γ1 ∘ (x ↦ (Texpr Twptr) ◘ Γ2) ⊣ e
-| ptrLSplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma) (e : expr),
-    determine_pos x e = PosL ->
-    Γ ≡ Γ1 ∘ Γ2 ⊣ e ->
-    x ↦ (Texpr Tptr) ◘ Γ ≡ x ↦ (Texpr Tptr) ◘ Γ1 ∘ Γ2 ⊣ e
-| ptrRSplit : forall (x : vart) (Γ Γ1 Γ2 : Gamma) (e : expr),
-    determine_pos x e = PosR ->
-    Γ ≡ Γ1 ∘ Γ2 ⊣ e ->
-    x ↦ (Texpr Tptr) ◘ Γ ≡ x ↦ (Texpr Twptr) ◘ Γ1 ∘ (x ↦ (Texpr Tptr) ◘ Γ2) ⊣ e
-| ArrowSplit : forall (x : vart) (τ0 τ1 : ty) (Γ Γ1 Γ2 : Gamma) (e : expr),
-    int τ0 -> int τ1 ->
-    Γ ≡ Γ1 ∘ Γ2 ⊣ e ->
-    x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ ≡ x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ1 ∘ (x ↦ (Tectx(Tarrow τ0 τ1)) ◘ Γ2) ⊣ e
-where "Γ '≡' Γ1 '∘' Γ2 '⊣' e" := (splitting Γ Γ1 Γ2 e)
-.
-
-(** Typechecking *)
-Fixpoint NoOwnedPtr (Γ : Gamma) :=
-  match Γ with
-  | mapNil _ _ => True
-  | mapCons x τ Γ' => τ <> Tptr /\ NoOwnedPtr Γ'
-  end
-.
-Lemma noownedptr_cons Γ x τ :
-  NoOwnedPtr (x ↦ τ ◘ Γ) ->
-  NoOwnedPtr (x ↦ τ ◘ (mapNil _ _)) /\ NoOwnedPtr Γ
-.
-Proof. intros H; inv H; now repeat split. Qed.
-Lemma noownedptr_split Γ1 Γ2 :
-  NoOwnedPtr (Γ1 ◘ Γ2) <->
-  NoOwnedPtr Γ1 /\ NoOwnedPtr Γ2
-.
-Proof.
-  induction Γ1; cbn; split; intros H; try easy; fold (append Γ1 Γ2) in *.
-  - destruct H as [Ha Hb]. apply IHΓ1 in Hb as [Hb1 Hb2]; repeat split; auto.
-  - destruct H as [[Ha Hb] Hc]; split; trivial; apply IHΓ1; auto.
-Qed.
-
-Inductive check : VDash :=
-| CTvar : forall (x : vart) (Γ1 Γ2 : Gamma) (τ : Ty),
-    nodupinv (Γ1 ◘ x ↦ τ ◘ Γ2) ->
-    NoOwnedPtr Γ1 ->
-    NoOwnedPtr (x ↦ τ ◘ [⋅]) ->
-    NoOwnedPtr Γ2 ->
-    (Γ1 ◘ x ↦ τ ◘ Γ2) ⊦ Xres(Fvar x) : τ
-| CTℕ : forall (Γ : Gamma) (n : nat),
-    NoOwnedPtr Γ ->
-    Γ ⊦ Xres n : Tℕ
-| CToplus : forall (Γ1 Γ2 Γ3 : Gamma) (e1 e2 : expr) (b : binopsymb),
-    Γ3 ≡ Γ1 ∘ Γ2 ⊣ e1 ->
-    (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
-    (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
-    (Γ3 ⊦ Xbinop b e1 e2 : (Texpr Tℕ))
-| CTget : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e : expr),
-    Γ3 ≡ Γ1 ∘ Γ2 ⊣ (Fvar x) ->
-    (Γ2 ⊦ Xres(Fvar x) : (Texpr Twptr)) ->
-    (Γ1 ⊦ e : (Texpr Tℕ)) ->
-    (Γ3 ⊦ Xget x e : (Texpr Tℕ))
-| CTset : forall (Γ1 Γ2 Γ3 Γ12 Γ4 : Gamma) (x : vart) (e1 e2 : expr),
-    Γ12 ≡ Γ1 ∘ Γ2 ⊣ e1 ->
-    Γ4 ≡ Γ12 ∘ Γ3 ⊣ (Xbinop Badd e1 e2) ->
-    (Γ3 ⊦ (Xres(Fvar x)) : (Texpr Twptr)) ->
-    (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
-    (Γ2 ⊦ e2 : (Texpr Tℕ)) ->
-    (Γ4 ⊦ Xset x e1 e2 : (Texpr Tℕ))
-| CTlet : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ1 τ2 : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ⊣ e1 ->
-    (Γ1 ⊦ e1 : (Texpr τ1)) ->
-    (x ↦ (Texpr τ1) ◘ Γ2 ⊦ e2 : (Texpr τ2)) ->
-    (Γ3 ⊦ Xlet x e1 e2 : (Texpr τ2))
-| CTnew : forall (Γ1 Γ2 Γ3 : Gamma) (x : vart) (e1 e2 : expr) (τ : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ⊣ e1 ->
-    (Γ1 ⊦ e1 : (Texpr Tℕ)) ->
-    (x ↦ (Texpr Tptr) ◘ Γ2 ⊦ e2 : (Texpr τ)) ->
-    (Γ3 ⊦ Xnew x e1 e2 : (Texpr τ))
-| CTdel : forall (Γ1 Γ2 : Gamma) (x : vart),
-    nodupinv (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2) ->
-    (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2 ⊦ Xdel x : (Texpr Tℕ))
-| CTcall : forall (Γ : Gamma) (foo : vart) (arg : expr) (τ0 τ1 : ty),
-    int τ0 -> int τ1 ->
-    (Γ ⊦ Xres(Fvar foo) : (Tectx(Tarrow τ0 τ1))) ->
-    (Γ ⊦ arg : (Texpr τ0)) ->
-    (Γ ⊦ Xcall foo arg : (Texpr τ1))
-| CTret : forall (Γ : Gamma) (e : expr) (τ : ty), (*TODO: intuitively, this should yield ⊥...?*)
-    int τ ->
-    (Γ ⊦ e : (Texpr τ)) ->
-    (Γ ⊦ Xreturn e : (Treturn τ))
-| CTifz : forall (Γ1 Γ2 Γ3 : Gamma) (c e1 e2 : expr) (τ : ty),
-    Γ3 ≡ Γ1 ∘ Γ2 ⊣ c ->
-    (Γ1 ⊦ c : (Texpr Tℕ)) ->
-    (Γ2 ⊦ e1 : (Texpr τ)) ->
-    (Γ2 ⊦ e2 : (Texpr τ)) ->
-    (Γ3 ⊦ Xifz c e1 e2 : (Texpr τ))
-.
-#[local]
-Hint Constructors check : core.
-
-(** splits Γ backtracking style. We do this, because input/output contexts have proven more difficult to reason about *)
-Fixpoint splitf (Γ : Gamma) (e : expr) : option (Gamma * Gamma) :=
-  match Γ with
-  | mapNil _ _ => (* splitEmpty *) Some([⋅], [⋅])
-  | mapCons x τ Γ' =>
-    match τ with
-    | Texpr τ__e =>
-      match τ__e with
-      | (Tℕ | Twptr) => (* ℕsplit, weakPtrSplit *)
-        let* (Γ1, Γ2) := splitf Γ' e in
-        Some(mapCons x τ Γ1, mapCons x τ Γ2)
-      | Tptr =>
-        let* (Γ1, Γ2) := splitf Γ' e in
-        match determine_pos x e with
-        | PosL => (* ptrLsplit *)
-          Some(mapCons x τ Γ1, Γ2)
-        | PosR => (* ptrRsplit *)
-          Some(mapCons x (Texpr Twptr) Γ1, mapCons x τ Γ2)
-        end
-      end
-    | Tarrow τ1 τ2 => (* ArrowSplit *)
-      let* _ := intf τ1 in
-      let* _ := intf τ2 in
-      let* (Γ1, Γ2) := splitf Γ' e in
-      Some(mapCons x τ Γ1, mapCons x τ Γ2)
-    | Treturn _ => None
-    end
-  end
-.
-Lemma splitf_sound (Γ Γ1 Γ2 : Gamma) (e : expr) :
-  splitf Γ e = Some(Γ1, Γ2) -> (Γ ≡ Γ1 ∘ Γ2 ⊣ e)
-.
-Proof.
-  revert Γ1 Γ2; induction Γ; intros Γ1 Γ2 H2; cbn in H2.
-  - someinv; constructor.
-  - destruct b; try congruence.
-    + destruct t; crush_option (splitf Γ e); try destruct x as [Γ1' Γ2']; someinv.
-      * constructor; now apply IHΓ.
-      * destruct q. remember (determine_pos a e) as q; symmetry in Heqq; destruct q; someinv.
-        -- constructor; auto.
-        -- constructor; auto.
-        -- someinv; constructor; now apply IHΓ.
-      * destruct q; now rewrite Hx in H2.
-    + destruct e0 as [τ1 τ2]; crush_intf τ1; crush_intf τ2; crush_option (splitf Γ e);
-      destruct x1 as [Γ1' Γ2']; someinv.
-      constructor; try now apply int_equiv_intf. now apply IHΓ.
-Qed.
-Lemma splitf_complete (Γ Γ1 Γ2 : Gamma) (e : expr) :
-  (Γ ≡ Γ1 ∘ Γ2 ⊣ e) ->
-  splitf Γ e = Some(Γ1, Γ2)
-.
-Proof.
-  induction 1; cbn; try easy.
-  - rewrite IHsplitting; easy.
-  - rewrite IHsplitting; easy.
-  - now rewrite IHsplitting, H.
-  - now rewrite IHsplitting, H.
-  - rewrite IHsplitting. now apply int_equiv_intf in H as ->; apply int_equiv_intf in H0 as ->.
-Qed.
-Lemma splitf_equiv_splitting (Γ Γ1 Γ2 : Gamma) (e : expr) :
-  splitf Γ e = Some(Γ1, Γ2) <-> (Γ ≡ Γ1 ∘ Γ2 ⊣ e)
-.
-Proof. split; eauto using splitf_complete, splitf_sound. Qed.
-
-Fixpoint noownedptrf (Γ : Gamma) : option Gamma :=
-  match Γ with
-  | mapNil _ _ => Some Γ
-  | mapCons x (Texpr τ) Γ' =>
-    let* _ := intf τ in
-    let* Γ'' := noownedptrf Γ' in
-    Some Γ
-  | mapCons x _ Γ' =>
-    let* Γ'' := noownedptrf Γ' in
-    Some Γ
-  end
-.
-Lemma noownedptrf_refl Γ Γ' :
-  noownedptrf Γ = Some Γ' -> Γ = Γ'
-.
-Proof.
-  revert Γ'; induction Γ; intros; inv H; try easy.
-  destruct b; inv H1.
-  - destruct (intf t); inv H0.
-    destruct (option_dec (noownedptrf Γ)) as [Hx | Hx]; try (rewrite Hx in H1; inv H1).
-    apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in H1.
-    now inv H1.
-  - destruct (option_dec (noownedptrf Γ)) as [Hx | Hx]; try (rewrite Hx in H0; inv H0).
-    apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in H0. now inv H0.
-  - destruct (option_dec (noownedptrf Γ)) as [Hx | Hx]; try (rewrite Hx in H0; inv H0).
-    apply not_eq_None_Some in Hx as [x Hx]; rewrite Hx in H0. now inv H0.
-Qed.
-Ltac crush_noownedptrf_aux Γ :=
-  let Hx' := fresh "Hx'" in
-  let Hx := fresh "Hx" in
-  let x := fresh "x" in
-  destruct (option_dec (noownedptrf Γ)) as [Hx | Hx];
-  try (rewrite Hx in *; congruence);
-  try (apply not_eq_None_Some in Hx as [x Hx]; eapply noownedptrf_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
-.
-Lemma noownedptr_equiv_noownedptrf Γ :
-  NoOwnedPtr Γ <-> noownedptrf Γ = Some Γ
-.
-Proof.
-  induction Γ; cbn; split; intros H; try easy.
-  - destruct b; destruct H as [Ha Hb].
-    + crush_intf t.
-      * apply IHΓ in Hb. now rewrite Hb.
-      * apply int_equiv_intf_none in Hx.
-        exfalso; apply Hx. destruct t; try congruence; try constructor. destruct q; try constructor; contradiction.
-    + now apply IHΓ in Hb as ->.
-    + now apply IHΓ in Hb as ->.
-  - destruct b; crush_noownedptrf_aux Γ.
-    + crush_intf t. destruct t; inv Hx; split; try apply IHΓ; try easy; destruct q; easy.
-    + crush_intf t. rewrite Hx in H. inv H.
-    + destruct e; split; try apply IHΓ; easy.
-    + split; try apply IHΓ; easy.
-Qed.
-Ltac crush_noownedptrf Γ :=
-  crush_noownedptrf_aux Γ;
-  try (match goal with
-  | [H0: NoOwnedPtr ?Γ1, H1: NoOwnedPtr (?x ↦ ?τ ◘ [⋅]), H2: NoOwnedPtr ?Γ2 |- _] =>
-    let H01 := fresh "H01" in
-    let H012 := fresh "H012" in
-    assert (NoOwnedPtr Γ1 /\ NoOwnedPtr (x ↦ τ ◘ [⋅])) as H01%noownedptr_split by now split
-  end;
-  match goal with
-  | [H0: NoOwnedPtr (?Γ1 ◘ ?x ↦ ?τ ◘ [⋅]), H2: NoOwnedPtr ?Γ2 |- _] =>
-    let H012 := fresh "H012" in
-    assert (NoOwnedPtr (Γ1 ◘ x ↦ τ ◘ [⋅]) /\ NoOwnedPtr Γ2) as H012%noownedptr_split by now split
-  end;
-  match goal with
-  | [ H0: NoOwnedPtr ?Γ1, H1: NoOwnedPtr (?x ↦ ?τ ◘ [⋅]), H2: NoOwnedPtr ?Γ2,
-      H01: NoOwnedPtr (?Γ1 ◘ ?x ↦ ?τ ◘ [⋅]), H012: NoOwnedPtr ((?Γ1 ◘ ?x ↦ ?τ ◘ [⋅]) ◘ ?Γ2) |- _] =>
-    clear H0 H1 H2 H01; repeat rewrite append_assoc in H012; cbn in H012; apply noownedptr_equiv_noownedptrf in H012; congruence
-  end)
-.
-Definition inferf_var (Γ : Gamma) (x : vart) : option Ty :=
-  let* _ := undup Γ in
-  let* (Γ__a, _, τ, Γ__b) := splitat Γ x in
-  let* _ := noownedptrf Γ in
-  Some τ
-.
-
-Fixpoint inferf (Γ : Gamma) (e : expr) : option Ty :=
-  match e with
-  | Xres(Fres(Fvar x)) => inferf_var Γ x
-  | Xres(Fres(Fval(Vnat n))) =>
-    let* _ := noownedptrf Γ in
-    Some(Texpr Tℕ)
-  | Xbinop _ e1 e2 =>
-    let* (Γ1, Γ2) := splitf Γ e1 in
-    let* τ1 := inferf Γ1 e1 in
-    let* τ2 := inferf Γ2 e2 in
-    match τ1, τ2 with
-    | Texpr Tℕ, Texpr Tℕ => Some(Texpr Tℕ)
-    | _, _ => None
-    end
-  | Xdel x =>
-    let* _ := undup Γ in
-    let* (Γ1, y, τ, Γ2) := splitat Γ x in
-    match τ with
-    | Texpr Tptr => Some(Texpr Tℕ)
-    | _ => None
-    end
-  | Xcall foo arg =>
-    let* τ__f := inferf_var Γ foo in
-    let* τ0' := inferf Γ arg in
-    match τ0', τ__f with
-    | Texpr τ0__e', Tectx(Tarrow τ0 τ1) =>
-      let* _ := intf τ0 in
-      let* _ := intf τ1 in
-      if ty_eqb τ0 τ0__e' then
-        Some(Texpr τ1)
-      else
-        None
-    | _, _ => None
-    end
-  | Xreturn e' =>
-    let* τ := inferf Γ e' in
-    match τ with
-    | Texpr τ' =>
-      let* _ := intf τ' in
-      Some(Treturn τ')
-    | _ => None
-    end
-  | Xifz c e1 e2 =>
-    let* (Γ1, Γ2) := splitf Γ c in
-    let* τ__c := inferf Γ1 c in
-    let* τ1 := inferf Γ2 e1 in
-    let* τ2 := inferf Γ2 e2 in
-    match τ__c, τ1, τ2 with
-    | Texpr Tℕ, Texpr τ1', Texpr τ2' => if eq τ1' τ2' then Some(Texpr τ1') else None
-    | _, _, _ => None
-    end
-  | Xget x e' =>
-    let* (Γ1, Γ2) := splitf Γ (Fvar x) in
-    let* τ__x := inferf_var Γ2 x in
-    let* τ__e := inferf Γ1 e' in
-    match τ__x, τ__e with
-    | Texpr Twptr, Texpr Tℕ => Some(Texpr Tℕ)
-    | _, _ => None
-    end
-  | Xset x e1 e2 =>
-    let* (Γ12, Γ3) := splitf Γ (Xbinop Badd e1 e2) in
-    let* (Γ1, Γ2) := splitf Γ12 e1 in
-    let* τ1 := inferf Γ1 e1 in
-    let* τ2 := inferf Γ2 e2 in
-    let* τ3 := inferf_var Γ3 x in
-    match τ1, τ2, τ3 with
-    | Texpr Tℕ, Texpr Tℕ, Texpr Twptr => Some(Texpr Tℕ)
-    | _, _, _ => None
-    end
-  | Xlet x e1 e2 =>
-    let* (Γ1, Γ2) := splitf Γ e1 in
-    let* τ1 := inferf Γ1 e1 in
-    let* τ2 := inferf (x ↦ τ1 ◘ Γ2) e2 in
-    match τ1, τ2 with
-    | Texpr _, Texpr _ => Some τ2
-    | _, _ => None
-    end
-  | Xnew x e1 e2 =>
-    let* (Γ1, Γ2) := splitf Γ e1 in
-    let* τ1 := inferf Γ1 e1 in
-    let* τ2 := inferf (x ↦ (Texpr Tptr) ◘ Γ2) e2 in
-    match τ1, τ2 with
-    | Texpr Tℕ, Texpr _ => Some τ2
-    | _, _ => None
-    end
-  | _ => None
-  end
-.
-Lemma checkf_refinement (Γ : Gamma) (e : expr) (τ : Ty) :
-  inferf Γ e = Some τ ->
-  check Γ e τ
-.
-Proof.
-  revert Γ τ; induction e; intros Γ τ H0; cbn in H0.
-  - destruct f as [[]|].
-    + (* value *) destruct v. crush_noownedptrf Γ. someinv. constructor. now apply noownedptr_equiv_noownedptrf.
-    + (* variable *) crush_undup Γ; apply nodupinv_equiv_undup in Hx.
-      recognize_split; elim_split.
-      crush_noownedptrf (m1 ◘ v ↦ v0 ◘ m2). someinv. apply noownedptr_equiv_noownedptrf in Hx0.
-      apply noownedptr_split in Hx0 as [Hx0__a Hx0__b]. apply noownedptr_cons in Hx0__b as [Hx0__b Hx0__c].
-      constructor; auto.
-    + (* abort *) congruence.
-  - (* binop *) crush_option (splitf Γ e1); destruct x as [Γ1 Γ2].
-    crush_option (inferf Γ1 e1); crush_option (inferf Γ2 e2).
-    destruct x as [[]| |]; try congruence; destruct x0 as [[]| |]; try congruence; someinv.
-    specialize (IHe1 Γ1 _ Hx0) as IHe1'; specialize (IHe2 Γ2 _ Hx1).
-    erewrite splitf_equiv_splitting in Hx; eauto.
-    eapply CToplus; eauto.
-  - (* get *) crush_option (splitf Γ (Fvar x)); destruct x0 as [Γ1 Γ2].
-    crush_undup Γ2. apply nodupinv_equiv_undup in Hx0.
-    recognize_split; elim_split; crush_noownedptrf (m1 ◘ x ↦ v ◘ m2).
-    crush_option (inferf Γ1 e); destruct v as [[]| |]; try congruence; destruct q; try congruence.
-    destruct x2 as [[]| |]; try congruence; someinv.
-    eapply splitf_equiv_splitting in Hx; eauto.
-    eapply CTget; eauto. constructor; apply noownedptr_equiv_noownedptrf in Hx1;
-    apply noownedptr_split in Hx1 as [Hx1__a Hx1__b]; apply noownedptr_cons in Hx1__b as [Hx1__b Hx1__c]; auto.
-    eapply IHe; eauto.
-  - (* set *) crush_option (splitf Γ (Xbinop Badd e1 e2)); destruct x0 as [Γ12 Γ3].
-    crush_option (splitf Γ12 e1); destruct x0 as [Γ1 Γ2].
-    crush_option (inferf Γ1 e1); crush_option (inferf Γ2 e2). crush_undup Γ3.
-    apply nodupinv_equiv_undup in Hx3; recognize_split; elim_split.
-    crush_noownedptrf (m1 ◘ x ↦ v ◘ m2). destruct x0; try congruence; destruct t; try congruence.
-    destruct x1; try congruence; destruct t; try congruence. destruct v; try congruence; destruct t; try congruence.
-    destruct q; try congruence; someinv.
-    eapply splitf_equiv_splitting in Hx, Hx0. eapply CTset; eauto; try now (eapply IHe1 + eapply IHe2).
-    constructor; apply noownedptr_equiv_noownedptrf in Hx4;
-    apply noownedptr_split in Hx4 as [Hx4__a Hx4__b]; apply noownedptr_cons in Hx4__b as [Hx4__b Hx4__c]; auto.
-  - (* let *) crush_option (splitf Γ e1); destruct x0 as [Γ1 Γ2].
-    crush_option (inferf Γ1 e1); crush_option (inferf (x ↦ x0 ◘ Γ2) e2). destruct x0; try congruence.
-    destruct x1; try congruence; someinv. eapply splitf_equiv_splitting in Hx.
-    econstructor; eauto. eapply IHe1; eassumption. eapply IHe2; eassumption.
-  - (* new *) crush_option (splitf Γ e1); destruct x0 as [Γ1 Γ2].
-    crush_option (inferf Γ1 e1); crush_option (inferf (x ↦ (Texpr Tptr) ◘ Γ2) e2). destruct x0; try congruence.
-    destruct x1; try congruence; destruct t; try congruence. someinv. eapply splitf_equiv_splitting in Hx.
-    econstructor; eauto. eapply IHe1; eassumption. eapply IHe2; eassumption.
-  - (* del *) crush_undup Γ; apply nodupinv_equiv_undup in Hx.
-    recognize_split; elim_split. subst. destruct v as [[]| |]; try congruence. destruct q; try congruence.
-    someinv; constructor; easy.
-  - (* ret *) crush_option (inferf Γ e); destruct x; try congruence; someinv.
-    crush_intf t; someinv. constructor. now apply int_equiv_intf. now eapply IHe.
-  - (* call *) crush_undup Γ; eapply nodupinv_equiv_undup in Hx.
-    recognize_split; elim_split; crush_noownedptrf (m1 ◘ foo ↦ v ◘ m2).
-    crush_option (inferf (m1 ◘ foo ↦ v ◘ m2) e).
-    destruct x1; try congruence. destruct v; try congruence. destruct e0; try congruence.
-    crush_intf t0; crush_intf t1. destruct (eq_dec t0 t); subst; try (apply ty_eqb_neq in H1; rewrite H1 in H0; congruence).
-    rewrite ty_eqb_refl in H0; someinv. apply int_equiv_intf in Hx2, Hx3.
-    eapply CTcall. exact Hx2. exact Hx3.
-    apply noownedptr_equiv_noownedptrf in Hx0; apply noownedptr_split in Hx0 as [Hx0__a Hx0__b];
-    apply noownedptr_cons in Hx0__b as [Hx0__b Hx0__c]; eauto.
-    eapply IHe; eauto.
-  - (* ifz *) crush_option (splitf Γ e1); destruct x as [Γ1 Γ2].
-    crush_option (inferf Γ1 e1); crush_option (inferf Γ2 e2); crush_option (inferf Γ2 e3).
-    destruct x; try congruence. destruct t; try congruence. destruct x0, x1; try congruence.
-    destruct (eq_dec t t0); subst; try (apply ty_eqb_neq in H; rewrite H in H0; congruence).
-    rewrite ty_eqb_refl in H0; someinv. apply splitf_equiv_splitting in Hx; eapply CTifz; eauto;
-    try ((apply IHe1 + apply IHe2 + apply IHe3); eauto).
-  - (* abort *) congruence.
-Qed.
-
-Lemma checkf_correctness (Γ : Gamma) (e : expr) (τ : Ty) :
-  check Γ e τ ->
-  inferf Γ e = Some τ
-.
-Proof.
-  induction 1; cbn.
-  - (* CTvar *) crush_undup (Γ1 ◘ x ↦ τ ◘ Γ2); try (apply nodupinv_equiv_undup in H; congruence).
-    crush_option (splitat (Γ1 ◘ x ↦ τ ◘ Γ2) x); try (apply splitat_elim in H; congruence).
-    destruct x1 as [[[]]]; crush_noownedptrf (Γ1 ◘ x ↦ τ ◘ Γ2).
-    apply nodupinv_equiv_undup in Hx; apply splitat_elim in Hx; rewrite Hx in Hx0; someinv; reflexivity.
-  - (* CTℕ *) crush_noownedptrf Γ; auto; apply noownedptr_equiv_noownedptrf in H; congruence.
-  - (* CToplus *) crush_option (splitf Γ3 e1); apply (splitf_equiv_splitting _ _ _ e1) in H; try congruence.
-    destruct x as [Γ1' Γ2']; rewrite H in Hx; someinv.
-    now rewrite IHcheck, IHcheck0.
-  - (* CTget *) crush_option (splitf Γ3 (Fvar x)); apply (splitf_equiv_splitting _ _ _ (Fvar x)) in H; try congruence.
-    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv.
-    inv H0; crush_undup (Γ1 ◘ x ↦ (Texpr Twptr) ◘ Γ2).
-    apply nodupinv_equiv_undup in Hx; recognize_split; elim_split.
-    crush_noownedptrf (m1 ◘ x ↦ v ◘ m2); rewrite <- H0 in *; clear H0.
-    rewrite IHcheck0. apply splitat_elim in H3; rewrite H3 in H'; someinv; reflexivity.
-  - (* CTset *) crush_option (splitf Γ4 (Xbinop Badd e1 e2)); apply (splitf_equiv_splitting _ _ _ (Xbinop Badd e1 e2)) in H0; try congruence.
-    destruct x0 as [Γ12' Γ3']; rewrite H0 in Hx; someinv.
-    crush_option (splitf Γ12' e1); apply (splitf_equiv_splitting _ _ _ e1) in H; try congruence.
-    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv.
-    rewrite IHcheck0, IHcheck1. inv H1; crush_undup (Γ1 ◘ x ↦ (Texpr Twptr) ◘ Γ2).
-    apply nodupinv_equiv_undup in Hx; recognize_split; elim_split.
-    crush_noownedptrf (m1 ◘ x ↦ v ◘ m2); rewrite <- H1 in *; clear H1.
-    apply splitat_elim in H5; rewrite H5 in H'; someinv; reflexivity.
-  - (* CTlet *) crush_option (splitf Γ3 e1); apply (splitf_equiv_splitting _ _ _ e1) in H; try congruence.
-    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv. rewrite IHcheck, IHcheck0; reflexivity.
-  - (* CTnew *) crush_option (splitf Γ3 e1); apply (splitf_equiv_splitting _ _ _ e1) in H; try congruence.
-    destruct x0 as [Γ1' Γ2']; rewrite H in Hx; someinv. rewrite IHcheck, IHcheck0; reflexivity.
-  - (* CTdel *) crush_undup (Γ1 ◘ x ↦ (Texpr Tptr) ◘ Γ2); now apply splitat_elim in H as ->.
-  - (* CTcall *) inv H1; crush_undup (Γ1 ◘ foo ↦ (Tectx (Tarrow τ0 τ1)) ◘ Γ2).
-    recognize_split; elim_split. crush_noownedptrf (m1 ◘ foo ↦ v ◘ m2); rewrite <- H1 in *.
-    apply splitat_elim in H4; rewrite H4 in H'; rewrite IHcheck0; someinv.
-    apply int_equiv_intf in H as ->; apply int_equiv_intf in H0 as ->. now rewrite ty_eqb_refl.
-  - (* CTret *) rewrite IHcheck. now apply int_equiv_intf in H as ->.
-  - (* CTifz *) crush_option (splitf Γ3 c); apply (splitf_equiv_splitting _ _ _ c) in H; try congruence.
-    destruct x as [Γ1' Γ2']; rewrite H in Hx; someinv. rewrite IHcheck, IHcheck1, IHcheck0.
-    now rewrite ty_eqb_refl.
-Qed.
-
-Theorem checkf_equiv_check (Γ : Gamma) (e : expr) (τ : Ty) :
-  inferf Γ e = Some τ <-> (check Γ e τ)
-.
-Proof. split; now (eapply checkf_refinement + eapply checkf_correctness). Qed.
-
-
-Module ModAux <: CSC.Langs.Util.MOD.
-  Definition State := rtexpr.
-  Definition Ev := event.
-  Definition ev_eq := eventeq.
-  Definition step := estep.
-  Definition string_of_event := string_of_event.
-  Definition is_value := fun (r : rtexpr) => match r with
-                                          | (Some _, Xres(Fres _)) => true
-                                          | (_, _) => false
-                                          end.
-  Definition is_stuck := fun (r : rtexpr) => match r with
-                                          | (None, _) => True
-                                          | _ => False
-                                          end.
-End ModAux.
-Module SMod := CSC.Langs.Util.Mod(ModAux).
-Import SMod.
-
-(** Qualification to mark whether we go from context to component or vice versa *)
-Variant Qcall : Type :=
-| ctx_to_comp : Qcall
-| comp_to_ctx : Qcall
-.
-Definition Qcalleq (q1 q2 : Qcall) : bool :=
-  match q1, q2 with
-  | ctx_to_comp, ctx_to_comp => true
-  | comp_to_ctx, comp_to_ctx => true
-  | _, _ => false
-  end
-.
-(** Types of events that may occur in a trace. *)
-Variant fevent : Type :=
-| Sfalloc (ℓ : loc) (n : nat) : fevent
-| Sfdealloc (ℓ : loc) : fevent
-| Sfget (ℓ : loc) (n : nat) : fevent
-| Sfset (ℓ : loc) (n : nat) (v : value) : fevent
-| Sfcrash : fevent
-| Sfcall (q : Qcall) (foo : vart) (arg : fnoerr) : fevent
-| Sfret (q : Qcall) (f : fnoerr) : fevent
-.
-Definition feventeq (e1 e2 : fevent) : bool :=
-  match e1, e2 with
-  | Sfalloc(addr ℓ0) n0, Sfalloc(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
-  | Sfdealloc(addr ℓ0), Sfdealloc(addr ℓ1) => Nat.eqb ℓ0 ℓ1
-  | Sfget(addr ℓ0) n0, Sfget(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
-  | Sfset(addr ℓ0) n0 (Vnat v0), Sfset(addr ℓ1) n1 (Vnat v1) => andb (andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1))
-                                                                  (Nat.eqb v0 v1)
-  | Sfcrash, Sfcrash => true
-  | Sfcall q1 foo (Fval(Vnat v0)), Sfcall q2 bar (Fval(Vnat v1)) => andb (andb (String.eqb foo bar) (Nat.eqb v0 v1)) (Qcalleq q1 q2)
-  | Sfcall q1 foo (Fvar x), Sfcall q2 bar (Fvar y) => andb (andb (String.eqb foo bar) (String.eqb x y)) (Qcalleq q1 q2)
-  | Sfret q1 (Fval(Vnat v0)), Sfret q2 (Fval(Vnat v1)) => andb (Nat.eqb v0 v1) (Qcalleq q1 q2)
-  | Sfret q1 (Fvar x), Sfret q2 (Fvar y) => andb (String.eqb x y) (Qcalleq q1 q2)
-  | _, _ => false
-  end
-.
-#[local]
-Instance FEvent__Instance : TraceEvent fevent := {}.
-(** Pretty-printing function for better debuggability *)
-Definition string_of_fevent (e : fevent) := ""%string.
-
-
-(** Finds the amount of fuel necessary to run an expression. *)
-Fixpoint get_fuel (e : expr) : option nat :=
-  match e with
-  | Xres _ => Some(0)
-  | Xbinop symb lhs rhs =>
-    let* glhs := get_fuel lhs in
-    let* grhs := get_fuel rhs in
-    Some(1 + glhs + grhs)
-  | Xget x e =>
-    let* ge := get_fuel e in
-    Some(1 + ge)
-  | Xset x e0 e1 =>
-    let* ge0 := get_fuel e0 in
-    let* ge1 := get_fuel e1 in
-    Some(1 + ge0 + ge1)
-  | Xlet x e0 e1 =>
-    let* ge0 := get_fuel e0 in
-    let* ge1 := get_fuel e1 in
-    Some(1 + ge0 + ge1)
-  | Xnew x e0 e1 =>
-    let* ge0 := get_fuel e0 in
-    let* ge1 := get_fuel e1 in
-    Some(1 + ge0 + ge1)
-  | Xdel x => Some(1)
-  | Xreturn e =>
-    match e with
-    | Xreturn e' => let* ge := get_fuel e' in Some(S ge)
-    | _ =>
-      let* ge := get_fuel e in
-      Some(1 + ge)
-    end
-  | Xcall foo e =>
-    let* ge := get_fuel e in
-    Some(1 + ge)
-  | Xifz c e0 e1 =>
-    let* gc := get_fuel c in
-    let* ge0 := get_fuel e0 in
-    let* ge1 := get_fuel e1 in
-    Some(1 + gc + ge0 + ge1)
-  | Xabort => Some(1)
-  end
-.
-Ltac crush_option :=
-    match goal with
-    | [H: Some _ = None |- _] => inv H
-    | [H: _ <> None |- _] =>
-      let n := fresh "n" in
-      apply (not_eq_None_Some) in H as [n H]
-    | [H: _ = None |- _] => trivial
-    end.
-Ltac crush_fuel := (match goal with
-| [H: Some _ = Some _ |- _] => inv H
-| [H: Some ?fuel = match (get_fuel ?e1) with Some _ => _ | None => None end |- _] =>
-  let Hx := fresh "Hx" in
-  let Hy := fresh "Hy" in
-  let n := fresh "n" in
-  destruct (option_dec (get_fuel e1)) as [Hx|Hy];
-  crush_option; try rewrite Hx in *; try rewrite Hy in *
-end).
-
-Lemma atleast_once Ω e r a fuel :
-  Some fuel = get_fuel e ->
-  Ω ▷ e ==[, a ]==> r ->
-  exists fuel', fuel = S fuel'.
-Proof.
-  revert fuel; induction e; cbn; intros fuel H; intros Ha.
-  - crush_fuel; crush_estep.
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - crush_fuel; try crush_option; exists n0; now inv H.
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1).
-  - crush_fuel; now exists 0.
-  - destruct e; crush_fuel; try crush_option; exists n0; now inv H.
-  - crush_fuel; try crush_option; exists n0; now inv H.
-  - repeat (crush_fuel + crush_option); now exists (n0 + n1 + n2).
-  - exists 0; now inv H.
-Qed.
-Lemma star_stepf_one_step Ω e r r' a As fuel :
-  Some (S fuel) = get_fuel e ->
-  estep (Ω ▷ e) (Some a) r ->
-  star_stepf fuel r = Some(As, r') ->
-  star_stepf (S fuel) (Ω ▷ e) = Some(a :: As, r')
-.
-Proof. Admitted.
-Lemma star_stepf_one_unimportant_step Ω e r r' As fuel :
-  Some (S fuel) = get_fuel e ->
-  Ω ▷ e ==[]==> r ->
-  star_stepf fuel r = Some(As, r') ->
-  star_stepf (S fuel) (Ω ▷ e) = Some(As, r')
-.
-Proof. Admitted.
-Lemma estep_good_fuel Ω e r a fuel :
-  Some(S fuel) = get_fuel e ->
-  Ω ▷ e ==[, a ]==> r ->
-  Some fuel = get_fuel (let '(_, e') := r in e').
-Proof. Admitted.
-Lemma fuel_step oΩ e a oΩ' e' fuel :
-  Some(S fuel) = get_fuel e ->
-  (oΩ, e) ==[, a ]==> (oΩ', e') ->
-  Some fuel = get_fuel e'.
-Proof. Admitted.
-Lemma equiv_starstep Ω e r1 As fuel :
-  Some fuel = get_fuel e ->
-  Ω ▷ e ==[ As ]==>* r1 <-> star_stepf fuel (Ω ▷ e) = Some(As, r1).
-Proof.
-  intros Hf; split; intros H.
-  - destruct r1 as [oΩ' e'].
-    change (Some fuel = get_fuel match (Ω ▷ e) with
-                          | (_, e') => e'
-                          end) in Hf.
-    revert fuel Hf; induction H; intros fuel Hf; cbn in Hf.
-    + destruct r1 as [[Ω0|] e0]; cbn in *; try congruence.
-      destruct e0; cbn in H; try congruence; destruct f; try congruence.
-      inv Hf; now cbn.
-    + clear Ω e oΩ' e'; destruct r1 as [[oΩ1|] e1].
-      * assert (H':=H); apply (@atleast_once oΩ1 e1 r2 (Some a) fuel Hf) in H as [fuel' ->];
-        eapply star_stepf_one_step; eauto;
-        eapply IHstar_step; eapply estep_good_fuel; eauto.
-      * inv H.
-    + clear Ω e oΩ' e'; destruct r1 as [[oΩ1|] e1].
-      * assert (H':=H); apply (@atleast_once oΩ1 e1 r2 None fuel Hf) in H as [fuel' ->].
-        eapply star_stepf_one_unimportant_step; eauto;
-        eapply IHstar_step; eapply estep_good_fuel; eauto.
-      * inv H.
-  - revert Ω e r1 As Hf H; induction fuel; intros Ω e r1 As Hf H.
-    + destruct e; cbn in Hf; repeat destruct (get_fuel _); try congruence;
-      cbn in H; inv H; destruct f; try congruence; inv H1; now apply ES_refl.
-    + unfold star_stepf in H.
-      rewrite (get_rid_of_letstar Ω) in H.
-      destruct (option_dec (estepf (Some Ω, e))) as [Hx|Hy]; try rewrite Hy in H.
-      2: inv H.
-      apply not_eq_None_Some in Hx as [[a [Ω' e']] Hx].
-      rewrite Hx in H.
-      rewrite (get_rid_of_letstar (a, (Ω', e'))) in H.
-      destruct (option_dec ((
-fix doo (fuel : nat) (r : rtexpr) {struct fuel} : option (list event * rtexpr) :=
-            let (oΩ, e) := r in
-            let* _ := oΩ
-            in match fuel with
-               | 0 => match e with
-                      | Xres(Fres _) => Some (nil, r)
-                      | _ => None
-                      end
-               | S fuel' =>
-                   let* (a, r') := estepf r
-                   in let* (As, r'') := doo fuel' r'
-                      in match a with
-                         | Some a' => Some (a' :: As, r'')
-                         | None => Some (As, r'')
-                         end
-               end
-                ) fuel (Ω', e'))) as [Hx0|Hy0]; try rewrite Hy0 in H.
-      2: inv H.
-      apply not_eq_None_Some in Hx0 as [[As0 r1'] Hx0].
-      rewrite Hx0 in H.
-      rewrite (get_rid_of_letstar (As0, r1')) in H.
-      rewrite <- equiv_estep in Hx;
-      destruct a as [a|]; inv H.
-      * eapply ES_trans_important; eauto;
-        destruct Ω' as [Ω'|]; try now cbn.
-        1,3: destruct fuel; inv Hx0.
-        apply (fuel_step Hf) in Hx.
-        eapply IHfuel; eauto.
-      * eapply ES_trans_unimportant; eauto;
-        destruct Ω' as [Ω'|]; try now cbn.
-        apply (fuel_step Hf) in Hx.
-        eapply IHfuel; eauto.
-Qed.
-
-Lemma star_stepf_is_nodupinv_invariant Ω e Ω' e' a fuel :
-  Some fuel = get_fuel e ->
-  star_stepf fuel (Ω ▷ e) = Some(a, Ω' ▷ e') ->
-  nodupinv Ω ->
-  nodupinv Ω'
-.
-Proof. intros H__fuel H0 H1; apply equiv_starstep in H0; eauto; apply star_step_is_nodupinv_invariant in H0; eauto. Qed.
-
-(** Evaluation of programs *)
-Inductive wstep : prog -> tracepref -> rtexpr -> Prop :=
-| e_wprog : forall (symbs : symbols) (ξ : commlib) (As : tracepref) (r : rtexpr),
-    prog_check (Cprog symbs ξ) ->
-    (Fresh.empty_fresh ; symbs ; ξ ; nil ; hNil ; sNil ▷ Xcall "main"%string 0 ==[ As ]==>* r) ->
-    wstep (Cprog symbs ξ) As r
-.
-
-Fixpoint get_fuel_fn_aux (E : evalctx) {struct E} : option nat :=
-  match E with
-  | Khole => Some 0
-  | KbinopL b K e =>
-    let* gK := get_fuel_fn_aux K in
-    let* ge := get_fuel e in
-    Some(ge + gK + 1)
-  | KbinopR b v K =>
-    let* gK := get_fuel_fn_aux K in
-    Some(gK + 1)
-  | Kget x K =>
-    let* gK := get_fuel_fn_aux K in
-    Some(gK + 1)
-  | KsetL x K e =>
-    let* gK := get_fuel_fn_aux K in
-    let* ge := get_fuel e in
-    Some(ge + gK + 1)
-  | KsetR x v K =>
-    let* gK := get_fuel_fn_aux K in
-    Some(gK + 1)
-  | Klet x K e =>
-    let* gK := get_fuel_fn_aux K in
-    let* ge := get_fuel e in
-    Some(ge + gK + 1)
-  | Knew x K e =>
-    let* gK := get_fuel_fn_aux K in
-    let* ge := get_fuel e in
-    Some(ge + gK + 1)
-  | Kifz K e0 e1 =>
-    let* gK := get_fuel_fn_aux K in
-    let* ge0 := get_fuel e0 in
-    let* ge1 := get_fuel e1 in
-    Some(ge0 + ge1 + gK + 1)
-  | Kreturn K =>
-    let* gK := get_fuel_fn_aux K in
-    Some(gK + 1)
-  | Kcall foo K =>
-    let* gK := get_fuel_fn_aux K in
-    Some(gK + 1)
-  end
-.
-Fixpoint get_fuel_fn (e : expr) : option nat :=
-  match e with
-  | Xres _ => Some 0
-  | Xabort | Xdel _ => Some 1
-  | Xbinop b e1 e2 =>
-    let* f1 := get_fuel_fn e1 in
-    let* f2 := get_fuel_fn e2 in
-    Some (f1 + f2 + 1)
-  | Xget x e' =>
-    let* f := get_fuel_fn e' in
-    Some (f + 1)
-  | Xset x e1 e2 =>
-    let* f1 := get_fuel_fn e1 in
-    let* f2 := get_fuel_fn e2 in
-    Some (f1 + f2 + 1)
-  | Xlet x e1 e2 =>
-    let* f1 := get_fuel_fn e1 in
-    let* f2 := get_fuel_fn e2 in
-    Some (f1 + f2 + 1)
-  | Xnew x e1 e2 =>
-    let* f1 := get_fuel_fn e1 in
-    let* f2 := get_fuel_fn e2 in
-    Some (f1 + f2 + 1)
-  | Xifz e0 e1 e2 =>
-    let* f0 := get_fuel_fn e0 in
-    let* f1 := get_fuel_fn e1 in
-    let* f2 := get_fuel_fn e2 in
-    Some (f0 + f1 + f2 + 1)
-  | Xreturn e' =>
-    let* f := get_fuel_fn e' in
-    Some (f + 1)
-  | Xcall foo e' =>
-    let* f := get_fuel_fn e' in
-    Some (f + 1)
-  end
-.
-Fixpoint collect_callsites (ξ : symbols) (e : expr) : option symbols :=
-  match e with
-  | Xbinop _ e0 e1 =>
-    let* r0 := collect_callsites ξ e0 in
-    let* r1 := collect_callsites ξ e1 in
-    Some(r0 ◘ r1)
-  | Xget _ e => collect_callsites ξ e
-  | Xset _ e0 e1 =>
-    let* r0 := collect_callsites ξ e0 in
-    let* r1 := collect_callsites ξ e1 in
-    Some(r0 ◘ r1)
-  | Xlet _ e0 e1 =>
-    let* r0 := collect_callsites ξ e0 in
-    let* r1 := collect_callsites ξ e1 in
-    Some(r0 ◘ r1)
-  | Xnew _ e0 e1 =>
-    let* r0 := collect_callsites ξ e0 in
-    let* r1 := collect_callsites ξ e1 in
-    Some(r0 ◘ r1)
-  | Xreturn e' => collect_callsites ξ e'
-  | Xcall foo e' =>
-    let* res := collect_callsites ξ e' in
-    let* K := mget ξ foo in
-    Some(foo ↦ K ◘ res)
-  | Xifz c e0 e1 =>
-    let* cr := collect_callsites ξ c in
-    let* r0 := collect_callsites ξ e0 in
-    let* r1 := collect_callsites ξ e1 in
-    Some(cr ◘ r0 ◘ r1)
-  | _ => Some(mapNil _ _)
-  end
-.
-(** Compute the total amount of fuel necessary to run a complete program. Each context corresponding to a call
-    artificially gets a return in the semantics (estep), so add 1.
-    Also, add 1 to the final result, because the top-level performs a call to "main". *)
-Definition get_fuel_toplevel (ξ : symbols) (foo : vart) : option nat :=
-  let* Kτ := mget ξ foo in
-  let '(x__arg,_,e__arg) := Kτ in
-  let e := subst x__arg e__arg (Xres 0) in
-  let* ge := get_fuel e in
-  let* symbs := collect_callsites ξ e in
-  let* res := List.fold_left (fun acc Eτ =>
-                                let '(_,_,e__arg) := Eτ in
-                                let* a := acc in
-                                let* b := get_fuel_fn e__arg in
-                                Some(1 + a + b)) (img symbs) (Some ge) in
-  Some(S res)
-.
-
-Definition wstepf (p : prog) : option (tracepref * rtexpr) :=
-  let '(Cprog symbs ξ) := p in
-  let e := Xcall "main"%string 0 in
-  let* fuel := get_fuel_toplevel symbs "main"%string in
-  let R := Fresh.empty_fresh ; symbs ; ξ ; nil ; hNil ; sNil ▷ e in
-  star_stepf fuel R
-.
-Definition debug_eval (p : prog) :=
-  let* (As, _) := wstepf p in
-  Some(string_of_tracepref As)
-.
-
-(* let x = [] in
-     let z = new x in
-     let w = z[1337] in
-     let _ = delete z in
-     w*)
-Definition smsunsafe_ep : expr :=
-  Xnew "z"%string
-      (Fvar "y"%string)
-      (Xlet "w"%string
-            (Xget "z"%string 1337)
-            (Xlet "_1"%string
-                  (Xdel "z"%string)
-                  (Fvar "w"%string))
-      )
-.
-(* let x = 3 in call foo x *)
-Definition smsunsafe_ctx : expr :=
-  Xreturn (Xlet ("_0"%string)
-    (Fvar "arg"%string)
-    (Xlet ("x"%string)
-          3
-          (Xcall ("foo"%string) (Fvar "x"%string))))
-.
-
-Definition smsunsafe_prog_aux : symbols :=
-  ("foo"%string ↦ ("y"%string, Tectx(Tarrow Tℕ Tℕ), smsunsafe_ep) ◘
-  ("main"%string ↦ ("arg"%string, Tectx(Tarrow Tℕ Tℕ), smsunsafe_ctx) ◘ mapNil _ _)).
-Definition smsunsafe_prog := Cprog smsunsafe_prog_aux ("foo"%string :: List.nil).
-
-Tactic Notation "splitΓfor" :=
-try do 2 match goal with
-| [|- _ ⊦ _ : _] => unfold "_ ⊦ _ : _"
-| [|- check ?P (Xdel ?x) ?τ] =>
-  match P with
-  | context E__Γ [(x ↦ ?H ◘ ?R)] =>
-    let nP := constr:([⋅] ◘ (x ↦ H ◘ R)) in
-    let NP := constr:(ltac:(let t := context E__Γ [[⋅]] in exact t)) in
-    let nnP := constr:(NP ◘ nP) in
-    let G := constr:(check nnP (Xdel x) τ) in
-    change G
-  end
-| [|- check ?P (Xres(Fres(Fvar ?x))) ?τ] =>
-  match P with
-  | context E__Γ [(x ↦ ?H ◘ ?R)] =>
-    let nP := constr:([⋅] ◘ (x ↦ H ◘ R)) in
-    let NP := constr:(ltac:(let t := context E__Γ [[⋅]] in exact t)) in
-    let nnP := constr:(NP ◘ nP) in
-    let G := constr:(check nnP (Xres(Fres(Fvar x))) τ) in
-    change G
-  end
-end.
-
-Lemma ownedptrsplit Γ1 Γ2 : NoOwnedPtr Γ1 -> NoOwnedPtr Γ2 -> NoOwnedPtr (Γ1 ◘ Γ2).
-Proof.
-  induction Γ1; cbn; intros H1 H2; trivial; destruct H1 as [H1__a H1__b]; auto.
-Qed.
-Lemma ownedptrcons x y Γ2 : NoOwnedPtr (x ↦ y ◘ [⋅]) -> NoOwnedPtr Γ2 -> NoOwnedPtr (x ↦ y ◘ Γ2).
-Proof.
-  intros [H1__a H1__b] H2; split; auto.
-Qed.
-
-Lemma smsunsafe_prog_checks : prog_check smsunsafe_prog.
-Proof.
-  (*
-  assert (NoOwnedPtr ("foo"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ ("main"%string ↦ (Tectx(Tarrow Tℕ Tℕ)) ◘ [⋅]))) as G.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0;
-    destruct a; inv H1; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H0;
-    destruct x; inv H1; destruct a; inv H0; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1;
-    destruct x; inv H0; destruct a; inv H1; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H0.
-    destruct x; inv H1.
-  cbn; repeat split; trivial.
-  - eapply ETlet. repeat (eapply ArrowSplit; try eapply intℕ); eapply splitEmpty. eapply EThole.
-    eapply intℕ. exact G.
-    eapply CTnew. eapply ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; try eapply intℕ.
-    splitΓfor.
-    eapply CTvar. easy. unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
-    exact G.
-    eapply CTlet. eapply ptrRSplit, ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; try eapply intℕ.
-    eapply CTget. eapply weakPtrSplit, ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; try eapply intℕ.
-    splitΓfor.
-    eapply CTvar. easy. unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
-    eapply ownedptrcons; trivial.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
-    eapply CTℕ. do 2 eapply ownedptrcons; try easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
-    eapply CTlet. eapply ℕsplit, ptrLSplit, ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; eapply intℕ.
-    instantiate (1:=Tℕ).
-    splitΓfor.
-    eapply CTdel.
-    splitΓfor.
-    eapply CTvar.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0. easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
-    eapply ownedptrcons; try easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
-  - eapply ETret. eapply intℕ. eapply ETlet. eapply ArrowSplit, ArrowSplit, splitEmpty; eapply intℕ.
-    eapply EThole. eapply intℕ. assumption.
-    eapply CTlet. eapply ℕsplit, ArrowSplit, ArrowSplit, splitEmpty; eapply intℕ. eapply CTℕ.
-    eapply ownedptrcons; try easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0; easy.
-    eapply CTcall. eapply intℕ. eapply intℕ.
-    splitΓfor. eapply CTvar; try easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy. easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; inv H0.
-    destruct a; destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1. destruct x; easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    splitΓfor.
-    eapply CTvar. easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
-    eapply ownedptrcons; try easy.
-    unfold NoOwnedPtr. intros. destruct x; cbn in H; inv H. destruct a.
-    destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0.
-    destruct a. destruct b, b0, b1, b2, b3, b4, b5, b6; inv H1; destruct x; inv H0; easy.
-    *)
-Admitted.
-
-Goal exists As R,
-    wstep smsunsafe_prog As R.
-Proof.
-  (*
-  do 2 eexists.
-  econstructor; try exact smsunsafe_prog_checks.
-  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 3. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  econstructor 2. rewrite equiv_estep; now cbn. now cbn.
-  now econstructor. *)
-Admitted.
-
-Compute (debug_eval smsunsafe_prog).
-
-Variant msevent : Type :=
-| MSalloc (ℓ : loc) (n : nat) : msevent
-| MSdealloc (ℓ : loc) : msevent
-| MSuse (ℓ : loc) (n : nat) : msevent
-| MScrash : msevent
-.
-#[local]
-Instance msevent__Instance : TraceEvent msevent := {}.
-Definition mseventeq (e1 e2 : msevent) : bool :=
-  match e1, e2 with
-  | MSalloc(addr ℓ0) n0, MSalloc(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
-  | MSdealloc(addr ℓ0), MSdealloc(addr ℓ1) => Nat.eqb ℓ0 ℓ1
-  | MSuse(addr ℓ0) n0, MSuse(addr ℓ1) n1 => andb (Nat.eqb ℓ0 ℓ1) (Nat.eqb n0 n1)
-  | MScrash, MScrash => true
-  | _, _ => false
-  end
-.
-(** Pretty-printing function for better debuggability *)
-Definition string_of_msevent (e : msevent) :=
-  match e with
-  | (MSalloc (addr ℓ) n) => String.append
-                      (String.append ("MsAlloc ℓ"%string) (string_of_nat ℓ))
-                      (String.append (" "%string) (string_of_nat n))
-  | (MSdealloc (addr ℓ)) => String.append ("MsDealloc ℓ"%string) (string_of_nat ℓ)
-  | (MSuse (addr ℓ) n) => String.append
-                    (String.append ("MsUse ℓ"%string) (string_of_nat ℓ))
-                    (String.append (" "%string) (string_of_nat n))
-  | (MScrash) => "↯"%string
-  end
-.
-
-Module MSModAux <: CSC.Langs.Util.MOD.
-  Definition State := True.
-  Definition Ev := msevent.
-  Definition ev_eq := mseventeq.
-  Definition step := fun (_ : State) (o : option msevent) (_ : State) => True.
-  Definition string_of_event := string_of_msevent.
-  Definition is_value := fun (_ : State) => true.
-  Definition is_stuck := fun (_ : State) => False.
-End MSModAux.
-Module SMSMod := CSC.Langs.Util.Mod(MSModAux).
+(* TODO: translation of events to TMSMon.event*)
 
 Definition msev_of_ev (ev : event) : option msevent :=
   match ev with

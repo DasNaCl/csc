@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef.
+Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
 Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Props.
 
 From RecordUpdate Require Import RecordSet.
@@ -332,10 +332,6 @@ Notation "'dL(' bℓ ';' bρ ';' bt ';' bn ')'" := (({| dℓ := bℓ ;
                                                      dρ := bρ ;
                                                      dt := bt ;
                                                      dn := bn |}) : dynloc) (at level 80).
-(** Stores map variables to potentially poisoned locations. *)
-Definition store := mapind varteq__Instance dynloc.
-Definition sNil : store := mapNil varteq__Instance dynloc.
-
 (** Stores pointers and their respective metadata. *)
 Definition ptrstore := mapind loceq__Instance dynloc.
 Definition snil : ptrstore := mapNil loceq__Instance dynloc.
@@ -451,33 +447,43 @@ Lemma nodupinv_empty (Ξ : symbols) (ξ : commlib) :
   Util.nodupinv Ξ ->
   nodupinv (Ω(Fresh.empty_fresh; Ξ; ξ; List.nil; CComp; hNil; hNil; snil)).
 Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
-Lemma nodupinv_grow_H__ctx F Ξ ξ Ks t H__ctx H__comp Δ n H__ctx' default:
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp;Δ)) ->
-  Hgrow H__ctx n default = Some H__ctx' ->
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx';H__comp;Δ))
+Lemma nodupinv_grow_H__ctx Ω H__ctx' n default:
+  nodupinv (Ω) ->
+  Hgrow Ω.(SΦ).(MH__ctx) n default = Some H__ctx' ->
+  nodupinv (Ω <| SΦ := Ω.(SΦ) <| MH__ctx := H__ctx' |> |>)
 .
 Proof.
-  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in Ha, Hb, Hc, Hd.
-  revert H__ctx' H__ctx Hb H; induction n; intros H' H Hb H0.
-  - now inv H0.
-  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)) default)) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
-    apply not_eq_None_Some in Hx as [H__x Hx].
-    rewrite Hx in H0.
-    cbn in H0. now apply push_ok in H0.
+  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in *.
+  revert H__ctx' H; induction n; intros.
+  - now inv H.
+  - cbn in H. crush_option (Hgrow_aux (MH__ctx (SΦ Ω)) n (List.length (dom (MH__ctx(SΦ Ω)))) default).
+    now apply push_ok in H.
 Qed.
-Lemma nodupinv_grow_H__comp F Ξ ξ Ks t H__ctx H__comp Δ n H__comp' default:
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp;Δ)) ->
-  Hgrow H__comp n default = Some H__comp' ->
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp';Δ))
+Lemma nodupinv_grow_H__comp Ω H__comp' n default:
+  nodupinv (Ω) ->
+  Hgrow Ω.(SΦ).(MH__comp) n default = Some H__comp' ->
+  nodupinv (Ω <| SΦ := Ω.(SΦ) <| MH__comp := H__comp' |> |>)
 .
 Proof.
-  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in Ha, Hb, Hc, Hd.
-  revert H__comp' H__comp Hc H; induction n; intros H' H Hc H0.
-  - now inv H0.
-  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)) default)) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
-    apply not_eq_None_Some in Hx as [H__x Hx].
-    rewrite Hx in H0.
-    cbn in H0. now apply push_ok in H0.
+  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in *.
+  revert H__comp' H; induction n; intros.
+  - now inv H.
+  - cbn in H. crush_option (Hgrow_aux (MH__comp (SΦ Ω)) n (List.length (dom (MH__comp(SΦ Ω)))) default).
+    now apply push_ok in H.
+Qed.
+
+Lemma nodupinv_Htgrow Ω Φ' n default:
+  nodupinv (Ω) ->
+  Htgrow Ω.(SΦ) n Ω.(St) default = Some Φ' ->
+  nodupinv (Ω <| SΦ := Φ' |>)
+.
+Proof.
+  intros [Ha [Hb [Hc Hd]]]; destruct (St Ω); eauto; cbn in *; intros.
+  crush_option (Hgrow (MH__ctx (SΦ Ω)) n default).
+  eapply nodupinv_grow_H__ctx in Hx; inv H. easy. now constructor.
+
+  crush_option (Hgrow (MH__comp (SΦ Ω)) n default).
+  eapply nodupinv_grow_H__comp in Hx; inv H. easy. now constructor.
 Qed.
 (** Types of events that may occur in a trace. *)
 Variant preevent : Type :=
@@ -654,13 +660,13 @@ Inductive pstep : PrimStep rtexpr event :=
             (Φ : MemState) (n m ℓ : nat) (v : value)  (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    (mget (getH Φ t) (ℓ + n) = Some(Some v) \/ v = Vnat 1729) ->
+    (mget (getH Φ t) (ℓ + n) = Some(Some v) \/ (v = Vnat 1729 /\ mget (getH Φ t) (ℓ + n) = None)) ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval (Vpair Vcap v)
 | e_set : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
             (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    (mset (getH Φ t) (ℓ + n) (Some w) = Some H' \/ H' = getH Φ t) ->
+    (mset (getH Φ t) (ℓ + n) (Some w) = Some H' \/ (H' = getH Φ t /\ mset (getH Φ t) (ℓ + n) (Some w) = None)) ->
     Φ' = setH Φ t H' ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xset (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) (Xval w) --[ ev( Sset (addr ℓ) n w ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval (Vpair Vcap w)
 | e_unpack : forall (Ω : state) (γ x : vart) (ℓ : loc) (v : value) (e e' : expr),
@@ -680,9 +686,10 @@ Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
   nodupinv Ω'
 .
 Proof.
-  remember (Ω ▷ e) as r0; remember (Ω' ▷ e') as r1.
-  induction 1; inv Heqr0; inv Heqr1; try easy.
-  - (* e_delete *) admit.
+  intros H; cbv in H; dependent induction H; try easy.
+  - (* e_alloc *) admit.
+  - (* e_del *) inv H1. inv H2. intros [Ha [Hb [Hc Hd]]].
+    constructor; cbn in *; repeat split; eauto. admit.
   - (* e_set *) admit.
 Admitted.
 
@@ -792,6 +799,35 @@ Proof. Admitted.
 Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
   r0 --[, a ]--> r1 <-> pstepf r0 = Some(a, r1).
 Proof.
+  split.
+  - intros H; cbv in H; dependent induction H; cbn.
+    + (* binop *) destruct b; inv H; easy.
+    + (* ifz-true *) easy.
+    + (* ifz-false *) destruct n; easy.
+    + (* pair *) easy.
+    + (* crash *) easy.
+    + (* let *) now inv H.
+    + (* unpair *) now inv H.
+    + (* alloc *) inv H; rewrite H0; rewrite <- H1; easy.
+    + (* del *) eq_to_defeq loc_eqb; rewrite eq_refl; apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
+      apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. easy.
+    + (* get *) apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
+      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. destruct H1 as [-> | [-> ->]]; easy.
+    + (* set *) apply nodupinv_equiv_undup in H as H'0. rewrite H0, H'0.
+      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. inv H2. destruct H1 as [-> | [-> ->]]; try easy.
+    + (* unpack *) now inv H.
+    + (* pack *) easy.
+  - destruct r0 as [Ω e|]; try now cbn.
+    revert Ω a r1; induction e; intros; cbn in H.
+    + (* value *) inv H.
+    + (* variable *) inv H.
+    + (* binop *) grab_value2 e1 e2; destruct symb; inv H; now constructor.
+    + (* get *) grab_value3 e1 e2 e3; destruct ℓ; try now inv H. crush_undup (MΔ (SΦ Ω)).
+      apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split.
+      rewrite Nat.eqb_refl in H. crush_option (mget (getH (SΦ Ω) (St Ω)) (n0 + n)).
+      * crush_option x0. inv H. inv Hy; cbn in *. admit. (*destruct Ω; econstructor; eauto.*)
+        admit. inv Hx1. admit.
+      * rewrite Hx0 in H. admit.
 Admitted.
 Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
   pstepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->

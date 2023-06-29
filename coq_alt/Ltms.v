@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef.
+Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
 Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Props.
 
 From RecordUpdate Require Import RecordSet.
@@ -660,13 +660,13 @@ Inductive pstep : PrimStep rtexpr event :=
             (Φ : MemState) (n m ℓ : nat) (v : value)  (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    (mget (getH Φ t) (ℓ + n) = Some(Some v) \/ v = Vnat 1729) ->
+    (mget (getH Φ t) (ℓ + n) = Some(Some v) \/ (v = Vnat 1729 /\ mget (getH Φ t) (ℓ + n) = None)) ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval (Vpair Vcap v)
 | e_set : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
             (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore),
     Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    (mset (getH Φ t) (ℓ + n) (Some w) = Some H' \/ H' = getH Φ t) ->
+    (mset (getH Φ t) (ℓ + n) (Some w) = Some H' \/ (H' = getH Φ t /\ mset (getH Φ t) (ℓ + n) (Some w) = None)) ->
     Φ' = setH Φ t H' ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xset (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) (Xval w) --[ ev( Sset (addr ℓ) n w ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval (Vpair Vcap w)
 | e_unpack : forall (Ω : state) (γ x : vart) (ℓ : loc) (v : value) (e e' : expr),
@@ -688,6 +688,8 @@ Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
 Proof.
   intros H; cbv in H; dependent induction H; try easy.
   - (* e_alloc *) admit.
+  - (* e_del *) inv H1. inv H2. intros [Ha [Hb [Hc Hd]]].
+    constructor; cbn in *; repeat split; eauto. admit.
   - (* e_set *) admit.
 Admitted.
 
@@ -797,6 +799,35 @@ Proof. Admitted.
 Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
   r0 --[, a ]--> r1 <-> pstepf r0 = Some(a, r1).
 Proof.
+  split.
+  - intros H; cbv in H; dependent induction H; cbn.
+    + (* binop *) destruct b; inv H; easy.
+    + (* ifz-true *) easy.
+    + (* ifz-false *) destruct n; easy.
+    + (* pair *) easy.
+    + (* crash *) easy.
+    + (* let *) now inv H.
+    + (* unpair *) now inv H.
+    + (* alloc *) inv H; rewrite H0; rewrite <- H1; easy.
+    + (* del *) eq_to_defeq loc_eqb; rewrite eq_refl; apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
+      apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. easy.
+    + (* get *) apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
+      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. destruct H1 as [-> | [-> ->]]; easy.
+    + (* set *) apply nodupinv_equiv_undup in H as H'0. rewrite H0, H'0.
+      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. inv H2. destruct H1 as [-> | [-> ->]]; try easy.
+    + (* unpack *) now inv H.
+    + (* pack *) easy.
+  - destruct r0 as [Ω e|]; try now cbn.
+    revert Ω a r1; induction e; intros; cbn in H.
+    + (* value *) inv H.
+    + (* variable *) inv H.
+    + (* binop *) grab_value2 e1 e2; destruct symb; inv H; now constructor.
+    + (* get *) grab_value3 e1 e2 e3; destruct ℓ; try now inv H. crush_undup (MΔ (SΦ Ω)).
+      apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split.
+      rewrite Nat.eqb_refl in H. crush_option (mget (getH (SΦ Ω) (St Ω)) (n0 + n)).
+      * crush_option x0. inv H. inv Hy; cbn in *. admit. (*destruct Ω; econstructor; eauto.*)
+        admit. inv Hx1. admit.
+      * rewrite Hx0 in H. admit.
 Admitted.
 Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
   pstepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->

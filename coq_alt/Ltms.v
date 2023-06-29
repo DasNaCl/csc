@@ -332,10 +332,6 @@ Notation "'dL(' bℓ ';' bρ ';' bt ';' bn ')'" := (({| dℓ := bℓ ;
                                                      dρ := bρ ;
                                                      dt := bt ;
                                                      dn := bn |}) : dynloc) (at level 80).
-(** Stores map variables to potentially poisoned locations. *)
-Definition store := mapind varteq__Instance dynloc.
-Definition sNil : store := mapNil varteq__Instance dynloc.
-
 (** Stores pointers and their respective metadata. *)
 Definition ptrstore := mapind loceq__Instance dynloc.
 Definition snil : ptrstore := mapNil loceq__Instance dynloc.
@@ -451,33 +447,43 @@ Lemma nodupinv_empty (Ξ : symbols) (ξ : commlib) :
   Util.nodupinv Ξ ->
   nodupinv (Ω(Fresh.empty_fresh; Ξ; ξ; List.nil; CComp; hNil; hNil; snil)).
 Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
-Lemma nodupinv_grow_H__ctx F Ξ ξ Ks t H__ctx H__comp Δ n H__ctx' default:
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp;Δ)) ->
-  Hgrow H__ctx n default = Some H__ctx' ->
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx';H__comp;Δ))
+Lemma nodupinv_grow_H__ctx Ω H__ctx' n default:
+  nodupinv (Ω) ->
+  Hgrow Ω.(SΦ).(MH__ctx) n default = Some H__ctx' ->
+  nodupinv (Ω <| SΦ := Ω.(SΦ) <| MH__ctx := H__ctx' |> |>)
 .
 Proof.
-  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in Ha, Hb, Hc, Hd.
-  revert H__ctx' H__ctx Hb H; induction n; intros H' H Hb H0.
-  - now inv H0.
-  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)) default)) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
-    apply not_eq_None_Some in Hx as [H__x Hx].
-    rewrite Hx in H0.
-    cbn in H0. now apply push_ok in H0.
+  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in *.
+  revert H__ctx' H; induction n; intros.
+  - now inv H.
+  - cbn in H. crush_option (Hgrow_aux (MH__ctx (SΦ Ω)) n (List.length (dom (MH__ctx(SΦ Ω)))) default).
+    now apply push_ok in H.
 Qed.
-Lemma nodupinv_grow_H__comp F Ξ ξ Ks t H__ctx H__comp Δ n H__comp' default:
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp;Δ)) ->
-  Hgrow H__comp n default = Some H__comp' ->
-  nodupinv (Ω(F;Ξ;ξ;Ks;t;H__ctx;H__comp';Δ))
+Lemma nodupinv_grow_H__comp Ω H__comp' n default:
+  nodupinv (Ω) ->
+  Hgrow Ω.(SΦ).(MH__comp) n default = Some H__comp' ->
+  nodupinv (Ω <| SΦ := Ω.(SΦ) <| MH__comp := H__comp' |> |>)
 .
 Proof.
-  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in Ha, Hb, Hc, Hd.
-  revert H__comp' H__comp Hc H; induction n; intros H' H Hc H0.
-  - now inv H0.
-  - cbn in H0. destruct (option_dec (Hgrow_aux H n (List.length (dom H)) default)) as [Hx|Hy]; try (rewrite Hy in H0; congruence).
-    apply not_eq_None_Some in Hx as [H__x Hx].
-    rewrite Hx in H0.
-    cbn in H0. now apply push_ok in H0.
+  intros [Ha [Hb [Hc Hd]]]; repeat split; eauto; cbn in *.
+  revert H__comp' H; induction n; intros.
+  - now inv H.
+  - cbn in H. crush_option (Hgrow_aux (MH__comp (SΦ Ω)) n (List.length (dom (MH__comp(SΦ Ω)))) default).
+    now apply push_ok in H.
+Qed.
+
+Lemma nodupinv_Htgrow Ω Φ' n default:
+  nodupinv (Ω) ->
+  Htgrow Ω.(SΦ) n Ω.(St) default = Some Φ' ->
+  nodupinv (Ω <| SΦ := Φ' |>)
+.
+Proof.
+  intros [Ha [Hb [Hc Hd]]]; destruct (St Ω); eauto; cbn in *; intros.
+  crush_option (Hgrow (MH__ctx (SΦ Ω)) n default).
+  eapply nodupinv_grow_H__ctx in Hx; inv H. easy. now constructor.
+
+  crush_option (Hgrow (MH__comp (SΦ Ω)) n default).
+  eapply nodupinv_grow_H__comp in Hx; inv H. easy. now constructor.
 Qed.
 (** Types of events that may occur in a trace. *)
 Variant preevent : Type :=
@@ -680,9 +686,8 @@ Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
   nodupinv Ω'
 .
 Proof.
-  remember (Ω ▷ e) as r0; remember (Ω' ▷ e') as r1.
-  induction 1; inv Heqr0; inv Heqr1; try easy.
-  - (* e_delete *) admit.
+  intros H; cbv in H; dependent induction H; try easy.
+  - (* e_alloc *) admit.
   - (* e_set *) admit.
 Admitted.
 

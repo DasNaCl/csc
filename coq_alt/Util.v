@@ -745,6 +745,7 @@ Lemma meq_correct { A : Type } { H : HasEquality A } { B : Type } (m1 m2 : mapin
 .
 Proof. intros H0; subst; easy. Qed.
 
+
 #[global]
 Instance refl_meq { A : Type } { H : HasEquality A } { B : Type } : Reflexive (@meq A H B).
 Proof. intros m; split; intros Hx; auto. Qed.
@@ -808,6 +809,16 @@ Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H
   mget m' x = Some v
 .
 Proof. intros Ha Hb; specialize (Hb x v); apply mget_min in Ha; apply mget_min; auto. Qed.
+
+
+Lemma mget_splitat_same_el {A : Type} { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (a b : B) :
+  Util.nodupinv m ->
+  mget m x = Some a ->
+  splitat m x = Some (m1, x, b, m2) ->
+  a = b
+.
+Proof. Admitted.
+
 
 End Util.
 

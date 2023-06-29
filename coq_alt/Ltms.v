@@ -225,12 +225,12 @@ Instance tyeq__Instance : HasEquality ty := {
 Existing Instance varteq__Instance.
 
 (** Symbols look like `fn foo x : τ := e` *)
-Definition symbol : Type := vart * ty * expr.
+Definition symbol : Type := vart * pre_ty * pre_ty * expr.
 Definition symbols := mapind varteq__Instance symbol.
 
-Definition vart_of_symbol (s : symbol) := let '(v, t, e) := s in v.
-Definition expr_of_symbol (s : symbol) := let '(v, t, e) := s in e.
-Definition ty_of_symbol (s : symbol) := let '(v, t, e) := s in t.
+Definition vart_of_symbol (s : symbol) := let '(v, t0, t1, e) := s in v.
+Definition expr_of_symbol (s : symbol) := let '(v, t0, t1, e) := s in e.
+Definition ty_of_symbol (s : symbol) := let '(v, t0, t1, e) := s in Tfun t0 t1.
 
 (** Type for list of relevant functions, i.e. those that are part of the component. *)
 Definition commlib := list vart.
@@ -1681,6 +1681,12 @@ Definition NoOwnedPtr (Γ : Gamma) :=
   List.fold_left (fun acc τ => acc /\ NoOwnedPtrτ τ) (img Γ) True
 .
 
+Lemma noownedptr_split (Γ1 Γ2 : Gamma) :
+  NoOwnedPtr (Γ1 ◘ Γ2) <->
+  NoOwnedPtr Γ1 /\ NoOwnedPtr Γ2
+.
+Proof. Admitted.
+
 Fixpoint substτ (what : vart) (inn : pre_ty) (forr : vart) :=
   match inn with
   | Tptr(LVar x) => if x == what then Tptr(LVar forr) else Tptr(LVar x)
@@ -1816,18 +1822,32 @@ Fixpoint gamma_from_symbols (Ξ : symbols) : Gamma :=
   end
 .
 (** Check all symbols *)
-Fixpoint check_symbols (Γ : Gamma) (Ξ : symbols) : Prop :=
-  match Ξ with
-  | [⋅] => True
-  | foo ↦ s ◘ Ξ =>
-    let x := vart_of_symbol s in
-    let τ := ty_of_symbol s in
-    let e := expr_of_symbol s in
-    match τ with
-    | Tfun τ1 τ2 => [ nil ; x ↦ (Tpre τ1) ◘ Γ |- e : Tret τ2 ]
-                   /\ (check_symbols Γ Ξ)
-    | _ => False
+Definition check_symbols (Γ : Gamma) (Ξ : symbols) : Prop :=
+  match undup Ξ with
+  | Some Ξ =>
+    match mget Ξ "main"%string with
+    | Some s__main =>
+      match ty_of_symbol s__main with
+      | Tfun Tℕ Tℕ =>
+        let fix doo (Γ : Gamma) (Ξ : symbols) {struct Ξ} : Prop :=
+          match Ξ with
+          | [⋅] => True
+          | foo ↦ s ◘ Ξ =>
+            let x := vart_of_symbol s in
+            let τ := ty_of_symbol s in
+            let e := expr_of_symbol s in
+            match τ with
+            | Tfun τ1 τ2 => [ nil ; x ↦ (Tpre τ1) ◘ Γ |- e : Tret τ2 ]
+                          /\ (doo Γ Ξ)
+            | _ => False
+            end
+          end
+        in doo Γ Ξ
+      | _ => False (* main has wrong type *)
+      end
+    | _ => False (* no main function *)
     end
+  | _ => False (* multiple declared symbols *)
   end
 .
 (** Top-level programs *)
@@ -1961,9 +1981,9 @@ Definition strncpyparams__ty := (
 )%string.
 Definition strncpy__ty := Tfun strncpyparams__ty strncpyparams__ty.
 
-Example Ξ__ctx : symbols := ("main"%string ↦ (dontcare, Tfun Tℕ Tℕ, main) ◘ (mapNil _ _)).
-Example Ξ__comp : symbols := ("main'"%string ↦ (dontcare, Tfun Tℕ Tℕ, main') ◘
-                            ("strncpy"%string ↦ ("p"%string, strncpy__ty, strncpy) ◘
+Example Ξ__ctx : symbols := ("main"%string ↦ (dontcare, Tℕ, Tℕ, main) ◘ (mapNil _ _)).
+Example Ξ__comp : symbols := ("main'"%string ↦ (dontcare, Tℕ, Tℕ, main') ◘
+                            ("strncpy"%string ↦ ("p"%string, strncpyparams__ty, strncpyparams__ty, strncpy) ◘
                              (mapNil _ _))).
 
 Local Set Warnings "-abstract-large-number".
@@ -2764,6 +2784,34 @@ Proof.
     + inv H.
 Qed.
 
+Lemma symbols_split Ξ0 :
+  gamma_from_symbols Ξ0 ≡ (gamma_from_symbols Ξ0) ∘ (gamma_from_symbols Ξ0)
+.
+Proof.
+  induction Ξ0; cbn.
+  eapply splitEmpty.
+  destruct b as [[[arg t0] t1] e]; cbn.
+  now eapply splitSymb.
+Qed.
+
+Lemma symbols_noowned Ξ0 :
+ NoOwnedPtr (gamma_from_symbols Ξ0)
+.
+Proof.
+  induction Ξ0.
+  easy. cbn. destruct b as [[[arg t0] t1] e]. cbn.
+  unfold NoOwnedPtr in IHΞ0.
+  fold (img (gamma_from_symbols Ξ0)).
+  pattern (True /\ True).
+  (* ??? should be easy ??? *)
+  admit.
+Admitted.
+
+Lemma comm_gamma_from_symbols (Ξ1 Ξ2 : symbols) (x : vart) (s : symbol) :
+  gamma_from_symbols (Ξ1 ◘ x ↦ s ◘ Ξ2) =
+     ((gamma_from_symbols Ξ1) ◘ x ↦ (ty_of_symbol s) ◘ (gamma_from_symbols Ξ2)).
+Proof. Admitted.
+
 Lemma link_check_is_init_check (Ξ__ctx Ξ__comp Ξ0 : symbols) :
   link Ξ__ctx Ξ__comp Ξ0 ->
   check_symbols (gamma_from_symbols Ξ0) Ξ0 ->
@@ -2771,7 +2819,29 @@ Lemma link_check_is_init_check (Ξ__ctx Ξ__comp Ξ0 : symbols) :
                 (Xcall "main"%string (Xval 0))
                 τ
 .
-Proof. Admitted.
+Proof.
+  intros H0 H1.
+  unfold check_symbols in H1.
+  crush_undup Ξ0; try now rewrite Hx in H1.
+  crush_option (mget Ξ0 "main"%string); try now rewrite Hx0 in H1.
+  remember (ty_of_symbol x0) as ty__main.
+  destruct (ty__main); try easy; destruct p, p0; try easy.
+  apply mget_min in Hx0 as Hx0'. apply Min_in in Hx0' as [Hx0' Hx1].
+  apply nodupinv_equiv_undup in Hx.
+  eapply dom_split in Hx0'; eauto; deex; destruct Hx0' as [Hxa Hxb].
+
+  exists Tℕ. econstructor. instantiate (1:=(gamma_from_symbols Ξ0)). instantiate (1:=nil).
+  repeat constructor. econstructor.
+  eapply symbols_split. instantiate (1:=Tℕ). 2: constructor; auto using symbols_noowned.
+  econstructor; try easy.
+  instantiate (1:=gamma_from_symbols m2).
+  instantiate (1:=gamma_from_symbols m1).
+  rewrite Hxb.
+  eapply mget_splitat_same_el in Hx0; eauto; subst.
+  rewrite Heqty__main.
+  apply comm_gamma_from_symbols.
+  apply noownedptr_split; split; apply symbols_noowned.
+Qed.
 
 Lemma link_determ (Ξ__ctx Ξ__comp Ξ0 Ξ1 : symbols) :
   link Ξ__ctx Ξ__comp Ξ0 ->

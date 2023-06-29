@@ -2744,20 +2744,24 @@ Proof.
       destruct a; cbn in Ha. inv H. inv H8.
       destruct e__b; inversion Ha; subst.
       all: try now (exists Bs; exists T__TMS''; repeat split; cbn; try now inv Ha; try now inv Hb; try now inv IHAb3).
-      all: admit.
+      * exists (TMSMonAux.AAlloc ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+        now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
+      * exists (TMSMonAux.ADealloc ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+        now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
+      * exists (TMSMonAux.AUse ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+        now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
+      * exists (TMSMonAux.AUse ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+        now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
     + inv H. inv H5. inv Ab. inv H. inv H.
   - (* unimp *)
-    destruct r2 as [[Ω2|] e2]; cbn in H0; try contradiction; clear H0.
-    eapply estep_preservation in Aa as Aa'; eauto.
-    eapply ctx_tms_via_monitor_ignore in Aa as Aa''; eauto; deex; destruct Aa'' as [Ha [Hb [Hc Hd]]].
-    specialize (IHAb Ω2 Ω' e2 e' Aa' JMeq_refl JMeq_refl δ' T__TMS' Hc Hd).
-    destruct Ω as [[[[[]]]]]; rename s0 into Δ; destruct Ω2 as [[[[[]]]]]; rename s1 into Δ2.
-    deex; rename T__TMS'0 into T__TMS''; rename δ'0 into δ''; destruct IHAb as [IHAb1 [IHAb2 [IHAb3 [IHAb4 IHAb5]]]].
-    destruct Ω' as [[[[[]]]]]; rename s2 into Δ'; subst.
-    exists Bs. exists (δ_of_Δ Δ'). exists T__TMS''. repeat split; eauto.
-    + etransitivity; eauto.
-    + econstructor; eauto; econstructor; eapply mget_subset; eauto.
-    + now inv IHAb4.
+    destruct r2 as [Ω2 e2|].
+    + eapply estep_preservation in Aa as Aa'; eauto.
+      eapply ctx_tms_via_monitor in Aa as Aa''; eauto; deex; destruct Aa'' as [Ha [Hb Hc]].
+      specialize (IHAb Ω2 Ω' e2 v As Aa' JMeq_refl JMeq_refl JMeq_refl T__TMS' Hc); deex.
+      destruct IHAb as [IHAb1 [IHAb2 IHAb3]].
+      inversion Ha; subst. inv Hb.
+      exists Bs. exists T__TMS'0. split; eauto.
+    + inv H.
 Qed.
 
 Lemma toplevel_check_weakening Ξ Γ foo τ0 τ1 bar τ0' τ1' x e__bar :

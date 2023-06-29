@@ -2764,56 +2764,43 @@ Proof.
     + inv H.
 Qed.
 
-Lemma toplevel_check_weakening Ξ Γ foo τ0 τ1 bar τ0' τ1' x e__bar :
-  interfaces (bar ↦ (x, Tectx(Tarrow τ0' τ1'), e__bar) ◘ Ξ) = Some Γ ->
-  mget Γ foo = Some(Tectx(Tarrow τ0 τ1)) ->
-  NoOwnedPtr Γ ->
-  foo <> bar ->
-  check (bar ↦ (Tectx(Tarrow τ0' τ1')) ◘ Γ) (Fvar foo) (Tarrow τ0 τ1) ->
-  check Γ (Fvar foo) (Tarrow τ0 τ1)
+Lemma link_check_is_init_check (Ξ__ctx Ξ__comp Ξ0 : symbols) :
+  link Ξ__ctx Ξ__comp Ξ0 ->
+  check_symbols (gamma_from_symbols Ξ0) Ξ0 ->
+  exists τ, rt_check (mkΩ Fresh.empty_fresh (mkΨ Ξ0 (dom Ξ__comp) nil) CComp (mkΦ hNil hNil snil))
+                (Xcall "main"%string (Xval 0))
+                τ
+.
+Proof. Admitted.
+
+Lemma link_determ (Ξ__ctx Ξ__comp Ξ0 Ξ1 : symbols) :
+  link Ξ__ctx Ξ__comp Ξ0 ->
+  link Ξ__ctx Ξ__comp Ξ1 ->
+  Ξ0 = Ξ1
+.
+Proof. Admitted.
+
+Lemma strengthen_stms_goal Ω' As T__TMS :
+  (exists (Bs : TMSMon.tracepref) (T__TMS' : TMSMonAux.AbsState),
+    TMSMon.cong (spectracepref_of_tracepref As) Bs
+  /\ (@star_step TMSMon.MonInstance T__TMS Bs T__TMS')
+  /\ tms_state_agree T__TMS' Ω') ->
+  (exists (Bs : TMSMon.tracepref) (T__TMS' : TMSMonAux.AbsState),
+    TMSMon.cong (spectracepref_of_tracepref As) Bs
+  /\ (@star_step TMSMon.MonInstance T__TMS Bs T__TMS'))
 .
 Proof.
-Admitted.
-
-Theorem s_is_tms (Ξ : symbols) (ξ : commlib) As Ω f :
-  wstep (Cprog Ξ ξ) As (Ω ▷ (Xres f)) ->
-  TMS As.
+  intros; deex; eauto; exists Bs; exists T__TMS'; destruct H as [Ha [Hb Hc]]; eauto.
+Qed.
+Theorem s_is_tms (Ξ__ctx Ξ__comp : symbols) (ξ : commlib) As Ω v :
+  wstep (Cprog Ξ__ctx Ξ__comp) As (Ω ▷ (Xval v)) ->
+  Props.tms (spectracepref_of_tracepref As).
 Proof.
-  intros Ha; inv Ha; unfold prog_check in H1.
-  destruct (option_dec (interfaces Ξ)) as [Hx|Hx]; try (rewrite Hx in H0; contradiction).
-  apply not_eq_None_Some in Hx as [x__x Hx]; rewrite Hx in H1.
-  remember (Fresh.empty_fresh ; Ξ ; nil ; nil ; hNil ; sNil) as Ω__init; pose ((mapNil _ _) : deltamap) as δ__init.
-  assert (state_agree (mapNil _ _) TMMon.emptytmsmon Ω__init) by (subst; repeat constructor).
-  assert (δ__init= δ_of_Δ (let '(_,_,_,_,_,Δ) := Ω__init in Δ)) by (subst; cbn; easy).
-  subst. eapply steps_tms_via_monitor in H4; eauto.
-  deex; destruct H4 as [F__a [F__b [F__c [F__d F__e]]]].
-  intros MAs H__As. exists δ'. exists Bs. split; subst. exact F__b.
-  unfold TMMon.TMS. exists T__TMS'; try eexact F__c.
-  econstructor. repeat constructor. exact Hx.
-  econstructor. instantiate (1:=Tℕ); constructor.
-  instantiate (1:=Tℕ); constructor.
-  shelve.
-  constructor.
-  option_boilerplate (mget x__x "main"%string); rewrite Hx0 in H1; try easy.
-  destruct x; try easy; destruct e; try easy; destruct t, t0; try easy.
-  crush_noownedptrf x__x. now apply noownedptr_equiv_noownedptrf.
-  now rewrite Hx2 in H1. constructor; now inv H.
-  now rewrite Hx in H1.
-  Unshelve.
-  option_boilerplate (mget x__x "main"%string); rewrite Hx0 in H1; try easy.
-  destruct x; try easy; destruct e; try easy; destruct t, t0; try easy.
-  crush_noownedptrf x__x; try now rewrite Hx2 in H1.
-  clear H H4 H0 Hx1 δ__init; revert x__x H1 Hx Hx0 Hx2; induction Ξ; intros.
-  - inv Hx; inv Hx0.
-  - destruct b; destruct p. destruct t; try inv H1. destruct e0. destruct H1 as [H1__a [H1__b [H1__c H1__d]]].
-    destruct (eq_dec a "main"%string).
-    + subst. cbn in Hx.
-      option_boilerplate (interfaces Ξ); rewrite Hx1 in Hx; try easy.
-      inv Hx. change (check (mapNil _ _ ◘ "main"%string ↦ Tectx(Tarrow t t0) ◘ x0) (Fvar "main"%string) (Tectx(Tarrow Tℕ Tℕ))).
-      cbn in Hx0; inv Hx0. eapply CTvar.
-      admit.
-      easy. easy. apply noownedptr_equiv_noownedptrf in Hx2.
-      change (NoOwnedPtr ("main"%string ↦ Tectx(Tarrow Tℕ Tℕ) ◘ mapNil _ _ ◘ x0)) in Hx2.
-      now apply noownedptr_split in Hx2 as [Hx2__a Hx2__b].
-    + (*indu is bonkers*) admit.
-Admitted.
+  intros Ha. apply Mon.TMSMon_is_TMS. unfold TMSMon.sat.
+  inv Ha. eapply strengthen_stms_goal.
+  inv H6. destruct H0 as [H0 [Ξ0 [Ha Hb]]]; cbn in *.
+  eapply link_determ in H1; eauto; subst.
+  eapply link_check_is_init_check in Ha; deex; eauto.
+  eapply steps_tms_via_monitor; eauto.
+  repeat constructor.
+Qed.

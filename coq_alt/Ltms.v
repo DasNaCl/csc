@@ -2778,7 +2778,13 @@ Lemma link_determ (Ξ__ctx Ξ__comp Ξ0 Ξ1 : symbols) :
   link Ξ__ctx Ξ__comp Ξ1 ->
   Ξ0 = Ξ1
 .
-Proof. Admitted.
+Proof.
+  intros H0%linkf_equiv_link H1%linkf_equiv_link.
+  revert Ξ__comp Ξ0 Ξ1 H0 H1; induction Ξ__ctx; cbn in *; intros; inv H0. now inv H1.
+  crush_option (linkf Ξ__ctx0 Ξ__comp0).
+  crush_option (List.find (fun x : vart => vareq x a) (dom x)).
+  inv H1.
+Qed.
 
 Lemma strengthen_stms_goal Ω' As T__TMS :
   (exists (Bs : TMSMon.tracepref) (T__TMS' : TMSMonAux.AbsState),

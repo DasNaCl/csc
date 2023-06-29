@@ -2868,6 +2868,8 @@ Lemma strengthen_stms_goal Ω' As T__TMS :
 Proof.
   intros; deex; eauto; exists Bs; exists T__TMS'; destruct H as [Ha [Hb Hc]]; eauto.
 Qed.
+
+(** Every well-typed L__tms program is TMS. *)
 Theorem s_is_tms (Ξ__ctx Ξ__comp : symbols) (ξ : commlib) As Ω v :
   wstep (Cprog Ξ__ctx Ξ__comp) As (Ω ▷ (Xval v)) ->
   Props.tms (spectracepref_of_tracepref As).

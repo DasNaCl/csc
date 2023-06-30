@@ -2584,12 +2584,6 @@ Lemma store_agree_rsplit T__TMS1 T__TMS2 Δ1 Δ2 :
 .
 Proof. Admitted.
 
-Lemma store_split_poisoned Ξ Δ1 x ℓ t n Δ2 Γ Δ__ptrs1 Δ__ptrs2 γ :
-  ptrstore_split Ξ (Δ1 ◘ (addr ℓ) ↦ dL(☣; t; n) ◘ Δ2) (Δ__ptrs1 ++ γ :: Δ__ptrs2)%list Γ  ->
-  ptrstore_split Ξ (Δ1 ◘ Δ2) (Δ__ptrs1 ++ Δ__ptrs2)%list Γ /\ (~ List.In x (dom Γ))
-.
-Proof. Admitted.
-
 Lemma store_agree_notin_comm Δ ℓ v T__TMS :
   tms_store_agree T__TMS Δ ->
   ~ In ℓ (dom Δ) ->

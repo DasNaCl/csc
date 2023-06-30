@@ -2679,7 +2679,7 @@ Proof.
     now inv Ac.
   - (*pack*) inv Heqr1; inv Heqr2. exists None. exists T__TMS. repeat split; try constructor.
     now inv Ac.
-Admitted.
+Qed.
 
 Lemma ctx_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : ty) (a : option event)
                           (T__TMS : TMSMonAux.AbsState) :

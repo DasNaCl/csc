@@ -644,6 +644,7 @@ Inductive pstep : PrimStep rtexpr event :=
 | e_alloc : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
               (Φ Φ' : MemState) (v : value) (n : nat) (ℓ : loc) (Δ' : ptrstore),
     ℓ = addr(Util.length (getH Φ t)) ->
+    Util.nodupinv Φ.(MΔ) ->
     push ℓ (dL(◻ ; t ; n)) Φ.(MΔ) = Some Δ' ->
     Some Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t v ->
     (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval v) (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F ; Ψ ; t ; Φ')) ▷ Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))
@@ -713,6 +714,7 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       Some(None, Ω ▷ subst x1 (subst x2 e (Xval v2)) (Xval v1))
     | Xnew (Xval v) (Xval(Vnat n)) =>
       let ℓ := addr(Util.length (getH Ω.(SΦ) Ω.(St))) in
+      let* _ := undup Ω.(SΦ).(MΔ) in
       let* Δ' := push ℓ (dL(◻ ; Ω.(St) ; n)) Ω.(SΦ).(MΔ) in
       let* Φ' := Htgrow (Ω.(SΦ) <| MΔ := Δ' |>) n Ω.(St) v in
       let Ω' := Ω <| SΦ := Φ' |> in
@@ -814,7 +816,7 @@ Proof.
     + (* crash *) easy.
     + (* let *) now inv H.
     + (* unpair *) now inv H.
-    + (* alloc *) inv H; rewrite H0; rewrite <- H1; easy.
+    + (* alloc *) crush_undup (MΔ Φ); inv H; rewrite H1; rewrite <- H2; easy.
     + (* del *) eq_to_defeq loc_eqb; rewrite eq_refl; apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
       apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. eq_to_defeq control_tag_eq; rewrite eq_refl. easy.
     + (* get *) apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
@@ -848,8 +850,11 @@ Proof.
       * rewrite Hx0 in H. inv H. cbn in *. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
         destruct Ω; cbn in *; econstructor; cbn; try eassumption. now right. reflexivity.
     + (* let *) grab_value e1; inv H; now constructor.
-    + (* new *) destruct e1; try now inv H. grab_value e2. crush_option (push (addr (length (getH (SΦ Ω) (St Ω)))) {| dρ := ◻; dt := St Ω; dn := n |} (MΔ (SΦ Ω))).
-      crush_option (Htgrow (SΦ Ω <| MΔ := x |>) n (St Ω) v). inv H. destruct Ω; econstructor; try eassumption. now cbn. now symmetry.
+    + (* new *) destruct e1; try now inv H. grab_value e2.
+      crush_undup (MΔ (SΦ Ω)).
+      crush_option (push (addr (length (getH (SΦ Ω) (St Ω)))) {| dρ := ◻; dt := St Ω; dn := n |} (MΔ (SΦ Ω))).
+      crush_option (Htgrow (SΦ Ω <| MΔ := x0 |>) n (St Ω) v).
+      inv H. destruct Ω; econstructor; try eassumption. now cbn. now apply nodupinv_equiv_undup in Hx. now symmetry.
     + (* del *) grab_value e. destruct ℓ; try now inv H. destruct v; try now inv H. destruct v1, v2; try now inv H.
       eq_to_defeq loc_eqb. destruct (eq_dec l l0); try (apply neqb_neq in H0; now rewrite H0 in H).
       rewrite H0 in H; rewrite eq_refl in H. crush_undup (MΔ (SΦ Ω)). apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split.
@@ -2563,12 +2568,12 @@ Lemma estep_preservation Ω e τ Ω' e' a :
 .
 Proof. Admitted.
 
-Lemma store_agree_split T__TMS Δ1 x ℓ ρ t n Δ2 :
+Lemma store_agree_split T__TMS Δ1 ℓ ρ t n Δ2 :
   tms_store_agree T__TMS (Δ1 ◘ (addr ℓ) ↦ dL(ρ ; t ; n) ◘ Δ2) ->
-  exists T__TMS1 T__TMS2 ℓ', tms_store_agree T__TMS1 Δ1 /\
-                    tms_store_agree T__TMS2 Δ2 /\
-                    tms_store_agree (TMSMonAux.singleton ℓ') (x ↦ dL(ρ ; t ; n) ◘ snil) /\
-                    T__TMS = TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton ℓ') T__TMS2)
+  exists T__TMS1 T__TMS2, tms_store_agree T__TMS1 Δ1 /\
+                 tms_store_agree T__TMS2 Δ2 /\
+                 tms_store_agree (TMSMonAux.singleton (addr ℓ)) ((addr ℓ) ↦ dL(ρ ; t ; n) ◘ snil) /\
+                 T__TMS = TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ)) T__TMS2)
 .
 Proof. Admitted.
 
@@ -2584,6 +2589,16 @@ Lemma store_split_poisoned Ξ Δ1 x ℓ t n Δ2 Γ Δ__ptrs1 Δ__ptrs2 γ :
   ptrstore_split Ξ (Δ1 ◘ Δ2) (Δ__ptrs1 ++ Δ__ptrs2)%list Γ /\ (~ List.In x (dom Γ))
 .
 Proof. Admitted.
+
+Lemma store_agree_notin_comm Δ ℓ v T__TMS :
+  tms_store_agree T__TMS Δ ->
+  ~ In ℓ (dom Δ) ->
+  Util.nodupinv (ℓ ↦ v ◘ Δ) ->
+  ~ List.In ℓ (TMSMonAux.alloced T__TMS) /\
+  ~ List.In ℓ (TMSMonAux.freed T__TMS)
+.
+Proof.
+Admitted.
 
 Lemma base_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : ty) (a : option event)
                            (T__TMS : TMSMonAux.AbsState) :
@@ -2620,12 +2635,46 @@ Proof.
   - (* unpair *) inv Heqr1; inv Heqr2. exists None. exists T__TMS. repeat split; try constructor.
     now inv Ac.
   - (* new *) inv Heqr1; inv Heqr2. remember (addr (length (getH Φ t))) as ℓ.
-    exists (Some (TMSMonAux.AAlloc ℓ)).
-    exists (TMSMonAux.append T__TMS (TMSMonAux.singleton ℓ)).
-    admit.
-  - (*del*) inv Heqr1; inv Heqr2. admit.
-  - (*get*) inv Heqr1; inv Heqr2. admit.
-  - (*set*) inv Heqr1; inv Heqr2. admit.
+    inv Ac; assert (H':=H). cbn in H. destruct t; unfold Htgrow in H1; cbn in H2.
+    + crush_option (Hgrow (MH__ctx Φ) n v); try (rewrite Hx in H1; easy); cbn in H1. inv H2. cbn in *.
+      apply push_ok in H1 as H1'. unfold push in H1. crush_undup (addr(length(MH__ctx Φ)) ↦ {| dρ := ◻; dt := CCtx; dn := n |} ◘ MΔ Φ).
+      inv H1.
+      exists (Some (TMSMonAux.AAlloc(addr (length (MH__ctx Φ))))).
+      exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (length (MH__ctx Φ))))).
+      assert (H'':=H1'). inv H''.
+      enough ((~ LocListSets.el (addr (length (MH__ctx Φ))) (TMSMonAux.alloced T__TMS)) /\ (~ LocListSets.el (addr (length (MH__ctx Φ))) (TMSMonAux.freed T__TMS))) as [Ha Hb].
+      repeat split; eauto; try constructor; try easy. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
+      econstructor; eauto. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
+      revert H H3 H1'; clear. revert T__TMS. remember (MΔ Φ) as Δ; remember (addr(length (MH__ctx Φ))) as ℓ.
+      clear HeqΔ; clear Heqℓ; clear Φ. revert ℓ n. induction Δ; intros. now inv H.
+      rename a into ℓ'. eapply store_agree_notin_comm in H; eauto.
+    + crush_option (Hgrow (MH__comp Φ) n v); try (rewrite Hx in H1; easy); cbn in H1. inv H2. cbn in *.
+      apply push_ok in H1 as H1'. unfold push in H1. crush_undup (addr(length(MH__comp Φ)) ↦ {| dρ := ◻; dt := CComp; dn := n |} ◘ MΔ Φ).
+      inv H1.
+      exists (Some (TMSMonAux.AAlloc(addr (length (MH__comp Φ))))).
+      exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (length (MH__comp Φ))))).
+      assert (H'':=H1'). inv H''.
+      enough ((~ LocListSets.el (addr (length (MH__comp Φ))) (TMSMonAux.alloced T__TMS)) /\ (~ LocListSets.el (addr (length (MH__comp Φ))) (TMSMonAux.freed T__TMS))) as [Ha Hb].
+      repeat split; eauto; try constructor; try easy. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
+      econstructor; eauto. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
+      revert H H3 H1'; clear. revert T__TMS. remember (MΔ Φ) as Δ; remember (addr(length (MH__comp Φ))) as ℓ.
+      clear HeqΔ; clear Heqℓ; clear Φ. revert ℓ n. induction Δ; intros. now inv H.
+      rename a into ℓ'. eapply store_agree_notin_comm in H; eauto.
+  - (*del*) inv Heqr1; inv Heqr2.
+    inv Ac; assert (H1':=H1). cbn in H1; rewrite H0 in H1; destruct ℓ as [ℓ]; apply store_agree_split in H1; deex.
+    destruct H1 as [H1a [H1b [H1c H1d]]].
+    inv Aa. inv H2. inv H1c; try inv H4.
+    inv H11. cbn in H12.
+    exists (Some(TMSMonAux.ADealloc (addr ℓ))). exists (TMSMonAux.append T__TMS1 T__TMS2).
+    repeat split; try constructor. econstructor; now cbn. cbn. eapply store_agree_rsplit. easy.
+    econstructor. easy.
+  - (*get*) inv Heqr1; inv Heqr2.
+    inv Ac; assert (H2':=H2). cbn in H2; rewrite H0 in H2; apply store_agree_split in H2; deex.
+    destruct H2 as [H2a [H2b [H2c H2d]]].
+    inv Aa. inv H3. inv H2c; try inv H5. inv H16. cbn in H17.
+    exists (Some(TMSMonAux.AUse (addr ℓ))). exists (TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ)) T__TMS2)).
+    repeat split; try constructor; easy.
+  - (*set*) inv Heqr1; inv Heqr2. inv Aa. inv H3. inv H16. (* FIXME? this is kinda bad for runtime-type preservation isn't it *)
   - (*unpack*) inv Heqr1; inv Heqr2. exists None. exists T__TMS. repeat split; try constructor.
     now inv Ac.
   - (*pack*) inv Heqr1; inv Heqr2. exists None. exists T__TMS. repeat split; try constructor.

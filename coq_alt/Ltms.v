@@ -302,16 +302,14 @@ Instance poisoneq__Instance : HasEquality poison := {
 
 (* A "dynamic" location contains the location and its poison *)
 Record dynloc : Type := mkdL {
-  dℓ : loc ;        (* concrete location on heap *)
   dρ : poison ;     (* wether the location is already deallocated *)
   dt : ControlTag ; (* which heap the data lies on  *)
   dn : nat ;          (* allocation size *)
 }.
 #[local]
-Instance etaDynloc : Settable _ := settable! mkdL <dℓ; dρ; dt; dn>.
+Instance etaDynloc : Settable _ := settable! mkdL < dρ; dt; dn>.
 Definition dynloc_eqb :=
   fun (dℓ1 dℓ2 : dynloc) =>
-    andb  (dℓ1.(dℓ) == dℓ2.(dℓ))
     (andb (dℓ1.(dρ) == dℓ2.(dρ))
     (andb (dℓ1.(dt) == dℓ2.(dt))
           (Nat.eqb dℓ1.(dn) dℓ2.(dn))))
@@ -320,7 +318,7 @@ Lemma dynloc_eqb_eq dℓ0 dℓ1 :
   dynloc_eqb dℓ0 dℓ1 = true <-> dℓ0 = dℓ1.
 Proof.
   unfold dynloc_eqb; split; intros.
-  eq_to_defeq Nat.eqb. apply Nat.eqb_eq in H2. cbv in *; destruct dℓ0, dℓ1; inv H; inv H3; reflexivity.
+  eq_to_defeq Nat.eqb. cbv in *; destruct dℓ0, dℓ1; inv H. inv H2. apply Nat.eqb_eq in H1. inv H1. reflexivity.
   inv H; eq_to_defeq Nat.eqb; try apply Nat.eqb_eq. repeat split; try apply eq_refl. apply Nat.eqb_refl.
 Qed.
 #[local]
@@ -328,10 +326,9 @@ Instance dynloceq__Instance : HasEquality dynloc := {
   eq := dynloc_eqb ;
   eqb_eq := dynloc_eqb_eq ;
 }.
-Notation "'dL(' bℓ ';' bρ ';' bt ';' bn ')'" := (({| dℓ := bℓ ;
-                                                     dρ := bρ ;
-                                                     dt := bt ;
-                                                     dn := bn |}) : dynloc) (at level 80).
+Notation "'dL(' bρ ';' bt ';' bn ')'" := (({| dρ := bρ ;
+                                              dt := bt ;
+                                              dn := bn |}) : dynloc) (at level 80).
 (** Stores pointers and their respective metadata. *)
 Definition ptrstore := mapind loceq__Instance dynloc.
 Definition snil : ptrstore := mapNil loceq__Instance dynloc.
@@ -341,14 +338,14 @@ Instance nateq__Instance : HasEquality nat := {
   eq := Nat.eqb ;
   eqb_eq := Nat.eqb_eq ;
 }.
-Definition heap := mapind nateq__Instance (option value).
-Definition hNil : heap := mapNil nateq__Instance (option value).
+Definition heap := mapind nateq__Instance (value).
+Definition hNil : heap := mapNil nateq__Instance (value).
 Fixpoint Hgrow_aux (H : heap) (s len : nat) (default : value) : option heap :=
   match s with
   | 0 => Some(H)
   | S n' =>
     let* Hi := Hgrow_aux H n' len default in
-    push (len + n') (Some default) Hi
+    push (len + n') (default) Hi
   end
 .
 Definition Hgrow (H : heap) (s : nat) (default : value) : option heap :=
@@ -647,26 +644,26 @@ Inductive pstep : PrimStep rtexpr event :=
 | e_alloc : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
               (Φ Φ' : MemState) (v : value) (n : nat) (ℓ : loc) (Δ' : ptrstore),
     ℓ = addr(Util.length (getH Φ t)) ->
-    push ℓ (dL(ℓ ; ◻ ; t ; n)) Φ.(MΔ) = Some Δ' ->
+    push ℓ (dL(◻ ; t ; n)) Φ.(MΔ) = Some Δ' ->
     Some Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t v ->
     (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval v) (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F ; Ψ ; t ; Φ')) ▷ Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))
 | e_delete : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
                (Φ Φ' : MemState) (n : nat) (ℓ : loc) (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ ℓ ↦ (dL(ℓ ; ρ ; t ; n)) ◘ Δ2) ->
-    Φ.(MΔ) = (Δ1 ◘ ℓ ↦ dL(ℓ ; ρ ; t ; n) ◘ Δ2) ->
-    Φ' = Φ <| MΔ := Δ1 ◘ ℓ ↦ (dL(ℓ ; ☣ ; t ; n)) ◘ Δ2 |> ->
+    Util.nodupinv (Δ1 ◘ ℓ ↦ (dL(ρ ; t ; n)) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ ℓ ↦ dL(ρ ; t ; n) ◘ Δ2) ->
+    Φ' = Φ <| MΔ := Δ1 ◘ ℓ ↦ (dL(☣ ; t ; n)) ◘ Δ2 |> ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xdel (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))) --[ ev( Sdealloc ℓ ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval 0
 | e_get : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
             (Φ : MemState) (n m ℓ : nat) (v : value)  (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    (mget (getH Φ t) (ℓ + n) = Some(Some v) \/ (v = Vnat 1729 /\ mget (getH Φ t) (ℓ + n) = None)) ->
+    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(ρ ; t ; m) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(ρ ; t ; m) ◘ Δ2) ->
+    (mget (getH Φ t) (ℓ + n) = (Some v) \/ (v = Vnat 1729 /\ mget (getH Φ t) (ℓ + n) = None)) ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval (Vpair Vcap v)
 | e_set : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
             (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; m) ◘ Δ2) ->
-    (mset (getH Φ t) (ℓ + n) (Some w) = Some H' \/ (H' = getH Φ t /\ mset (getH Φ t) (ℓ + n) (Some w) = None)) ->
+    Util.nodupinv (Δ1 ◘ (addr ℓ) ↦ dL(ρ ; t ; m) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ (addr ℓ) ↦ dL(ρ ; t ; m) ◘ Δ2) ->
+    (mset (getH Φ t) (ℓ + n) (w) = Some H' \/ (H' = getH Φ t /\ mset (getH Φ t) (ℓ + n) (w) = None)) ->
     Φ' = setH Φ t H' ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xset (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) (Xval w) --[ ev( Sset (addr ℓ) n w ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval (Vpair Vcap w)
 | e_unpack : forall (Ω : state) (γ x : vart) (ℓ : loc) (v : value) (e e' : expr),
@@ -716,7 +713,7 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       Some(None, Ω ▷ subst x1 (subst x2 e (Xval v2)) (Xval v1))
     | Xnew (Xval v) (Xval(Vnat n)) =>
       let ℓ := addr(Util.length (getH Ω.(SΦ) Ω.(St))) in
-      let* Δ' := push ℓ (dL(ℓ ; ◻ ; Ω.(St) ; n)) Ω.(SΦ).(MΔ) in
+      let* Δ' := push ℓ (dL(◻ ; Ω.(St) ; n)) Ω.(SΦ).(MΔ) in
       let* Φ' := Htgrow (Ω.(SΦ) <| MΔ := Δ' |>) n Ω.(St) v in
       let Ω' := Ω <| SΦ := Φ' |> in
       Some(Some(ev(Salloc ℓ n ; Ω.(St))), Ω' ▷ Xval(Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
@@ -728,7 +725,10 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
           let dl' := dl <| dρ := ☣ |> in
           let Φ' := Ω.(SΦ) <| MΔ := Δ1 ◘ ℓ ↦ dl' ◘ Δ2 |> in
           let Ω' := Ω <| SΦ := Φ' |> in
-          Some(Some(ev(Sdealloc ℓ ; Ω.(St))), Ω' ▷ Xval 0)
+          if Ω.(St) == dl.(dt) then
+            Some(Some(ev(Sdealloc ℓ ; Ω.(St))), Ω' ▷ Xval 0)
+          else
+            None
         else
           None
       else
@@ -739,11 +739,14 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       let '(addr ln) := l in
       if ℓ == ln then
         let v := match mget (getH Ω.(SΦ) Ω.(St)) (ℓ+n) with
-                 | Some(Some v) => v
+                 | Some(v) => v
                  | _ => Vnat 1729
                  end
         in
-        Some(Some(ev(Sget (addr ℓ) n ; Ω.(St))), Ω ▷ Xval(Vpair Vcap v))
+        if Ω.(St) == dl.(dt) then
+          Some(Some(ev(Sget (addr ℓ) n ; Ω.(St))), Ω ▷ Xval(Vpair Vcap v))
+        else
+          None
       else
         None
     | Xset (Xval Vcap) (Xval(Vptr(addr ℓ))) (Xval(Vnat n)) (Xval w) =>
@@ -751,14 +754,17 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
       let* (Δ1, l, dl, Δ2) := splitat Δ (addr ℓ) in
       let '(addr ln) := l in
       if ℓ == ln then
-        let H' := match mset (getH Ω.(SΦ) Ω.(St)) (ℓ+n) (Some w) with
+        let H' := match mset (getH Ω.(SΦ) Ω.(St)) (ℓ+n) (w) with
                   | Some(H') => H'
                   | _ => getH Ω.(SΦ) Ω.(St)
                   end
         in
         let Φ' := setH Ω.(SΦ) Ω.(St) H' in
         let Ω' := Ω <| SΦ := Φ' |> in
-        Some(Some(ev(Sset (addr ℓ) n w ; Ω.(St))), Ω' ▷ Xval(Vpair Vcap w))
+        if Ω.(St) == dl.(dt) then
+          Some(Some(ev(Sset (addr ℓ) n w ; Ω.(St))), Ω' ▷ Xval(Vpair Vcap w))
+        else
+          None
       else
         None
     | Xunpack γ x (Xval(Vpack (LConst ℓ) v)) e =>
@@ -810,11 +816,11 @@ Proof.
     + (* unpair *) now inv H.
     + (* alloc *) inv H; rewrite H0; rewrite <- H1; easy.
     + (* del *) eq_to_defeq loc_eqb; rewrite eq_refl; apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
-      apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. easy.
+      apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. eq_to_defeq control_tag_eq; rewrite eq_refl. easy.
     + (* get *) apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
-      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. destruct H1 as [-> | [-> ->]]; easy.
+      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. cbn; eq_to_defeq control_tag_eq; rewrite eq_refl. destruct H1 as [-> | [-> ->]]; easy.
     + (* set *) apply nodupinv_equiv_undup in H as H'0. rewrite H0, H'0.
-      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. inv H2. destruct H1 as [-> | [-> ->]]; try easy.
+      apply splitat_elim in H as ->. rewrite Nat.eqb_refl. inv H2. eq_to_defeq control_tag_eq; rewrite eq_refl. destruct H1 as [-> | [-> ->]]; try easy.
     + (* unpack *) now inv H.
     + (* pack *) easy.
   - destruct r0 as [Ω e|]; try now cbn.
@@ -824,11 +830,41 @@ Proof.
     + (* binop *) grab_value2 e1 e2; destruct symb; inv H; now constructor.
     + (* get *) grab_value3 e1 e2 e3; destruct ℓ; try now inv H. crush_undup (MΔ (SΦ Ω)).
       apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split.
-      rewrite Nat.eqb_refl in H. crush_option (mget (getH (SΦ Ω) (St Ω)) (n0 + n)).
-      * crush_option x0. inv H. inv Hy; cbn in *. admit. (*destruct Ω; econstructor; eauto.*)
-        admit. inv Hx1. admit.
-      * rewrite Hx0 in H. admit.
-Admitted.
+      rewrite Nat.eqb_refl in H. destruct v; cbn in H; eq_to_defeq control_tag_eq. destruct (eq_dec (St Ω) (dt0)); try (apply neqb_neq in H1; now rewrite H1 in H).
+      subst; rewrite eq_refl in H.
+      crush_option (mget (getH (SΦ Ω) (St Ω)) (n0 + n)).
+      * inv H. cbn in *. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
+        destruct Ω; econstructor; try eassumption. now left.
+      * rewrite Hx0 in H. inv H. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
+        destruct Ω; econstructor; try eassumption. right; now split.
+    + (* set *) grab_value3 e1 e2 e3; destruct ℓ; try now inv H. destruct e4; try now inv H. crush_undup (MΔ (SΦ Ω)).
+      apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split. destruct v0.
+      rewrite Nat.eqb_refl in H.
+      cbn in H; eq_to_defeq control_tag_eq. destruct (eq_dec (St Ω) (dt0)); try (apply neqb_neq in H1; now rewrite H1 in H).
+      subst; rewrite eq_refl in H.
+      crush_option (mset (getH (SΦ Ω) (St Ω)) (n0 + n) v).
+      * inv H. cbn in *. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
+        destruct Ω; cbn in *; econstructor; cbn; try eassumption. left; eassumption. reflexivity.
+      * rewrite Hx0 in H. inv H. cbn in *. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
+        destruct Ω; cbn in *; econstructor; cbn; try eassumption. now right. reflexivity.
+    + (* let *) grab_value e1; inv H; now constructor.
+    + (* new *) destruct e1; try now inv H. grab_value e2. crush_option (push (addr (length (getH (SΦ Ω) (St Ω)))) {| dρ := ◻; dt := St Ω; dn := n |} (MΔ (SΦ Ω))).
+      crush_option (Htgrow (SΦ Ω <| MΔ := x |>) n (St Ω) v). inv H. destruct Ω; econstructor; try eassumption. now cbn. now symmetry.
+    + (* del *) grab_value e. destruct ℓ; try now inv H. destruct v; try now inv H. destruct v1, v2; try now inv H.
+      eq_to_defeq loc_eqb. destruct (eq_dec l l0); try (apply neqb_neq in H0; now rewrite H0 in H).
+      rewrite H0 in H; rewrite eq_refl in H. crush_undup (MΔ (SΦ Ω)). apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split.
+      subst. eq_to_defeq loc_eqb; rewrite eq_refl in H. inv H.
+      destruct v; cbn in *; rewrite H1 in Hy. eq_to_defeq control_tag_eq. destruct (eq_dec (St Ω) dt0); try (apply neqb_neq in H; now rewrite H in H2).
+      rewrite H in H2. rewrite eq_refl in H2. inv H2. destruct Ω; cbn in *; econstructor; cbn; try eassumption. easy.
+    + (* unpack *) grab_value e1; inv H; destruct ℓ; try now inv H1; destruct Ω; cbn in *; econstructor.
+    + (* pack *) grab_value2 e1 e2; inv H; constructor.
+    + (* pair *) grab_value2 e1 e2; inv H; constructor.
+    + (* unpair *) grab_value e1; inv H; constructor; reflexivity.
+    + (* return *) inv H.
+    + (* call *) inv H.
+    + (* ifz *) grab_value e1; destruct n; inv H; constructor; easy.
+    + (* crash *) inv H; constructor.
+Qed.
 Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
   pstepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->
   nodupinv Ω ->

@@ -2484,10 +2484,10 @@ Inductive tms_store_agree : TMSMonAux.AbsState -> ptrstore -> Prop :=
                TMSMonAux.alloced := LocListSets.Union (TMSMonAux.alloced T__TMS) (List.cons ℓ List.nil) ;
                TMSMonAux.freed := TMSMonAux.freed T__TMS ;
             |} ->
-    tms_store_agree T__TMS' (ℓ ↦ dL(ℓ ; ◻ ; t ; n) ◘ Δ)
+    tms_store_agree T__TMS' (ℓ ↦ dL(◻ ; t ; n) ◘ Δ)
 | TMSPoisonAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (T__TMS : TMSMonAux.AbsState) (Δ : ptrstore),
     tms_store_agree T__TMS Δ ->
-    tms_store_agree T__TMS (ℓ ↦ dL(ℓ ; ☣ ; t ; n) ◘ Δ)
+    tms_store_agree T__TMS (ℓ ↦ dL(☣ ; t ; n) ◘ Δ)
 .
 Inductive tms_state_agree : TMSMonAux.AbsState -> state -> Prop :=
 | TMSStateAgree : forall (Ω : state) (T__TMS : TMSMonAux.AbsState),
@@ -2500,10 +2500,10 @@ Inductive ptrstore_split (Ξ : symbols) : ptrstore -> Delta -> Gamma -> Prop :=
 | TemptyΔ : forall (Γ : Gamma), gamma_from_symbols Ξ = Γ -> ptrstore_split Ξ snil nil Γ
 | Tref1ℕ : forall (x γ : vart) (Γ : Gamma) (Δ__ptrs : Delta) (Δ : ptrstore) (ℓ : loc) (t : ControlTag) (n : nat),
     ptrstore_split Ξ Δ Δ__ptrs Γ ->
-    ptrstore_split Ξ (ℓ ↦ dL(ℓ ; ◻ ; t ; n) ◘ Δ) (γ :: Δ__ptrs)%list (x ↦ Tpre(Tptr (LVar γ)) ◘ Γ)
+    ptrstore_split Ξ (ℓ ↦ dL(◻ ; t ; n) ◘ Δ) (γ :: Δ__ptrs)%list (x ↦ Tpre(Tptr (LVar γ)) ◘ Γ)
 | Tref1ℕpoison : forall (x : vart) (Γ : Gamma) (Δ__ptrs : Delta) (Δ : ptrstore) (x : vart) (ℓ : loc) (t : ControlTag) (n : nat),
     ptrstore_split Ξ Δ Δ__ptrs Γ ->
-    ptrstore_split Ξ (ℓ ↦ dL(ℓ ; ☣ ; t ; n) ◘ Δ) Δ__ptrs (x ↦ Tpre(Tptr(LConst ℓ)) ◘ Γ) (*FIXME*)
+    ptrstore_split Ξ (ℓ ↦ dL(☣ ; t ; n) ◘ Δ) Δ__ptrs (x ↦ Tpre(Tptr(LConst ℓ)) ◘ Γ) (*FIXME*)
 .
 Inductive ptrstate_split : state -> Delta -> Gamma -> Prop :=
 | TΩ : forall (Ω : state) (Γ : Gamma) (Δ : Delta),
@@ -2545,10 +2545,10 @@ Lemma estep_preservation Ω e τ Ω' e' a :
 Proof. Admitted.
 
 Lemma store_agree_split T__TMS Δ1 x ℓ ρ t n Δ2 :
-  tms_store_agree T__TMS (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ ; ρ ; t ; n) ◘ Δ2) ->
+  tms_store_agree T__TMS (Δ1 ◘ (addr ℓ) ↦ dL(ρ ; t ; n) ◘ Δ2) ->
   exists T__TMS1 T__TMS2 ℓ', tms_store_agree T__TMS1 Δ1 /\
                     tms_store_agree T__TMS2 Δ2 /\
-                    tms_store_agree (TMSMonAux.singleton ℓ') (x ↦ dL(addr ℓ ; ρ ; t ; n) ◘ snil) /\
+                    tms_store_agree (TMSMonAux.singleton ℓ') (x ↦ dL(ρ ; t ; n) ◘ snil) /\
                     T__TMS = TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton ℓ') T__TMS2)
 .
 Proof. Admitted.
@@ -2561,7 +2561,7 @@ Lemma store_agree_rsplit T__TMS1 T__TMS2 Δ1 Δ2 :
 Proof. Admitted.
 
 Lemma store_split_poisoned Ξ Δ1 x ℓ t n Δ2 Γ Δ__ptrs1 Δ__ptrs2 γ :
-  ptrstore_split Ξ (Δ1 ◘ (addr ℓ) ↦ dL(addr ℓ; ☣; t; n) ◘ Δ2) (Δ__ptrs1 ++ γ :: Δ__ptrs2)%list Γ  ->
+  ptrstore_split Ξ (Δ1 ◘ (addr ℓ) ↦ dL(☣; t; n) ◘ Δ2) (Δ__ptrs1 ++ γ :: Δ__ptrs2)%list Γ  ->
   ptrstore_split Ξ (Δ1 ◘ Δ2) (Δ__ptrs1 ++ Δ__ptrs2)%list Γ /\ (~ List.In x (dom Γ))
 .
 Proof. Admitted.

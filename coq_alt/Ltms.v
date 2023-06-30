@@ -1577,7 +1577,7 @@ Fixpoint NoOwnedPtrpreτ (τ : pre_ty) :=
   match τ with
   | Tcap _ _ => False
   | Tpair τ1 τ2 => NoOwnedPtrpreτ τ1 /\ NoOwnedPtrpreτ τ2
-  | Texists γ τ => False
+  | Texists γ τ => NoOwnedPtrpreτ τ
   | _ => True
   end
 .
@@ -1585,18 +1585,29 @@ Definition NoOwnedPtrτ (τ : ty) :=
   match τ with
   | Tpre τ => NoOwnedPtrpreτ τ
   | Tret τ => NoOwnedPtrpreτ τ
-  | Tfun _ _ => True
+  | Tfun _ _ => True (* functions are allowed to "eat" pointers *)
   end
 .
-Definition NoOwnedPtr (Γ : Gamma) :=
-  List.fold_left (fun acc τ => acc /\ NoOwnedPtrτ τ) (img Γ) True
+Fixpoint NoOwnedPtr (Γ : Gamma) :=
+  match Γ with
+  | [⋅] => True
+  | x ↦ τ ◘ Γ => NoOwnedPtrτ τ /\ NoOwnedPtr Γ
+  end
 .
 
 Lemma noownedptr_split (Γ1 Γ2 : Gamma) :
   NoOwnedPtr (Γ1 ◘ Γ2) <->
   NoOwnedPtr Γ1 /\ NoOwnedPtr Γ2
 .
-Proof. Admitted.
+Proof.
+  remember (Γ1 ◘ Γ2) as Γ. revert Γ1 Γ2 HeqΓ; induction Γ; split; intros.
+  destruct Γ1, Γ2; inv HeqΓ. now split. easy.
+  destruct Γ1. inv HeqΓ. cbn in H0. inv H0. now split.
+  inv HeqΓ. cbn in H. destruct H as [H0 H1]. assert ((Γ1 ◘ Γ2) = (Γ1 ◘ Γ2)) by reflexivity.
+  specialize (IHΓ Γ1 Γ2 H). apply IHΓ in H1. destruct H1 as [H1 H2]. cbn; repeat split; easy.
+  destruct Γ1; cbn in HeqΓ; inv HeqΓ. easy. cbn in *. fold (append Γ1 Γ2) in *.
+  destruct H as [[H H1] H2]. split; eauto. eapply IHΓ; eauto.
+Qed.
 
 Fixpoint substτ (what : vart) (inn : pre_ty) (forr : vart) :=
   match inn with
@@ -1625,103 +1636,103 @@ Definition flvt (τ : ty) : list vart :=
 .
 
 (** Type system spec *)
-Reserved Notation "'[' Δ ';' Γ '|-' e ':' τ  ']'" (at level 81, Γ at next level, e at next level, τ at next level).
-Inductive check : Delta -> Gamma -> expr -> ty -> Prop :=
-| T_var : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x : vart) (τ : pre_ty),
+Reserved Notation "'[' b ';' Δ ';' Γ '|-' e ':' τ  ']'" (at level 81, Γ at next level, e at next level, τ at next level).
+Inductive check : bool -> Delta -> Gamma -> expr -> ty -> Prop :=
+| T_var : forall (dontuse : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x : vart) (τ : pre_ty),
     (forall x, List.In x (flv τ) -> List.In x Δ) ->
     Γ = (Γ1 ◘ x ↦ (Tpre τ) ◘ Γ2) ->
-    NoOwnedPtr (Γ1 ◘ Γ2) ->
-    [ Δ ; Γ |- Xvar x : τ ]
-| T_foo : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (foo : vart) (τ1 τ2 : pre_ty),
+    NoOwnedPtr (if dontuse then Γ1 ◘ x ↦ (Tpre τ) ◘ Γ2 else Γ1 ◘ Γ2) ->
+    [ dontuse ; Δ ; Γ |- Xvar x : τ ]
+| T_foo : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (foo : vart) (τ1 τ2 : pre_ty),
     (forall x, List.In x (flv τ1) -> List.In x Δ) ->
     (forall x, List.In x (flv τ2) -> List.In x Δ) ->
     Γ = (Γ1 ◘ foo ↦ (Tfun τ1 τ2) ◘ Γ2) ->
     NoOwnedPtr (Γ1 ◘ Γ2) ->
-    [ Δ ; Γ |- Xvar foo : Tfun τ1 τ2 ]
-| T_abort : forall (Δ : Delta) (Γ : Gamma) (τ : ty),
+    [ b ; Δ ; Γ |- Xvar foo : Tfun τ1 τ2 ]
+| T_abort : forall (b : bool) (Δ : Delta) (Γ : Gamma) (τ : ty),
     NoOwnedPtr Γ ->
-    [ Δ ; Γ |- Xabort : τ ]
-| T_vnat : forall (Δ : Delta) (Γ : Gamma) (n : nat),
+    [ b ; Δ ; Γ |- Xabort : τ ]
+| T_vnat : forall (b : bool) (Δ : Delta) (Γ : Gamma) (n : nat),
     NoOwnedPtr Γ ->
-    [ Δ ; Γ |- Xval(Vnat n) : Tpre Tℕ ]
-| T_vpair : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (v1 v2 : value) (τ1 τ2 : pre_ty),
+    [ b ; Δ ; Γ |- Xval(Vnat n) : Tpre Tℕ ]
+| T_vpair : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (v1 v2 : value) (τ1 τ2 : pre_ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- Xval v1 : τ1] ->
-    [Δ ; Γ2 |- Xval v2 : τ2] ->
-    [Δ ; Γ |- Xval(Vpair v1 v2) : Tpair τ1 τ2]
-| T_vpack : forall (Δ : Delta) (Γ : Gamma) (γ γ' : vart) (v : value) (τ : pre_ty),
+    [b ; Δ ; Γ1 |- Xval v1 : τ1] ->
+    [b ; Δ ; Γ2 |- Xval v2 : τ2] ->
+    [b ; Δ ; Γ |- Xval(Vpair v1 v2) : Tpair τ1 τ2]
+| T_vpack : forall (b : bool) (Δ : Delta) (Γ : Gamma) (γ γ' : vart) (v : value) (τ : pre_ty),
     List.In γ' Δ ->
-    [Δ ; Γ |- Xval v: substτ γ τ γ'] ->
-    [Δ ; Γ |- Xval(Vpack (LVar γ) v) : Texists γ τ]
-| T_pair : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ1 τ2 : pre_ty),
+    [b ; Δ ; Γ |- Xval v: substτ γ τ γ'] ->
+    [b ; Δ ; Γ |- Xval(Vpack (LVar γ) v) : Texists γ τ]
+| T_pair : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (e1 e2 : expr) (τ1 τ2 : pre_ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- e1 : τ1] ->
-    [Δ ; Γ2 |- e2 : τ2] ->
-    [Δ ; Γ |- Xpair e1 e2 : Tpair τ1 τ2]
-| T_unpair : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x1 x2 : vart) (e0 e1 : expr) (τ1 τ2 : pre_ty) (τ3 : ty),
+    [b ; Δ ; Γ1 |- e1 : τ1] ->
+    [b ; Δ ; Γ2 |- e2 : τ2] ->
+    [b ; Δ ; Γ |- Xpair e1 e2 : Tpair τ1 τ2]
+| T_unpair : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x1 x2 : vart) (e0 e1 : expr) (τ1 τ2 : pre_ty) (τ3 : ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- e0 : Tpair τ1 τ2] ->
-    [Δ ; x1 ↦ (Tpre τ1) ◘ (x2 ↦ (Tpre τ2) ◘ Γ2) |- e1 : τ3]%list ->
-    [Δ ; Γ |- Xunpair x1 x2 e0 e1 : τ3]
-| T_binop : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (b : binopsymb) (e1 e2 : expr),
+    [false ; Δ ; Γ1 |- e0 : Tpair τ1 τ2] ->
+    [false ; Δ ; x1 ↦ (Tpre τ1) ◘ (x2 ↦ (Tpre τ2) ◘ Γ2) |- e1 : τ3]%list ->
+    [b ; Δ ; Γ |- Xunpair x1 x2 e0 e1 : τ3]
+| T_binop : forall (bb : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (b : binopsymb) (e1 e2 : expr),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- e1 : Tℕ] ->
-    [Δ ; Γ2 |- e2 : Tℕ] ->
-    [Δ ; Γ |- Xbinop b e1 e2 : Tℕ]
+    [bb ; Δ ; Γ1 |- e1 : Tℕ] ->
+    [bb ; Δ ; Γ2 |- e2 : Tℕ] ->
+    [bb ; Δ ; Γ |- Xbinop b e1 e2 : Tℕ]
 | T_pack : forall (Δ : Delta) (Γ : Gamma) (γ γ' : vart) (e : expr) (τ : pre_ty),
     List.In γ' Δ ->
-    [Δ ; Γ |- e : substτ γ τ γ'] ->
-    [Δ ; Γ |- Xpack (Xvar γ) e : Texists γ τ ]
-| T_unpack : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (γ x : vart) (e1 e2 : expr) (τ1 : pre_ty) (τ2 : ty),
+    [false ; Δ ; Γ |- e : substτ γ τ γ'] ->
+    [false ; Δ ; Γ |- Xpack (Xvar γ) e : Texists γ τ ]
+| T_unpack : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (γ x : vart) (e1 e2 : expr) (τ1 : pre_ty) (τ2 : ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- e1 : Texists γ τ1] ->
+    [false; Δ ; Γ1 |- e1 : Texists γ τ1] ->
     (forall x, List.In x (flvt τ2) -> List.In x Δ) ->
-    [γ :: Δ ; x ↦ (Tpre τ1) ◘ Γ2 |- e2 : τ2]%list ->
-    [Δ ; Γ |- Xunpack γ x e1 e2 : τ2]
-| T_new : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (γ : vart) (e0 e1 : expr) (τ : pre_ty),
+    [true ; γ :: Δ ; x ↦ (Tpre τ1) ◘ Γ2 |- e2 : τ2]%list ->
+    [b ; Δ ; Γ |- Xunpack γ x e1 e2 : τ2]
+| T_new : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (γ : vart) (e0 e1 : expr) (τ : pre_ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- e0 : τ] ->
-    [Δ ; Γ2 |- e1 : Tnat] ->
-    [Δ ; Γ |- Xnew e0 e1 : Texists γ (Tpair (Tcap (LVar γ) τ) (Tptr (LVar γ)))]
-| T_del : forall (Δ : Delta) (Γ : Gamma) (γ : vart) (e : expr) (τ : pre_ty),
-    [Δ ; Γ |- e : Texists γ (Tpair (Tcap (LVar γ) τ) (Tptr (LVar γ)))] ->
-    [Δ ; Γ |- Xdel e : Tℕ]
-| T_get : forall (Δ : Delta) (Γ Γ' Γ1 Γ2 Γ3 : Gamma) (γ : vart) (e0 e1 e2 : expr) (τ : pre_ty),
+    [true ; Δ ; Γ1 |- e0 : τ] ->
+    [true ; Δ ; Γ2 |- e1 : Tnat] ->
+    [b ; Δ ; Γ |- Xnew e0 e1 : Texists γ (Tpair (Tcap (LVar γ) τ) (Tptr (LVar γ)))]
+| T_del : forall (b : bool) (Δ : Delta) (Γ : Gamma) (γ : vart) (e : expr) (τ : pre_ty),
+    [false ; Δ ; Γ |- e : Texists γ (Tpair (Tcap (LVar γ) τ) (Tptr (LVar γ)))] ->
+    [b ; Δ ; Γ |- Xdel e : Tℕ]
+| T_get : forall (b : bool) (Δ : Delta) (Γ Γ' Γ1 Γ2 Γ3 : Gamma) (γ : vart) (e0 e1 e2 : expr) (τ : pre_ty),
     Γ' ≡ Γ1 ∘ Γ2 ->
     Γ ≡ Γ' ∘ Γ3 ->
-    [Δ ; Γ1 |- e0 : Tcap (LVar γ) τ] ->
-    [Δ ; Γ2 |- e1 : Tptr (LVar γ)] ->
-    [Δ ; Γ3 |- e2 : Tℕ] ->
-    [Δ ; Γ |- Xget e0 e1 e2 : Tpair (Tcap (LVar γ) τ) τ]
-| T_set : forall (Δ : Delta) (Γ Γ' Γ'' Γ1 Γ2 Γ3 Γ4 : Gamma) (γ : vart) (e0 e1 e2 e3 : expr) (τ : pre_ty),
+    [false ; Δ ; Γ1 |- e0 : Tcap (LVar γ) τ] ->
+    [false ; Δ ; Γ2 |- e1 : Tptr (LVar γ)] ->
+    [true ; Δ ; Γ3 |- e2 : Tℕ] ->
+    [b ; Δ ; Γ |- Xget e0 e1 e2 : Tpair (Tcap (LVar γ) τ) τ]
+| T_set : forall (b : bool) (Δ : Delta) (Γ Γ' Γ'' Γ1 Γ2 Γ3 Γ4 : Gamma) (γ : vart) (e0 e1 e2 e3 : expr) (τ : pre_ty),
     Γ' ≡ Γ1 ∘ Γ2 ->
     Γ'' ≡ Γ' ∘ Γ3 ->
     Γ ≡ Γ'' ∘ Γ4 ->
-    [Δ ; Γ1 |- e0 : Tcap (LVar γ) τ] ->
-    [Δ ; Γ2 |- e1 : Tptr (LVar γ)] ->
-    [Δ ; Γ3 |- e2 : Tℕ] ->
-    [Δ ; Γ4 |- e3 : τ] ->
-    [Δ ; Γ |- Xset e0 e1 e2 e3 : Tpair (Tcap (LVar γ) τ) τ]
-| T_let : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x : vart) (e0 e1 : expr) (τ1 : pre_ty) (τ2 : ty),
+    [false ; Δ ; Γ1 |- e0 : Tcap (LVar γ) τ] ->
+    [false ; Δ ; Γ2 |- e1 : Tptr (LVar γ)] ->
+    [true ; Δ ; Γ3 |- e2 : Tℕ] ->
+    [true ; Δ ; Γ4 |- e3 : τ] ->
+    [b ; Δ ; Γ |- Xset e0 e1 e2 e3 : Tpair (Tcap (LVar γ) τ) τ]
+| T_let : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x : vart) (e0 e1 : expr) (τ1 : pre_ty) (τ2 : ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- e0 : τ1] ->
-    [Δ ; x ↦ (Tpre τ1) ◘ Γ2 |- e1 : τ2]%list ->
-    [Δ ; Γ |- Xlet x e0 e1 : τ2]
-| T_ifz : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (e0 e1 e2 : expr) (τ : ty),
+    [b ; Δ ; Γ1 |- e0 : τ1] ->
+    [true ; Δ ; x ↦ (Tpre τ1) ◘ Γ2 |- e1 : τ2]%list ->
+    [b ; Δ ; Γ |- Xlet x e0 e1 : τ2]
+| T_ifz : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (e0 e1 e2 : expr) (τ : ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- e0 : Tℕ] ->
-    [Δ ; Γ2 |- e1 : τ] ->
-    [Δ ; Γ2 |- e2 : τ] ->
-    [Δ ; Γ |- Xifz e0 e1 e2 : τ]
-| T_return : forall (Δ : Delta) (Γ : Gamma) (e : expr) (τ : pre_ty),
-    [Δ ; Γ |- e : τ] ->
-    [Δ ; Γ |- Xreturn e : Tret τ]
-| T_call : forall (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (foo : vart) (e : expr) (τ1 τ2 : pre_ty),
+    [b ; Δ ; Γ1 |- e0 : Tℕ] ->
+    [b ; Δ ; Γ2 |- e1 : τ] ->
+    [b ; Δ ; Γ2 |- e2 : τ] ->
+    [b ; Δ ; Γ |- Xifz e0 e1 e2 : τ]
+| T_return : forall (b : bool) (Δ : Delta) (Γ : Gamma) (e : expr) (τ : pre_ty),
+    [false ; Δ ; Γ |- e : τ] ->
+    [b ; Δ ; Γ |- Xreturn e : Tret τ]
+| T_call : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (foo : vart) (e : expr) (τ1 τ2 : pre_ty),
     Γ ≡ Γ1 ∘ Γ2 ->
-    [Δ ; Γ1 |- Xvar foo : Tfun τ1 τ2] ->
-    [Δ ; Γ2 |- e : τ1] ->
-    [Δ ; Γ |- Xcall foo e : τ2]
-where "'[' Δ ';' Γ '|-' e ':' τ ']'" := (check Δ Γ e τ)
+    [b ; Δ ; Γ1 |- Xvar foo : Tfun τ1 τ2] ->
+    [false ; Δ ; Γ2 |- e : τ1] ->
+    [b ; Δ ; Γ |- Xcall foo e : τ2]
+where "'[' b ';' Δ ';' Γ '|-' e ':' τ ']'" := (check b Δ Γ e τ)
 .
 (** Collect symbol names and their types into static type env. *)
 Fixpoint gamma_from_symbols (Ξ : symbols) : Gamma :=
@@ -1748,7 +1759,7 @@ Definition check_symbols (Γ : Gamma) (Ξ : symbols) : Prop :=
             let τ := ty_of_symbol s in
             let e := expr_of_symbol s in
             match τ with
-            | Tfun τ1 τ2 => [ nil ; x ↦ (Tpre τ1) ◘ Γ |- e : Tret τ2 ]
+            | Tfun τ1 τ2 => [ false ; nil ; x ↦ (Tpre τ1) ◘ Γ |- e : Tret τ2 ]
                           /\ (doo Γ Ξ)
             | _ => False
             end
@@ -1909,6 +1920,15 @@ Compute ((fun n => (let* iΩ := initΩ Ξ__ctx Ξ__comp in
 
 Example strncpy_prog := Cprog Ξ__ctx Ξ__comp.
 
+Goal exists τ, [false ; nil ; [⋅] |- Xlet "x"%string (Xnew (Xval 5) (Xval 5)) ((Xvar "x"%string)) : τ].
+Proof.
+  eexists.
+  econstructor. eapply splitEmpty.
+  econstructor. eapply splitEmpty. econstructor. easy. econstructor. easy.
+  econstructor. 2: now instantiate (3:=[⋅]). instantiate (1:="x"%string).
+  cbn. easy. cbn.
+Abort.
+
 Goal prog_check strncpy_prog.
 Proof.
   unfold strncpy_prog; repeat split; try (eexists; split).
@@ -1923,8 +1943,7 @@ Proof.
        ◘ ("main'"%string ↦ Tfun Tℕ Tℕ ◘ ("strncpy"%string ↦ strncpy__ty ◘ [⋅]))))) as H__NoOwnedPtrInit by easy.
     cbn; repeat split.
     + (* typechecking main *)
-      constructor; econstructor.
-      eapply splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
+      constructor. econstructor; try easy. eauto using splitEmpty, splitSymb, splitNat.
       instantiate (1:= Tℕ). 2: now constructor.
       econstructor; try easy.
       instantiate (2:=dontcare ↦ Tpre Tℕ ◘ ("main"%string ↦ Tfun Tℕ Tℕ ◘ [⋅]));
@@ -1942,7 +1961,7 @@ Proof.
       eapply splitPairL, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
       eapply T_var. 2: instantiate (4:=[⋅]); try reflexivity.
       intros x [H | [H | H]]; (now left + now right).
-      easy.
+      cbn. easy.
 
       econstructor; try easy.
       eapply splitCapR, splitPtr, splitNat, splitSymb, splitSymb, splitSymb, splitEmpty.
@@ -2427,7 +2446,7 @@ Proof.
       easy.
 Qed.
 
-Goal [nil ; [⋅] |- Xlet "x" (Xnew (Xval 5) (Xval 4)) (seq (Xdel (Xvar "x")) (Xdel (Xvar "x"))) : Tℕ ]%string.
+Goal [false ; nil ; [⋅] |- Xlet "x" (Xnew (Xval 5) (Xval 4)) (seq (Xdel (Xvar "x")) (Xdel (Xvar "x"))) : Tℕ ]%string.
   econstructor.
   eapply splitEmpty. econstructor. eapply splitEmpty.
   now econstructor. now econstructor.
@@ -2513,7 +2532,7 @@ Inductive ptrstate_split : state -> Delta -> Gamma -> Prop :=
 Inductive rt_check : state -> expr -> ty -> Prop :=
 | Trtcheck : forall (Ω : state) (e : expr) (τ : ty) (Γ : Gamma) (Δ__ptrs : Delta),
     ptrstate_split Ω Δ__ptrs Γ ->
-    [Δ__ptrs ; Γ |- e : τ] ->
+    [false ; Δ__ptrs ; Γ |- e : τ] ->
     rt_check Ω e τ
 .
 Definition ectx_rt_check (Ω : state) (K : evalctx) (τ τ' : ty) :=
@@ -2602,11 +2621,8 @@ Proof.
     now inv Ac.
   - (* new *) inv Heqr1; inv Heqr2. remember (addr (length (getH Φ t))) as ℓ.
     exists (Some (TMSMonAux.AAlloc ℓ)).
-    exists (TMSMonAux.append T__TMS (TMSMonAux.singleton ℓ)). repeat split; try constructor.
-    3: cbv; f_equal; apply List.app_nil_r.
-    1,2: inv Ac; inv Aa; admit. (*TODO: use push and nodupinv together with H to get contradiction *)
-    inv Ac.
-    cbn. inv H0. admit.
+    exists (TMSMonAux.append T__TMS (TMSMonAux.singleton ℓ)).
+    admit.
   - (*del*) inv Heqr1; inv Heqr2. admit.
   - (*get*) inv Heqr1; inv Heqr2. admit.
   - (*set*) inv Heqr1; inv Heqr2. admit.

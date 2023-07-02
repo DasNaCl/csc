@@ -396,7 +396,7 @@ Proof.
   destruct (eq_dec (l, t) (l', t')).
   - left; intros Ha Hb; deex. inv H3. admit.
   - specialize (H2 l' n' t'). destruct H2 as [H2|H2].
-    + admit.
+    + left; intros; cbn in *. admit. (*should go through*)
     + right; intros Ha Hb p' m Hc Hd; deex; destruct Hd as [Hd He].
       rewrite H1 in *. inv Hc; inv Hd; try easy.
       cbn in H2. apply notin_propagate in Ha. eapply notin_unsnoc' in Hb; eauto.

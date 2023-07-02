@@ -367,6 +367,7 @@ Definition gno_double_alloc (T__TMS : TMSMonAux.AbsState) : Props.prop :=
                     (List.In (l,t) T__TMS.(TMSMonAux.alloced) ->
                      ~exists p, wherein (PreEv (Alloc l n) t SUnlock) As p) \/
                     (~List.In (l,t) T__TMS.(TMSMonAux.alloced) ->
+                     ~List.In (l,t) T__TMS.(TMSMonAux.freed) ->
                      forall p' m, wherein (PreEv (Alloc l n) t SUnlock) As p' ->
                      ~exists p, wherein (PreEv (Alloc l m) t SUnlock) As p /\ p <> p')
 .
@@ -390,6 +391,16 @@ Lemma step_nodoublealloc_dealloc T__TMS T__TMS' l t As :
   gno_double_alloc T__TMS (PreEv(Dealloc l) t SUnlock :: As)%list
 .
 Proof.
+  intros H; cbv in H; dependent induction H; intros.
+  unfold gno_double_alloc; intros l' n' t'.
+  destruct (eq_dec (l, t) (l', t')).
+  - left; intros Ha Hb; deex. inv H3. admit.
+  - specialize (H2 l' n' t'). destruct H2 as [H2|H2].
+    + admit.
+    + right; intros Ha Hb p' m Hc Hd; deex; destruct Hd as [Hd He].
+      rewrite H1 in *. inv Hc; inv Hd; try easy.
+      cbn in H2. apply notin_propagate in Ha. eapply notin_unsnoc' in Hb; eauto.
+      specialize (H2 Ha Hb n m H9). apply H2. exists n0; eauto.
 Admitted.
 Lemma step_nodoublealloc_alloc T__TMS T__TMS' l n t As :
   @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.AAlloc l t)) T__TMS' ->

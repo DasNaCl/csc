@@ -133,6 +133,12 @@ Instance Event__Instance : HasEquality Event := {
 Definition tracepref := Util.tracepref.
 
 Require Import CSC.Sets.
+Module LocList <: ListBase.
+  Definition A : Type := loc.
+  Definition eqb := fun (l0 l1 : loc) => l0 == l1.
+End LocList.
+Module LocListSets <: Sig := SetTheoryList (LocList).
+Definition LocListSet := LocListSets.set.
 Module LocControlList <: ListBase.
   Definition A : Type := loc * ControlTag.
   Definition eqb := fun (a b : A) => let '(l0, σ0) := a in
@@ -181,15 +187,15 @@ Definition prop := tracepref -> Prop.
 
 (** Temporal Memory Safety *)
 Definition tms : prop := fun (As : tracepref) =>
-                           (forall l n t t' σ σ', in_t (PreEv(Alloc l n) t σ) As ->
-                                             in_t (PreEv(Dealloc l) t' σ') As ->
-                                             before (PreEv (Alloc l n) t σ) (PreEv (Dealloc l) t' σ') As)
-                         /\ (forall l n m t t' σ σ', in_t (PreEv(Use l n) t σ) As ->
-                                               in_t (PreEv(Alloc l m) t σ) As ->
-                                               ~before (PreEv (Use l n) t σ) (PreEv (Alloc l m) t' σ') As)
-                         /\ (forall l n t t' σ σ', in_t (PreEv(Dealloc l) t σ) As ->
-                                             in_t (PreEv(Use l n) t' σ') As ->
-                                             ~before (PreEv (Dealloc l) t σ) (PreEv (Use l n) t' σ') As)
+                           (forall l n t, in_t (PreEv(Alloc l n) t SUnlock) As ->
+                                     in_t (PreEv(Dealloc l) t SUnlock) As ->
+                                     before (PreEv(Alloc l n) t SUnlock) (PreEv(Dealloc l) t SUnlock) As)
+                         /\ (forall l n m t σ, in_t (PreEv(Alloc l n) t σ) As ->
+                                         in_t (PreEv(Use l m) t σ) As ->
+                                         before (PreEv(Alloc l n) t SUnlock) (PreEv(Use l m) t σ) As)
+                         /\ (forall l n t σ, in_t (PreEv(Use l n) t σ) As ->
+                                       in_t (PreEv(Dealloc l) t SUnlock) As ->
+                                       before (PreEv(Use l n) t σ) (PreEv(Dealloc l) t SUnlock) As)
 .
 (** Spatial Memory Safety *)
 Definition sms : prop := fun (As : tracepref) =>

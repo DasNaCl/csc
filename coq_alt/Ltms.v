@@ -2501,11 +2501,11 @@ Fixpoint spectracepref_of_tracepref (tr : tracepref) : Props.tracepref :=
 Inductive tms_store_agree : TMSMonAux.AbsState -> ptrstore -> Prop :=
 | TMSEmptyAgree : tms_store_agree TMSMonAux.EmptyState snil
 | TMSConsAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (T__TMS T__TMS' : TMSMonAux.AbsState) (Δ : ptrstore),
-    ~(LocListSets.el ℓ (TMSMonAux.alloced T__TMS)) ->
-    ~(LocListSets.el ℓ (TMSMonAux.freed T__TMS)) ->
+    ~(List.In (ℓ,t) (TMSMonAux.alloced T__TMS)) ->
+    ~(List.In (ℓ,t) (TMSMonAux.freed T__TMS)) ->
     tms_store_agree T__TMS Δ ->
     T__TMS' = {|
-               TMSMonAux.alloced := LocListSets.Union (TMSMonAux.alloced T__TMS) (List.cons ℓ List.nil) ;
+               TMSMonAux.alloced := List.app (TMSMonAux.alloced T__TMS) (List.cons (ℓ,t) List.nil) ;
                TMSMonAux.freed := TMSMonAux.freed T__TMS ;
             |} ->
     tms_store_agree T__TMS' (ℓ ↦ dL(◻ ; t ; n) ◘ Δ)
@@ -2572,8 +2572,8 @@ Lemma store_agree_split T__TMS Δ1 ℓ ρ t n Δ2 :
   tms_store_agree T__TMS (Δ1 ◘ (addr ℓ) ↦ dL(ρ ; t ; n) ◘ Δ2) ->
   exists T__TMS1 T__TMS2, tms_store_agree T__TMS1 Δ1 /\
                  tms_store_agree T__TMS2 Δ2 /\
-                 tms_store_agree (TMSMonAux.singleton (addr ℓ)) ((addr ℓ) ↦ dL(ρ ; t ; n) ◘ snil) /\
-                 T__TMS = TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ)) T__TMS2)
+                 tms_store_agree (TMSMonAux.singleton (addr ℓ) t) ((addr ℓ) ↦ dL(ρ ; t ; n) ◘ snil) /\
+                 T__TMS = TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ) t) T__TMS2)
 .
 Proof. Admitted.
 
@@ -2584,12 +2584,13 @@ Lemma store_agree_rsplit T__TMS1 T__TMS2 Δ1 Δ2 :
 .
 Proof. Admitted.
 
-Lemma store_agree_notin_comm Δ ℓ v T__TMS :
+Lemma store_agree_notin_comm Δ ℓ t v T__TMS :
   tms_store_agree T__TMS Δ ->
   ~ In ℓ (dom Δ) ->
+  t = v.(dt) ->
   Util.nodupinv (ℓ ↦ v ◘ Δ) ->
-  ~ List.In ℓ (TMSMonAux.alloced T__TMS) /\
-  ~ List.In ℓ (TMSMonAux.freed T__TMS)
+  ~ List.In (ℓ,t) (TMSMonAux.alloced T__TMS) /\
+  ~ List.In (ℓ,t) (TMSMonAux.freed T__TMS)
 .
 Proof.
 Admitted.
@@ -2633,40 +2634,40 @@ Proof.
     + crush_option (Hgrow (MH__ctx Φ) n v); try (rewrite Hx in H1; easy); cbn in H1. inv H2. cbn in *.
       apply push_ok in H1 as H1'. unfold push in H1. crush_undup (addr(length(MH__ctx Φ)) ↦ {| dρ := ◻; dt := CCtx; dn := n |} ◘ MΔ Φ).
       inv H1.
-      exists (Some (TMSMonAux.AAlloc(addr (length (MH__ctx Φ))))).
-      exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (length (MH__ctx Φ))))).
+      exists (Some (TMSMonAux.AAlloc(addr (length (MH__ctx Φ))) CCtx)).
+      exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (length (MH__ctx Φ))) CCtx)).
       assert (H'':=H1'). inv H''.
-      enough ((~ LocListSets.el (addr (length (MH__ctx Φ))) (TMSMonAux.alloced T__TMS)) /\ (~ LocListSets.el (addr (length (MH__ctx Φ))) (TMSMonAux.freed T__TMS))) as [Ha Hb].
+      enough ((~ List.In (addr (length (MH__ctx Φ)), CCtx) (TMSMonAux.alloced T__TMS)) /\ (~ List.In (addr (length (MH__ctx Φ)), CCtx) (TMSMonAux.freed T__TMS))) as [Ha Hb].
       repeat split; eauto; try constructor; try easy. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
       econstructor; eauto. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
       revert H H3 H1'; clear. revert T__TMS. remember (MΔ Φ) as Δ; remember (addr(length (MH__ctx Φ))) as ℓ.
       clear HeqΔ; clear Heqℓ; clear Φ. revert ℓ n. induction Δ; intros. now inv H.
-      rename a into ℓ'. eapply store_agree_notin_comm in H; eauto.
+      rename a into ℓ'. eapply store_agree_notin_comm in H; eauto. now cbn.
     + crush_option (Hgrow (MH__comp Φ) n v); try (rewrite Hx in H1; easy); cbn in H1. inv H2. cbn in *.
       apply push_ok in H1 as H1'. unfold push in H1. crush_undup (addr(length(MH__comp Φ)) ↦ {| dρ := ◻; dt := CComp; dn := n |} ◘ MΔ Φ).
       inv H1.
-      exists (Some (TMSMonAux.AAlloc(addr (length (MH__comp Φ))))).
-      exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (length (MH__comp Φ))))).
+      exists (Some (TMSMonAux.AAlloc(addr (length (MH__comp Φ))) CComp)).
+      exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (length (MH__comp Φ))) CComp)).
       assert (H'':=H1'). inv H''.
-      enough ((~ LocListSets.el (addr (length (MH__comp Φ))) (TMSMonAux.alloced T__TMS)) /\ (~ LocListSets.el (addr (length (MH__comp Φ))) (TMSMonAux.freed T__TMS))) as [Ha Hb].
+      enough ((~ List.In (addr (length (MH__comp Φ)), CComp) (TMSMonAux.alloced T__TMS)) /\ (~ List.In (addr (length (MH__comp Φ)), CComp) (TMSMonAux.freed T__TMS))) as [Ha Hb].
       repeat split; eauto; try constructor; try easy. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
       econstructor; eauto. unfold TMSMonAux.append; unfold TMSMonAux.singleton; rewrite List.app_nil_r; reflexivity.
       revert H H3 H1'; clear. revert T__TMS. remember (MΔ Φ) as Δ; remember (addr(length (MH__comp Φ))) as ℓ.
       clear HeqΔ; clear Heqℓ; clear Φ. revert ℓ n. induction Δ; intros. now inv H.
-      rename a into ℓ'. eapply store_agree_notin_comm in H; eauto.
+      rename a into ℓ'. eapply store_agree_notin_comm in H; eauto. now cbn.
   - (*del*) inv Heqr1; inv Heqr2.
     inv Ac; assert (H1':=H1). cbn in H1; rewrite H0 in H1; destruct ℓ as [ℓ]; apply store_agree_split in H1; deex.
     destruct H1 as [H1a [H1b [H1c H1d]]].
     inv Aa. inv H2. inv H1c; try inv H4.
     inv H11. cbn in H12.
-    exists (Some(TMSMonAux.ADealloc (addr ℓ))). exists (TMSMonAux.append T__TMS1 T__TMS2).
+    exists (Some(TMSMonAux.ADealloc (addr ℓ) t)). exists (TMSMonAux.append T__TMS1 T__TMS2).
     repeat split; try constructor. econstructor; now cbn. cbn. eapply store_agree_rsplit. easy.
     econstructor. easy.
   - (*get*) inv Heqr1; inv Heqr2.
     inv Ac; assert (H2':=H2). cbn in H2; rewrite H0 in H2; apply store_agree_split in H2; deex.
     destruct H2 as [H2a [H2b [H2c H2d]]].
     inv Aa. inv H3. inv H2c; try inv H5. inv H16. cbn in H17.
-    exists (Some(TMSMonAux.AUse (addr ℓ))). exists (TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ)) T__TMS2)).
+    exists (Some(TMSMonAux.AUse (addr ℓ) t)). exists (TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ) t) T__TMS2)).
     repeat split; try constructor; easy.
   - (*set*) inv Heqr1; inv Heqr2. inv Aa. inv H3. inv H16. (* FIXME? this is kinda bad for runtime-type preservation isn't it *)
   - (*unpack*) inv Heqr1; inv Heqr2. exists None. exists T__TMS. repeat split; try constructor.
@@ -2707,8 +2708,15 @@ Lemma ctx_tms_via_monitor_abrt (Ω : state) (e : expr) (τ : ty)
 Proof.
   (*E_abort*)
   intros Aa Ab Ac; inv Ab; inv H3;
-  exists (Some TMSMonAux.AAbort); exists (TMSMonAux.EmptyState); split; constructor.
+  exists (Some TMSMonAux.AAbort); exists (T__TMS); split; constructor.
 Qed.
+
+Lemma rtvalue_is_monvalue Ω v (T__TMS : TMSMonAux.AbsState) :
+  is_value (Ω ▷ (Xval v)) ->
+  tms_state_agree T__TMS Ω ->
+  TMSMon.ValueState T__TMS
+.
+Proof. Admitted.
 
 Lemma steps_tms_via_monitor (Ω Ω' : state) (e : expr) (v : value) (τ : ty) (As : tracepref)
                             (T__TMS : TMSMonAux.AbsState) :
@@ -2723,8 +2731,8 @@ Lemma steps_tms_via_monitor (Ω Ω' : state) (e : expr) (v : value) (τ : ty) (A
 Proof.
   intros Aa Ab; revert T__TMS; dependent induction Ab; intros T__TMS Ac.
   - (* refl *)
-    exists (nil). exists T__TMS. repeat split. constructor. now constructor.
-    now inv Ac.
+    exists (nil). exists T__TMS. repeat split; try now inv Ac. constructor. constructor.
+    eapply rtvalue_is_monvalue; eauto.
   - (* trans-imp *)
     destruct r2 as [Ω2 e2|].
     + eapply estep_preservation in Aa as Aa'; eauto.
@@ -2734,13 +2742,13 @@ Proof.
       destruct a; cbn in Ha. inv H. inv H8.
       destruct e__b; inversion Ha; subst.
       all: try now (exists Bs; exists T__TMS''; repeat split; cbn; try now inv Ha; try now inv Hb; try now inv IHAb3).
-      * exists (TMSMonAux.AAlloc ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+      * exists (TMSMonAux.AAlloc ℓ t :: Bs)%list. exists T__TMS''. repeat split; cbn.
         now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
-      * exists (TMSMonAux.ADealloc ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+      * exists (TMSMonAux.ADealloc ℓ t :: Bs)%list. exists T__TMS''. repeat split; cbn.
         now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
-      * exists (TMSMonAux.AUse ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+      * exists (TMSMonAux.AUse ℓ t :: Bs)%list. exists T__TMS''. repeat split; cbn.
         now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
-      * exists (TMSMonAux.AUse ℓ :: Bs)%list. exists T__TMS''. repeat split; cbn.
+      * exists (TMSMonAux.AUse ℓ t :: Bs)%list. exists T__TMS''. repeat split; cbn.
         now econstructor 4. econstructor 2; eassumption. now inv IHAb3.
     + inv H. inv H5. inv Ab. inv H. inv H.
   - (* unimp *)

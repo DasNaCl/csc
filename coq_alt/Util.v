@@ -1075,6 +1075,16 @@ Proof.
     + apply H; now left.
     + apply IHL; auto.
 Qed.
+Lemma notin_unsnoc' {A : Type} l0 l (L : list A) :
+  ~ List.In l0 L ->
+  l <> l0 ->
+  ~ List.In l0 (L ++ l :: nil)%list
+.
+Proof.
+  induction L; cbn; intros H H0 H1.
+  - now destruct H1.
+  - apply IHL; auto. destruct H1; auto. exfalso; apply H; now left.
+Qed.
 Lemma notin_unsnoc {A : Type} l0 l (L : list A) :
   ~ List.In l0 (L ++ l :: nil)%list  ->
   l <> l0 ->

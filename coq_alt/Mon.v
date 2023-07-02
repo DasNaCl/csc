@@ -433,13 +433,33 @@ Proof.
   - inv H. eauto.
 Admitted.
 
-Definition all_freed (T__TMS : ) : Props.prop :=
-  star_step @TMSMonAux.MonInstance T__TMS
-
 Definition gtms (T__TMS : TMSMon.AbsState) : Props.prop :=
-  fun As => (forall l t, in_t (PreEv(Dealloc l) t SUnlock) ->
-                 (in_t (PreEv(Alloc l n) t SUnlock) ->
-                  before (PreEv(Alloc l n) t SUnlock) (PreEv(Dealloc l n) t SUnlock)))
+  fun As => (forall l n t, (in_t (PreEv(Alloc l n) t SUnlock) As ->
+                    in_t (PreEv(Dealloc l) t SUnlock) As ->
+                    ~List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                    ~List.In (l, t) T__TMS.(TMSMonAux.freed) ->
+                    before (PreEv(Alloc l n) t SUnlock) (PreEv(Dealloc l) t SUnlock) As
+                    ) \/ (
+                     List.In (l,t) T__TMS.(TMSMonAux.alloced) ->
+                     ~List.In (l,t) T__TMS.(TMSMonAux.freed)
+                    ))
+      /\ (forall l n m t σ, (in_t (PreEv(Alloc l n) t σ) As ->
+                       in_t (PreEv(Use l m) t σ) As ->
+                       ~List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                       ~List.In (l, t) T__TMS.(TMSMonAux.freed) ->
+                       before (PreEv(Alloc l n) t SUnlock) (PreEv(Use l m) t σ) As
+                       ) \/ (
+                        List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                        ~List.In (l, t) T__TMS.(TMSMonAux.freed)
+                       ))
+      /\ (forall l n t σ, (in_t (PreEv(Use l n) t σ) As ->
+                     in_t (PreEv(Dealloc l) t SUnlock) As ->
+                     ~List.In (l, t) T__TMS.(TMSMonAux.freed) ->
+                     before (PreEv(Use l n) t σ) (PreEv(Dealloc l) t SUnlock) As
+                     ) \/ (
+                      List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                      ~List.In (l, t) T__TMS.(TMSMonAux.freed)
+                     ))
 .
 Lemma nil_tms :
   Props.tms nil

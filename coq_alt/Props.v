@@ -22,6 +22,8 @@ Inductive Event : Type :=
 | Aborted
 | PreEv (a__b : PreEvent) (t : ControlTag) (σ : SecurityTag)
 .
+(** There is surely a way to get rid of this axiom by adding an invariant to traces that is maintained by the step semantics... *)
+Axiom UniqueAllocation : forall l0 n0 t0 σ0 l' n' t' σ', PreEv (Alloc l0 n0) t0 σ0 <> PreEv (Alloc l' n') t' σ' -> (l0, t0) <> (l', t').
 #[export]
 Instance MGT__Instance : TraceParams := {
   Ev := Event ;
@@ -78,6 +80,8 @@ Definition preevent_eq p0 p1 :=
   | _, _ => false
   end
 .
+
+Local Set Warnings "-unused-intro-pattern".
 Lemma preevent_eqb_eq p0 p1 :
   preevent_eq p0 p1 = true <-> p0 = p1.
 Proof.
@@ -93,6 +97,7 @@ Proof.
   - apply PeanoNat.Nat.eqb_eq in H; now subst.
   - inv H; apply PeanoNat.Nat.eqb_refl.
 Qed.
+Local Set Warnings "+unused-intro-pattern".
 #[export]
 Instance PreEvent__Instance : HasEquality PreEvent := {
   eq := preevent_eq ;
@@ -126,6 +131,48 @@ Instance Event__Instance : HasEquality Event := {
   eqb_eq := event_eqb_eq
 }.
 Definition tracepref := Util.tracepref.
+
+Require Import CSC.Sets.
+Module LocControlList <: ListBase.
+  Definition A : Type := loc * ControlTag.
+  Definition eqb := fun (a b : A) => let '(l0, σ0) := a in
+                                  let '(l1, σ1) := b in
+                                  andb (l0 == l1) (σ0 == σ1).
+  Lemma eqb_eq (a b : A) : eqb a b = true <-> a = b.
+  Proof.
+    destruct a,b; split; intros H.
+    - unfold eqb in H. rewrite bool_and_equiv_prop in H; destruct H as [H H'].
+      apply eqb_eq in H, H'; subst; reflexivity.
+    - inv H; unfold eqb; repeat rewrite eq_refl; now cbn.
+  Qed.
+End LocControlList.
+Module LocControlListSets <: Sig := SetTheoryList (LocControlList).
+Definition LocControlListSet := LocControlListSets.set.
+#[export]
+Instance LocControlEq__Instance : HasEquality (LocControlList.A) := {
+  eq := LocControlList.eqb ;
+  eqb_eq := LocControlList.eqb_eq ;
+}.
+Module LocControlNatList <: ListBase.
+  Definition A : Type := loc * ControlTag * nat.
+  Definition eqb := fun (a b : A) => let '((l0, σ0), n0) := a in
+                                  let '((l1, σ1), n1) := b in
+                                  andb (andb (l0 == l1) (σ0 == σ1)) (Nat.eqb n0 n1).
+  Lemma eqb_eq (a b : A) : eqb a b = true <-> a = b.
+  Proof.
+    destruct a,b; destruct p, p0; split; intros H.
+    - unfold eqb in H. repeat rewrite bool_and_equiv_prop in H; destruct H as [[H H'] H''].
+      apply eqb_eq in H, H'; apply PeanoNat.Nat.eqb_eq in H''; subst; reflexivity.
+    - inv H; unfold eqb; repeat rewrite eq_refl; cbn; apply PeanoNat.Nat.eqb_refl.
+  Qed.
+End LocControlNatList.
+Module LocControlNatListSets <: Sig := SetTheoryList (LocControlNatList).
+Definition LocControlNatListSet := LocControlNatListSets.set.
+#[export]
+Instance LocControlNatEq__Instance : HasEquality (LocControlNatList.A) := {
+  eq := LocControlNatList.eqb ;
+  eqb_eq := LocControlNatList.eqb_eq ;
+}.
 
 (** Trace property definitions *)
 

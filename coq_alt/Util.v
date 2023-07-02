@@ -1040,13 +1040,6 @@ Ltac elim_split :=
 #[export]
 Hint Resolve eqb_eq String.eqb_refl : core.
 
-Module LocList <: ListBase.
-  Definition A := loc.
-  Definition eqb := loc_eqb.
-End LocList.
-Module LocListSets <: Sig := SetTheoryList (LocList).
-Definition LocListSet := LocListSets.set.
-
 (** Typeclass to define trace model *)
 Class TraceParams : Type := {
   Ev : Type ;

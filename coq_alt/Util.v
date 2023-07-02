@@ -1109,6 +1109,16 @@ Proof.
     + now left.
     + right; apply IHL; auto.
 Qed.
+Lemma in_unsnoc' {A : Type} l0 l (L0 L1 : list A) :
+  List.In l0 (L0 ++ l :: L1)%list ->
+  l <> l0 ->
+  List.In l0 (L0 ++ L1)
+.
+Proof.
+  induction L0; cbn; intros H H0.
+  - now destruct H.
+  - destruct H; auto.
+Qed.
 
 Fixpoint opt { A : Type } (As : list A) : list(option A) :=
   match As with

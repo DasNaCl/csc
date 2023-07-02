@@ -394,14 +394,18 @@ Proof.
   intros H; cbv in H; dependent induction H; intros.
   unfold gno_double_alloc; intros l' n' t'.
   destruct (eq_dec (l, t) (l', t')).
-  - left; intros Ha Hb; deex. inv H3. admit.
+  - specialize (H2 l' n' t'); inv H3; cbn in *.
+    rewrite H1 in *; cbn in *. right; intros. exfalso.
+    apply H3. clear; induction L0; cbn; auto.
   - specialize (H2 l' n' t'). destruct H2 as [H2|H2].
-    + left; intros; cbn in *. admit. (*should go through*)
+    + left; intros; cbn in *. intros H5. rewrite H1 in *.
+      eapply in_unsnoc' in H4; eauto; deex. apply H2; auto.
+      inv H5; try easy. exists n; assumption.
     + right; intros Ha Hb p' m Hc Hd; deex; destruct Hd as [Hd He].
       rewrite H1 in *. inv Hc; inv Hd; try easy.
       cbn in H2. apply notin_propagate in Ha. eapply notin_unsnoc' in Hb; eauto.
       specialize (H2 Ha Hb n m H9). apply H2. exists n0; eauto.
-Admitted.
+Qed.
 Lemma step_nodoublealloc_alloc T__TMS T__TMS' l n t As :
   @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.AAlloc l t)) T__TMS' ->
   gno_double_alloc T__TMS' As ->
@@ -416,10 +420,10 @@ Proof.
     + left; intros Ha Hb; deex. eapply in_unsnoc in Ha as Ha'; eauto.
       specialize (H1 Ha'). apply H1.
       inv Hb; try easy. eauto.
-    + right; intros Ha p' m Hb Hc; deex; destruct Hc as [Hc Hd].
+    + right; intros Ha Hd p' m Hb Hc; deex; cbn in *; destruct Hc as [Hc He].
       eapply notin_unsnoc' in Ha as Ha'; eauto.
       inv Hb; try easy. inv Hc; try easy.
-      specialize (H1 Ha' n0 m H8). apply H1. exists n1. split; auto.
+      specialize (H1 Ha' Hd n0 m H8). apply H1. exists n1. split; auto.
 Qed.
 Lemma no_double_alloc_true As T__TMS :
   TMSMon.gsat As T__TMS ->
@@ -433,8 +437,8 @@ Proof.
     + assert ((nil : TMSMon.tracepref) ~= nil) by easy; specialize (IHcong H2); clear H2.
       unfold gno_double_alloc; intros. specialize (IHcong l n t). destruct IHcong as [IH|IH].
       * left; intros. specialize (IH H2). intros H3; deex; apply IH. inv H0; inv H3; try easy; exists n1; assumption.
-      * right; intros. intros H4; deex; destruct H4 as [Ha Hb].
-        inv H0; inv H3; inv Ha; try easy; specialize (IH H2 n1 m H8); eapply IH; exists n2; auto.
+      * right; intros. intros H5; deex; destruct H5 as [Ha Hb].
+        inv H0; inv H4; inv Ha; try easy; specialize (IH H2 H3 n1 m H9); eapply IH; exists n2; auto.
   - dependent induction H0; try easy.
     + inv H2. admit. admit.
     + inv H2; inversion H; subst; try easy; eauto using step_nodoublealloc_alloc,

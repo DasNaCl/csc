@@ -8,6 +8,7 @@ Require Import Strings.String CSC.Util CSC.Sets CSC.Props Coq.Program.Equality L
 Module Type MonitorT.
   Parameter AbsState : Type.
   Parameter EmptyState : AbsState.
+  Parameter ValueState : AbsState -> Prop.
   Parameter AbsEv : Type.
   Parameter MonCheck : AbsState -> option AbsEv -> AbsState -> Prop.
   Parameter string_of_absev : AbsEv -> string.
@@ -27,7 +28,7 @@ Module Monitor (M : MonitorT) <: MonitorT.
     State := AbsState;
     Trace__Instance := Trace__Instance;
     step := MonCheck;
-    is_value := fun _ => True;
+    is_value := ValueState;
   }.
   Definition tracepref := @Util.tracepref Trace__Instance.
   (** Monitor traces must not stutter, which makes sense, because monitors should operate on relevant information. *)
@@ -72,6 +73,10 @@ Module CompMonitor (M1 M2 : MonitorT) <: MonitorT.
   Definition AbsState : Type := (M1.AbsState * M2.AbsState).
   Definition EmptyState : AbsState := (M1.EmptyState, M2.EmptyState).
   Definition AbsEv : Type := (option M1.AbsEv * option M2.AbsEv).
+  Definition ValueState (S : AbsState) :=
+    let '(S1, S2) := S in
+    M1.ValueState S1 /\ M2.ValueState S2
+  .
   Inductive MonCheck_i : AbsState -> option AbsEv -> AbsState -> Prop :=
   | combinedCheck (T1 T1' : M1.AbsState) (T2 T2' : M2.AbsState)
       (a1 : option M1.AbsEv) (a2 : option M2.AbsEv) :
@@ -110,8 +115,8 @@ End CompMonitor.
 (** Temporal Memory Safety Monitor *)
 Module TMSMonAux <: MonitorT.
   Record AbsState_r : Type := {
-      alloced : Util.LocListSet ;
-      freed : Util.LocListSet ;
+      alloced : Props.LocControlListSet ;
+      freed : Props.LocControlListSet ;
     }.
   Definition AbsState := AbsState_r.
   #[export]
@@ -120,19 +125,21 @@ Module TMSMonAux <: MonitorT.
     alloced := List.nil ;
     freed := List.nil ;
   |}.
+  (** This enforces that all allocations must have been deallocated. *)
+  Definition ValueState (S : AbsState) := S.(alloced) = nil.
   Definition append (T__TMS T__TMS' : AbsState) := {|
     alloced := List.app T__TMS.(alloced) T__TMS'.(alloced) ;
     freed := List.app T__TMS.(freed) T__TMS'.(freed)
   |}.
-  Definition singleton (ℓ : loc) := {|
-    alloced := List.cons ℓ nil ;
+  Definition singleton (ℓ : loc) (σ : ControlTag) := {|
+    alloced := List.cons (ℓ, σ) nil ;
     freed := nil
   |}.
   Variant AbsEv_d : Type :=
   | AAbort
-  | AAlloc (l : loc)
-  | AUse (l : loc)
-  | ADealloc (l : loc)
+  | AAlloc (l : loc) (σ : ControlTag)
+  | AUse (l : loc) (σ : ControlTag)
+  | ADealloc (l : loc) (σ : ControlTag)
   .
   Definition AbsEv := AbsEv_d.
   #[export]
@@ -140,28 +147,28 @@ Module TMSMonAux <: MonitorT.
 
   Inductive MonCheck_i : AbsState -> option AbsEv -> AbsState -> Prop :=
   | sms_uninteresting (T : AbsState) : MonCheck_i T None T
-  | sms_abort (T : AbsState) : MonCheck_i T (Some AAbort) EmptyState
-  | sms_use (T : AbsState) (l : loc) :
-    LocListSets.el l T.(alloced) ->
-    ~(LocListSets.el l T.(freed)) ->
-    MonCheck_i T (Some(AUse l)) T
-  | sms_alloc (T T' : AbsState) (l : loc) :
-    ~(LocListSets.el l T.(alloced)) ->
-    ~(LocListSets.el l T.(freed)) ->
+  | sms_abort (T : AbsState) : MonCheck_i T (Some AAbort) T
+  | sms_use (T : AbsState) (l : loc) (σ : ControlTag) :
+    List.In (l, σ) T.(alloced) ->
+    ~(List.In (l, σ) T.(freed)) ->
+    MonCheck_i T (Some(AUse l σ)) T
+  | sms_alloc (T T' : AbsState) (l : loc) (σ : ControlTag) :
+    ~(List.In (l, σ) T.(alloced)) ->
+    ~(List.In (l, σ) T.(freed)) ->
     T' = {|
-           alloced := LocListSets.Union T.(alloced) (List.cons l List.nil) ;
+           alloced := List.app T.(alloced) (List.cons (l, σ) List.nil) ;
            freed := T.(freed) ;
          |} ->
-    MonCheck_i T (Some(AAlloc l)) T'
-  | sms_dealloc (T T' : AbsState) (l : loc) L0 L1 :
-    LocListSets.el l T.(alloced) ->
-    ~(LocListSets.el l T.(freed)) ->
-    T.(alloced) = List.app L0 (List.cons l L1) ->
+    MonCheck_i T (Some(AAlloc l σ)) T'
+  | sms_dealloc (T T' : AbsState) (l : loc) (σ : ControlTag) L0 L1 :
+    List.In (l, σ) T.(alloced) ->
+    ~(List.In (l, σ) T.(freed)) ->
+    T.(alloced) = List.app L0 (List.cons (l, σ) L1) ->
     T' = {|
            alloced := List.app L0 L1 ;
-           freed := LocListSets.Union T.(freed) (List.cons l List.nil) ;
+           freed := List.app T.(freed) (List.cons (l, σ) List.nil) ;
          |} ->
-    MonCheck_i T (Some(ADealloc l)) T'
+    MonCheck_i T (Some(ADealloc l σ)) T'
   .
   Definition MonCheck := MonCheck_i.
   #[export]
@@ -169,21 +176,21 @@ Module TMSMonAux <: MonitorT.
   Definition string_of_absev :=
     fun a => match a with
           | AAbort => "abs↯"%string
-          | AAlloc (addr _n) => "absAlloc ℓ"%string
-          | ADealloc (addr _n) => "absDealloc ℓ"%string
-          | AUse (addr _n) => "absUse ℓ"%string
+          | AAlloc (addr _n) _ => "absAlloc ℓ"%string
+          | ADealloc (addr _n) _ => "absDealloc ℓ"%string
+          | AUse (addr _n) _ => "absUse ℓ"%string
           end
   .
   Inductive cong_i : option Props.Event -> option AbsEv -> Prop :=
-  | tms_alloc_authentic : forall l n t σ,
-      cong_i (Some(Props.PreEv (Props.Alloc l n) t σ))
-             (Some(AAlloc l))
-  | tms_dealloc_authentic : forall l t σ,
-      cong_i (Some(Props.PreEv (Props.Dealloc l) t σ))
-             (Some(ADealloc l))
+  | tms_alloc_authentic : forall l n t,
+      cong_i (Some(Props.PreEv (Props.Alloc l n) t SUnlock))
+             (Some(AAlloc l t))
+  | tms_dealloc_authentic : forall l t,
+      cong_i (Some(Props.PreEv (Props.Dealloc l) t SUnlock))
+             (Some(ADealloc l t))
   | tms_use_authentic : forall l n t σ,
       cong_i (Some(Props.PreEv (Props.Use l n) t σ))
-             (Some(AUse l))
+             (Some(AUse l t))
   | tms_branch_authentic : forall n t σ,
       cong_i (Some(Props.PreEv (Props.Branch n) t σ))
              None
@@ -203,8 +210,6 @@ End TMSMonAux.
 Module TMSMon := Monitor TMSMonAux.
 (** Spatial Memory Safety Monitor *)
 Module LocNatList <: ListBase.
-  (* The need for the control and security tags is purely technical, the monitor doesn't need it. *)
-  (* However, it is needed in the generalisation of sms, gsms, to regenerate events from the AbsState faithfully *)
   Definition A : Type := loc * nat.
   Definition eqb := fun x y =>
                       let '(l0, n0) := x in
@@ -232,8 +237,7 @@ Module SMSMonAux <: MonitorT.
   #[export]
   Hint Unfold AbsState : core.
   Definition EmptyState : AbsState := List.nil.
-  (* The need for the control and security tags is purely technical, the monitor doesn't need it. *)
-  (* However, it is needed in the generalisation of sms, gsms, to regenerate events from the AbsState faithfully *)
+  Definition ValueState (_ : AbsState) := True.
   Variant AbsEv_d : Type :=
   | AAbort
   | AAlloc (l : loc) (n : nat)
@@ -302,6 +306,7 @@ Module MSMon := Monitor MSMonAux.
 Module sCCTMonAux <: MonitorT.
   Definition AbsState : Type := unit.
   Definition EmptyState : AbsState := tt.
+  Definition ValueState (_ : AbsState) := True.
   Variant AbsEv_d : Type :=
   | AAbort
   | AAny
@@ -346,56 +351,157 @@ Module MSSCCTMonAux := CompMonitor MSMonAux sCCTMonAux.
 Module MSSCCTMon := Monitor MSSCCTMonAux.
 
 (** Proofs *)
-Lemma gTMSMon_is_TMS As As0 T0 :
-  TMSMon.gsat As T0 ->
-  Props.tms (List.app As0 As)
+
+(** Suitable generalized versions of the trace properties. Just a technical proof artefact. *)
+Definition gsms (T__SMS : SMSMon.AbsState) : Props.prop :=
+  fun As => (forall l n m t t' σ σ', (before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As \/ (in_t (PreEv (Use l n) t' σ') As /\ List.In (l, m) T__SMS)) ->
+                              n < m)
+.
+Definition no_double_alloc : Props.prop :=
+  fun As => forall l n m t p0 p1, wherein (PreEv(Alloc l n) t SUnlock) As p0 ->
+                          wherein (PreEv(Alloc l m) t SUnlock) As p1 ->
+                          p0 = p1
+.
+Definition gno_double_alloc (T__TMS : TMSMonAux.AbsState) : Props.prop :=
+  fun As => forall l n t,
+                    (List.In (l,t) T__TMS.(TMSMonAux.alloced) ->
+                     ~exists p, wherein (PreEv (Alloc l n) t SUnlock) As p) \/
+                    (~List.In (l,t) T__TMS.(TMSMonAux.alloced) ->
+                     ~List.In (l,t) T__TMS.(TMSMonAux.freed) ->
+                     forall p' m, wherein (PreEv (Alloc l n) t SUnlock) As p' ->
+                     ~exists p, wherein (PreEv (Alloc l m) t SUnlock) As p /\ p <> p')
+.
+Lemma step_nodoublealloc_abort T__TMS T__TMS' As :
+  @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.AAbort)) T__TMS' ->
+  gno_double_alloc T__TMS' As ->
+  gno_double_alloc T__TMS (Aborted :: As)%list
 .
 Proof.
-  (* need to related T0 with As0 ? *)
-
-  (*
-  intros [Bs [T__TMS [H1 H2]]].
-  revert As0 T__TMS H2; induction H1; auto; intros.
-  - (* refl *) repeat split; intros; inv H; exfalso; revert H1; clear; intros H1; induction x; cbn in *; congruence.
-  - (* trans *)
-    inv H.
-    + (* AAlloc *) remember (TMSMonAux.AAlloc l :: Bs)%list as BBs.
-      change ((fun BBs => star_step T0 BBs T__TMS) (TMSMonAux.AAlloc l :: Bs)%list) in H2; rewrite <- HeqBBs in H2.
-      induction H2.
-      * (* refl *) congruence.
-      * (* trans-important *) clear IHstar_step; inv HeqBBs.
-        inv H.
-      * (* trans-unimportant *) inv H; auto.
-    + repeat split; intros. intros Ha. [x [x0 [Ha Hb]]].
-
-    repeat split; intros.
-    + inv H0; inv H3. exists x; exists x0; repeat split; auto.
-      inv H. induction H1.
-   *)
 Admitted.
+Lemma step_nodoublealloc_use T__TMS T__TMS' l t n σ As :
+  @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.AUse l t)) T__TMS' ->
+  gno_double_alloc T__TMS' As ->
+  gno_double_alloc T__TMS (PreEv(Use l n) t σ :: As)%list
+.
+Proof.
+Admitted.
+Lemma step_nodoublealloc_dealloc T__TMS T__TMS' l t As :
+  @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.ADealloc l t)) T__TMS' ->
+  gno_double_alloc T__TMS' As ->
+  gno_double_alloc T__TMS (PreEv(Dealloc l) t SUnlock :: As)%list
+.
+Proof.
+  intros H; cbv in H; dependent induction H; intros.
+  unfold gno_double_alloc; intros l' n' t'.
+  destruct (eq_dec (l, t) (l', t')).
+  - specialize (H2 l' n' t'); inv H3; cbn in *.
+    rewrite H1 in *; cbn in *. right; intros. exfalso.
+    apply H3. clear; induction L0; cbn; auto.
+  - specialize (H2 l' n' t'). destruct H2 as [H2|H2].
+    + left; intros; cbn in *. intros H5. rewrite H1 in *.
+      eapply in_unsnoc' in H4; eauto; deex. apply H2; auto.
+      inv H5; try easy. exists n; assumption.
+    + right; intros Ha Hb p' m Hc Hd; deex; destruct Hd as [Hd He].
+      rewrite H1 in *. inv Hc; inv Hd; try easy.
+      cbn in H2. apply notin_propagate in Ha. eapply notin_unsnoc' in Hb; eauto.
+      specialize (H2 Ha Hb n m H9). apply H2. exists n0; eauto.
+Qed.
+Lemma step_nodoublealloc_alloc T__TMS T__TMS' l n t As :
+  @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.AAlloc l t)) T__TMS' ->
+  gno_double_alloc T__TMS' As ->
+  gno_double_alloc T__TMS (PreEv(Alloc l n) t SUnlock :: As)%list
+.
+Proof.
+  intros H; cbv in H; dependent induction H; intros.
+  unfold gno_double_alloc; intros l' n' t'.
+  destruct (eq_dec (l, t) (l', t')).
+  - left; intros Ha Hb; deex. inv H2. contradiction.
+  - specialize (H1 l' n' t'). destruct H1 as [H1 | H1].
+    + left; intros Ha Hb; deex. eapply in_unsnoc in Ha as Ha'; eauto.
+      specialize (H1 Ha'). apply H1.
+      inv Hb; try easy. eauto.
+    + right; intros Ha Hd p' m Hb Hc; deex; cbn in *; destruct Hc as [Hc He].
+      eapply notin_unsnoc' in Ha as Ha'; eauto.
+      inv Hb; try easy. inv Hc; try easy.
+      specialize (H1 Ha' Hd n0 m H8). apply H1. exists n1. split; auto.
+Qed.
+Lemma no_double_alloc_true As T__TMS :
+  TMSMon.gsat As T__TMS ->
+  gno_double_alloc T__TMS As
+.
+Proof.
+  unfold TMSMon.gsat; intros; deex; destruct H as [H0 H1].
+  revert As H0; dependent induction H1; intros.
+  - dependent induction H0.
+    + left; cbv; intros; deex. inv H1.
+    + assert ((nil : TMSMon.tracepref) ~= nil) by easy; specialize (IHcong H2); clear H2.
+      unfold gno_double_alloc; intros. specialize (IHcong l n t). destruct IHcong as [IH|IH].
+      * left; intros. specialize (IH H2). intros H3; deex; apply IH. inv H0; inv H3; try easy; exists n1; assumption.
+      * right; intros. intros H5; deex; destruct H5 as [Ha Hb].
+        inv H0; inv H4; inv Ha; try easy; specialize (IH H2 H3 n1 m H9); eapply IH; exists n2; auto.
+  - dependent induction H0; try easy.
+    + inv H2. admit. admit.
+    + inv H2; inversion H; subst; try easy; eauto using step_nodoublealloc_alloc,
+                                                        step_nodoublealloc_dealloc,
+                                                        step_nodoublealloc_use,
+                                                        step_nodoublealloc_abort.
+  - inv H. eauto.
+Admitted.
+
+Definition gtms (T__TMS : TMSMon.AbsState) : Props.prop :=
+  fun As => (forall l n t, (in_t (PreEv(Alloc l n) t SUnlock) As ->
+                    in_t (PreEv(Dealloc l) t SUnlock) As ->
+                    ~List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                    ~List.In (l, t) T__TMS.(TMSMonAux.freed) ->
+                    before (PreEv(Alloc l n) t SUnlock) (PreEv(Dealloc l) t SUnlock) As
+                    ) \/ (
+                     List.In (l,t) T__TMS.(TMSMonAux.alloced) ->
+                     ~List.In (l,t) T__TMS.(TMSMonAux.freed)
+                    ))
+      /\ (forall l n m t σ, (in_t (PreEv(Alloc l n) t σ) As ->
+                       in_t (PreEv(Use l m) t σ) As ->
+                       ~List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                       ~List.In (l, t) T__TMS.(TMSMonAux.freed) ->
+                       before (PreEv(Alloc l n) t SUnlock) (PreEv(Use l m) t σ) As
+                       ) \/ (
+                        List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                        ~List.In (l, t) T__TMS.(TMSMonAux.freed)
+                       ))
+      /\ (forall l n t σ, (in_t (PreEv(Use l n) t σ) As ->
+                     in_t (PreEv(Dealloc l) t SUnlock) As ->
+                     ~List.In (l, t) T__TMS.(TMSMonAux.freed) ->
+                     before (PreEv(Use l n) t σ) (PreEv(Dealloc l) t SUnlock) As
+                     ) \/ (
+                      List.In (l, t) T__TMS.(TMSMonAux.alloced) ->
+                      ~List.In (l, t) T__TMS.(TMSMonAux.freed)
+                     ))
+.
 Lemma nil_tms :
   Props.tms nil
 .
 Proof.
   repeat split; intros; inv H; exfalso; revert H1; clear; intros H; induction x; try inv H.
 Qed.
+Lemma nil_gtms T__TMS :
+  gtms T__TMS nil
+.
+Proof.
+  unfold gtms; repeat split; left; exists 0; intros; inv H; try (now inv H3 + now inv H2).
+Qed.
+
 Lemma nil_sms :
   Props.sms nil
 .
 Proof.
   unfold sms; intros; unfold_before; inv H.
 Qed.
-
-Definition gsms (T__SMS : SMSMon.AbsState) : Props.prop :=
-  fun As => (forall l n m t t' σ σ', (before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As \/ (in_t (PreEv (Use l n) t' σ') As /\ List.In (l, m) T__SMS)) ->
-                              n < m)
-.
 Lemma nil_gsms T__SMS :
   gsms T__SMS nil
 .
 Proof.
   unfold gsms; intros; destruct H; try unfold_before; inv H. inv H0. inv H.
 Qed.
+
 Lemma nil_ms :
   Props.ms nil
 .
@@ -408,19 +514,62 @@ Lemma binop_tms n t σ As :
 .
 Proof.
   intros [H__TMS0 [H__TMS1 H__TMS2]]; repeat split; intros.
-  - assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
-    assert (PreEv (Dealloc l) t' σ' <> PreEv (Binop n) t σ) by congruence.
+  - assert (PreEv (Alloc l n0) t0 SUnlock <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Dealloc l) t0 SUnlock <> PreEv (Binop n) t σ) by congruence.
     erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
     erewrite <- eat_front_before; eauto. eauto.
-  - intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
-    assert (PreEv (Alloc l m) t' σ' <> PreEv (Binop n) t σ) by congruence.
-    erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
-    erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
-  - intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
-    assert (PreEv (Use l n0) t' σ' <> PreEv (Binop n) t σ) by congruence.
+  - assert (PreEv (Use l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Alloc l m) t0 SUnlock <> PreEv (Binop n) t σ) by congruence.
+    erewrite eat_front_in_t in H; eauto; try easy. erewrite eat_front_in_t in H0; eauto; try easy.
+    erewrite <- eat_front_before; eauto; try easy.
+  - assert (PreEv (Dealloc l) t0 SUnlock <> PreEv (Binop n) t σ) by congruence.
+    assert (PreEv (Use l n0) t0 σ0 <> PreEv (Binop n) t σ) by congruence.
     erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
-    erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
+    erewrite <- eat_front_before; eauto.
 Qed.
+Lemma binop_gtms n t σ As T__TMS :
+  gtms T__TMS As ->
+  gtms T__TMS (PreEv (Binop n) t σ :: As)%list
+.
+Proof.
+  (*
+  induction As; intros H; unfold gtms, in_t; intros.
+  - specialize (H l n0 t0 t' σ0 σ'); destruct H as [H|H].
+    + left; intros; deex. inv H0. inv H7.
+    + right; intros. specialize (H H0 H1); inv H. inv H2.
+  - specialize (H l n0 t0 t' σ0 σ'); destruct H as [H|H].
+    + left; intros; deex. inv H0. inv H1.
+      assert (in_t (PreEv (Alloc l n0) t0 σ0) (a :: As))%list by (now exists n3).
+      assert (in_t (PreEv (Dealloc l) t' σ') (a :: As))%list by (now exists n2).
+      specialize (H H0 H1). destruct H as [Ha [Hb Hc]]. unfold_before. eapply wherein_eq in Ha, H__before0; eauto; subst.
+      repeat split; try easy. exists (S n1); exists (S n4); repeat split; try (now constructor); lia.
+    + right; intros. specialize (H H0 H1); unfold in_t in H; deex.
+      exists (S n1). now constructor. *)
+  (*
+  induction As; cbn in *; intros H.
+  - unfold gtms; unfold in_t; repeat split; intros; deex.
+    inv H0. inv H7. inv H0. inv H7. inv H0. inv H7.
+  - destruct H as [H0 [H1 H2]].
+    unfold gtms; repeat split; intros.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Alloc l n0) t0 σ0) (a :: As))%list by (exists n3; eauto).
+      assert (in_t (PreEv(Dealloc l) t' σ') (a::As))%list by (exists n2; eauto).
+      specialize (H0 l n0 t0 t' σ0 σ' H H3) as [H0 | H0].
+      * left. unfold before in H0; deex; destruct H0 as [H0 [H0' H0'']]. exists (S n1); exists (S n4).
+        repeat split; try now constructor. lia.
+      * now right.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Use l n0) t0 σ0) (a :: As))%list by (exists n3; eauto).
+      assert (in_t (PreEv(Alloc l m) t' σ') (a::As))%list by (exists n2; eauto).
+      specialize (H1 l n0 m t0 t' σ0 σ' H H3) as [H1 | H1].
+      * left. intros H4; unfold before in H4; deex; destruct H4 as [H4 [H4' H4'']]; apply H1.
+        inv H4. inv H4'. exists n5. exists n1. repeat split; try easy. lia.
+      * now right.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Dealloc l) t0 σ0) (a::As))%list by (exists n3; eauto).
+      assert (in_t (PreEv(Use l n0) t' σ') (a :: As))%list by (exists n2; eauto).
+      specialize (H2 l n0 t0 t' σ0 σ' H H3) as [H2 | H2].
+      * left. intros H4; unfold before in H4; deex; destruct H4 as [H4 [H4' H4'']]; apply H2.
+        inv H4. inv H4'. exists n5. exists n1. repeat split; try easy. lia.
+      * now right. *)
+Admitted.
 Lemma binop_sms n t σ As :
   sms As ->
   sms (PreEv (Binop n) t σ :: As)%list
@@ -468,19 +617,62 @@ Lemma branch_tms n t σ As :
 .
 Proof.
   intros [H__TMS0 [H__TMS1 H__TMS2]]; repeat split; intros.
-  - assert (PreEv (Alloc l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
-    assert (PreEv (Dealloc l) t' σ' <> PreEv (Branch n) t σ) by congruence.
+  - assert (PreEv (Alloc l n0) t0 SUnlock <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Dealloc l) t0 SUnlock <> PreEv (Branch n) t σ) by congruence.
     erewrite eat_front_in_t in H; eauto; erewrite eat_front_in_t in H0.
     erewrite <- eat_front_before; eauto. eauto.
-  - intros H1. assert (PreEv (Use l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
-    assert (PreEv (Alloc l m) t' σ' <> PreEv (Branch n) t σ) by congruence.
-    erewrite eat_front_in_t in H; eauto. erewrite eat_front_in_t in H0; eauto.
-    erewrite <- eat_front_before in H1; eauto. eapply H__TMS1; eauto.
-  - intros H1. assert (PreEv (Dealloc l) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
-    assert (PreEv (Use l n0) t' σ' <> PreEv (Branch n) t σ) by congruence.
+  - assert (PreEv (Use l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Alloc l m) t0 SUnlock <> PreEv (Branch n) t σ) by congruence.
+    erewrite eat_front_in_t in H; eauto; try easy. erewrite eat_front_in_t in H0; eauto; try easy.
+    erewrite <- eat_front_before; eauto; try easy.
+  - assert (PreEv (Dealloc l) t0 SUnlock <> PreEv (Branch n) t σ) by congruence.
+    assert (PreEv (Use l n0) t0 σ0 <> PreEv (Branch n) t σ) by congruence.
     erewrite eat_front_in_t in H; erewrite eat_front_in_t in H0; eauto.
-    erewrite <- eat_front_before in H1; eauto. eapply H__TMS2; eauto.
+    erewrite <- eat_front_before; eauto.
 Qed.
+Lemma branch_gtms n t σ As T__TMS :
+  gtms T__TMS As ->
+  gtms T__TMS (PreEv (Branch n) t σ :: As)%list
+.
+Proof.
+  (*
+  induction As; intros H; unfold gtms, in_t; intros.
+  - specialize (H l n0 t0 t' σ0 σ'); destruct H as [H|H].
+    + left; intros; deex. inv H0. inv H7.
+    + right; intros. specialize (H H0 H1); inv H. inv H2.
+  - specialize (H l n0 t0 t' σ0 σ'); destruct H as [H|H].
+    + left; intros; deex. inv H0. inv H1.
+      assert (in_t (PreEv (Alloc l n0) t0 σ0) (a :: As))%list by (now exists n3).
+      assert (in_t (PreEv (Dealloc l) t' σ') (a :: As))%list by (now exists n2).
+      specialize (H H0 H1). destruct H as [Ha [Hb Hc]]. unfold_before. eapply wherein_eq in Ha, H__before0; eauto; subst.
+      repeat split; try easy. exists (S n1); exists (S n4); repeat split; try (now constructor); lia.
+    + right; intros. specialize (H H0 H1); unfold in_t in H; deex.
+      exists (S n1). now constructor. *)
+  (*
+  induction As; cbn in *; intros H.
+  - unfold gtms; unfold in_t; repeat split; intros; deex.
+    inv H0. inv H7. inv H0. inv H7. inv H0. inv H7.
+  - destruct H as [H0 [H1 H2]].
+    unfold gtms; repeat split; intros.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Alloc l n0) t0 σ0) (a :: As))%list by (exists n3; eauto).
+      assert (in_t (PreEv(Dealloc l) t' σ') (a::As))%list by (exists n2; eauto).
+      specialize (H0 l n0 t0 t' σ0 σ' H H3) as [H0 | H0].
+      * left. unfold before in H0; deex; destruct H0 as [H0 [H0' H0'']]. exists (S n1); exists (S n4).
+        repeat split; try now constructor. lia.
+      * now right.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Use l n0) t0 σ0) (a :: As))%list by (exists n3; eauto).
+      assert (in_t (PreEv(Alloc l m) t' σ') (a::As))%list by (exists n2; eauto).
+      specialize (H1 l n0 m t0 t' σ0 σ' H H3) as [H1 | H1].
+      * left. intros H4; unfold before in H4; deex; destruct H4 as [H4 [H4' H4'']]; apply H1.
+        inv H4. inv H4'. exists n5. exists n1. repeat split; try easy. lia.
+      * now right.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Dealloc l) t0 σ0) (a::As))%list by (exists n3; eauto).
+      assert (in_t (PreEv(Use l n0) t' σ') (a :: As))%list by (exists n2; eauto).
+      specialize (H2 l n0 t0 t' σ0 σ' H H3) as [H2 | H2].
+      * left. intros H4; unfold before in H4; deex; destruct H4 as [H4 [H4' H4'']]; apply H2.
+        inv H4. inv H4'. exists n5. exists n1. repeat split; try easy. lia.
+      * now right. *)
+Admitted.
 Lemma branch_sms n t σ As :
   sms As ->
   sms (PreEv (Branch n) t σ :: As)%list
@@ -515,7 +707,7 @@ Lemma dealloc_sms l t σ As :
   sms (PreEv (Dealloc l) t σ :: As)%list
 .
 Proof.
-  intros H__SMS; unfold sms in *; intros.
+    intros H__SMS; unfold sms in *; intros.
     assert (PreEv (Alloc l0 m) t0 σ0 <> PreEv (Dealloc l) t σ) by congruence.
     assert (PreEv (Use l0 n) t' σ' <> PreEv (Dealloc l) t σ) by congruence.
     erewrite <- eat_front_before in H; eauto.
@@ -527,8 +719,8 @@ Lemma dealloc_gsms l t σ As T__SMS :
 Proof.
   induction As; cbn in *; intros H; unfold gsms; intros; destruct H0 as [H0 | [H0a H0b]]; try unfold_before.
   inv H0. inv H7. inv H0a. inv H0. inv H6.
-  destruct n0; try easy; destruct n1; try easy.
-  specialize (H l0 n m t0 t' σ0 σ'). apply H; left. exists n0; exists n1. inv H0. inv H__before0. repeat split; eauto. lia.
+  inv H0. inv H__before0.
+  specialize (H l0 n m t0 t' σ0 σ'). apply H; left. exists n2; exists n0. repeat split; eauto. lia.
   specialize (H l0 n m t0 t' σ0 σ'). apply H; right. inv H0a. destruct x; inv H0.
   split. exists x; easy. assumption.
 Qed.
@@ -548,22 +740,54 @@ Lemma aborted_gsms As T__SMS :
 .
 Proof.
   induction As; cbn in *; intros H; unfold gsms; intros; destruct H0 as [H0 | [H0a H0b]]; try unfold_before.
-  inv H0. inv H7. inv H0a. inv H0. inv H6.
-  destruct n0; try easy; destruct n1; try easy.
-  specialize (H l n m t t' σ σ'). apply H; left. exists n0; exists n1. inv H0. inv H__before0. repeat split; eauto. lia.
-  specialize (H l n m t t' σ σ'). apply H; right. inv H0a. destruct x; inv H0.
-  split. exists x; easy. assumption.
+  inv H0; inv H7. inv H0a; inv H0; inv H6.
+  destruct n0; try easy; destruct n1; try easy;
+  specialize (H l n m t t' σ σ'); apply H; left; exists n0; exists n1; inv H0; inv H__before0; repeat split; eauto; lia.
+  specialize (H l n m t t' σ σ'); apply H; right; inv H0a; destruct x; inv H0;
+  split; try (exists x; easy); assumption.
 Qed.
-Lemma TMSMon_is_TMS As :
-  TMSMon.sat As ->
-  Props.tms As
+Lemma aborted_gtms As T__TMS :
+  gtms T__TMS As ->
+  gtms T__TMS (Aborted :: As)%list
 .
 Proof.
-  unfold TMSMon.sat; intros H; deex; destruct H as [H0 H1].
-  dependent induction H1; eauto.
-  - induction As; cbn in *.
-    exact nil_tms. inv H0. inv H3; eauto using branch_tms, binop_tms.
-  - admit.
+  (*
+  induction As; intros H; unfold gtms, in_t; intros.
+  - specialize (H l n t t' σ σ'); destruct H as [H|H].
+    + left; intros; deex. inv H0. inv H7.
+    + right; intros. specialize (H H0 H1); inv H. inv H2.
+  - specialize (H l n t t' σ σ'); destruct H as [H|H].
+    + left; intros; deex. inv H0. inv H1.
+      assert (in_t (PreEv (Alloc l n) t σ) (a :: As))%list by (now exists n2).
+      assert (in_t (PreEv (Dealloc l) t' σ') (a :: As))%list by (now exists n1).
+      specialize (H H0 H1). destruct H as [Ha [Hb Hc]]. unfold_before. eapply wherein_eq in Ha, H__before0; eauto; subst.
+      repeat split; try easy. exists (S n0); exists (S n3); repeat split; try (now constructor); lia.
+    + right; intros. specialize (H H0 H1); unfold in_t in H; deex.
+      exists (S n0). now constructor. *)
+  (*
+  induction As; cbn in *; intros H.
+  - unfold gtms; unfold in_t; repeat split; intros; deex.
+    inv H0. inv H7. inv H0. inv H7. inv H0. inv H7.
+  - destruct H as [H0 [H1 H2]].
+    unfold gtms; repeat split; intros.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Alloc l n) t σ) (a :: As))%list by (exists n2; eauto).
+      assert (in_t (PreEv(Dealloc l) t' σ') (a::As))%list by (exists n1; eauto).
+      specialize (H0 l n t t' σ σ' H H3) as [H0 | H0].
+      * left. unfold before in H0; deex; destruct H0 as [H0 [H0' H0'']]. exists (S n0); exists (S n3).
+        repeat split; try now constructor. lia.
+      * now right.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Use l n) t σ) (a :: As))%list by (exists n2; eauto).
+      assert (in_t (PreEv(Alloc l m) t' σ') (a::As))%list by (exists n1; eauto).
+      specialize (H1 l n m t t' σ σ' H H3) as [H1 | H1].
+      * left. intros H4; unfold before in H4; deex; destruct H4 as [H4 [H4' H4'']]; apply H1.
+        inv H4. inv H4'. exists n4. exists n0. repeat split; try easy. lia.
+      * now right.
+    + unfold in_t in H, H3; deex. inv H; inv H3. assert (in_t (PreEv(Dealloc l) t σ) (a::As))%list by (exists n2; eauto).
+      assert (in_t (PreEv(Use l n) t' σ') (a :: As))%list by (exists n1; eauto).
+      specialize (H2 l n t t' σ σ' H H3) as [H2 | H2].
+      * left. intros H4; unfold before in H4; deex; destruct H4 as [H4 [H4' H4'']]; apply H2.
+        inv H4. inv H4'. exists n4. exists n0. repeat split; try easy. lia.
+      * now right. *)
 Admitted.
 Lemma SMSMon_step_use (T0 T1 : SMSMon.AbsState) l n :
   @step SMSMon.MonInstance T0 (Some (SMSMonAux.AUse l n)) T1 ->
@@ -572,6 +796,11 @@ Lemma SMSMon_step_use (T0 T1 : SMSMon.AbsState) l n :
 Proof. intros H; now inv H. Qed.
 Lemma SMSMon_step_aborted (T0 T1 : SMSMon.AbsState) :
   @step SMSMon.MonInstance T0 (Some (SMSMonAux.AAbort)) T1 ->
+  T0 = T1
+.
+Proof. intros H; now inv H. Qed.
+Lemma TMSMon_step_aborted (T0 T1 : TMSMon.AbsState) :
+  @step TMSMon.MonInstance T0 (Some (TMSMonAux.AAbort)) T1 ->
   T0 = T1
 .
 Proof. intros H; now inv H. Qed.
@@ -591,6 +820,91 @@ Proof.
     left; exists n3; exists n1; repeat split; eauto. lia.
   - specialize (H0 l0 n0 m t t' σ σ'). eapply H0. right; split; destruct Hb as [Ha Hb].
     inv Ha. inv H. exists n1; easy. apply List.in_cons. eassumption.
+Qed.
+Lemma TMSMon_step_use (T0 T1 : TMSMon.AbsState) l n t σ As :
+  @step TMSMon.MonInstance T0 (Some (TMSMonAux.AUse l t)) T1 ->
+  gtms T1 (As)%list ->
+  gtms T0 (PreEv (Use l n) t σ :: As)%list
+.
+Proof.
+  (*c)
+  intros H Ha; inv H. unfold gtms; repeat split; intros.
+  - specialize (Ha l0 n0 t0 t' σ0 σ'). destruct Ha as [Ha|Ha].
+    + left; intros. unfold in_t in H, H0; inv H; inv H0.
+      inv H2. inv H.
+      specialize (Ha H H0); destruct Ha as [Ha [Hb Hc]]; unfold before in Ha; deex; destruct Ha as [Ha [Ha' Ha'']].
+      repeat split; try easy. exists (S n3); exists (S n4); repeat split; try (now constructor); lia.
+    + right; intros. specialize (Ha H H0); unfold in_t in Ha; deex. exists (S n1); now constructor. *)
+Admitted.
+Lemma SMSMon_step_dealloc (T0 T1 : SMSMon.AbsState) l t σ As :
+  @step SMSMon.MonInstance T0 (None) T1 ->
+  gsms T1 (As)%list ->
+  gsms T0 (PreEv (Dealloc l) t σ :: As)%list
+.
+Proof.
+  intros H; inv H; unfold gsms; intros.
+  destruct H0 as [Ha | [Hb Hc]].
+  - unfold_before. inv Ha. inv H__before0. specialize (H l0 n m t0 t' σ0 σ'). eapply H. left.
+    exists n2. exists n0. repeat split; auto; lia.
+  - specialize (H l0 n m t t' σ σ'). apply H. right.
+    unfold in_t in Hb; deex. inv Hb. split; trivial. exists n1; auto.
+Qed.
+Lemma TMSMon_step_dealloc (T0 T1 : TMSMon.AbsState) l t σ As :
+  @step TMSMon.MonInstance T0 (Some (TMSMonAux.ADealloc l t)) T1 ->
+  gtms T1 (As)%list ->
+  gtms T0 (PreEv (Dealloc l) t σ :: As)%list
+.
+Proof.
+  intros H [Ha [Hb Hc]]; inv H; cbn in *. unfold gtms; repeat split; intros.
+  - specialize (Ha l0 n t0); cbn in *. destruct Ha as [Ha|Ha]; intros.
+    + left; intros. unfold in_t in H, H0; deex; inv H.
+      destruct (eq_dec (PreEv (Dealloc l0) t0 SUnlock) (PreEv (Dealloc l) t σ)).
+      * inv H. contradiction.
+      * inv H0; try contradiction.
+        assert (in_t (PreEv (Alloc l0 n) t0 SUnlock) As) by (now exists n2).
+        assert (in_t (PreEv (Dealloc l0) t0 SUnlock) As) by (now exists n1).
+        specialize (Ha H0 H6). rewrite H5 in H1. apply notin_propagate in H1 as H1'.
+        assert ((l,t) <> (l0,t0)) by (intros H__e; inv H__e; apply H1; clear; induction L0; cbn; eauto).
+        eapply notin_cons in H4 as H4'; eauto. specialize (Ha H1' H4').
+        unfold before in Ha; deex; destruct Ha as [Ha [Ha' Ha'']].
+        exists (S n0); exists (S n3); repeat split; try (now constructor); try lia.
+    + right; intros. rewrite H5 in *. destruct (eq_dec (l, t) (l0, t0)).
+      * now inv H0.
+      * apply in_propagate in H as H'; auto. specialize (Ha H').
+        apply notin_unsnoc in Ha; auto.
+  - admit.
+  - admit.
+Admitted.
+Lemma TMSMon_step_alloc (T0 T1 : TMSMon.AbsState) l n t As :
+  @step TMSMon.MonInstance T0 (Some (TMSMonAux.AAlloc l t)) T1 ->
+  gtms T1 (As)%list ->
+  gtms T0 (PreEv (Alloc l n) t SUnlock :: As)%list
+.
+Proof.
+  intros H [Ha [Hb Hc]]; inv H. unfold gtms; repeat split; intros.
+  - specialize (Ha l0 n0 t0); cbn in *. destruct Ha as [Ha|Ha]; deex; intros.
+    + left; intros. unfold in_t in H, H0; deex; inv H0.
+      destruct (eq_dec (PreEv (Alloc l0 n0) t0 SUnlock) (PreEv (Alloc l n) t SUnlock)).
+      * inv H0. exists 0. exists (S n3). repeat split; try (now constructor); lia.
+      * inv H; try contradiction.
+        assert (in_t (PreEv (Alloc l0 n0) t0 SUnlock) As) by (now exists n1).
+        assert (in_t (PreEv (Dealloc l0) t0 SUnlock) As) by (now exists n3).
+        specialize (Ha H H5). apply UniqueAllocation in H0. (** TODO: get rid of this axiom *)
+        eapply notin_cons in H1 as H1'; eauto. specialize (Ha H1' H3).
+        unfold before in Ha; deex; destruct Ha as [Ha [Ha' Ha'']].
+        exists (S n2); exists (S n4); repeat split; try (now constructor); lia.
+    + right; intros. intros Hx. apply Ha; auto. destruct (eq_dec (l0, t0) (l, t)).
+      inv H0. clear; induction (TMSMonAux.alloced T0); cbn; auto.
+      apply in_unsnoc; auto.
+  - admit.
+  - admit.
+Admitted.
+Lemma tmsmon_must_step_once (S0 S2 : TMSMon.AbsState) a (As : TMSMon.tracepref) :
+  @star_step TMSMon.MonInstance S0 (a :: As)%list S2 ->
+  exists S1, @step TMSMon.MonInstance S0 (Some a) S1 /\ star_step S1 As S2
+.
+Proof.
+  intros H; dependent induction H; eauto. inv H; eauto.
 Qed.
 Lemma smsmon_must_step_once (S0 S2 : SMSMon.AbsState) a (As : SMSMon.tracepref) :
   @star_step SMSMon.MonInstance S0 (a :: As)%list S2 ->
@@ -655,91 +969,32 @@ Proof.
   intros H; change (SMSMon.sat (nil ++ As))%list in H; eapply SMSMon_is_gSMS in H. cbn in H. unfold gsms in H.
   unfold sms; eauto.
 Qed.
-Fixpoint opt { A : Type } (As : list A) : list(option A) :=
-  match As with
-  | nil => nil
-  | cons a As => Some a :: opt As
-  end
-.
-Lemma opt_nil { A : Type } (As : list A) :
-  opt As = nil ->
-  As = nil
-.
-Proof. now induction As. Qed.
-Lemma opt_cons { A : Type } (As : list A) Bs (a : option A) :
-  opt As = (a :: Bs)%list ->
-  As <> nil
-.
-Proof. induction As; now cbn. Qed.
-Lemma opt_some { A : Type } (As : list A) Bs (a : option A) :
-  opt As = (a :: Bs)%list ->
-  exists a' As', a = Some a' /\ (As = a' :: As')%list /\ Bs = opt As'
+Lemma TMSMon_is_gTMS As T0 As0 :
+  TMSMon.gsat (List.app As0 As) T0 ->
+  gtms T0 (List.app As0 As)
 .
 Proof.
-  intros H; apply opt_cons in H as H'.
-  revert a Bs H; induction As; try congruence; intros.
-  cbn in H. inv H. exists a. exists As. repeat split; reflexivity.
+  intros [Bs [T__SMS [H0 H1]]].
+  revert T0 H1; dependent induction H0; intros; try rewrite <- x; eauto using nil_gtms.
+  - (* Impossible *)
+    inv H.
+  - (* Useless events *)
+    inv H; (eapply branch_gtms || eapply binop_gtms); change (gtms T0 (nil ++ As1))%list; eauto.
+  - (* Useful events *)
+    inv H; eauto; eapply tmsmon_must_step_once in H1 as [T1 [H1 H2]]; deex.
+    4: (eapply aborted_gtms; change (gtms T0 (nil ++ As1))%list; eapply IHcong; trivial;
+    eapply TMSMon_step_aborted in H1 as H1'; now subst).
+    eapply TMSMon_step_alloc; eauto; change (gtms T1 (nil ++ As1))%list; eauto.
+    eapply TMSMon_step_dealloc; eauto; change (gtms T1 (nil ++ As1))%list; eauto.
+    eapply TMSMon_step_use; eauto; change (gtms T1 (nil ++ As1))%list; eauto.
 Qed.
-Fixpoint zip { A B : Type } (As : list A) (Bs : list B) : option (list (A * B)) :=
-  match As, Bs with
-  | nil, nil => Some(nil)
-  | (a :: As')%list, (b :: Bs')%list =>
-    let* (xs) := zip As' Bs' in
-    Some ((a, b) :: xs)%list
-  | _, _ => None
-  end
-.
-Lemma zip_empty { A B : Type } (As : list A) (Bs : list B) :
-  zip As Bs = Some nil ->
-  As = nil /\ Bs = nil
-.
-Proof.
-  destruct As; intros H.
-  - now destruct Bs.
-  - destruct Bs. inv H. cbn in H.
-    change ((fun xz => match xz with
-            | Some x => Some ((a, b ) :: x)%list
-            | None => None
-            end = Some nil) (zip As Bs)) in H.
-    destruct (zip As Bs); inv H.
-Qed.
-Lemma zip_cons { A B : Type } (As : list A) (Bs : list B) xs (a : A) (b : B) :
-  zip As Bs = Some ((a,b) :: xs)%list ->
-  exists As' Bs', As = (a :: As')%list /\ Bs = (b :: Bs')%list /\ Some xs = zip As' Bs'
+Lemma TMSMon_is_TMS As :
+  TMSMon.sat As ->
+  Props.tms As
 .
 Proof.
-  destruct As; intros H.
-  - now destruct Bs.
-  - destruct Bs. inv H. cbn in H.
-    assert (H':=H);
-    change ((fun xz => match xz with
-            | Some x => Some((a0, b0) :: x)%list
-            | None => None
-            end = Some ((a, b) :: xs)%list) (zip As Bs)) in H.
-    destruct (zip As Bs) in H; inv H.
-    exists As. exists Bs. repeat split; eauto.
-    remember (zip As Bs) as ys.
-    crush_option ys. now inv H'.
-Qed.
-Lemma zip_singleton { A B : Type } (As : list A) (Bs : list B) (a : A) (b : B) :
-  zip As Bs = Some ((a, b) :: nil)%list ->
-  (As = a :: nil /\ Bs = b :: nil)%list
-.
-Proof.
-  intros.
-  apply zip_cons in H. deex; destruct H as [H1 [H2 H3]]; subst.
-  symmetry in H3; apply zip_empty in H3 as [H3a H3b]; subst; easy.
-Qed.
-Lemma zip_opt_extend { A B : Type } (As : list A) (Bs : list B) Cs (a : A) (b : B) :
-  zip (opt As) (opt Bs) = Some Cs ->
-  zip (opt (a :: As)) (opt (b :: Bs)) = Some ((Some a, Some b) :: Cs)%list
-.
-Proof.
-  revert As Bs a b; induction Cs; intros.
-  - apply zip_empty in H as [Ha Hb]; cbn; subst. now rewrite Ha, Hb; cbn.
-  - destruct a as [a' b']. apply zip_cons in H. deex. destruct H as [H1 [H2 H3]].
-    cbn; rewrite H1, H2; cbn; now rewrite <- H3.
-Qed.
+  (* TODO: *)
+Admitted.
 Lemma MSMon_step_split (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) (a : option MSMon.AbsEv) :
   @step MSMon.MonInstance (T1, T2) a (T1', T2') ->
   exists o__TMS o__SMS, a = Some (o__TMS, o__SMS) /\
@@ -759,7 +1014,7 @@ Lemma MSMon_steps_split_nil (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState
 .
 Proof.
   intros H; dependent induction H.
-  split; repeat constructor.
+  split; repeat constructor. inv H; easy.
   destruct r2 as [T1'' T2''].
   assert ((T1'', T2'') ~= (T1'', T2'') /\ ((nil : list MSMon.AbsEv) ~= (nil : list MSMon.AbsEv)) /\ (T1', T2') ~= (T1', T2')) as [H__a [H__b H__c]] by repeat split.
   specialize (IHstar_step T1'' T1' T2'' T2' H__a H__b H__c).
@@ -886,7 +1141,7 @@ Lemma MSMon_steps_split (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsState) As
 .
 Proof.
   intros H; dependent induction H.
-  - do 2 exists nil; repeat constructor.
+  - do 2 exists nil; repeat constructor. now inv H.
   - destruct a as [o__TMS o__SMS]; destruct r2 as [T__TMS T__SMS].
     inv H.
     assert ((T__TMS, T__SMS) ~= (T__TMS, T__SMS) /\ (T1', T2') ~= (T1', T2')) as [Ha Hb] by repeat split.
@@ -959,7 +1214,7 @@ Lemma MSMon_steps_split' (T__TMS T1' : TMSMon.AbsState) (T__SMS T2' : SMSMon.Abs
 .
 Proof.
   intros H0 H; revert As' Bs' H; dependent induction H0; intros.
-  - split; econstructor. 1,3: constructor. all: symmetry in H0; apply zip_empty in H0 as [H0a H0b]; subst; repeat constructor.
+  - split; econstructor. 1,3: constructor. all: symmetry in H0; apply zip_empty in H0 as [H0a H0b]; subst; repeat constructor. now inv H.
   - destruct a as [o__TMS o__SMS]; destruct r2 as [T__TMS' T__SMS'].
     inv H.
     assert ((T__TMS', T__SMS') ~= (T__TMS', T__SMS') /\ (T1', T2') ~= (T1', T2')) as [Ha Hb] by repeat split.
@@ -984,7 +1239,7 @@ Lemma MSMon_steps_split_cong (T1 T1' : TMSMon.AbsState) (T2 T2' : SMSMon.AbsStat
 .
 Proof.
   intros H' H; revert Xs H'; dependent induction H; intros.
-  - do 2 exists nil; repeat constructor. now apply MSMon_cong_TMSMon_cong_nil. now apply MSMon_cong_SMSMon_cong_nil.
+  - do 2 exists nil; repeat constructor. now inv H. now apply MSMon_cong_TMSMon_cong_nil. now apply MSMon_cong_SMSMon_cong_nil.
   - destruct a as [o__TMS o__SMS]; destruct r2 as [T__TMS T__SMS].
     apply MSMon_cong_split_zip in H'; deex; destruct H' as [H1 [H2 [H3 H4]]].
     symmetry in H1; apply zip_cons in H1; deex; destruct H1 as [H1a [H1b H1c]]; subst.

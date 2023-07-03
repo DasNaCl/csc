@@ -2809,7 +2809,11 @@ Admitted.
 Lemma comm_gamma_from_symbols (Ξ1 Ξ2 : symbols) (x : vart) (s : symbol) :
   gamma_from_symbols (Ξ1 ◘ x ↦ s ◘ Ξ2) =
      ((gamma_from_symbols Ξ1) ◘ x ↦ (ty_of_symbol s) ◘ (gamma_from_symbols Ξ2)).
-Proof. Admitted.
+Proof.
+  induction Ξ1; cbn.
+  - reflexivity.
+  - f_equal; auto.
+Qed.
 
 Lemma link_check_is_init_check (Ξ__ctx Ξ__comp Ξ0 : symbols) :
   link Ξ__ctx Ξ__comp Ξ0 ->

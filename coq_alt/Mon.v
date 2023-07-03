@@ -357,6 +357,7 @@ Definition gsms (T__SMS : SMSMon.AbsState) : Props.prop :=
   fun As => (forall l n m t t' σ σ', (before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As \/ (in_t (PreEv (Use l n) t' σ') As /\ List.In (l, m) T__SMS)) ->
                               n < m)
 .
+(* we build up towards full blown temporal memory safety in small steps *)
 Definition no_double_alloc : Props.prop :=
   fun As => forall l n m t p0 p1, wherein (PreEv(Alloc l n) t SUnlock) As p0 ->
                           wherein (PreEv(Alloc l m) t SUnlock) As p1 ->
@@ -460,6 +461,20 @@ Proof.
                                                         step_nodoublealloc_abort.
   - inv H. eauto.
 Qed.
+
+(** No double free *)
+Definition no_double_dealloc : Props.prop :=
+  fun As => forall l t p0 p1, wherein (PreEv(Dealloc l) t SUnlock) As p0 ->
+                      wherein (PreEv(Dealloc l) t SUnlock) As p1 ->
+                      p0 = p1
+.
+(* No use after free *)
+Definition uses_before_free : Props.prop :=
+  fun As => forall l t n p0 p1, wherein (PreEv(Use l n) t SUnlock) As p0 ->
+                        wherein (PreEv(Dealloc l) t SUnlock) As p1 ->
+                        p0 < p1
+.
+
 
 Definition gtms (T__TMS : TMSMon.AbsState) : Props.prop :=
   fun As => (forall l n t, (in_t (PreEv(Alloc l n) t SUnlock) As ->

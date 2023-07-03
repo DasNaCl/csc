@@ -377,14 +377,24 @@ Lemma step_nodoublealloc_abort T__TMS T__TMS' As :
   gno_double_alloc T__TMS (Aborted :: As)%list
 .
 Proof.
-Admitted.
+  intros H; cbv in H; dependent induction H; intros.
+  unfold gno_double_alloc; intros l n t.
+  specialize (H l n t); destruct H as [H|H].
+  - left; intros; intros H1; specialize (H H0); apply H; deex; inv H1; exists n0; auto.
+  - right; intros; intros H3; deex; destruct H3 as [H3 H4]; inv H2; inv H3; specialize (H H0 H1 n0 m H10); apply H; exists n1; auto.
+Qed.
 Lemma step_nodoublealloc_use T__TMS T__TMS' l t n σ As :
   @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.AUse l t)) T__TMS' ->
   gno_double_alloc T__TMS' As ->
   gno_double_alloc T__TMS (PreEv(Use l n) t σ :: As)%list
 .
 Proof.
-Admitted.
+  intros H; cbv in H; dependent induction H; intros.
+  unfold gno_double_alloc; intros l' n' t'.
+  specialize (H1 l' n' t'); destruct H1 as [H1|H1].
+  - left; intros; intros H3; specialize (H1 H2); apply H1; deex; inv H3; exists n0; auto.
+  - right; intros; intros H5; deex; destruct H5 as [H5 H6]; inv H4; inv H5; specialize (H1 H2 H3 n0 m H12); apply H1; exists n1; auto.
+Qed.
 Lemma step_nodoublealloc_dealloc T__TMS T__TMS' l t As :
   @step TMSMon.MonInstance T__TMS (Some(TMSMonAux.ADealloc l t)) T__TMS' ->
   gno_double_alloc T__TMS' As ->
@@ -440,13 +450,16 @@ Proof.
       * right; intros. intros H5; deex; destruct H5 as [Ha Hb].
         inv H0; inv H4; inv Ha; try easy; specialize (IH H2 H3 n1 m H9); eapply IH; exists n2; auto.
   - dependent induction H0; try easy.
-    + inv H2. admit. admit.
+    + inv H2; specialize (IHcong a As H H1 IHstar_step JMeq_refl);
+      unfold gno_double_alloc; intros; specialize (IHcong l n0 t0); destruct IHcong as [IHcong|IHcong].
+      1,3: left; intros; specialize (IHcong H2); intros H3; deex; inv H3; eauto.
+      1,2: right; intros; inv H4; specialize (IHcong H2 H3 n1 m H10); intros H5; deex; destruct H5 as [H4 H5]; inv H4; eapply IHcong; exists n2; split; auto.
     + inv H2; inversion H; subst; try easy; eauto using step_nodoublealloc_alloc,
                                                         step_nodoublealloc_dealloc,
                                                         step_nodoublealloc_use,
                                                         step_nodoublealloc_abort.
   - inv H. eauto.
-Admitted.
+Qed.
 
 Definition gtms (T__TMS : TMSMon.AbsState) : Props.prop :=
   fun As => (forall l n t, (in_t (PreEv(Alloc l n) t SUnlock) As ->

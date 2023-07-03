@@ -304,13 +304,15 @@ Instance poisoneq__Instance : HasEquality poison := {
 Record dynloc : Type := mkdL {
   dρ : poison ;     (* wether the location is already deallocated *)
   dn : nat ;          (* allocation size *)
+  dx : vart ;       (* static information *)
 }.
 #[local]
-Instance etaDynloc : Settable _ := settable! mkdL < dρ; dn>.
+Instance etaDynloc : Settable _ := settable! mkdL < dρ; dn; dx>.
 Definition dynloc_eqb :=
   fun (dℓ1 dℓ2 : dynloc) =>
-    (andb (dℓ1.(dρ) == dℓ2.(dρ))
-          (Nat.eqb dℓ1.(dn) dℓ2.(dn)))
+    (andb (andb (dℓ1.(dρ) == dℓ2.(dρ))
+                (Nat.eqb dℓ1.(dn) dℓ2.(dn)))
+          (dℓ1.(dx) == dℓ2.(dx)))
 .
 Lemma dynloc_eqb_eq dℓ0 dℓ1 :
   dynloc_eqb dℓ0 dℓ1 = true <-> dℓ0 = dℓ1.
@@ -324,8 +326,9 @@ Instance dynloceq__Instance : HasEquality dynloc := {
   eq := dynloc_eqb ;
   eqb_eq := dynloc_eqb_eq ;
 }.
-Notation "'dL(' bρ ';' bn ')'" := (({| dρ := bρ ;
-                                       dn := bn |}) : dynloc) (at level 80).
+Notation "'dL(' bρ ';' bn ';' bx ')'" := (({| dρ := bρ ;
+                                              dn := bn ;
+                                              dx := bx |}) : dynloc) (at level 80).
 
 Record ptr_key : Type := mkdPtr {
   dL : loc ;         (* the concrete location *)
@@ -624,28 +627,29 @@ Inductive pstep : PrimStep rtexpr event :=
     e' = subst x1 (subst x2 e (Xval v2)) (Xval v1) ->
     Ω ▷ Xunpair x1 x2 (Xval(Vpair v1 v2)) e --[]--> Ω ▷ e'
 | e_alloc : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
-              (Φ Φ' : MemState) (v : value) (n : nat) (ℓ : loc) (Δ' : ptrstore),
+              (Φ Φ' : MemState) (v : value) (n : nat) (ℓ : loc) (Δ' : ptrstore) (γ : vart),
     ℓ = addr(List.length (getH Φ t)) ->
     Util.nodupinv Φ.(MΔ) ->
-    push (dK(ℓ ; t)) (dL(◻ ; n)) Φ.(MΔ) = Some Δ' ->
+    push (dK(ℓ ; t)) (dL(◻ ; n ; γ)) Φ.(MΔ) = Some Δ' ->
     Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t v ->
-    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval v) (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F ; Ψ ; t ; Φ')) ▷ Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))
+    γ = Fresh.freshv F ->
+    (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew (Xval v) (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(Fresh.advance F ; Ψ ; t ; Φ')) ▷ Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))
 | e_delete : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
-               (Φ Φ' : MemState) (n : nat) (ℓ : loc) (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ (dK(ℓ ; t)) ↦ (dL(ρ ; n)) ◘ Δ2) ->
-    Φ.(MΔ) = (Δ1 ◘ (dK(ℓ ; t)) ↦ dL(ρ ; n) ◘ Δ2) ->
-    Φ' = Φ <| MΔ := Δ1 ◘ (dK(ℓ ; t)) ↦ (dL(☣ ; n)) ◘ Δ2 |> ->
+               (Φ Φ' : MemState) (n : nat) (ℓ : loc) (ρ : poison) (Δ1 Δ2 : ptrstore) (γ : vart),
+    Util.nodupinv (Δ1 ◘ (dK(ℓ ; t)) ↦ (dL(ρ ; n ; γ)) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ (dK(ℓ ; t)) ↦ dL(ρ ; n ; γ) ◘ Δ2) ->
+    Φ' = Φ <| MΔ := Δ1 ◘ (dK(ℓ ; t)) ↦ (dL(☣ ; n ; γ)) ◘ Δ2 |> ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xdel (Xval (Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ)))) --[ ev( Sdealloc ℓ ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval 0
 | e_get : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
-            (Φ : MemState) (n m ℓ : nat) (v : value)  (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ (dK((addr ℓ) ; t)) ↦ dL(ρ ; m) ◘ Δ2) ->
-    Φ.(MΔ) = (Δ1 ◘ (dK((addr ℓ) ; t)) ↦ dL(ρ ; m) ◘ Δ2) ->
+            (Φ : MemState) (n m ℓ : nat) (v : value)  (ρ : poison) (Δ1 Δ2 : ptrstore) (γ : vart),
+    Util.nodupinv (Δ1 ◘ (dK((addr ℓ) ; t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ (dK((addr ℓ) ; t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
     (List.nth_error (getH Φ t) (ℓ + n) = (Some v) \/ (v = Vnat 1729 /\ List.nth_error (getH Φ t) (ℓ + n) = None)) ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval (Vpair Vcap v)
 | e_set : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
-            (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore),
-    Util.nodupinv (Δ1 ◘ (dK((addr ℓ); t)) ↦ dL(ρ ; m) ◘ Δ2) ->
-    Φ.(MΔ) = (Δ1 ◘ (dK((addr ℓ); t)) ↦ dL(ρ ; m) ◘ Δ2) ->
+            (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore) (γ : vart),
+    Util.nodupinv (Δ1 ◘ (dK((addr ℓ); t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
+    Φ.(MΔ) = (Δ1 ◘ (dK((addr ℓ); t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
     (NoDupList.swap_nth_aux (getH Φ t) (ℓ + n) (w) = Some H' \/ (H' = getH Φ t /\ NoDupList.swap_nth_aux (getH Φ t) (ℓ + n) (w) = None)) ->
     Φ' = setH Φ t H' ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xset (Xval Vcap) (Xval(Vptr (addr ℓ))) (Xval n) (Xval w) --[ ev( Sset (addr ℓ) n w ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval (Vpair Vcap w)
@@ -697,9 +701,9 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
     | Xnew (Xval v) (Xval(Vnat n)) =>
       let ℓ := addr(List.length (getH Ω.(SΦ) Ω.(St))) in
       let* _ := undup Ω.(SΦ).(MΔ) in
-      let* Δ' := push (dK(ℓ ; Ω.(St))) (dL(◻ ; n)) Ω.(SΦ).(MΔ) in
+      let* Δ' := push (dK(ℓ ; Ω.(St))) (dL(◻ ; n ; Fresh.freshv (Ω.(SF)))) Ω.(SΦ).(MΔ) in
       let Φ' := Htgrow (Ω.(SΦ) <| MΔ := Δ' |>) n Ω.(St) v in
-      let Ω' := Ω <| SΦ := Φ' |> in
+      let Ω' := Ω <| SF := Fresh.advance Ω.(SF) |> <| SΦ := Φ' |> in
       Some(Some(ev(Salloc ℓ n ; Ω.(St))), Ω' ▷ Xval(Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ))))
     | Xdel (Xval(Vpack (LConst ℓ) (Vpair Vcap (Vptr ℓ')))) =>
       if ℓ == ℓ' then
@@ -820,7 +824,7 @@ Proof.
     + (* crash *) easy.
     + (* let *) now inv H.
     + (* unpair *) now inv H.
-    + (* alloc *) crush_undup (MΔ Φ); inv H; rewrite H1; easy.
+    + (* alloc *) crush_undup (MΔ Φ); inv H; cbn in H1; rewrite H1; easy.
     + (* del *) eq_to_defeq loc_eqb; rewrite eq_refl; apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
       apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. eq_to_defeq control_tag_eq; rewrite eq_refl. easy.
     + (* get *) apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
@@ -854,8 +858,8 @@ Proof.
     + (* let *) grab_value e1; inv H; now constructor.
     + (* new *) destruct e1; try now inv H. grab_value e2.
       crush_undup (MΔ (SΦ Ω)).
-      crush_option (push (dK(addr (List.length (getH (SΦ Ω) (St Ω))) ; Ω.(St))) {| dρ := ◻; dn := n |} (MΔ (SΦ Ω))).
-      inv H. destruct Ω; econstructor; try eassumption. now cbn. now apply nodupinv_equiv_undup in Hx. now symmetry.
+      crush_option (push (dK(addr (List.length (getH (SΦ Ω) (St Ω))) ; Ω.(St))) {| dρ := ◻; dn := n; dx := String "z" (string_of_nat (fresh (SF Ω))) |} (MΔ (SΦ Ω))).
+      inv H. destruct Ω; econstructor; try eassumption. now cbn. now apply nodupinv_equiv_undup in Hx. now symmetry. easy.
     + (* del *) grab_value e. destruct ℓ; try now inv H. destruct v; try now inv H. destruct v1, v2; try now inv H.
       eq_to_defeq loc_eqb. destruct (eq_dec l l0); try (apply neqb_neq in H0; now rewrite H0 in H).
       rewrite H0 in H; rewrite eq_refl in H. crush_undup (MΔ (SΦ Ω)). apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split.
@@ -2506,7 +2510,7 @@ Fixpoint spectracepref_of_tracepref (tr : tracepref) : Props.tracepref :=
 (** Store agreement between our stores and the TMS monitor. *)
 Inductive tms_store_agree : TMSMonAux.AbsState -> ptrstore -> Prop :=
 | TMSEmptyAgree : tms_store_agree TMSMonAux.EmptyState snil
-| TMSConsAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (T__TMS T__TMS' : TMSMonAux.AbsState) (Δ : ptrstore),
+| TMSConsAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (γ : vart) (T__TMS T__TMS' : TMSMonAux.AbsState) (Δ : ptrstore),
     ~(List.In (ℓ,t) (TMSMonAux.alloced T__TMS)) ->
     ~(List.In (ℓ,t) (TMSMonAux.freed T__TMS)) ->
     tms_store_agree T__TMS Δ ->
@@ -2514,10 +2518,10 @@ Inductive tms_store_agree : TMSMonAux.AbsState -> ptrstore -> Prop :=
                TMSMonAux.alloced := List.app (TMSMonAux.alloced T__TMS) (List.cons (ℓ,t) List.nil) ;
                TMSMonAux.freed := TMSMonAux.freed T__TMS ;
             |} ->
-    tms_store_agree T__TMS' (dK(ℓ ; t) ↦ dL(◻ ; n) ◘ Δ)
-| TMSPoisonAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (T__TMS : TMSMonAux.AbsState) (Δ : ptrstore),
+    tms_store_agree T__TMS' (dK(ℓ ; t) ↦ dL(◻ ; n ; γ) ◘ Δ)
+| TMSPoisonAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (γ : vart) (T__TMS : TMSMonAux.AbsState) (Δ : ptrstore),
     tms_store_agree T__TMS Δ ->
-    tms_store_agree T__TMS (dK(ℓ ; t) ↦ dL(☣ ; n) ◘ Δ)
+    tms_store_agree T__TMS (dK(ℓ ; t) ↦ dL(☣ ; n ; γ) ◘ Δ)
 .
 Inductive tms_state_agree : TMSMonAux.AbsState -> state -> Prop :=
 | TMSStateAgree : forall (Ω : state) (T__TMS : TMSMonAux.AbsState),
@@ -2530,10 +2534,10 @@ Inductive ptrstore_split (Ξ : symbols) : ptrstore -> Delta -> Gamma -> Prop :=
 | TemptyΔ : forall (Γ : Gamma), gamma_from_symbols Ξ = Γ -> ptrstore_split Ξ snil nil Γ
 | Tref1ℕ : forall (x γ : vart) (Γ : Gamma) (Δ__ptrs : Delta) (Δ : ptrstore) (ℓ : loc) (t : ControlTag) (n : nat),
     ptrstore_split Ξ Δ Δ__ptrs Γ ->
-    ptrstore_split Ξ (dK(ℓ ; t) ↦ dL(◻ ; n) ◘ Δ) (γ :: Δ__ptrs)%list (x ↦ Tpre(Tptr (LVar γ)) ◘ Γ)
-| Tref1ℕpoison : forall (x : vart) (Γ : Gamma) (Δ__ptrs : Delta) (Δ : ptrstore) (x : vart) (ℓ : loc) (t : ControlTag) (n : nat),
+    ptrstore_split Ξ (dK(ℓ ; t) ↦ dL(◻ ; n ; γ) ◘ Δ) (γ :: Δ__ptrs)%list (x ↦ Tpre(Tptr (LVar γ)) ◘ Γ)
+| Tref1ℕpoison : forall (x γ : vart) (Γ : Gamma) (Δ__ptrs : Delta) (Δ : ptrstore) (ℓ : loc) (t : ControlTag) (n : nat),
     ptrstore_split Ξ Δ Δ__ptrs Γ ->
-    ptrstore_split Ξ (dK(ℓ ; t) ↦ dL(☣ ; n) ◘ Δ) Δ__ptrs (x ↦ Tpre(Tptr(LConst ℓ)) ◘ Γ) (*FIXME*)
+    ptrstore_split Ξ (dK(ℓ ; t) ↦ dL(☣ ; n ; γ) ◘ Δ) Δ__ptrs (x ↦ Tpre(Tptr(LConst ℓ)) ◘ Γ)
 .
 Inductive ptrstate_split : state -> Delta -> Gamma -> Prop :=
 | TΩ : forall (Ω : state) (Γ : Gamma) (Δ : Delta),
@@ -2574,11 +2578,11 @@ Lemma estep_preservation Ω e τ Ω' e' a :
 .
 Proof. Admitted.
 
-Lemma store_agree_split T__TMS Δ1 ℓ ρ t n Δ2 :
-  tms_store_agree T__TMS (Δ1 ◘ dK((addr ℓ) ; t) ↦ dL(ρ ; n) ◘ Δ2) ->
+Lemma store_agree_split T__TMS Δ1 ℓ ρ t n γ Δ2 :
+  tms_store_agree T__TMS (Δ1 ◘ dK((addr ℓ) ; t) ↦ dL(ρ ; n ; γ) ◘ Δ2) ->
   exists T__TMS1 T__TMS2, tms_store_agree T__TMS1 Δ1 /\
                  tms_store_agree T__TMS2 Δ2 /\
-                 tms_store_agree (TMSMonAux.singleton (addr ℓ) t) (dK((addr ℓ) ; t) ↦ dL(ρ ; n) ◘ snil) /\
+                 tms_store_agree (TMSMonAux.singleton (addr ℓ) t) (dK((addr ℓ) ; t) ↦ dL(ρ ; n ; γ) ◘ snil) /\
                  T__TMS = TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ) t) T__TMS2)
 .
 Proof. Admitted.
@@ -2636,7 +2640,7 @@ Proof.
     now inv Ac.
   - (* new *) inv Heqr1; inv Heqr2. remember (addr (List.length (getH Φ t))) as ℓ.
     inv Ac; assert (H':=H). cbn in H. destruct t; cbn.
-    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CCtx)) ; CCtx) ↦ {| dρ := ◻; dn := n |} ◘ MΔ Φ).
+    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CCtx)) ; CCtx) ↦ {| dρ := ◻; dn := n; dx := freshv F |} ◘ MΔ Φ).
       inv H1.
       exists (Some (TMSMonAux.AAlloc(addr (List.length (MH__ctx Φ))) CCtx)).
       exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (List.length (MH__ctx Φ))) CCtx)).
@@ -2647,7 +2651,7 @@ Proof.
       revert H H3 H1'; clear. revert T__TMS. remember (MΔ Φ) as Δ; remember (addr(List.length (MH__ctx Φ))) as ℓ.
       clear HeqΔ; clear Heqℓ; clear Φ. revert ℓ n. induction Δ; intros. now inv H.
       rename a into ℓ'. eapply store_agree_notin_comm in H; eauto.
-    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CComp)) ; CComp) ↦ {| dρ := ◻; dn := n |} ◘ MΔ Φ).
+    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CComp)) ; CComp) ↦ {| dρ := ◻; dn := n; dx := freshv F |} ◘ MΔ Φ).
       inv H1.
       exists (Some (TMSMonAux.AAlloc(addr (List.length (MH__comp Φ))) CComp)).
       exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (List.length (MH__comp Φ))) CComp)).
@@ -2662,14 +2666,14 @@ Proof.
     inv Ac; assert (H1':=H1). cbn in H1; rewrite H0 in H1; destruct ℓ as [ℓ]; apply store_agree_split in H1; deex.
     destruct H1 as [H1a [H1b [H1c H1d]]].
     inv Aa. inv H2. inv H1c; try inv H4.
-    inv H11. cbn in H12.
+    inv H13. cbn in *.
     exists (Some(TMSMonAux.ADealloc (addr ℓ) t)). exists (TMSMonAux.append T__TMS1 T__TMS2).
     repeat split; try constructor. econstructor; now cbn. cbn. eapply store_agree_rsplit. easy.
     econstructor. easy.
   - (*get*) inv Heqr1; inv Heqr2.
     inv Ac; assert (H2':=H2). cbn in H2; rewrite H0 in H2; apply store_agree_split in H2; deex.
     destruct H2 as [H2a [H2b [H2c H2d]]].
-    inv Aa. inv H3. inv H2c; try inv H5. inv H16. cbn in H17.
+    inv Aa. inv H3. inv H2c; try inv H5. inv H18. cbn in *.
     exists (Some(TMSMonAux.AUse (addr ℓ) t)). exists (TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ) t) T__TMS2)).
     repeat split; try constructor; easy.
   - (*set*) inv Heqr1; inv Heqr2. inv Aa. inv H3. inv H16. (* FIXME? this is kinda bad for runtime-type preservation isn't it *)
@@ -2723,9 +2727,9 @@ Proof.
   intros. inv H0. revert v H;
   dependent induction H1; intros.
   - constructor.
-  - inv H3. specialize (H6 ℓ t (dL(◻ ; n))). rewrite <- x in H6. cbn in H6.
+  - inv H3. specialize (H6 ℓ t (dL(◻ ; n; γ))). rewrite <- x in H6. cbn in H6.
     eq_to_defeq (ptr_key_eqb). rewrite eq_refl in H6.
-    assert (Some(dL(◻ ; n)) = Some(dL(◻ ; n))) by reflexivity.
+    assert (Some(dL(◻ ; n; γ)) = Some(dL(◻ ; n; γ))) by reflexivity.
     now specialize (H6 H2).
   - inv H. inv H4. pose (Ω' := Ω <| SΦ := Ω.(SΦ) <| MΔ := Δ |> |>).
     specialize (IHtms_store_agree Ω'). eapply IHtms_store_agree; eauto.

@@ -2565,12 +2565,36 @@ Lemma rt_check_decompose (Ω : state) (K : evalctx) (e : expr) (τ τ' : ty) :
 .
 Proof. Admitted.
 
+Lemma Htgrow_Δ_passthrough Φ Δ n t v :
+  MΔ (Htgrow (Φ <| MΔ := Δ |>) n t v) = Δ
+.
+Proof. Admitted.
+
+Lemma ptrstate_split_noownedptr Ω Δ Γ :
+  ptrstate_split Ω Δ Γ ->
+  NoOwnedPtr Γ
+.
+Proof. Admitted.
+
 Lemma pstep_preservation Ω e τ Ω' e' a :
   rt_check Ω e τ ->
   Ω ▷ e --[, a ]--> Ω' ▷ e' ->
   rt_check Ω' e' τ
 .
-Proof. Admitted.
+Proof.
+  intros H0 H1; cbv in H1; dependent induction H1.
+  - inv H0. inv H1. econstructor; eauto. econstructor. eapply ptrstate_split_noownedptr; eauto.
+  - inv H0. inv H1. (* is easy with lemmas *) admit.
+  - inv H0. inv H2. (* is easy with lemmas *) admit.
+  - inv H0. inv H1. econstructor; eauto. econstructor; eauto.
+  - inv H0. inv H1. (* substitution lemma *) admit.
+  - inv H0. inv H1. inv H10. (* double apply substitution lemma *) admit.
+  - revert H3. inv H0. inv H5. remember (addr (Datatypes.length (getH Φ t))) as ℓ.
+    apply push_ok in H1 as H1'. unfold push in H1. intros H2'; rewrite H2' in *. crush_option (undup ({| dL := ℓ ; dt := t |} ↦ {| dρ := ◻ ; dn := n ; dx := freshv F |} ◘ MΔ Φ)).
+    apply undup_refl in Hx as Hx'; rewrite <- Hx' in *. inv H1. inv H5. cbn in H. econstructor.
+    + econstructor. cbn. rewrite Htgrow_Δ_passthrough. econstructor. eassumption.
+    + eapply T_vpack. econstructor.
+Admitted.
 Lemma estep_preservation Ω e τ Ω' e' a :
   rt_check Ω e τ ->
   Ω ▷ e ==[, a ]==> Ω' ▷ e' ->

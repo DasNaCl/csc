@@ -1293,8 +1293,11 @@ Ltac crush_insert :=
 Inductive is_val : expr -> Prop :=
 | Cval : forall (e : expr) (v : value), e = Xval v -> is_val e
 .
+(** A runtime expression is classified as value if the associated state is also freed completely. *)
 Inductive rtexpr_is_val : rtexpr -> Prop :=
 | CRTval : forall (Ω : state) (e : expr) (v : value),
+    (forall l t dl, mget Ω.(SΦ).(MΔ) (dK(l ; t)) = Some dl -> dl.(dρ) = ☣) ->
+    nodupinv Ω ->
     e = Xval v ->
     rtexpr_is_val (Ω ▷ e)
 | CRTfail : rtexpr_is_val (↯ ▷ stuck) (* this will let star_step terminate with a crash *)
@@ -2717,10 +2720,24 @@ Lemma rtvalue_is_monvalue Ω v (T__TMS : TMSMonAux.AbsState) :
   TMSMon.ValueState T__TMS
 .
 Proof.
-  intros. inv H0. dependent induction H1.
+  intros. inv H0. revert v H;
+  dependent induction H1; intros.
   - constructor.
-  - specialize (IHtms_store_agree Ω H).
-Admitted.
+  - inv H3. specialize (H6 ℓ t (dL(◻ ; n))). rewrite <- x in H6. cbn in H6.
+    eq_to_defeq (ptr_key_eqb). rewrite eq_refl in H6.
+    assert (Some(dL(◻ ; n)) = Some(dL(◻ ; n))) by reflexivity.
+    now specialize (H6 H2).
+  - inv H. inv H4. pose (Ω' := Ω <| SΦ := Ω.(SΦ) <| MΔ := Δ |> |>).
+    specialize (IHtms_store_agree Ω'). eapply IHtms_store_agree; eauto.
+    instantiate (1:=v0). econstructor; eauto. shelve.
+    rewrite <- x in H0. inv H0. constructor; eauto.
+    Unshelve.
+    intros. cbn in H. rewrite <- x in *. inv H0. cbn in H3. eapply H3.
+    instantiate (1:=t0); instantiate(1:=l).
+    destruct (eq_dec (dK(ℓ ; t)) (dK(l ; t0))).
+    + apply mget_min in H2. cbn in H2. apply Min_in in H2 as [H2a H2b]. inv H0. contradiction.
+    + apply neqb_neq in H0. eq_to_defeq ptr_key_eqb. rewrite H0. assumption.
+Qed.
 
 Lemma steps_tms_via_monitor (Ω Ω' : state) (e : expr) (v : value) (τ : ty) (As : tracepref)
                             (T__TMS : TMSMonAux.AbsState) :

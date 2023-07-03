@@ -905,7 +905,6 @@ Proof.
       rewrite <- append_assoc in H0. apply IHm1 in H0. rewrite <- append_assoc in H0. now apply nodupinv_cons_snoc.
 Qed.
 
-
 Module NoDupList.
 
 Inductive nodupinv {A : Type} {H : HasEquality A} : list A -> Prop :=
@@ -925,6 +924,21 @@ Fixpoint undup {A : Type} {H : HasEquality A} (xs : list A) : option(list A) :=
     end
   end
 .
+Fixpoint swap_nth_aux { A : Type } { H : HasEquality A } (xs : list A) (n : nat) (y : A) : option (list A) :=
+  match n, xs with
+  | 0, nil => None
+  | S n, nil => None
+  | 0, x :: xs => Some(y :: xs)
+  | S n, x :: xs =>
+    let* ys := swap_nth_aux xs n y in
+    Some(x :: ys)
+  end
+.
+Definition swap_nth {A : Type} { H : HasEquality A } (xs : list A) (n : nat) (y : A) : option (list A) :=
+  let* result := swap_nth_aux xs n y in
+  undup result
+.
+
 Lemma undup_refl {A : Type} {H : HasEquality A} (xs ys : list A) :
   undup xs = Some ys -> xs = ys.
 Proof.
@@ -975,6 +989,21 @@ Proof.
     + apply not_eq_None_Some in Ha as [ws Ha]. now rewrite Ha in H0.
     + now rewrite Hb, Hy in H0.
 Qed.
+Lemma push_ok' { A : Type } { H : HasEquality A } (x : A) (xs ys : list A) :
+  push x xs = Some (ys) -> nodupinv (ys).
+Proof.
+  intros H0. unfold push in H0.
+  destruct (option_dec (undup (x :: xs))) as [Hx|Hy]; try (rewrite Hy in *; congruence);
+  apply not_eq_None_Some in Hx as [m'' Hx]; rewrite Hx in H0; inv H0;
+  apply nodupinv_equiv_undup; cbn in Hx.
+  destruct (option_dec (List.find (fun y : A => eq x y) xs)) as [Ha|Hb].
+  - apply not_eq_None_Some in Ha as [ys' Ha]; now rewrite Ha in Hx.
+  - rewrite Hb in Hx.
+    destruct (option_dec (undup xs)) as [Hc|Hd].
+    + apply not_eq_None_Some in Hc as [ws Hc]; apply undup_refl in Hc as Hc'; rewrite Hc in *;
+      inv Hx; cbn; rewrite Hb; now rewrite Hc.
+    + now rewrite Hd in Hx.
+Qed.
 Lemma push_ok { A : Type } { H : HasEquality A } (x : A) (xs : list A) :
   push x xs = Some (List.cons x xs) -> nodupinv (List.cons x xs).
 Proof.
@@ -990,6 +1019,32 @@ Proof.
       inv Hx; cbn; rewrite Hb; now rewrite Hc.
     + now rewrite Hd in Hx.
 Qed.
+Lemma swap_ok { A : Type } { H : HasEquality A } (x : A) (n : nat) (xs ys : list A) :
+  nodupinv xs ->
+  swap_nth xs n x = Some ys ->
+  nodupinv ys
+.
+Proof.
+  revert x ys n; induction xs; cbn; intros.
+  - now destruct n.
+  - destruct n.
+    + apply undup_refl in H1 as H1'; rewrite <- H1' in *; clear H1'. apply nodupinv_equiv_undup in H1.
+      inv H0; inv H1. now constructor.
+    + cbn in *. crush_option (swap_nth_aux xs n x). inv H0. specialize (IHxs x x0 n H5). rewrite Hx in IHxs.
+      apply undup_refl in H1 as H1'. rewrite <- H1' in H1.
+      apply nodupinv_equiv_undup in H1. inv H1. apply nodupinv_equiv_undup in H6. specialize (IHxs H6).
+      constructor; easy.
+Qed.
+Lemma swap_split { A : Type } { H : HasEquality A } (x y : A) (n : nat) (xs ys : list A) :
+  nodupinv xs ->
+  swap_nth xs n x = Some ys ->
+  exists ys1 ys2, ys = ys1 ++ y :: ys2 /\
+             xs = ys1 ++ x :: ys2 /\
+             List.length ys1 = n /\
+             List.length ys2 = List.length xs - n + 1 /\
+             nodupinv ys
+.
+Proof. Admitted.
 
 End NoDupList.
 

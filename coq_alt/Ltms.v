@@ -2567,16 +2567,16 @@ Inductive rt_check : state -> expr -> ty -> Prop :=
     [false ; Δ__ptrs ; Γ |- e : τ] ->
     rt_check Ω e τ
 .
-Definition ectx_rt_check (Ω : state) (K : evalctx) (τ τ' : ty) :=
-  forall (e : expr), rt_check Ω e τ' -> rt_check Ω (insert K e) τ
+Definition ectx_rt_check (K : evalctx) (τ τ' : ty) :=
+  forall (Ω : state) (e : expr), rt_check Ω e τ' -> rt_check Ω (insert K e) τ
 .
 Lemma rt_check_recompose (Ω : state) (K : evalctx) (e : expr) (τ : ty) :
   rt_check Ω (insert K e) τ ->
-  exists τ', ectx_rt_check Ω K τ' τ /\ rt_check Ω e τ'
+  exists τ', ectx_rt_check K τ' τ /\ rt_check Ω e τ'
 .
 Proof. Admitted.
 Lemma rt_check_decompose (Ω : state) (K : evalctx) (e : expr) (τ τ' : ty) :
-  ectx_rt_check Ω K τ' τ ->
+  ectx_rt_check K τ' τ ->
   rt_check Ω e τ' ->
   rt_check Ω (insert K e) τ
 .
@@ -2590,6 +2590,25 @@ Proof. Admitted.
 Lemma ptrstate_split_noownedptr Ω Δ Γ :
   ptrstate_split Ω Δ Γ ->
   NoOwnedPtr Γ
+.
+Proof. Admitted.
+Lemma ptrstore_split_noownedptr Ξ Δ Δ__ptrs Γ :
+  ptrstore_split Ξ Δ Δ__ptrs Γ ->
+  NoOwnedPtr Γ
+.
+Proof. Admitted.
+
+Lemma ptrstore_split_weaken_poisoned Ξ Δ1 Δ2 dk n γ Δ__ptrs Γ :
+  ptrstore_split Ξ (Δ1 ◘ Δ2) Δ__ptrs Γ  ->
+  ptrstore_split Ξ (Δ1 ◘ dk ↦ {| dρ := ☣; dn := n; dx := γ |} ◘ Δ2) Δ__ptrs Γ
+.
+Proof. Admitted.
+
+Lemma ptrstore_split_split Ξ Δ1 Δ2 dk dl Δ__ptrs Γ :
+  ptrstore_split (Ξ) (Δ1 ◘ dk ↦ dl ◘ Δ2) Δ__ptrs Γ ->
+  exists Δptrs1 γ Δptrs2, ptrstore_split (Ξ) (Δ1 ◘ Δ2) (Δptrs1 ++ Δptrs2)%list Γ /\
+                     (Δ__ptrs = Δptrs1 ++ γ :: Δptrs2)%list /\
+                     (~List.In γ (Δptrs1 ++ Δptrs2))
 .
 Proof. Admitted.
 
@@ -2611,9 +2630,11 @@ Proof.
     apply undup_refl in Hx as Hx'; rewrite <- Hx' in *. inv H1. inv H4. cbn in H. econstructor.
     + econstructor. cbn. rewrite Htgrow_Δ_passthrough. econstructor. eassumption.
     + eapply T_cpack. now left. econstructor. now left.
-  - inv H0. inv H4. inv H7. inv H14. econstructor.
-    + econstructor. cbn. admit.
-    + admit.
+  - inv H0. inv H4. inv H7. inv H14. inv H3; cbn in *. rewrite H2 in *.
+    assert (H0':=H0); eapply ptrstore_split_split in H0'; deex; destruct H0' as [H0' [H0'' H0''']].
+    econstructor.
+    + econstructor; cbn. eapply ptrstore_split_weaken_poisoned. eapply ptrstore_split_split in H0; deex. eassumption.
+    + econstructor. eapply ptrstore_split_noownedptr; eauto.
   - inv H0. inv H4. inv H12. (* this is certainly a bit weird *)
   - inv H0. inv H5. inv H14. (* this is certainly a bit weird *)
   - inv H0. inv H1. inv H10. inv H. cbn in H0. econstructor.
@@ -2629,7 +2650,24 @@ Lemma estep_preservation Ω e τ Ω' e' a :
   Ω ▷ e ==[, a ]==> Ω' ▷ e' ->
   rt_check Ω' e' τ
 .
-Proof. Admitted.
+Proof.
+  intros H0 H1; cbv in H1; dependent induction H1.
+  - eapply rt_check_recompose in H0; deex; destruct H0 as [H0a H0b].
+    eapply pstep_preservation in H2; eauto.
+    eapply rt_check_decompose; eauto.
+  - inv H0. inv H4. inv H3. econstructor; eauto.
+    + econstructor; cbn. eassumption.
+    + (* substitution lemma *) admit.
+  - inv H0. inv H1. econstructor; eauto.
+    + econstructor; cbn. eassumption.
+    + admit.
+  - inv H0. inv H2. econstructor; eauto.
+    + econstructor; cbn. eassumption.
+    + (* should be easy with syntactic (de-/re-)compo *) admit.
+  - inv H0. inv H1. econstructor; eauto.
+    + econstructor; cbn. eassumption.
+    + (* syntactic (de-/re-)compo *) admit.
+Admitted.
 
 Lemma store_agree_split T__TMS Δ1 ℓ ρ t n γ Δ2 :
   tms_store_agree T__TMS (Δ1 ◘ dK((addr ℓ) ; t) ↦ dL(ρ ; n ; γ) ◘ Δ2) ->
@@ -2693,7 +2731,7 @@ Proof.
     now inv Ac.
   - (* new *) inv Heqr1; inv Heqr2. remember (addr (List.length (getH Φ t))) as ℓ.
     inv Ac; assert (H':=H). cbn in H. destruct t; cbn.
-    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CCtx)) ; CCtx) ↦ {| dρ := ◻; dn := n; dx := freshv F |} ◘ MΔ Φ).
+    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CCtx)) ; CCtx) ↦ {| dρ := ◻; dn := n; dx := γ |} ◘ MΔ Φ).
       inv H1.
       exists (Some (TMSMonAux.AAlloc(addr (List.length (MH__ctx Φ))) CCtx)).
       exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (List.length (MH__ctx Φ))) CCtx)).
@@ -2704,7 +2742,7 @@ Proof.
       revert H H3 H1'; clear. revert T__TMS. remember (MΔ Φ) as Δ; remember (addr(List.length (MH__ctx Φ))) as ℓ.
       clear HeqΔ; clear Heqℓ; clear Φ. revert ℓ n. induction Δ; intros. now inv H.
       rename a into ℓ'. eapply store_agree_notin_comm in H; eauto.
-    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CComp)) ; CComp) ↦ {| dρ := ◻; dn := n; dx := freshv F |} ◘ MΔ Φ).
+    + apply push_ok in H1 as H1'. unfold push in H1. crush_undup (dK(addr(List.length(getH Φ CComp)) ; CComp) ↦ {| dρ := ◻; dn := n; dx := γ |} ◘ MΔ Φ).
       inv H1.
       exists (Some (TMSMonAux.AAlloc(addr (List.length (MH__comp Φ))) CComp)).
       exists (TMSMonAux.append T__TMS (TMSMonAux.singleton (addr (List.length (MH__comp Φ))) CComp)).
@@ -2721,7 +2759,7 @@ Proof.
     inv Aa. inv H2. inv H1c; try inv H4.
     inv H13. cbn in *.
     exists (Some(TMSMonAux.ADealloc (addr ℓ) t)). exists (TMSMonAux.append T__TMS1 T__TMS2).
-    repeat split; try constructor. econstructor; now cbn. cbn. eapply store_agree_rsplit. easy.
+    repeat split; try constructor. econstructor. now cbn. ; now cbn. cbn. eapply store_agree_rsplit. easy.
     econstructor. easy.
   - (*get*) inv Heqr1; inv Heqr2.
     inv Ac; assert (H2':=H2). cbn in H2; rewrite H0 in H2; apply store_agree_split in H2; deex.

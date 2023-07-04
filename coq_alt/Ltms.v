@@ -1682,6 +1682,9 @@ Inductive check : bool -> Delta -> Gamma -> expr -> ty -> Prop :=
     [b ; Δ ; Γ1 |- Xval v1 : τ1] ->
     [b ; Δ ; Γ2 |- Xval v2 : τ2] ->
     [b ; Δ ; Γ |- Xval(Vpair v1 v2) : Tpair τ1 τ2]
+| T_vcap : forall (b : bool) (Δ : Delta) (Γ : Gamma) (γ : vart) (τ : pre_ty),
+    List.In γ Δ ->
+    [b ; Δ ; Γ |- Xval(Vcap) : Tcap (LVar γ) τ]
 | T_vptr : forall (b : bool) (Δ : Delta) (Γ : Gamma) (γ : vart) (ℓ : loc),
     List.In γ Δ ->
     [b ; Δ ; Γ |- Xval(Vptr ℓ γ) : Tptr (LVar γ)]
@@ -1701,7 +1704,7 @@ Inductive check : bool -> Delta -> Gamma -> expr -> ty -> Prop :=
 | T_unpair : forall (b : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (x1 x2 : vart) (e0 e1 : expr) (τ1 τ2 : pre_ty) (τ3 : ty),
     Γ ≡ Γ1 ∘ Γ2 ->
     [false ; Δ ; Γ1 |- e0 : Tpair τ1 τ2] ->
-    [false ; Δ ; x1 ↦ (Tpre τ1) ◘ (x2 ↦ (Tpre τ2) ◘ Γ2) |- e1 : τ3]%list ->
+    [false ; Δ ; x2 ↦ (Tpre τ2) ◘ (x1 ↦ (Tpre τ1) ◘ Γ2) |- e1 : τ3]%list ->
     [b ; Δ ; Γ |- Xunpair x1 x2 e0 e1 : τ3]
 | T_binop : forall (bb : bool) (Δ : Delta) (Γ Γ1 Γ2 : Gamma) (b : binopsymb) (e1 e2 : expr),
     Γ ≡ Γ1 ∘ Γ2 ->
@@ -2598,9 +2601,35 @@ Lemma ptrstore_split_noownedptr Ξ Δ Δ__ptrs Γ :
 .
 Proof. Admitted.
 
+Lemma ptrstate_Γ Ω Δ__ptrs Γ :
+  ptrstate_split Ω Δ__ptrs Γ ->
+  Γ = gamma_from_symbols (Ω.(SΨ).(CΞ))
+.
+Proof.
+  intros H; inv H. dependent induction H0; trivial.
+  - specialize (IHptrstore_split (Ω <| SΦ := Ω.(SΦ) <| MΔ := Δ |> |>)). eapply IHptrstore_split; reflexivity.
+  - specialize (IHptrstore_split (Ω <| SΦ := Ω.(SΦ) <| MΔ := Δ |> |>)). eapply IHptrstore_split; reflexivity.
+Qed.
+
+Lemma Γ_split_xi Γ Γ1 Γ2 Ξ :
+  Γ ≡ Γ1 ∘ Γ2 ->
+  Γ = gamma_from_symbols (Ξ) ->
+  Γ1 = Γ /\ Γ2 = Γ
+.
+Proof.
+  intros H; revert Ξ; dependent induction H; cbn; eauto; intros.
+  - split; f_equal; eapply IHsplitting. (*eZ*)
+Admitted.
+
 Lemma ptrstore_split_weaken_poisoned Ξ Δ1 Δ2 dk n γ Δ__ptrs Γ :
   ptrstore_split Ξ (Δ1 ◘ Δ2) Δ__ptrs Γ  ->
   ptrstore_split Ξ (Δ1 ◘ dk ↦ {| dρ := ☣; dn := n; dx := γ |} ◘ Δ2) Δ__ptrs Γ
+.
+Proof. Admitted.
+
+Lemma ptrstore_split_setH_ign Ξ Φ t H Δ__ptrs Γ :
+  ptrstore_split (Ξ) (MΔ (Φ)) Δ__ptrs Γ ->
+  ptrstore_split (Ξ) (MΔ (setH Φ t H)) Δ__ptrs Γ
 .
 Proof. Admitted.
 
@@ -2612,6 +2641,14 @@ Lemma ptrstore_split_split Ξ Δ1 Δ2 dk dl Δ__ptrs Γ :
 .
 Proof. Admitted.
 
+Lemma substitution Γ Γ1 Γ2 v τ1 τ2 x Δ__ptrs b b' b'' e :
+  Γ ≡ Γ1 ∘ Γ2 ->
+  [b; Δ__ptrs; Γ1 |- Xval v : τ1 ] ->
+  [b'; Δ__ptrs; (x ↦ τ1 ◘ Γ2) |- e : τ2 ] ->
+  [b''; Δ__ptrs; Γ |- subst x e (Xval v) : τ2]
+.
+Proof. Admitted.
+
 Lemma pstep_preservation Ω e τ Ω' e' a :
   rt_check Ω e τ ->
   Ω ▷ e --[, a ]--> Ω' ▷ e' ->
@@ -2620,11 +2657,15 @@ Lemma pstep_preservation Ω e τ Ω' e' a :
 Proof.
   intros H0 H1; cbv in H1; dependent induction H1.
   - inv H0. inv H1. econstructor; eauto. econstructor. eapply ptrstate_split_noownedptr; eauto.
-  - inv H0. inv H1. (* is easy with lemmas *) admit.
-  - inv H0. inv H2. (* is easy with lemmas *) admit.
+  - inv H0. inv H1. econstructor; eauto. eapply ptrstate_Γ in H as H'. eapply Γ_split_xi in H4 as H4'; eauto.
+    destruct H4' as [H4a H4b]; subst. easy.
+  - inv H0. inv H2. econstructor; eauto. eapply ptrstate_Γ in H1 as H1'. eapply Γ_split_xi in H5 as H5'; eauto.
+    destruct H5' as [H5a H5b]; subst. easy.
   - inv H0. inv H1. econstructor; eauto. econstructor; eauto.
-  - inv H0. inv H1. (* substitution lemma *) admit.
-  - inv H0. inv H1. inv H10. (* double apply substitution lemma *) admit.
+  - inv H0. inv H1. econstructor; eauto. eapply substitution; eauto.
+  - inv H0. inv H1. inv H10. econstructor; eauto. eapply ptrstate_Γ in H as H'. eapply Γ_split_xi in H9 as H9'; eauto.
+    destruct H9' as [H9a H9b]; subst. eapply Γ_split_xi in H7 as H7'; eauto. destruct H7' as [H7a H7b]; subst.
+    eapply substitution; eauto. instantiate (1:=false). eapply substitution; eauto. admit. (* may need to preserve split info *)
   - inv H0. inv H5. remember (addr (Datatypes.length (getH Φ t))) as ℓ.
     apply push_ok in H1 as H1'. unfold push in H1. crush_option (undup ({| dL := ℓ ; dt := t |} ↦ {| dρ := ◻ ; dn := n ; dx := γ |} ◘ MΔ Φ)).
     apply undup_refl in Hx as Hx'; rewrite <- Hx' in *. inv H1. inv H4. cbn in H. econstructor.
@@ -2635,15 +2676,30 @@ Proof.
     econstructor.
     + econstructor; cbn. eapply ptrstore_split_weaken_poisoned. eapply ptrstore_split_split in H0; deex. eassumption.
     + econstructor. eapply ptrstore_split_noownedptr; eauto.
-  - inv H0. inv H4. inv H12. (* this is certainly a bit weird *)
-  - inv H0. inv H5. inv H14. (* this is certainly a bit weird *)
-  - inv H0. inv H1. inv H10. inv H. cbn in H0. econstructor.
-    + econstructor. eauto.
-    + eauto. (* subst lemma *) admit.
+  - inv H0. inv H4. inversion H12; subst. inversion H14; subst.
+    eapply ptrstate_Γ in H3 as H3'. eapply Γ_split_xi in H8 as H8'; eauto. destruct H8' as [H8a H8b]; subst.
+    eapply Γ_split_xi in H7 as H7'; eauto. destruct H7' as [H7a H7b]; subst.
+    inv H3; cbn in *. econstructor.
+    + econstructor; cbn; rewrite H2 in *; cbn in *. eassumption.
+    + econstructor; eauto. destruct H1 as [H1|[H1a H1b]].
+      * admit. (* value typechecks *)
+      * inv H1a. admit. (* value typechecks *)
+  - inv H0. inv H5. inversion H14; subst. inversion H16; subst.
+    eapply ptrstate_Γ in H4 as H4'. eapply Γ_split_xi in H10 as H10'; eauto. destruct H10' as [H10a H10b]; subst.
+    eapply Γ_split_xi in H9 as H9'; eauto. destruct H9' as [H9a H9b]; subst.
+    eapply Γ_split_xi in H8 as H8'; eauto. destruct H8' as [H8a H8b]; subst.
+    inv H4; cbn in *. econstructor.
+    + econstructor; cbn; rewrite H3 in *; cbn in *. eapply ptrstore_split_setH_ign. rewrite H3. eassumption.
+    + econstructor; eauto. destruct H1 as [H1|[H1a H1b]].
+      * admit. (* value typechecks, true/false doesn't matter *)
+      * admit. (* value typechecks, true/false doesn't matter *)
+  - inv H0. inv H1. inv H10. eapply ptrstate_Γ in H as H'. inv H. cbn in H0.
+    eapply Γ_split_xi in H8 as H8'; eauto. destruct H8' as [H8a H8b]; subst.
+    econstructor.
+    + econstructor; eauto.
+    + eapply substitution; eauto; admit. (* nested subst application *)
   - inv H0. inv H1.
 Admitted.
-
-
 
 Lemma estep_preservation Ω e τ Ω' e' a :
   rt_check Ω e τ ->

@@ -247,7 +247,7 @@ Module SMSMonAux <: MonitorT.
   Definition ValueState (_ : AbsState) := True.
   Variant AbsEv_d : Type :=
   | AAbort
-  | AAlloc (l : loc) (n : nat)
+  | AAlloc (l : loc) (n : nat) (* TODO: add tag, since locations do not suffice to uniquely identify *)
   | AUse (l : loc) (n : nat)
   .
   Definition AbsEv := AbsEv_d.

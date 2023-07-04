@@ -326,6 +326,8 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
   \caption{Sketch of a fraction of the infinitely sized lattice of classes. The diagram should be read from top to bottom. A connecting edge between two nodes means that the bottom one is a subset of the top one.}
 \end{figure}
 
+\section{Composition of Previous Results}
+
 \begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
   Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
@@ -504,7 +506,7 @@ In order to just talk about temporal memory safety, we introduce a monitor that 
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ Store}~\tmsmonitor =&\{A : \specificev{L}, F : \specificev{L}\} \\
+      \mi{Abstract\ Store}~\tmsmonitor =&\{A : \specificev{L}\times\sandboxtag, F : \specificev{L}\times\sandboxtag\} \\
       \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \specificev{\loc}\ \sandboxtag \mid \textbf{Dealloc}\ \specificev{\loc}\ \sandboxtag \mid \textbf{Use}\ \specificev{\loc}\ \sandboxtag \mid \abstermination\\[0.3cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
       \absevent\in \tmsmonitor &\text{ iff } \absevent \in {\tmsmonitor[.A]} \wedge \absevent \notin {\tmsmonitor[.F]}\\
@@ -576,7 +578,6 @@ As before, we need a way to translate one set of actions to another:
 \myfig{
   \begin{center}
     \judgbox{\tmstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\tmstraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{TMS-Alloc-Authentic}{
     }{
@@ -613,6 +614,8 @@ As before, we need a way to translate one set of actions to another:
       \tmstraceagree{\specificev{Binop\ n};\sandboxtag;\specificev{\sigma}}{\bm{\varepsilon}}
     }{tms-binop-auth}
     %
+    \judgbox{\tmstraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    %
     \typerule{TMS-Refl-Authentic}{
     }{
       \tmstraceagree[^*]{\hole{\cdot}}{\hole{\cdot}}
@@ -644,8 +647,8 @@ As before, we need a way to translate one set of actions to another:
 \myfig{
   \begin{gather*}
     \begin{aligned}
-      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\nat \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon}\mid \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc}\ \bm{n} \mid \abstermination\\
+      \mi{Abstract\ Store}~\smsmonitor =&\ \specificev{L}\times\sandboxtag\times\nat \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon}\mid \textbf{Alloc}\ \specificev{\loc}\ \sandboxtag\ \bm{n} \mid \textbf{Use}\ \specificev{\loc}\ \sandboxtag\ \bm{n} \mid \abstermination\\
     \end{aligned}
   \end{gather*}
 }{sms-monitor}{\gls{sms} Monitor.}
@@ -666,25 +669,17 @@ As before, we need a way to translate one set of actions to another:
     }{sms-abort}
     %
     \typerule{sms-Use}{
-      (\specificev{\loc},m) \in \smsmonitor&
+      (\specificev{\loc};\sandboxtag;m) \in \smsmonitor&
       n < m
     }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ \bm{n}}
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\textbf{Use}\ \loc\ \sandboxtag\ \bm{n}}
     }{sms-use}
     %
     \typerule{sms-Alloc}{
-      \specificev{\loc} \notin \text{dom }\smsmonitor&
-      \smsmonitor[']=\smsmonitor \cup \left\{(\specificev{\loc},n)\right\}
+      (\specificev{\loc};\sandboxtag;m) \notin \text{dom }\smsmonitor
     }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
+      \monitorcheck[]{\smsmonitor}{\smsmonitor\cup\left\{(\specificev{\loc};\sandboxtag;n)\right\}}{\textbf{Alloc}\ \specificev{\loc}\ \sandboxtag\ \bm{n}}
     }{sms-alloc}
-    %
-    \typerule{sms-Dealloc}{
-      (\specificev{\loc},m) \in \smsmonitor &
-      \smsmonitor[']=\smsmonitor\setminus\left\{(\specificev{\loc},m)\right\}
-    }{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
-    }{sms-dealloc}
     %
     \typerule{sms-Refl}{
     }{
@@ -703,42 +698,43 @@ As before, we need a way to translate one set of actions to another:
 \myfig{
   \begin{center}
     \judgbox{\smstraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\smstraceagree{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{SMS-Alloc-Authentic}{
     }{
-      \smstraceagree{\specificev{Alloc\ \loc\ n};\specificev{\sigma}}{\textbf{Alloc}\ \specificev{\loc}\ \bm{n}}
+      \smstraceagree{\specificev{Alloc\ \loc\ n};\sandboxtag;\specificev{\sigma}}{\textbf{Alloc}\ \specificev{\loc}\ \sandboxtag\ \bm{n}}
     }{sms-alloc-auth}
     %
     \typerule{SMS-Dealloc-Authentic}{
     }{
-      \smstraceagree{\specificev{Dealloc\ \loc};\specificev{\sigma}}{\textbf{Dealloc}\ \specificev{\loc}}
+      \smstraceagree{\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma}}{\bm{\emptyevent}}
     }{sms-dealloc-auth}
     %
     \typerule{SMS-Use-Authentic}{
     }{
-      \smstraceagree{\specificev{Use\ \loc\ n};\specificev{\sigma}}{\textbf{Use}\ \specificev{\loc}\ \bm{n}}
+      \smstraceagree{\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\sigma}}{\textbf{Use}\ \specificev{\loc}\ \sandboxtag\ \bm{n}}
     }{sms-use-auth}
     %
     \typerule{SMS-None-Authentic}{
     }{
-      \smstraceagree{\specificev{\varepsilon};\specificev{\sigma}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
     }{sms-none-auth}
     %
     \typerule{SMS-Branch-Authentic}{
     }{
-      \smstraceagree{\specificev{Branch\ n};\specificev{\sigma}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{Branch\ n};\sandboxtag;\specificev{\sigma}}{\bm{\varepsilon}}
     }{sms-branch-auth}
     %
     \typerule{SMS-Binop-Authentic}{
     }{
-      \smstraceagree{\specificev{Binop\ n};\specificev{\sigma}}{\bm{\varepsilon}}
+      \smstraceagree{\specificev{Binop\ n};\sandboxtag;\specificev{\sigma}}{\bm{\varepsilon}}
     }{sms-binop-auth}
     %
     \typerule{SMS-Abort-Authentic}{
     }{
-      \smstraceagree{\specificev{\lightning};\specificev{\sigma}}{\bm{\lightning}}
+      \smstraceagree{\specificev{\lightning}}{\bm{\lightning}}
     }{sms-abort-auth}
+    %
+    \judgbox{\smstraceagree[^{*}]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{SMS-Refl-Authentic}{
     }{
@@ -751,49 +747,46 @@ As before, we need a way to translate one set of actions to another:
     }{
       \smstraceagree{\msevent \cdot \mstrace}{\absevent \cdot \abstrace}
     }{sms-trans-auth}
+    %
+    \typerule{SMS-Trans-Authentic-Lign}{
+      \smstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \smstraceagree[^*]{\specificev{\emptyevent}\cdot\mstrace}{\abstrace}
+    }{sms-trans-auth-lign}
+    %
+    \typerule{SMS-Trans-Authentic-Rign}{
+      \smstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \smstraceagree[^*]{\mstrace}{\bm{\emptyevent}\cdot\abstrace}
+    }{sms-trans-auth-rign}
   \end{center}
 }{sms-trace-agreement}{Trace Agreement.}
 
+\subsubsection{\gls*{ms} Monitor}
+
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ Store}~\msmonitor =&\ \tmsmonitor\times\smsmonitor \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \absevent_{\tmssafe}\times\absevent_{\smssafe}\\
+    \end{aligned}
+  \end{gather*}
+}{sms-monitor}{\gls{ms} Monitor.}
 
 \myfig{
   \begin{center}
-    \typerule{abstract-agree-empty}{
-    }{
-      \bm{\varepsilon} \prec \bm{\varepsilon}
-    }{aagree-empty}
-    %
-    \typerule{abstract-agree-abort}{
-    }{
-      \bm{\lightning} \prec \bm{\lightning}
-    }{aagree-abort}
-    %
-    \typerule{abstract-agree-dealloc}{
-    }{
-    \textbf{Dealloc}\ \specificev{\loc} \prec \textbf{Dealloc}\ \specificev{\loc}
-    }{aagree-dealloc}
-    %
-    \typerule{abstract-agree-alloc}{
-    }{
-    \textbf{Alloc}\ \specificev{\loc}\ \bm{n} \prec \textbf{Alloc}\ \specificev{\loc}
-    }{aagree-alloc}
-    %
-    \typerule{abstract-agree-use}{
-    }{
-    \textbf{Use}\ \specificev{\loc}\ \bm{n} \prec \textbf{Use}\ \specificev{\loc}
-    }{use-dealloc}
-    %
     \typerule{tms-sms-E}{
-      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absevent} &
-      \absevent\prec \absevent['] &
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absevent[']} &
-    T = \tmsmonitor\times\smsmonitor
+      \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absevent[_{\tmssafe}]} &
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absevent[_{\smssafe}]} \\
     }{
-      \monitorcheck[]{T}{T}{\absevent}
+      \monitorcheck[]{(\tmsmonitor;\smsmonitor)}{(\tmsmonitor['];\smsmonitor['])}{\absevent[_{tms}];\absevent[_{sms}]}
     }{tms-sms-empty}
     %
     \typerule{tms-sms-Refl}{
+      \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}} &
+      \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
     }{
-      \monitorcheck{T}{T}{\hole{\cdot}}
+      \monitorcheck{(\tmsmonitor;\smsmonitor)}{(\tmsmonitor;\smsmonitor)}{\hole{\cdot}}
     }{tms-sms-refl}
     %
     \typerule{tms-sms-Trans}{
@@ -804,6 +797,36 @@ As before, we need a way to translate one set of actions to another:
     }{tms-sms-trans}
   \end{center}
 }{tms-sms-step}{Steps of combined \gls{tms} + \gls{sms} Monitor.}
+\myfig{
+  \begin{center}
+    \judgbox{\mstraceagree[^{*}]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    %
+    \typerule{MS-Refl-Authentic}{
+    }{
+      \mstraceagree{\hole{\cdot}}{\hole{\cdot}}
+    }{ms-refl-auth}
+    %
+    \typerule{MS-Trans-Authentic}{
+      \mstraceagree{\msevent}{\absevent[_{\tmssafe}]} &
+      \mstraceagree{\msevent}{\absevent[_{\smssafe}]} &
+      \mstraceagree{\mstrace}{\abstrace}
+    }{
+      \mstraceagree{\msevent \cdot \mstrace}{(\absevent[_{\tmssafe}];\absevent[_{\smssafe}]) \cdot \abstrace}
+    }{ms-trans-auth}
+    %
+    \typerule{MS-Trans-Authentic-Lign}{
+      \mstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \mstraceagree[^*]{\specificev{\emptyevent}\cdot\mstrace}{\abstrace}
+    }{ms-trans-auth-lign}
+    %
+    \typerule{MS-Trans-Authentic-Rign}{
+      \mstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \mstraceagree[^*]{\mstrace}{\bm{\emptyevent}\cdot\abstrace}
+    }{ms-trans-auth-rign}
+  \end{center}
+}{ms-trace-agreement}{Trace Agreement.}
 
 
 We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
@@ -824,18 +847,18 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
   We define the property $\operatorname{tmsafe}$ as a conjunction of the following conditions for any given $\mstrace$:
   \begin{itemize}
-    \item $\specificev{Alloc\ \loc\ s};\specificev{\sigma}\le_{{\mstrace}}\specificev{Dealloc\ \loc};\specificev{\sigma}$
-    \item $\neg(\specificev{Use\ \loc\ n};\specificev{\sigma}\le_{{\mstrace}}\specificev{Alloc\ \loc\ s};\specificev{\sigma})$
-    \item $\neg(\specificev{Dealloc\ \loc};\specificev{\sigma}\le_{{\mstrace}}\specificev{Use\ \loc\ n};\specificev{\sigma})$
-    \item $\specificev{Alloc\ \loc\ s};\specificev{\sigma}\in_{!}\mstrace$
-    \item $\specificev{Dealloc\ \loc};\specificev{\sigma}\in_{!}\mstrace$
+    \item $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\le_{{\mstrace}}\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma'}$
+    \item $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\le_{{\mstrace}}\specificev{Use\ \loc\ s};\sandboxtag;\specificev{\sigma'}$
+    \item $\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\sigma}\le_{{\mstrace}}\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma'}$
+    \item $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\in_{!}\mstrace$
+    \item $\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma}\in_{!}\mstrace$
   \end{itemize}
 \end{definition}
 
 \begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
   We define the property $\operatorname{smsafe}$ as follows for any given $\mstrace$:
   \begin{itemize}
-    \item If $\specificev{Alloc\ \loc\ s};\specificev{\sigma}\in{\mstrace}$ and $\specificev{Use\ \loc\ n};\specificev{\sigma}\in{\mstrace}$, then ${n}<{s}$
+    \item If $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\in{\mstrace}$ and $\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\sigma}\in{\mstrace}$, then ${n}<{s}$
   \end{itemize}
 \end{definition}
 
@@ -875,10 +898,18 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
 \end{proof}
 
 \begin{definition}[Trace is spatial memory safe via monitor.]\label{def:src:trace:sms}
-  We say $\texttt{SMS}(\mstrace)$ iff $\exists \delta_{\text{sms}}\ \abstrace\ \smsmonitor$ such that:
+  We say $\texttt{SMS}(\mstrace)$ iff $\exists \abstrace\ \smsmonitor$ such that:
   \begin{itemize}
     \item $\smstraceagree{\mstrace}{\abstrace}$
     \item and $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
+  \end{itemize}
+\end{definition}
+
+\begin{definition}[Trace is memory safe via monitor.]\label{def:src:trace:ms}
+  We say $\texttt{MS}(\mstrace)$ iff $\exists \abstrace\ \msmonitor$ such that:
+  \begin{itemize}
+    \item $\mstraceagree{\mstrace}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\msmonitor}{\abstrace}$
   \end{itemize}
 \end{definition}
 
@@ -925,8 +956,8 @@ The underlying assumption the programmer does in any other language we've seen b
     \begin{aligned}
       \mi{Abstract\ Store}~\scctmonitor =&\ \emptyset \\
       \mi{Abstract\ Security\ Tag}~\bm{\sigma} \bnfdef&\ \lock \mid \unlock \\
-      \mi{Abstract\ Pre-Events}~\absevent_{b} \bnfdef&\ \textbf{Any} \mid \abstermination \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \absevent_{b};\bm{\sigma}
+      \mi{Abstract\ Pre-Events}~\absevent_{b} \bnfdef&\ \textbf{Any} \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \absevent_{b};\bm{\sigma} \mid \abstermination
     \end{aligned}
   \end{gather*}
 }{scct-monitor}{\gls{scct} Monitor.}
@@ -975,33 +1006,22 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     }{
       \specificev{\unlock}=\unlock
     }{insecure-eq}
-
+    %
     \judgbox{\sccttraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
-    \judgbox{\sccttraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{\sCCT-Public-Authentic}{
     }{
-      \sccttraceagree{\msevent[_b];\specificev{\unlock}}{\bm{\varepsilon}}
+      \sccttraceagree{\msevent[_b];\sandboxtag;\specificev{\unlock}}{\bm{\varepsilon}}
     }{scct-public-auth}
-    %
-    \typerule{\sCCT-Alloc-Authentic}{
-    }{
-      \sccttraceagree{\specificev{Alloc\ \loc\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
-    }{scct-alloc-auth}
-    %
-    \typerule{\sCCT-Dealloc-Authentic}{
-    }{
-      \sccttraceagree{\specificev{Dealloc\ \loc};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
-    }{scct-dealloc-auth}
     %
     \typerule{\sCCT-Use-Authentic}{
     }{
-      \sccttraceagree{\specificev{Use\ \loc\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
+      \sccttraceagree{\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-use-auth}
     %
     \typerule{\sCCT-Abort-Authentic}{
     }{
-      \sccttraceagree{\specificev{\lightning};\specificev{\lock}}{\bm{\lightning};\bm{\lock}}
+      \sccttraceagree{\specificev{\lightning}}{\bm{\lightning}}
     }{scct-abort-auth}
     %
     \typerule{\sCCT-None-Authentic}{
@@ -1011,13 +1031,15 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     %
     \typerule{\sCCT-Branch-Authentic}{
     }{
-      \sccttraceagree{\specificev{Branch\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
+      \sccttraceagree{\specificev{Branch\ n};\sandboxtag;\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-branch-auth}
     %
     \typerule{\sCCT-Binop-Authentic}{
     }{
-      \sccttraceagree{\specificev{Binop\ n};\specificev{\lock}}{\textbf{Any};\bm{\lock}}
+      \sccttraceagree{\specificev{Binop\ n};\sandboxtag;\specificev{\lock}}{\textbf{Any};\bm{\lock}}
     }{scct-binop-auth}
+    %
+    \judgbox{\sccttraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
     %
     \typerule{\sCCT-Refl-Authentic}{
     }{
@@ -1030,6 +1052,18 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     }{
       \sccttraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
     }{scct-trans-auth}
+    %
+    \typerule{MS-Trans-Authentic-Lign}{
+      \mstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \mstraceagree[^*]{\specificev{\emptyevent}\cdot\mstrace}{\abstrace}
+    }{ms-trans-auth-lign}
+    %
+    \typerule{MS-Trans-Authentic-Rign}{
+      \mstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \mstraceagree[^*]{\mstrace}{\bm{\emptyevent}\cdot\abstrace}
+    }{ms-trans-auth-rign}
   \end{center}
 }{scct-trace-agreement}{Trace Agreement.}
 
@@ -1141,9 +1175,6 @@ $\src{\library_{ctx}}$ takes the role as attacker code.
 We reason explicitly about substitutions in the dynamic semantics.
 
 \subsubsection{Static Semantics}
-\begin{definition}[NoOwnedPtr]
-  We write $\src{\noptr{\Gamma}}$ iff for any $\src{x}, \src{\type}$, if $\src{x} : \src{\type}\in\src{\Gamma}$, then $\types\not=\ptr$.
-\end{definition}
 \myfig{
   \begin{center}
     \judgbox{\vdash\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
@@ -1214,6 +1245,9 @@ The splitting of contexts takes care to propagate owned-pointers towards the end
 This way, no non-owned pointer occurs in the context after an owned one, where both have the same identifier.
 Note that non-owned pointers and values may be freely duplicated and that we can generate non-owned pointers if we have ownership.
 
+\begin{definition}[NoOwnedPtr]
+  We write $\src{\noptr{\Gamma}}$ iff for any $\src{x}, \src{\type}$, if $\src{x} : \src{\type}\in\src{\Gamma}$, then $\types\not=\ptr$.
+\end{definition}
 \myfig{
   \judgbox{\typechecks{\Gamma}{e}{\types}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\types$.''}
 
@@ -1511,12 +1545,15 @@ Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see 
 
 \subsubsection{Dynamic Semantics}
 
+The language trivially satisfies \gls{scct}.
+It does not satisfy \gls{sms}, as seen in \Thmref{thm:lms:notspatmemsafe}.
+
 \myfig{
   \begin{gather*}
   \begin{aligned}
-  \mi{Base\ Events}~\src{\event_{b}} \bnfdef&\ \src{Alloc\ \loc\ \valueexpr} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ \valueexpr} \mid \src{Set\ \loc\ \valueexpr\ \valueexpr'} \mid \src{\lightning} \\
+  \mi{Base\ Events}~\src{\event_{b}} \bnfdef&\ \src{Alloc\ \loc\ \valueexpr} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ \valueexpr} \mid \src{Set\ \loc\ \valueexpr\ \valueexpr'} \\
                                   & \mid \src{Call\ \comm\ foo\ \valueexpr} \mid \src{Ret\ \comm\ \valueexpr} \mid \src{Start} \mid \src{End\ \valueexpr}\\
-  \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{\event_{b};\sandboxtag}
+  \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{\event_{b};\sandboxtag} \mid \src{\lightning}
   \end{aligned}
   \end{gather*}
 }{w-events}{Events of $\mmlAs$.}
@@ -1900,7 +1937,7 @@ We also use it to project the call/return events onto it.
   $\rsat{\src{\library}}{smsafe}$
 \end{scontents}
 
-\realthm{thm:mmlAs:not:smssafe}{2}{$\mmlAs$ is not spatially memory safe}
+\realthm{thm:mmlAs:not:smssafe}{2}{$\mmlAs$ is not spatially memory safe}\label{thm:lms:notspatmemsafe}
 \begin{proof}
   We pick:
   $$\src{\library_{comp}} = \src{let\ foo\ x:\nat\to\nat:=let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w},\src{\hole{\cdot}}$$
@@ -2157,7 +2194,7 @@ We also use it to project the call/return events onto it.
 \begin{lemma}[\gls{tms}-$\src{\Delta}$-split]\label{lem:tms:store:split}
   If
   \begin{assumptions}
-    \item $\storeagreetms{\tmsmonitor}{\src{\Delta_{1},x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_{2}}}$
+    \item\label[ass]{asm:tms:store:split:as} $\storeagreetms{\tmsmonitor}{\src{\Delta_{1},x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_{2}}}$
   \end{assumptions}
   Then $\exists \tmsmonitor[_{1}]\ \tmsmonitor[_{2}]\ \specificev{\loc}$,
   \begin{goals}
@@ -2168,7 +2205,7 @@ We also use it to project the call/return events onto it.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Trivial.
+  Induction on \Cref{asm:tms:store:split:as}.
 \end{proof}
 
 
@@ -2311,9 +2348,9 @@ We also use it to project the call/return events onto it.
   \begin{assumptions}
     \item\label[ass]{asm:progress:typs} $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
   \end{assumptions}
-  Then
+  Then $\exists \src{\Omega'}\ \src{\finalexpr}\ \src{\trace}$,
   \begin{goals}
-  \item $\exists \src{\Omega'}\ \src{\finalexpr}\ \src{\trace}, \execs{\configs}{e}{\configs'}{\finalexpr}{\trace}$
+  \item $\execs{\configs}{e}{\configs'}{\finalexpr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
@@ -2616,7 +2653,7 @@ We also use it to project the call/return events onto it.
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{Use\ }\specificev{\loc}}$
         \item $\storeagreetms[\delta_{\text{MS}}]{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
       \end{goals}
-      All goals follow easy.
+      All goals follow easily.
 
     \case{tr:w-e-set-in}
     \case{tr:w-e-set-notin}
@@ -2651,7 +2688,7 @@ We also use it to project the call/return events onto it.
         \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{Use\ }\specificev{\loc}}$
         \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
       \end{goals}
-      All goals follow easy.
+      All goals follow easily.
   \end{description}
 \end{proof}
 
@@ -3093,8 +3130,9 @@ However, it does contain simple, non-nested pairs and dynamic type checks.
   }{tw-e-if-true}
   %
   \typerule{$e-\trg{ifz}-$false}{
+    \trg{n} \not= \trg{0}
   }{
-    \exprevalt{\configt}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\configt}{e_2}{\emptyevent}
+    \exprevalt{\configt}{ifz\ n\ then\ e_1\ else\ e_2}{\configt}{e_2}{\emptyevent}
   }{tw-e-if-false}
   %
   \typerule{$e-\trg{abort}$}{
@@ -5717,15 +5755,15 @@ For example, by adding the dynamic type check we prevent contexts from binding $
       \draw[thick,loosely dotted,Peach!50,rounded corners] ($(legend.north east)+(0.5,-0.4)$) -- ($(legend.north east)+(1,-0.4)$);
       \node at ($(legend.north east)+(1.5,-0.4)$) (legendwrapper) {};
       \node[right of=legendwrapper] {\tiny Backtranslation Wrapper};
-      \draw[thick,loosely dashed,Emerald!50,rounded corners] ($(legend.south east)+(0.5,0.4)$) -- ($(legend.south east)+(1,0.4)$);
-      \node at ($(legend.south east)+(1.5,0.4)$) (legendcorrectness) {};
+      \draw[thick,loosely dashed,Emerald!50,rounded corners] ($(legend.south east)+(0.5,0.2)$) -- ($(legend.south east)+(1,0.2)$);
+      \node at ($(legend.south east)+(1.5,0.2)$) (legendcorrectness) {};
       \node[right of=legendcorrectness] {\tiny Compiler Correctness};
     \end{tikzpicture}
   \end{center}
 }{rtmsp-sketch}{Sketch of the proof of \Thmref{thm:rtmsp}. %
   Arrows in the horizontal direction are the usual step relations, but the term is omitted for aesthetic purposes. %
   Likewise for the emitted target-level traces. %
-  Trace $\src{\trace[_1]}$ starts with $\src{Ret\ !0}$ and $\src{\trace[_2]}$ ends with $\src{Call\ ?\valueexpr}$, where $\src{\valueexpr}$ is the final result of the program. %
+  Trace $\src{\trace[_1]}$ starts with $\src{Start}$ and $\src{\trace[_2]}$ ends with $\src{End\ \valueexpr}$, where $\src{\valueexpr}$ is the final result of the program. %
   Target states $\trg{\Omega_1}$ and $\trg{\Omega_{w_1}}$ are exactly equal, so are $\trg{\Omega_p}$ and $\trg{\Omega_{w_2}}$. They are drawn for aesthetic purposes.}
 
 \clearpage
@@ -6351,7 +6389,7 @@ The syntax and semantics are entirely identical.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Proof is similar to \Cref{lem:generaltms:monitor}.
+  Proof is similar to \Thmref{lem:generaltms:monitor}.
 \end{proof}
 
 \begin{lemma}[Backward Simulation]\label{lem:sms:backwardsim}
@@ -6495,7 +6533,9 @@ The syntax and semantics are entirely identical.
     \setcounter{enumi}{3}
     \item\label[ass]{asm:rsmsp:twprog} $\wexec{\trg{prog\ \library_{ctx}\ \library_{comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
   \end{passumptions}
-  Apply \Cref{asm:rsmsp:srcsms} to our goal and conclude with \Cref{asm:rsmsp:twprog}.
+  Apply \Cref{asm:rsmsp:srcsms} to our goal.
+
+  Conclude with \Cref{asm:rsmsp:twprog}.
 \end{proof}
 
 \begin{scontents}[store-env=buffer]
@@ -6566,7 +6606,7 @@ The syntax and semantics are entirely identical.
   \mi{Final\ Result}\ \obj{\finalexprnoerr} \bnfdef&\ \obj{\valueexpr^{\sigma}} \mid \obj{x^{\sigma}} \hspace{0.5cm}
   \mi{May\ be\ a\ Result}\ \obj{\finalexpr} \bnfdef\ \obj{\finalexprnoerr} \mid \obj{stuck} \\
   %
-  \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{x[e]} \mid \obj{rddoit\ x\ in\ e} \mid \obj{wrdoit\ e} \\
+  \mi{Expressions}~\obj{e} \bnfdef&\ \obj{\finalexpr} \mid \obj{e_{1} \oplus e_{2}} \mid \obj{x[e]} \mid \obj{getDIT\ x\ in\ e} \mid \obj{setDIT\ e} \\
   & \mid \obj{let\ x = e_{1}\ in\ e_{2}} \mid \obj{x[e_{1}]\leftarrow e_{2}} \\
   & \mid \obj{let\ x = new\ e_{1}\ in\ e_{2}} \mid \obj{delete\ x} \\
   & \mid \obj{return\ e} \mid \obj{call\ foo\ e} \mid \obj{ifz\ e_{1}\ then\ e_{2}\ else\ e_{3}} \\
@@ -6584,7 +6624,7 @@ The syntax and semantics are entirely identical.
                      &\ \mid\obj{x[K]\leftarrow e}\mid \obj{x[v]\leftarrow K}\mid \obj{let\ x=new\ K\ in\ e} \\
                      &\ \mid\obj{ifz\ K\ then\ e_1\ else\ e_2} \mid \obj{call\ foo\ K}\mid \obj{return\ K} \\
                      &\ \mid\obj{\langle K, e\rangle} \mid \obj{\langle \valueexpr, K \rangle } \mid \obj{\pi_{1} K} \mid \obj{\pi_{2} K} \mid \obj{K\ has\ \type} \\
-                     &\ \mid\obj{ifz\ K\ then\ e_{1}\ else\ e_{2}} \mid \obj{wrdoit\ K} \\
+                     &\ \mid\obj{ifz\ K\ then\ e_{1}\ else\ e_{2}} \mid \obj{setDIT\ K} \\
   %
   \mi{Variables}~\ &\obj{x} \mid \obj{y} \mid \obj{foo} \mid \dots \hspace{0.5cm}
   %
@@ -6611,7 +6651,7 @@ The syntax and semantics are entirely identical.
   \end{gather*}
 }{mmlao-syntax}{Syntax of $\mmlAtscct$}
 
-The only difference between $\mmlAtms$ and $\mmlAtscct$ is that we have access to model specific registers by means of the $\obj{rddoit}$ and $\obj{wrdoit}$ instructions.
+The only difference between $\mmlAtms$ and $\mmlAtscct$ is that we have access to model specific registers by means of the $\obj{getDIT}$ and $\obj{setDIT}$ instructions.
 Thus, we also extend the dynamic state with a special purpose register representing a model specific register for a data operand independent timing mode).
 Whenever this flag is set, certain instructions will run in a ,,constant-time mode''.
 Usually, access to model specific registers requires privileged execution. Since we want to model the strongest possible attacker, we disregard privilege and, thus, grant contexts access to that variable.
@@ -6913,15 +6953,15 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \exprevalo{\Omega}{x^\sigma\ has\ \nat\times\nat}{\Omega}{1^\unlock}{\emptyevent}
   }{to-e-x-haspair}
   %
-  \typerule{$e-\obj{wrdoit\ n}$}{
+  \typerule{$e-\obj{setDIT\ n}$}{
   }{
-    \exprevalo{\cfstate;\sandboxtag;m;\memstate}{wrdoit\ n^\sigma}{\cfstate;\sandboxtag;n;\memstate}{n^\sigma}{\emptyevent}
-  }{to-e-wrdoit}
+    \exprevalo{\cfstate;\sandboxtag;m;\memstate}{setDIT\ n^\sigma}{\cfstate;\sandboxtag;n;\memstate}{n^\sigma}{\emptyevent}
+  }{to-e-setDIT}
   %
-  \typerule{$e-\obj{rddoit\ x\ in\ e}$}{
+  \typerule{$e-\obj{getDIT\ x\ in\ e}$}{
   }{
-    \exprevalo{\cfstate;\sandboxtag;n;\memstate}{rddoit\ x^\sigma\ in\ e}{\cfstate;\sandboxtag;n;\memstate}{e[n^\sigma/x]}{\emptyevent}
-  }{to-e-wrdoit}
+    \exprevalo{\cfstate;\sandboxtag;n;\memstate}{getDIT\ x^\sigma\ in\ e}{\cfstate;\sandboxtag;n;\memstate}{e[n^\sigma/x]}{\emptyevent}
+  }{to-e-setDIT}
 }{to-expr-eval-2}{Evaluation of $\mmlAo$ expressions, continued.}
 
 \myfig{
@@ -7718,7 +7758,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     $$
     \begin{array}{rll}
     \mmlAtmsmmlAtscctcomp{\finalexpr} &\ = & \obj{\finalexpr} \\
-    \mmlAtmsmmlAtscctcomp{call\ foo\ e} &\ = & \obj{call\ }\mmlAtmsmmlAtscctcomp{foo}\ \mmlAtmsmmlAtscctcomp{e}\\
+    \mmlAtmsmmlAtscctcomp{call\ foo\ e} &\ = & \obj{call\ }\mmlAtmsmmlAtscctcomp{foo}\ \mmlAtmsmmlAtscctcomp{e}\obj{;setDIT\ 1}\\
     \mmlAtmsmmlAtscctcomp{return\ e} &\ = & \obj{return\ }\mmlAtmsmmlAtscctcomp{e}\\
     \mmlAtmsmmlAtscctcomp{e_1\oplus e_2} &\ = & \mmlAtmsmmlAtscctcomp{e_1} \obj{\oplus} \mmlAtmsmmlAtscctcomp{e_2} \\
     \mmlAtmsmmlAtscctcomp{x[e]} &\ = & \obj{x[}\mmlAtmsmmlAtscctcomp{e}\obj{]} \\
@@ -7751,7 +7791,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     $$
     \begin{array}{rll}
     %
-      \mmlAtmsmmlAtscctcomp{let\ foo\ x := e}&\ = & \obj{let\ foo\ x := wrdoit\ 1;}\mmlAtmsmmlAtscctcomp{e}\\
+      \mmlAtmsmmlAtscctcomp{let\ foo\ x := e}&\ = & \obj{let\ foo\ x := setDIT\ 1;}\mmlAtmsmmlAtscctcomp{e}\\
     \end{array}
     $$
     \begin{gather*}

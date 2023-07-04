@@ -1517,6 +1517,19 @@ Proof.
     easy.
 Qed.
 
+Lemma link_determ (Ξ__ctx Ξ__comp Ξ0 Ξ1 : symbols) :
+  link Ξ__ctx Ξ__comp Ξ0 ->
+  link Ξ__ctx Ξ__comp Ξ1 ->
+  Ξ0 = Ξ1
+.
+Proof.
+  intros H0%linkf_equiv_link H1%linkf_equiv_link.
+  revert Ξ__comp Ξ0 Ξ1 H0 H1; induction Ξ__ctx; cbn in *; intros; inv H0. now inv H1.
+  crush_option (linkf Ξ__ctx Ξ__comp).
+  crush_option (List.find (fun x : vart => vareq x a) (dom x)).
+  inv H1.
+Qed.
+
 (** Static Environments. Value Contexts and Location Contexts *)
 Definition Gamma : Type := mapind varteq__Instance ty.
 Definition Delta : Type := list vart.
@@ -2539,9 +2552,15 @@ Inductive tms_store_agree : TMSMonAux.AbsState -> ptrstore -> Prop :=
                TMSMonAux.freed := TMSMonAux.freed T__TMS ;
             |} ->
     tms_store_agree T__TMS' (dK(ℓ ; t) ↦ dL(◻ ; n ; γ) ◘ Δ)
-| TMSPoisonAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (γ : vart) (T__TMS : TMSMonAux.AbsState) (Δ : ptrstore),
+| TMSPoisonAgree : forall (ℓ : loc) (t : ControlTag) (n : nat) (γ : vart) (T__TMS T__TMS' : TMSMonAux.AbsState) (Δ : ptrstore),
+    ~(List.In (ℓ,t) (TMSMonAux.alloced T__TMS)) ->
+    ~(List.In (ℓ,t) (TMSMonAux.freed T__TMS)) ->
+    T__TMS' = {|
+               TMSMonAux.alloced := TMSMonAux.alloced T__TMS ;
+               TMSMonAux.freed := List.app (TMSMonAux.freed T__TMS) (List.cons (ℓ,t) List.nil) ;
+            |} ->
     tms_store_agree T__TMS Δ ->
-    tms_store_agree T__TMS (dK(ℓ ; t) ↦ dL(☣ ; n ; γ) ◘ Δ)
+    tms_store_agree T__TMS' (dK(ℓ ; t) ↦ dL(☣ ; n ; γ) ◘ Δ)
 .
 Inductive tms_state_agree : TMSMonAux.AbsState -> state -> Prop :=
 | TMSStateAgree : forall (Ω : state) (T__TMS : TMSMonAux.AbsState),
@@ -2812,23 +2831,33 @@ Proof.
   - (*del*) inv Heqr1; inv Heqr2.
     inv Ac; assert (H1':=H1). cbn in H1; rewrite H0 in H1; destruct ℓ as [ℓ]; apply store_agree_split in H1; deex.
     destruct H1 as [H1a [H1b [H1c H1d]]].
-    inv Aa. inv H2. inv H1c; try inv H4.
+    inv Aa. inv H2. inv H1c; try (inv H12; exfalso; revert H4; clear; intros H; induction (TMSMonAux.freed T__TMS); easy).
     inv H13. cbn in *.
-    exists (Some(TMSMonAux.ADealloc (addr ℓ) t)). exists (TMSMonAux.append T__TMS1 T__TMS2).
-    repeat split; try constructor. econstructor. now cbn. ; now cbn. cbn. eapply store_agree_rsplit. easy.
-    econstructor. easy.
+    exists (Some(TMSMonAux.ADealloc (addr ℓ) t)). exists (TMSMonAux.append (TMSMonAux.append T__TMS1 T__TMS2) (TMSMonAux.freed_singleton (addr ℓ) t)).
+    repeat split; try constructor. econstructor.
+    clear; cbn; induction (TMSMonAux.alloced T__TMS1); cbn. now left. now right.
+    cbn. admit. (* ℓ is not in T__TMS1 and T__TMS2, since nodupinv *)
+    now cbn.
+    cbn. unfold TMSMonAux.append; cbn. rewrite List.app_nil_r. easy.
+    cbn. rewrite TMSMonAux.app_assoc. eapply store_agree_rsplit.
+    easy. econstructor; try exact H1b.
+    admit. admit. (*from nodupinv*)
+    unfold TMSMonAux.append; cbn. rewrite List.app_nil_r. easy.
   - (*get*) inv Heqr1; inv Heqr2.
     inv Ac; assert (H2':=H2). cbn in H2; rewrite H0 in H2; apply store_agree_split in H2; deex.
     destruct H2 as [H2a [H2b [H2c H2d]]].
-    inv Aa. inv H3. inv H2c; try inv H5. inv H18. cbn in *.
+    inv Aa. inv H3. inv H2c; try now (inv H17; exfalso; revert H5; clear; intros H; induction (TMSMonAux.freed T__TMS); easy).
+    inv H18. cbn in *.
     exists (Some(TMSMonAux.AUse (addr ℓ) t)). exists (TMSMonAux.append T__TMS1 (TMSMonAux.append (TMSMonAux.singleton (addr ℓ) t) T__TMS2)).
-    repeat split; try constructor; easy.
-  - (*set*) inv Heqr1; inv Heqr2. inv Aa. inv H3. inv H16. (* FIXME? this is kinda bad for runtime-type preservation isn't it *)
+    repeat split; try constructor; try easy.
+    clear; cbn; induction (TMSMonAux.alloced T__TMS1); cbn. now left. now right.
+    cbn. admit. (* ℓ is not in T__TMS1 and T__TMS2, since nodupinv *)
+  - (*set*) inv Heqr1; inv Heqr2. inv Aa. inv H3. (* similar to get *) admit.
   - (*unpack*) inv Heqr1; inv Heqr2. exists None. exists T__TMS. repeat split; try constructor.
     now inv Ac.
   - (*pack*) inv Heqr1; inv Heqr2. exists None. exists T__TMS. repeat split; try constructor.
     now inv Ac.
-Qed.
+Admitted.
 
 Lemma ctx_tms_via_monitor (Ω Ω' : state) (e e' : expr) (τ : ty) (a : option event)
                           (T__TMS : TMSMonAux.AbsState) :
@@ -2878,17 +2907,17 @@ Proof.
     eq_to_defeq (ptr_key_eqb). rewrite eq_refl in H6.
     assert (Some(dL(◻ ; n; γ)) = Some(dL(◻ ; n; γ))) by reflexivity.
     now specialize (H6 H2).
-  - inv H. inv H4. pose (Ω' := Ω <| SΦ := Ω.(SΦ) <| MΔ := Δ |> |>).
+  - inv H3. inv H8. pose (Ω' := Ω <| SΦ := Ω.(SΦ) <| MΔ := Δ |> |>).
     specialize (IHtms_store_agree Ω'). eapply IHtms_store_agree; eauto.
     instantiate (1:=v0). econstructor; eauto. shelve.
-    rewrite <- x in H0. inv H0. constructor; eauto.
+    inv H7. rewrite <- x in *. inv H3. constructor; eauto.
     Unshelve.
-    intros. cbn in H. rewrite <- x in *. inv H0. cbn in H3. eapply H3.
+    intros. cbn in H. rewrite <- x in *. inv H1. eapply H6; cbn.
     instantiate (1:=t0); instantiate(1:=l).
     destruct (eq_dec (dK(ℓ ; t)) (dK(l ; t0))).
-    + apply mget_min in H2. cbn in H2. apply Min_in in H2 as [H2a H2b]. inv H0. contradiction.
-    + apply neqb_neq in H0. eq_to_defeq ptr_key_eqb. rewrite H0. assumption.
-Qed.
+    + apply mget_min in H4. cbn in H4. apply Min_in in H4 as [H4a H4b]. inv H1. (* contradicts with ~(In (l,t0) T__TMs) using tms_store_agree *) admit.
+    + apply neqb_neq in H1. eq_to_defeq ptr_key_eqb. rewrite H1. assumption.
+Admitted.
 
 Lemma steps_tms_via_monitor (Ω Ω' : state) (e : expr) (v : value) (τ : ty) (As : tracepref)
                             (T__TMS : TMSMonAux.AbsState) :
@@ -2995,19 +3024,6 @@ Proof.
   rewrite Heqty__main.
   apply comm_gamma_from_symbols.
   apply noownedptr_split; split; apply symbols_noowned.
-Qed.
-
-Lemma link_determ (Ξ__ctx Ξ__comp Ξ0 Ξ1 : symbols) :
-  link Ξ__ctx Ξ__comp Ξ0 ->
-  link Ξ__ctx Ξ__comp Ξ1 ->
-  Ξ0 = Ξ1
-.
-Proof.
-  intros H0%linkf_equiv_link H1%linkf_equiv_link.
-  revert Ξ__comp Ξ0 Ξ1 H0 H1; induction Ξ__ctx; cbn in *; intros; inv H0. now inv H1.
-  crush_option (linkf Ξ__ctx0 Ξ__comp0).
-  crush_option (List.find (fun x : vart => vareq x a) (dom x)).
-  inv H1.
 Qed.
 
 Lemma strengthen_stms_goal Ω' As T__TMS :

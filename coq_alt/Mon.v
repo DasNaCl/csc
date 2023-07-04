@@ -131,9 +131,15 @@ Module TMSMonAux <: MonitorT.
     alloced := List.app T__TMS.(alloced) T__TMS'.(alloced) ;
     freed := List.app T__TMS.(freed) T__TMS'.(freed)
   |}.
+  Lemma app_assoc (l m n : AbsState) : append (append l m) n = append l (append m n).
+  Proof. Admitted.
   Definition singleton (ℓ : loc) (σ : ControlTag) := {|
     alloced := List.cons (ℓ, σ) nil ;
     freed := nil
+  |}.
+  Definition freed_singleton (ℓ : loc) (σ : ControlTag) := {|
+    alloced := nil ;
+    freed := List.cons (ℓ, σ) nil ;
   |}.
   Variant AbsEv_d : Type :=
   | AAbort
@@ -208,6 +214,7 @@ Module TMSMonAux <: MonitorT.
   Hint Unfold cong_e : core.
 End TMSMonAux.
 Module TMSMon := Monitor TMSMonAux.
+
 (** Spatial Memory Safety Monitor *)
 Module LocNatList <: ListBase.
   Definition A : Type := loc * nat.

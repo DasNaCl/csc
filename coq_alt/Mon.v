@@ -240,15 +240,15 @@ End LocNatList.
 Module LocNatListSets <: Sig := SetTheoryList (LocNatList).
 Definition LocNatListSet := LocNatListSets.set.
 Module SMSMonAux <: MonitorT.
-  Definition AbsState := LocNatListSet.
+  Definition AbsState := LocControlNatListSet.
   #[export]
   Hint Unfold AbsState : core.
   Definition EmptyState : AbsState := List.nil.
   Definition ValueState (_ : AbsState) := True.
   Variant AbsEv_d : Type :=
   | AAbort
-  | AAlloc (l : loc) (n : nat) (* TODO: add tag, since locations do not suffice to uniquely identify *)
-  | AUse (l : loc) (n : nat)
+  | AAlloc (l : loc) (t : ControlTag) (n : nat)
+  | AUse (l : loc) (t : ControlTag) (n : nat)
   .
   Definition AbsEv := AbsEv_d.
   #[export]
@@ -257,15 +257,15 @@ Module SMSMonAux <: MonitorT.
   Inductive MonCheck_i : AbsState -> option AbsEv -> AbsState -> Prop :=
   | sms_uninteresting (T : AbsState) : MonCheck_i T None T
   | sms_abort (T : AbsState) : MonCheck_i T (Some AAbort) T
-  | sms_use (T : AbsState) (l : loc) (n m : nat) :
-    List.In (l, m) T ->
+  | sms_use (T : AbsState) (l : loc) (t : ControlTag) (n m : nat) :
+    List.In (l, t, m) T ->
     NoDupList.undup (List.map (fun '(a,_b) => a) T) <> None ->
     n < m ->
-    MonCheck_i T (Some(AUse l n)) T
-  | sms_alloc (T T' : AbsState) (l : loc) (n : nat) :
-    (forall (m : nat), ~ LocNatListSets.el (l, m) T) ->
-    T' = (List.cons (l,n) T) ->
-    MonCheck_i T (Some(AAlloc l n)) T'
+    MonCheck_i T (Some(AUse l t n)) T
+  | sms_alloc (T T' : AbsState) (l : loc) (t : ControlTag) (n : nat) :
+    (forall (m : nat), ~ List.In (l, t, m) T) ->
+    T' = (List.cons (l, t, n) T) ->
+    MonCheck_i T (Some(AAlloc l t n)) T'
   .
   Definition MonCheck := MonCheck_i.
   #[export]
@@ -273,20 +273,20 @@ Module SMSMonAux <: MonitorT.
   Definition string_of_absev :=
     fun a => match a with
           | AAbort => "abs↯"%string
-          | AAlloc (addr _n) n => "absAlloc ℓ"%string
-          | AUse (addr _n) n => "absUse ℓ"%string
+          | AAlloc (addr _n) n t => "absAlloc ℓ"%string
+          | AUse (addr _n) n t => "absUse ℓ"%string
           end
   .
   Inductive cong_i : option Props.Event -> option AbsEv -> Prop :=
   | sms_alloc_authentic : forall l n t σ,
       cong_i (Some(Props.PreEv (Props.Alloc l n) t σ))
-             (Some(AAlloc l n))
+             (Some(AAlloc l t n))
   | sms_dealloc_authentic : forall l t σ,
       cong_i (Some(Props.PreEv (Props.Dealloc l) t σ))
              None
   | sms_use_authentic : forall l n t σ,
       cong_i (Some(Props.PreEv (Props.Use l n) t σ))
-             (Some(AUse l n))
+             (Some(AUse l t n))
   | sms_branch_authentic : forall n t σ,
       cong_i (Some(Props.PreEv (Props.Branch n) t σ))
              None
@@ -361,7 +361,7 @@ Module MSSCCTMon := Monitor MSSCCTMonAux.
 
 (** Suitable generalized versions of the trace properties. Just a technical proof artefact. *)
 Definition gsms (T__SMS : SMSMon.AbsState) : Props.prop :=
-  fun As => (forall l n m t t' σ σ', (before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As \/ (in_t (PreEv (Use l n) t' σ') As /\ List.In (l, m) T__SMS)) ->
+  fun As => (forall l n m t t' σ σ', (before (PreEv (Alloc l m) t σ) (PreEv (Use l n) t' σ') As \/ (in_t (PreEv (Use l n) t' σ') As /\ List.In (l, t, m) T__SMS)) ->
                               n < m)
 .
 (* we build up towards full blown temporal memory safety in small steps *)
@@ -824,8 +824,8 @@ Proof.
         inv H4. inv H4'. exists n4. exists n0. repeat split; try easy. lia.
       * now right. *)
 Admitted.
-Lemma SMSMon_step_use (T0 T1 : SMSMon.AbsState) l n :
-  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AUse l n)) T1 ->
+Lemma SMSMon_step_use (T0 T1 : SMSMon.AbsState) l t n :
+  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AUse l t n)) T1 ->
   T0 = T1
 .
 Proof. intros H; now inv H. Qed.
@@ -840,7 +840,7 @@ Lemma TMSMon_step_aborted (T0 T1 : TMSMon.AbsState) :
 .
 Proof. intros H; now inv H. Qed.
 Lemma SMSMon_step_alloc (T0 T1 : SMSMon.AbsState) l n t σ As :
-  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AAlloc l n)) T1 ->
+  @step SMSMon.MonInstance T0 (Some (SMSMonAux.AAlloc l t n)) T1 ->
   gsms T1 (As)%list ->
   gsms T0 (PreEv (Alloc l n) t σ :: As)%list
 .
@@ -853,7 +853,7 @@ Proof.
     inv H__before0. now exists n3.
     apply H0. inv Ha. easy. inv H__before0.
     left; exists n3; exists n1; repeat split; eauto. lia.
-  - specialize (H0 l0 n0 m t t' σ σ'). eapply H0. right; split; destruct Hb as [Ha Hb].
+  - specialize (H0 l0 n0 m t0 t' σ σ'). eapply H0. right; split; destruct Hb as [Ha Hb].
     inv Ha. inv H. exists n1; easy. apply List.in_cons. eassumption.
 Qed.
 Lemma TMSMon_step_use (T0 T1 : TMSMon.AbsState) l n t σ As :
@@ -881,7 +881,7 @@ Proof.
   destruct H0 as [Ha | [Hb Hc]].
   - unfold_before. inv Ha. inv H__before0. specialize (H l0 n m t0 t' σ0 σ'). eapply H. left.
     exists n2. exists n0. repeat split; auto; lia.
-  - specialize (H l0 n m t t' σ σ'). apply H. right.
+  - specialize (H l0 n m t0 t' σ σ'). apply H. right.
     unfold in_t in Hb; deex. inv Hb. split; trivial. exists n1; auto.
 Qed.
 Lemma TMSMon_step_dealloc (T0 T1 : TMSMon.AbsState) l t σ As :
@@ -974,28 +974,28 @@ Proof.
         destruct n__y. inv H__a''. inv H__a'. contradiction.
       * destruct H__a as [n__x [n__y [H__a [H__a' H__a'']]]]. destruct n__x; try easy. destruct n__y; try easy.
         inv H__a. inv H__a'. eapply IHcong. left. exists n__x. exists n__y. repeat split; eauto. lia.
-    + inv H__b. destruct (eq_dec (PreEv (Use l n) t σ) (PreEv (Use l0 n0) t' σ')).
+    + inv H__b. destruct (eq_dec (PreEv (Use l n) t σ) (PreEv (Use l0 n0) t0 σ0)).
       * inv H3. inv H1. enough (m = m0); subst; try assumption.
-        revert H__c H5 H7; clear; intros H0 H1 H2.
+        revert H__c H7 H9; clear; intros H0 H1 H2.
         apply not_eq_None_Some in H2 as [locs Hx].
         apply NoDupList.undup_refl in Hx as Hy; subst.
         apply NoDupList.nodupinv_equiv_undup in Hx.
         induction T1; cbn in *. easy.
-        destruct a as [l1 m1].
+        destruct a as [[l1 t1] m1].
         inv Hx. destruct H0, H1.
         -- inv H; inv H0. reflexivity.
         -- inv H. exfalso; apply H3. revert H0; clear; intros H0.
-           induction T1; cbn in *; try easy; destruct a as [l1 m1].
+           induction T1; cbn in *; try easy; destruct a as [[l1 t1] m1].
            destruct H0. inv H. now left.
            right; auto.
         -- inv H0. exfalso; apply H3. revert H; clear; intros H.
-           induction T1; cbn in *; try easy; destruct a as [l1 m1].
+           induction T1; cbn in *; try easy; destruct a as [[l1 t1] m1].
            destruct H. inv H. now left.
            right; eauto.
         -- eauto.
-      * inv H. contradiction. specialize (IHcong l0 n0 m t t' σ σ'). apply IHcong; right; split; eauto.
+      * inv H. admit. specialize (IHcong l0 n0 m t0 t' σ σ'). apply IHcong; right; split; eauto.
         exists n1. assumption.
-Qed.
+Admitted.
 Lemma SMSMon_is_SMS As :
   SMSMon.sat As ->
   Props.sms As

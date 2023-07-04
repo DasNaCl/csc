@@ -58,6 +58,7 @@
 
 \begin{document}
 \tableofcontents
+\printglossaries
 \clearpage
 
 \section{Preliminaries}
@@ -193,7 +194,6 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   \forall\Pi\in\cC,\forall\src{p}\in\src{\partials},\rsat{\src{p}}{\Pi}\implies\rsat{\stcomp{\src{p}}}{\Pi}
   $$
   We write $\rtp{\stcomp{\bullet}}{\cC}$.
-  In case we write $\rtp{\stcomp{\bullet}}{\collapse{\cC}}$, substitute the $\cC$ in above definition with $\left\{ \collapse{\cC} \right\}$.
 \end{definition}
 
 \begin{definition}[Sequential Composition of Compilers]
@@ -374,7 +374,7 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
 \end{proof}
 
 \begin{lemma}[Swappable]\label{lem:swappable}
-  Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{1}\cap\cC_{2}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
+  Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{2}\cap\cC_{1}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \begin{proof}
   Both follow from \Thmref{lem:seqcompo}.
@@ -427,148 +427,60 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
   Since the k-product construction soundly embeds $k-RSHP$ properties into $\cSafety$, the claim follows.
 \end{proof}
 
-
-\begin{definition}[Instrumentation]\label{def:instrumentation}
-  A source code instrumentation done by a compiler takes a program in language $\T$ and emits an altered version of the same program in $\T$ such that it does not go wrong for some class of security relevant (hyper-)properties.
-  Formally, given a $\cC$ a compiler $\ttcomp{\bullet}$ is an instrumentation for $\cC$ iff:
-
-  $$
-  \forall \trg{p}\in\trg{\partials}, \rsat{\ttcomp{p}}{\cC}
-  $$
-
-  We write $\instr{\ttcomp{\bullet}}{\cC}$.
-\end{definition}
-% S -> I and I -> T
-% I -> T preserves memory safety
-
-
-% enrich pipeline from source to target to see how to do the preservation from source in intermediate/target lang
-
-\begin{definition}[Secure Instrumentation with Respect to $\cC$]\label{def:secure-instrumentation}
-  A secure instrumentation with respect to some class $\cC$ ensures (hyper-)properties described by some class $\cC'$ without violating $\cC$-satisfying programs. We write $\sinstr{\ttcomp{\bullet}}{\cC}{\cC'}$.
-  Thus, a compiler $\ttcomp{\bullet}$ is a secure instrumentation for $\cC'$ respecting $\cC$ iff:
-
-  $$
-  \rtp{\ttcomp{\bullet}}{\cC}\text{ and } \instr{\ttcomp{\bullet}}{\cC'}
-  $$
-
-\end{definition}
-
-\begin{lemma}[Sequential Composition with a Secure Instrumentation]\label{lem:seqcompsecinstr}
-  Given compilers $\sicomp{\bullet}$, $\itcomp{\bullet}$ and classes $\cC_{0},\cC_{1}$ such that
-  \begin{assumptions}
-  \item\label[ass]{lem:seqcompsecinstr:ass:a} $\rtp{\sicomp{\bullet}}{\cC_{0}}$
-  \item\label[ass]{lem:seqcompsecinstr:ass:b} $\sinstr{\itcomp{\bullet}}{\cC_{1}}{\cC_{0}}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-  \item\label[goal]{lem:seqcompsecinstr:goal:i} $\rtp{\sitcomp{\bullet}}{\cC_{0}\cup\cC_{1}}$
-  \end{goals}
-\end{lemma}
-
-%\begin{definition}[No-v* Classes]
-%  Let $\nvOne$ denote the singleton-class such that no SPECTRE v1 attack can happen.
-%  Analgously, define $\nvFour$ as a singleton-class that disallows SPECTRE v4 attacks and $\nvOneFour$ as the class that disallows both v1 and v4 attacks, i.e. $\nvOneFour=\nvOne\cap\nvFour$.
-%\end{definition}
-
-% \begin{example}
-%   Consider a compiler $\ttcomp{\bullet}_{1}$ such that $\sinstr{\ttcomp{\bullet}_{1}}{\nvOne}{\nvFour}$ and, similarily,
-%   $\ttcomp{\bullet}_{4}$ such that $\sinstr{\ttcomp{\bullet}_{4}}{\nvFour}{\nvOne}$.
-
-%   \begin{lemma}\label{lem:vOnevFourSafe}
-%     Using above compilers, we now show that $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$.
-%   \end{lemma}
-%   \begin{proof}
-%     By \Cref{lem:seqcompo} we get two goals, $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ and $\rtp{\ttcomp{\bullet}_{4}}{\nvOneFour}$.
-
-%     Since both cases are symmetrical, we only consider $\rtp{\ttcomp{\bullet}_{1}}{\nvOneFour}$ now.
-
-%     Unfolding the definition of the goal, suppose there is a $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, while our new goal is $\rsat{\ttcomp{p}_{1}}{\Pi}$.
-
-%     Strengthen the goal so that we need to show $\rsat{\ttcomp{p}_{1}}{\Pi}\wedge\Pi\in\nvOneFour$. Now, apply \Cref{def:secure-instrumentation}, so the only things left to show are $\Pi\in\nvOne$ and $\rsat{\trg{p}}{\Pi}$.
-%     Both follow easily from our assumptions.
-%   \end{proof}
-%   \begin{lemma}
-%     $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOneFour}$
-%   \end{lemma}
-%   \begin{proof}
-%     By \Cref{lem:vOnevFourSafe} and \Cref{lem:swappable}.
-%   \end{proof}
-
-%   We now consider what happens if one of the two instrumentations is not secure with respect to the respective other class.
-%   However, we focus on the case where the v1-instrumentation is insecure with respect to v4, due to symmetry.
-
-%   \begin{lemma}
-%     $\rtp{\ttcompN{\ttcomp{\bullet}_{1}}_{4}}{\nvOneFour}$
-%   \end{lemma}
-%   \begin{proof}
-%     Note that $\ttcomp{p}_{1}$ is a secure $\T$ program with respect to SPECTRE v1 attacks, given any $\trg{p}\in\trg{\partials}$.
-
-%     Unfolding, let $\Pi\in\nvOneFour$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, our goal changes to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}$.
-
-%     Strengthen what we want to prove to $\rsat{\ttcompN{\ttcomp{\trg{p}}_{1}}_{4}}{\Pi}\wedge\Pi\in\nvOneFour$.
-%     Apply \Cref{def:secure-instrumentation}, giving us proof-obligations that are already part of our assumptions.
-%   \end{proof}
-
-%   \begin{lemma}
-%     $\rtp{\ttcompN{\ttcomp{\bullet}_{4}}_{1}}{\nvOne}$
-%   \end{lemma}
-%   \begin{proof}
-%     Let $\trg{p}=\ttcomp{p'}_{4}$ be some program that is the result of plugging $\trg{p'}\in\trg{\partials}$ into $\ttcomp{\bullet}_{4}$.
-
-%     Our goal becomes $\rtp{\ttcomp{p}_{1}}{\nvOne}$. Unfolding it, let $\Pi\in\nvOne$ and $\trg{p}\in\trg{\partials}$ such that $\rsat{\trg{p}}{\Pi}$, where what is left to prove is $\rsat{\ttcomp{p}_{1}}{\nvOne}$.
-
-%     The goal follows immediately by \Cref{def:instrumentation}, since $\ttcomp{p}_{1}$ is an instrumentation for $\nvOne$.
-%   \end{proof}
-
-%   Finally, if both are insecure instrumentations, the strongest result one can get is either the robust preservation of $\nvOne$ or $\nvFour$, depending on which compiler is run last.
-% \end{example}
-
-We have seen that we can already swap robust compilers with same input and output language in a compilation pipeline.
-Now, we want to formalize this idea of ``being able to swap things around'' for source code instrumentations.
-
-\begin{definition}[Swappable Instrumentations]
-  We define vertical compositionality as follows.
-  Let $\bar{\cC}$ be a set of classes that are eventually used in the compilation pipeline.
-  Given a class $\cC\in\bar{\cC}$ the particular instrumentation $\ttcomp{\bullet}$ ensures any program to robustly satisfy, we can swap the instrumentation in the pipeline \textit{freely} around iff:
-
-  $$
-  \forall\cC'\in\bar{\cC}. \sinstr{\ttcomp{\bullet}}{\cC}{\cC'}
-  $$
-\end{definition}
-\MK{it'd be nice to have a property-free version of this, since this here is TEDIOUS to prove in real-world}
-
 \section{Case Study}
+
+\phantom{
+\gls{tms},
+\gls{sms},
+\gls{ms},
+\gls{dce},
+\gls{cf}, and
+\gls{scct}.}
 
 \myfig{
   \begin{center}
-    \begin{tikzpicture}[state/.style={minimum height=0.6cm}]
-      \node (mmlAs) {$\mmlAs$};
-      \node[right=1 of mmlAs] (mmlAt) {$\mmlAt$};
-      \node[right=1 of mmlAt] (mmlAtmemsafe) {$\mmlAt$};
-      \node[below=1 of mmlAtmemsafe] (asm) {$\ctASM$};%{$\nospecASM$};
+    \begin{tikzpicture}
+      \node (S) {$\src{L_{\tmssafe}}$};
+      \node[right=1.5 of S] (T) {$\trg{L}$};
+      \node[right=1.5 of T] (M) {$\irl{L_{\mssafe}}$};
+      \node[below right=0.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
+      \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
+      \node[right=3.0 of M] (E) {$\irl{L_{\mssafe}}$};
+      \node[right=1.5 of E] (O) {$\obj{L_{\scctsafe}}$};
 
-      \path[->,very thick] (mmlAs) edge[sloped,above] node {TMS} (mmlAt);
-      \path[->,dotted,very thick] (mmlAt) edge[sloped,above] node {SMS} (mmlAtmemsafe);
-      \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=15] node {MS} (mmlAtmemsafe);
-      \path[->,very thick] (mmlAtmemsafe) edge[sloped,above] node {\footnotesize \sCCT+MS} (asm);
-      \path[->,dashed,very thick] (mmlAs) edge[sloped,below,bend right=33] node {\sCCT+MS} (asm);
+      \draw[->] (S) to[sloped,above] node[align=center,font=\scriptsize] (tmsedge) {\gls{tms}} (T);
+      \draw[->] (T) to[sloped,above] node[align=center,font=\scriptsize] {\gls{sms}} (M);
+      \draw[->] (M) to[sloped,below] node[align=center,font=\scriptsize] {\gls{dce}} (D0);
+      \draw[->] (M) to[sloped,above] node[align=center,font=\scriptsize] {\gls{cf}} (C0);
+      \draw[->] (D0) to[sloped,below] node[align=center,font=\scriptsize] {\gls{cf}} (E);
+      \draw[->] (C0) to[sloped,above] node[align=center,font=\scriptsize] {\gls{dce}} (E);
+      \draw[->] (E) to[sloped,above] node[align=center,font=\scriptsize] {\gls{scct}} (O);
 
+      % Sections
+%     \node[above=1.0 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
+%     \node[right=0.5 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
+%     \node[right=1.75 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
+%     \node[right=1.75 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
 
-      \node[draw=none,right=3 of mmlAt] (legend0) {};
-      \node[draw=none,right=1 of legend0] (legend1) {RTP};
-      \path[->,very thick] (legend0) edge node{} (legend1);
+      \draw[thick,dotted,->] (S) to[bend right=33,sloped,above] node[align=center,font=\scriptsize] {\gls{ms}} (M);
+      \draw[thick,dotted,->] (M) to[bend right=0,sloped,above] node[align=center,font=\scriptsize] {\gls{ms}} (E);
+      \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped,above] node[align=center,font=\scriptsize] {\gls{ms}+\gls{scct}} (O);
 
-      \node[draw=none,below=0.5 of legend0] (legend2) {};
-      \node[draw=none,right=1 of legend2] (legend3) {SENF};
-      \path[->,dotted,very thick] (legend2) edge node{} (legend3);
-
-      \node[draw=none,below=0.5 of legend2] (legend4) {};
-      \node[draw=none,right=1 of legend4] (legend5) {Composition};
-      \path[->,dashed,very thick] (legend4) edge node{} (legend5);
+%     \draw[dashed] ($(sectms)-(0.8,0)$) -- ($(sectms)-(0.8,1.25)$);
+%     \draw[dashed] ($(sectms)-(-0.9,0)$) -- ($(sectms)-(-0.9,1.25)$);
+%     \draw[dashed] ($(secsms)-(-1.2,0)$) -- ($(secsms)-(-1.2,1.25)$);
+%     \draw[dashed] ($(secscct)-(1.2,0)$) -- ($(secscct)-(1.2,1.25)$);
+%     \draw[dashed] ($(secscct)-(-1.1,0)$) -- ($(secscct)-(-1.1,1.25)$);
     \end{tikzpicture}
   \end{center}
-}{outline-sketch}{Compilation Pipeline}
+}{outline-sketch}{Compilation Pipeline with
+\gls{tms},
+\gls{sms},
+\gls{ms},
+\gls{dce},
+\gls{cf}, and
+\gls{scct}.
+}
 
 
 \subsection{Specification Language}
@@ -578,9 +490,10 @@ We introduce a set of actions that allows us to describe properties abstractly i
 \myfig{
   \begin{gather*}
   \begin{aligned}
-    \mi{Security\ Tag}~\specificev{\sigma} \bnfdef&\ \specificev{\lock} \mid \specificev{\unlock} \\
-    \mi{Pre-Events}~\msevent_{b} \bnfdef&\ \specificev{\emptyevent}\mid \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{\lightning} |\ \specificev{Branch\ n} \mid \specificev{Binop\ n} \\
-    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{\msevent_{b}};\specificev{\sigma} \\
+    \mi{Control\ Tag}~\sandboxtag\bnfdef&\ \ctx \mid \comp \hspace{0.5cm}
+    \mi{Security\ Tag}~\specificev{\sigma} \bnfdef\ \specificev{\lock} \mid \specificev{\unlock} \\
+    \mi{Pre\text{--}Events}~\msevent_{b} \bnfdef&\ \specificev{Alloc\ \loc\ n} \mid \specificev{Dealloc\ \loc} \mid \specificev{Use\ \loc\ n} \mid \specificev{Branch\ n} \mid \specificev{Binop\ n} \\
+    \mi{Events}~\msevent \bnfdef&\ \specificev{\emptyevent}\mid \specificev{\lightning} \mid \specificev{\msevent_{b}};\sandboxtag;\specificev{\sigma} \\
   \end{aligned}
   \end{gather*}
 }{w-specific-events}{Specification Events.}
@@ -592,12 +505,12 @@ In order to just talk about temporal memory safety, we introduce a monitor that 
   \begin{gather*}
     \begin{aligned}
       \mi{Abstract\ Store}~\tmsmonitor =&\{A : \specificev{L}, F : \specificev{L}\} \\
-      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \specificev{\loc} \mid \textbf{Dealloc}\ \specificev{\loc} \mid \textbf{Use}\ \specificev{\loc} \mid \abstermination\\[0.3cm]
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \textbf{Alloc}\ \specificev{\loc}\ \sandboxtag \mid \textbf{Dealloc}\ \specificev{\loc}\ \sandboxtag \mid \textbf{Use}\ \specificev{\loc}\ \sandboxtag \mid \abstermination\\[0.3cm]
       \tmsmonitor\subseteq_F \tmsmonitor['] &\text{ iff } \tmsmonitor[.F] \subseteq \tmsmonitor['.F]\\
-      \absevent\in \tmsmonitor['] &\text{ iff } \absevent \in {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
-      \absevent\notin \tmsmonitor['] &\text{ iff } \absevent \notin {\tmsmonitor['.A]} \wedge \absevent \notin {\tmsmonitor['.F]}\\
-      \{\specificev{\loc}\}\cup \tmsmonitor &= \{A : \{\specificev{\loc}\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
-      \tmsmonitor\setminus\{\specificev{\loc}\} &= \{A : \tmsmonitor[.A]\setminus\{\specificev{\loc}\}, F : \tmsmonitor[.F]\cup\left\{\specificev{\loc}\right\}\}\\
+      \absevent\in \tmsmonitor &\text{ iff } \absevent \in {\tmsmonitor[.A]} \wedge \absevent \notin {\tmsmonitor[.F]}\\
+      \absevent\notin \tmsmonitor &\text{ iff } \absevent \notin {\tmsmonitor[.A]} \wedge \absevent \notin {\tmsmonitor[.F]}\\
+      \{(\specificev{\loc};\sandboxtag)\}\cup \tmsmonitor &= \{A : \{(\specificev{\loc};\sandboxtag)\}\cup \tmsmonitor[.A], F : \tmsmonitor[.F]\}\\
+      \tmsmonitor\setminus\{(\specificev{\loc};\sandboxtag)\} &= \{A : \tmsmonitor[.A]\setminus\{(\specificev{\loc};\sandboxtag)\}, F : \tmsmonitor[.F]\cup\left\{(\specificev{\loc};\sandboxtag)\right\}\}\\
       \tmsmonitor\cup \tmsmonitor' &= \{A : \tmsmonitor[.A]\cup \tmsmonitor['.A], F : \tmsmonitor[.F]\cup \tmsmonitor['.F]\}\\
     \end{aligned}
   \end{gather*}
@@ -616,30 +529,31 @@ As before, when doing structural induction over primitive steps (\Cref{fig:w-exp
     %
     \typerule{TMS-Abort}{
     }{
-      \monitorcheck[]{\tmsmonitor}{\emptyset}{\bm{\lightning}}
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{\lightning}}
     }{tms-abort}
     %
     \typerule{TMS-Use}{
-      \specificev{\loc}\in \tmsmonitor
+      (\specificev{\loc};\sandboxtag)\in \tmsmonitor
     }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \specificev{\loc}}
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\textbf{Use}\ \specificev{\loc}\ \sandboxtag}
     }{tms-use}
     %
     \typerule{TMS-Alloc}{
-      \tmsmonitor[']=\left\{\specificev{\loc}\right\}\cup\tmsmonitor&
-      \specificev{\loc}\notin \tmsmonitor
+      \tmsmonitor[']=\left\{(\specificev{\loc};\sandboxtag)\right\}\cup\tmsmonitor&
+      (\specificev{\loc};\sandboxtag)\notin \tmsmonitor
     }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}}
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Alloc}\ \specificev{\loc}\ \sandboxtag}
     }{tms-alloc}
     %
     \typerule{TMS-Dealloc}{
-      \specificev{\loc}\in \tmsmonitor &
-      \tmsmonitor[']=\tmsmonitor\setminus\left\{\specificev{\loc}\right\}
+      (\specificev{\loc};\sandboxtag)\in \tmsmonitor &
+      \tmsmonitor[']=\tmsmonitor\setminus\left\{(\specificev{\loc};\sandboxtag)\right\}
     }{
-      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}
+      \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}\ \sandboxtag}
     }{tms-dealloc}
     %
     \typerule{TMS-Refl}{
+      \tmsmonitor[.A]=\emptyset
     }{
       \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}}
     }{tms-refl}
@@ -666,22 +580,22 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{TMS-Alloc-Authentic}{
     }{
-      \tmstraceagree{\specificev{Alloc\ \loc\ n};\specificev{\sigma}}{\textbf{Alloc}\ \specificev{\loc}}
+      \tmstraceagree{\specificev{Alloc\ \loc\ n};\sandboxtag;\specificev{\sigma}}{\textbf{Alloc}\ \specificev{\loc}\ \sandboxtag}
     }{tms-alloc-auth}
     %
     \typerule{TMS-Dealloc-Authentic}{
     }{
-      \tmstraceagree{\specificev{Dealloc\ \loc};\specificev{\sigma}}{\textbf{Dealloc}\ \specificev{\loc}}
+      \tmstraceagree{\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma}}{\textbf{Dealloc}\ \specificev{\loc}\ \sandboxtag}
     }{tms-dealloc-auth}
     %
     \typerule{TMS-Use-Authentic}{
     }{
-      \tmstraceagree{\specificev{Use\ \loc\ n};\specificev{\sigma}}{\textbf{Use}\ \specificev{\loc}}
+      \tmstraceagree{\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\sigma}}{\textbf{Use}\ \specificev{\loc}\ \sandboxtag}
     }{tms-use-auth}
     %
     \typerule{TMS-Abort-Authentic}{
     }{
-      \tmstraceagree{\specificev{\lightning};\specificev{\sigma}}{\bm{\lightning}}
+      \tmstraceagree{\specificev{\lightning}}{\bm{\lightning}}
     }{tms-abort-auth}
     %
     \typerule{TMS-None-Authentic}{
@@ -691,12 +605,12 @@ As before, we need a way to translate one set of actions to another:
     %
     \typerule{TMS-Branch-Authentic}{
     }{
-      \tmstraceagree{\specificev{Branch\ n};\specificev{\sigma}}{\bm{\varepsilon}}
+      \tmstraceagree{\specificev{Branch\ n};\sandboxtag;\specificev{\sigma}}{\bm{\varepsilon}}
     }{tms-branch-auth}
     %
     \typerule{TMS-Binop-Authentic}{
     }{
-      \tmstraceagree{\specificev{Binop\ n};\specificev{\sigma}}{\bm{\varepsilon}}
+      \tmstraceagree{\specificev{Binop\ n};\sandboxtag;\specificev{\sigma}}{\bm{\varepsilon}}
     }{tms-binop-auth}
     %
     \typerule{TMS-Refl-Authentic}{
@@ -710,6 +624,18 @@ As before, we need a way to translate one set of actions to another:
     }{
       \tmstraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
     }{tms-trans-auth}
+    %
+    \typerule{TMS-Trans-Authentic-Lign}{
+      \tmstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \tmstraceagree[^*]{\specificev{\emptyevent}\cdot\mstrace}{\abstrace}
+    }{tms-trans-auth-lign}
+    %
+    \typerule{TMS-Trans-Authentic-Rign}{
+      \tmstraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \tmstraceagree[^*]{\mstrace}{\bm{\emptyevent}\cdot\abstrace}
+    }{tms-trans-auth-rign}
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
 

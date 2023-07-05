@@ -257,17 +257,11 @@ int strncpy(int n, int *x, int *y) {
 
 \BrText{Solution}{
 % keyword: pass
-\MPin{
-	commands missing
-}
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as temporal and spatial memory safety into general memory safety, and cryptographic constant time.
 Then, this paper defines several secure compiler passes, where each is either preserving a different security property (e.g., temporal or spatial memory safety) or performing a security-preserving optimisation, (e.g., applying constant-folding or dead-code elimination).
 % keyword- end to end, composition
-Finally, this paper shows how to compose these secure compiler passes into a multi-pass compilation chain which can be proven to provide end-to-end preservation of general memory safety and cryptographic constant time.
-\MKin{
-  ,,can be proven'' -> is proven (?)
-}
+Finally, this paper shows how to compose these secure compiler passes into a multi-pass compilation chain which is proven to provide end-to-end preservation of general memory safety and cryptographic constant time.
 Crucially, this end-to-end security preservation is obtained by having each compilation pass (i) preserve a sub-part of the overall security property individually and then (ii) compose each preserved security property as dictated by the framework of this paper.
 The results showcase how the framework allows the kind of formal security reasoning that compiler writers already want (and do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
 \MPin{
@@ -339,40 +333,43 @@ and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:con
 
 
 \section{Background\pages{1}}\label{sec:background}
-\Cref{subsec:bg:tprop} introduces trace properties, monitors, and property satisfaction.
-\Cref{subsec:bg:rtp} extends the property satisfaction with robustness and shows its compiler-driven preservation, as presented in~\cite{abate2019jour}.
+To reason about security, this section makes the concepts of properties and the satisfaction thereof precise (\Cref{subsec:bg:tprop}).
+Furthermore, the section introduces robustness in the context of both satisfaction and secure compilers (\Cref{subsec:bg:rtp}) in similar fashion to existing work~\cite{abate2019jour}.
 
-\subsection{Trace-Based Properties, Programming Languages, and Property Satisfaction}\label{subsec:bg:tprop}
+\subsection{Properties, Satisfaction, and Robustness}\label{subsec:bg:tprop}
 
-\emph{Events} $\event$ are an abstract representation of observable actions a program can do during its execution.
-Typically, one always has an empty observation $\emptyevent$ used to represent unimportant actions.
-A sequence of events $\trace$ is a \emph{trace}.
-So, throughout the paper, $\overline{\cdot}$ is used to mark meta-variables as sequences.
-Empty sequences are denoted with $\hole{\cdot}$ and concatenation of traces $\trace[_{1}],\trace[_{2}]$ is written as $\trace[_{1}]\cdot\trace[_{2}]$.
-For sake of brevity, this notation also used for pre- and appending events to traces.
+The intuition behind security is that nothing bad happens.
+Properties ($\pi$) make this intuition formally precise, however, they rely on a trace model.
+{\em Traces} ($\trace$) are (possibly infinite) sequences of {\em events} ($\event$), which are an abstract representation of observable actions.
+The empty event ($\emptyevent$) is an uboservable or unimportant action.
+Throughout the paper, empty sequences are denoted with $\hole{\cdot}$ and concatenation of sequences $\trace[_{1}],\trace[_{2}]$ with $\trace[_{1}]\cdot\trace[_{2}]$.
+This notation also used for prepending events to traces, i.e., $\event\cdot\trace$.
 
-A trace-based property $\pi$ is a set of admissable traces.
-For a trace to be admissable, a predicate evaluates to true whenever $\trace\in\pi$.
-Classes of properties $\class$, commonly referred to as hyperproperties in literature, are sets of properties.
-The \emph{lifting} of a property $\pi$ is simply its powerset and denoted as $\lift{\pi}$.
-To define property satisfaction it is integral to first look at programming languages.
+A property $\pi$ is a set of admissable traces and $\pi$ is a security property if a finite prefix of a trace $\trace$ is enough to decide wether $\trace\in\pi$ or $\trace\notin\pi$.
+For example, given the trace $\ev{Send\ 1}\cdot\ev{Recv\ 1}\cdot\ev{Send\ 2}\cdot\dots$ and the property $\pi=\left\{\trace \mid \trace=\hole{\cdot} \text{ or } \trace=\ev{Send\ n}\cdot\ev{Recv\ 2n}\cdot\trace[']\wedge \trace[']\in\pi\right\}$, the prefix $\ev{Send\ 1}\cdot\ev{Recv\ 1}$ immediately violates $\pi$.
+The set of security properties is one of many classes of properties ($\class$).
+Note that existing literature refers to classes of properties as hyperproperties~\cite{clarkson2008hyper}.
+The framework developed in this paper relies on {\em liftings} ($\lift{\pi}$), which are simply the powerset of a property $\pi$ and thus also considered as a class.
+This framework is concerned about the secure compilation of programs that admit properties.
 
-For languages used in this paper, a small-step style semantics is used.
-That is, there is a step relation between states $\runtimetermvar$ and an event $\event$: $\stepto[]{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\event}$.
-Also, a program's syntax $p$ is encoded in the state $\runtimetermvar$ which is written as $p\in\runtimetermvar$.
-For states $\runtimetermvar$, it is assumed that there exists a judgement $\isval{\runtimetermvar}$ that determines wether $\runtimetermvar$ is a final state or not.
-Another assumption is the existence of a generic star-step relation $\stepto{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$, essentially modelling a big-step style evaluation, and the existence of an $n$-step relation $\stepton{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$ that evaluates a program for $n$ steps.
-Both relations filter $\varepsilon$ events.
+Programs ($\runtimetermvar$) without free variables are considered {\em whole}.
+Contrary, they are {\em partial} if they contain variables without an accompanying definition.
+Whole programs can be run with the multi-step relation $\stepto{\runtimetermvar}{\runtimetermvar[']}{\trace}$ and yield a trace $\trace$.
+Moreover, the paper assumes for such executions that $\runtimetermvar[']$ is {\em final}, decided by the judgement $\isval{\runtimetermvar}$.\MK{define final?}
+Partial programs cannot be executed, since execution would get stuck when reaching an undefined variable.
+The paper also uses other step-relations, such as a single-step ($\stepto[]{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\event}$) and an $n$-step relation ($\stepton{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$) that performs $n$ single-steps.
+Note that the multi-step relation presented earlier is defined as-standard using the single-step, where the reflexive case makes use of $\isval{\runtimetermvar}$.
+All multi-step relations filter $\emptyevent$ events.
 
-The \emph{behavior} of a whole program $w$ ($\behav{w}$) is a set containing all traces the program may emit during execution.
-Note that for deterministic languages, $\behav{w}$ is a singleton set for any $w$.
+The {\em behavior} of a whole program $\runtimetermvar$ ($\behav{\runtimetermvar}$) is a set containing all traces the program may emit during execution.
+%This paper only considers deterministic languages, where the behavior $\behav{\runtimetermvar}$ is a singleton set for any whole $\runtimetermvar$.
 The behavior of programs gives rise to the definition of satisfaction:
 
-\begin{definition}[Property Satisfaction]\label{def:propsat}
-  A \emph{whole} program $w$ satisfies $\pi$ ($\sat{w}{\pi}$) iff $\behav{w}\in\lift{\pi}$.
-\end{definition}
+%\begin{definition}[Property Satisfaction]\label{def:propsat}
+%  A whole program $\runtimetermvar$ satisfies $\pi$ ($\sat{\runtimetermvar}{\pi}$) iff $\behav{\runtimetermvar}\in\lift{\pi}$.
+%\end{definition}
 \begin{definition}[Class Satisfaction]\label{def:classsat}
-  A \emph{whole} program $w$ satisfies $\class$ ($\sat{w}{\class}$) iff $\behav{w}\in\class$.
+  A whole program $\runtimetermvar$ satisfies $\class$ ($\sat{\runtimetermvar}{\class}$) iff $\behav{\runtimetermvar}\in\class$.
 \end{definition}
 
 \subsection{Attacker Model and Robust Trace-Property Preservation}\label{subsec:bg:rtp}

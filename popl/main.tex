@@ -352,10 +352,11 @@ Note that existing literature refers to classes of properties as hyperproperties
 The framework developed in this paper relies on {\em liftings} ($\lift{\pi}$), which are simply the powerset of a property $\pi$ and thus also considered as a class.
 This framework is concerned about the secure compilation of programs that admit properties.
 
-Programs ($\runtimetermvar$) without free variables are considered {\em whole}.
+A program ($\runtimetermvar$) is a tuple consisting of some dynamic state ($\statevar$) and a syntactic description ($\progvar$).
+Programs without free variables are considered {\em whole}.
 Contrary, they are {\em partial} if they contain variables without an accompanying definition.
 Whole programs can be run with the multi-step relation $\stepto{\runtimetermvar}{\runtimetermvar[']}{\trace}$ and yield a trace $\trace$.
-Moreover, the paper assumes for such executions that $\runtimetermvar[']$ is {\em final}, decided by the judgement $\isval{\runtimetermvar}$.\MK{define final?}
+Moreover, the paper assumes for such executions that $\runtimetermvar[']$ is {\em final}, decided by the judgement $\isval{\runtimetermvar}$.
 Partial programs cannot be executed, since execution would get stuck when reaching an undefined variable.
 The paper also uses other step-relations, such as a single-step ($\stepto[]{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\event}$) and an $n$-step relation ($\stepton{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$) that performs $n$ single-steps.
 Note that the multi-step relation presented earlier is defined as-standard using the single-step, where the reflexive case makes use of $\isval{\runtimetermvar}$.
@@ -363,43 +364,39 @@ All multi-step relations filter $\emptyevent$ events.
 
 The {\em behavior} of a whole program $\runtimetermvar$ ($\behav{\runtimetermvar}$) is a set containing all traces the program may emit during execution.
 %This paper only considers deterministic languages, where the behavior $\behav{\runtimetermvar}$ is a singleton set for any whole $\runtimetermvar$.
-The behavior of programs gives rise to the definition of satisfaction:
+Finally, the satisfaction of a class (or lifted property) is defined as follows:
 
-%\begin{definition}[Property Satisfaction]\label{def:propsat}
-%  A whole program $\runtimetermvar$ satisfies $\pi$ ($\sat{\runtimetermvar}{\pi}$) iff $\behav{\runtimetermvar}\in\lift{\pi}$.
-%\end{definition}
-\begin{definition}[Class Satisfaction]\label{def:classsat}
-  A whole program $\runtimetermvar$ satisfies $\class$ ($\sat{\runtimetermvar}{\class}$) iff $\behav{\runtimetermvar}\in\class$.
+\begin{definition}[Satisfaction]\label{def:propsat}
+  A whole program $\runtimetermvar$ satisfies $\pi$ ($\sat{\runtimetermvar}{\pi}$) iff $\behav{\runtimetermvar}\in\pi$.
 \end{definition}
 
-\subsection{Attacker Model and Robust Trace-Property Preservation}\label{subsec:bg:rtp}
+As described earlier, partial programs cannot be executed, because they lack definitions and, thus, get stuck.
+{\em Linking} ($\link{\progvar[_{1}]}{\progvar[_{2}]}$) syntactic descriptions $\progvar[_{1}],\progvar[_{2}]$ can give rise to a whole program.
+Note that linking is not defined on programs, but merely on their syntactic descriptions, since programs contain dynamic state.
+However, for convenience, linking of programs $\runtimetermvar[_{1}],\runtimetermvar[_{2}]$ shall be defined if both $\runtimetermvar[_{1}]$ and $\runtimetermvar[_{2}]$ have an initial dynamic state.
+As typically done in a secure compilation context~\cite{abate2019jour}, this paper also assumes that programs are the result of linking a {\em context} ($\ctx$) and a {\em component} ($\comp$), which are just any syntactic description.
+The component part of a whole program is the main object of interest and thus a known syntactic description.
+In contrast, the context is usually arbitrary and thus has the role of an active {\em attacker} that can interact with the component by means of whatever features the programming language has.
+The following definition extends on \Thmref{def:propsat} to cover {\em robustness} and exploits this interaction between the context and the component:
 
-Partial programs cannot be executed, because they lack definitions for some symbols.
-Providing definitions for symbols is usually the job of the \emph{linker}.
-Notationally, linking two programs $\progvar[_{1}],\progvar[_{2}]$ is written $\link{\progvar[_{1}]}{\progvar[_{2}]}$.
-For sake of simplicity, linking does not fail.
-With linking, it is possible to define robust satisfaction analogously to \Cref{def:propsat,def:classsat}:
-
-\begin{definition}[Robust Property Satisfaction]\label{def:proprsat}
-  A program $\progvar$ robustly satisfies $\pi$ ($\rsat{\progvar}{\pi}$) iff for any program $\contextvar$ it holds that $\sat{\link{\contextvar}{\progvar}}{\pi}$. (similarily for $\rsat{\progvar}{\class}$)
+\begin{definition}[Robust Satisfaction]\label{def:proprsat}
+  A program $\runtimetermvar$ robustly satisfies $\pi$ ($\rsat{\runtimetermvar}{\pi}$) iff for any partial program $\contextvar$ it holds that $\sat{\link{\contextvar}{\runtimetermvar}}{\pi}$.
 \end{definition}
 
-Robust satisfaction gives rise to a maximally powerful attacker model: Any other partial program, here referred to as context $\contextvar$, is the attacker.
-So, for example, if the programming language of $\progvar$ and $\contextvar$ allows guessing of memory addresses, then $\contextvar$ is able to read and write any position in memory and therefore guess the location of secrets.
+\subsection{Secure Compilers}\label{subsec:bg:rtp}
 
-It is expected that compilers preserve robust satisfaction.
-In this paper, compilers are modelled as function from one programming language's syntax to the other.
-Notationally, $\cc{\src{L}}{\trg{L}}$ denotes a compiler from $\src{L}$ to $\trg{L}$ and the paper refers to $\src{L}$ as \emph{source} language and to $\trg{L}$ as \emph{target} language.
-Now, define the compiler-property robust trace-property preservation.
+A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
+The syntactic description of programs written in $\src{L}$ is denoted as $\src{\progvar}$, while for ones written in $\trg{L}$ this paper writes $\trg{\progvar}$.
+It is considered good if this translation is semantics-preserving, i.e., correct.
+Correct compilers may still be insecure compilers.
+Programs translated by insecure compilers may violate security properties that were assumed to hold, given the presence of a context--level program.
+So, ideally, a compiler is secure~\cite{abate2019jour} in the sense of the following definition:
 
-\begin{definition}[Robust Trace-Property Preservation]\label{def:rtp}
-  A compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves a class of properties $\class$ ($\rtp{\cc{\src{L}}{\trg{L}}}{\class}$) iff for any property $\pi\in\class$ and $\src{p}$ written in $\src{L}$, given $\rsat{\src{\progvar}}{\pi}$, then $\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$.
+\begin{definition}[Robust Preservation]\label{def:rtp}
+  A compiler $\cc{\src{L}}{\trg{L}}$ robustly--preserves a class of properties $\class$ ($\rtp{\cc{\src{L}}{\trg{L}}}{\class}$) iff for any property $\pi\in\class$ and component $\src{p}$ such that $\rsat{\src{\progvar}}{\pi}$, it holds that $\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$.
 \end{definition}
 
-Note that in the conclusion of \Cref{def:rtp} there is a target-level context.
-So, programs that robustly satisfy a property are hardened against a maximally malicious environment with respect to the power of the target language.
-
-\section{Composing Properties\pages{3}}\label{sec:compprop}
+\section{Example Properties and their Monitors\pages{3}}\label{sec:compprop}
 \Cref{subsec:propdefs} introduces a ,,most general'' trace model and defines properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{cct}) that the case study (\Cref{sec:casestud}) uses.
 By means of taking these properties as an example, \Cref{subsec:monitors} defines monitors for them and an agreement relation between a monitor's trace model with the most general trace model.
 Then, monitor-based satisfaction is introduced and it is proven that trace-property satisfaction is implied by it.

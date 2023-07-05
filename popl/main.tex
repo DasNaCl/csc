@@ -53,7 +53,10 @@
 \usepackage{xspace}
 \usepackage{xfrac}
 \usepackage{tikz}
+\usepackage{soul}
 \usepackage{bm}
+
+\setul{0.5ex}{0.3ex}
 
 % https://tex.stackexchange.com/questions/648845/sans-serif-uppercase-greek-no-longer-showing-in-acmart
 \DeclareMathAlphabet{\mathsf}{OT1}{LibertinusSans-LF}{m}{n}
@@ -332,13 +335,6 @@ and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:con
 \contribution{Open Source \& Technical Report} A technical report and the Coq formalisation are available as supplementary material.\MKin{cite/link}
 
 
-
-
-
-
-
-
-
 \section{Background: Security Properties and Secure Compilers\pages{1}}\label{sec:background}
 
 To introduce the security argument of this paper, this section first presents the concepts of (security) properties, of their satisfaction, and of their robust satisfaction (i.e., satisfaction in the presence of an active attacker; \Cref{subsec:bg:tprop}).
@@ -346,41 +342,42 @@ Then, borrowing from existing work~\cite{abate2019jour,abate2021extacc,patrignan
 
 \subsection{Properties and (Robust) Satisfaction}\label{subsec:bg:tprop}
 
-% The intuition behind security is that nothing bad happens.
-% \MPin{
-% 	no: that is safety
-% }
 This paper employs the security model where programs are written in a language whose semantics emits events $\event$.
 Events include security--relevant actions (e.g., reading from and writing to memory) and the unobservable event $\emptyevent$.
-As programs executes, their emitted events are concatenated in traces ($\trace$), which serve as the description of the behaviour of a program.%
+As programs execute, their emitted events are concatenated in traces $\trace$, which serve as the description of the behaviour of a program.%
 \footnote{
 Throughout the paper, we denote empty sequences with $\hole{\cdot}$ and concatenate sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
 Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
 }
 
-Properties ($\pi$) are sets of traces of admissible program behaviours, ascribing what said property considers valid.\MP{ cit }
-
-
-
+Properties $\pi$ are sets of traces of admissible program behaviours, ascribing what said property considers valid.\MP{ cit }
+%
 % make this intuition formally precise, however, they rely on a trace model.
 % {\em Traces} ($\trace$) are (possibly infinite) sequences of {\em events} ($\event$).
 % Events are an abstract representation of observable actions, in this paper
 % The empty event ($\emptyevent$) is an unobservable (or unimportant) action.
 % A property $\pi$ is a set of admissable traces and 
-Properties and partitioned in the subsets of safety and liveness\MP{cit}, and given their central role for security, this paper focusses on safety properties.
-Given a safety property, a finite prefix of a longer trace $\trace$ is enough to decide whether a trace is admitted or not by the property. % $\trace\in\pi$ or $\trace\notin\pi$.
-For example, given the trace $\ev{Send\ 1}\cdot\ev{Recv\ 1}\cdot\ev{Send\ 2}\cdot\dots$ and the property $\pi=\left\{\trace \mid \trace=\hole{\cdot} \text{ or } \trace=\ev{Send\ n}\cdot\ev{Recv\ 2n}\cdot\trace[']\wedge \trace[']\in\pi\right\}$, the prefix $\ev{Send\ 1}\cdot\ev{Recv\ 1}$ immediately violates $\pi$.
-\MP{mention send and recv before already. replace with read/write to contextualise to memory?}
-
+%Properties and partitioned in the subsets of safety and liveness\MP{cit}, and given their central role for security, this paper focusses on safety properties.
+The set of all properties can be partitioned into different {\em classes} ($\class$), i.e., safety, liveness, and neither safety or liveness.\MP{cit}
+Given the central role for security, this paper focusses on safety properties.
+Note that there are other classes $\class$ that contain more domain-specific properties, such as the class of memory safety properties.
+For the class of safety properties, it is decidable wether a trace admits such a property with just a finite trace prefix.
+As an example, consider a trace that starts with an interaction with memory where a deallocation precedes a read: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$
+This program behaviour is insecure, because it reads from a memory location that was freed already.
+The finite trace prefix $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}$ is enough to decide that the trace does not satisfy the property ,,no use after dealloc'' and there is no way to append events to this prefix which would result in the trace being admissible.
+%Given a safety property, a finite prefix of a longer trace $\trace$ is enough to decide whether a trace is admitted or not by the property.
+%For example, given the trace $\ev{Send\ 1}\cdot\ev{Recv\ 1}\cdot\ev{Send\ 2}\cdot\dots$ and the property $\pi=\left\{\trace \mid \trace=\hole{\cdot} \text{ or } \trace=\ev{Send\ n}\cdot\ev{Recv\ 2n}\cdot\trace[']\wedge \trace[']\in\pi\right\}$, the prefix $\ev{Send\ 1}\cdot\ev{Recv\ 1}$ immediately violates $\pi$.
+%\MP{mention send and recv before already. replace with read/write to contextualise to memory?}
+%
 % The set of security properties is one of many classes of properties ($\class$).
 % Note that existing literature refers to classes of properties as hyperproperties~\cite{clarkson2008hyper}.
 % The framework developed in this paper relies on {\em liftings} ($\lift{\pi}$), which are simply the powerset of a property $\pi$ and thus also considered as a class.
 % This framework is concerned about the secure compilation of programs that admit properties.
-\MPin{
-	this par does not flow.
-	what is the point?
-}
-
+%\MPin{
+%	this par does not flow.
+%	what is the point?
+%}
+%
 % A program ($\runtimetermvar$) is a tuple consisting of some dynamic state ($\statevar$) and a syntactic description ($\progvar$).
 % Programs without free variables are considered {\em whole}.
 % Contrary, they are {\em partial} if they contain variables without an accompanying definition.
@@ -390,74 +387,60 @@ For example, given the trace $\ev{Send\ 1}\cdot\ev{Recv\ 1}\cdot\ev{Send\ 2}\cdo
 % The paper also uses other step-relations, such as a single-step ($\stepto[]{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\event}$) and an $n$-step relation ($\stepton{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$) that performs $n$ single-steps.
 % Note that the multi-step relation presented earlier is defined as-standard using the single-step, where the reflexive case makes use of $\isval{\runtimetermvar}$.
 % All multi-step relations filter $\emptyevent$ events.
-\MPin{
-	all unnecessary.
-	unused notation, not needed for sec2, for sec3 and for sec 4.
-	also i don't agree with what a program is.
-}
+%\MPin{
+%	all unnecessary.
+%	unused notation, not needed for sec2, for sec3 and for sec 4.
+%	also i don't agree with what a program is.
+%}
 
-Given a whole program $\runtimetermvar$, i.e., \MP{ fill in}, the {\em behaviour} of a whole program $\runtimetermvar$ ($\behav{\runtimetermvar}$) is the set containing all traces the program can emit during execution according to its language semantics.
+%Given a whole program $\progvar$, i.e., a program without free variables, the {\em behaviour} ($\behav{\progvar}$) is the set containing all traces the program can emit during execution according to its language semantics.
 %This paper only considers deterministic languages, where the behavior $\behav{\runtimetermvar}$ is a singleton set for any whole $\runtimetermvar$.
-This set is used to define property satisfaction (\Cref{def:propsat}):
+%This set is used to define property satisfaction (\Cref{def:propsat}):
+\bul{Programs $\progvar$ satisfy a property $\pi$} iff \iul{$\progvar$ yields a trace $\trace$} such that \oul{$\trace$ is admissible with respect to $\pi$}.
 
-\begin{definition}[Satisfaction]\label{def:propsat}
-  A whole program $\runtimetermvar$ satisfies $\pi$ ($\sat{\runtimetermvar}{\pi}$) iff $\behav{\runtimetermvar}\in\pi$.
+\begin{definition}[Property Satisfaction]\label{def:propsat}
+  $\progvar$ satisfies $\pi$, \bul{$\sat{\progvar}{\pi}$}, iff \iul{running $\progvar$ gives $\trace$} where \oul{$\trace\in\pi$}.
 \end{definition}
-\MPin{
-	this definition has 1/2 explained in text, 1/2 in formalism.
-}
-\MP{
-	can't we use p for programs?
-}
 
-As described earlier, partial programs cannot be executed \MP{not true anymore, need to define the notion of partial programs} , because they lack definitions and, thus, get stuck.
-{\em Linking} ($\link{\progvar[_{1}]}{\progvar[_{2}]}$) syntactic descriptions $\progvar[_{1}],\progvar[_{2}]$ can give rise to a whole program.
-Note that linking is not defined on programs, but merely on their syntactic descriptions, since programs contain dynamic state.\MP{ not terminology i really want to use, nor is defined}
-However, for convenience, linking of programs $\runtimetermvar[_{1}],\runtimetermvar[_{2}]$ shall be defined if both $\runtimetermvar[_{1}]$ and $\runtimetermvar[_{2}]$ have an initial dynamic state.
-As typically done in a secure compilation context~\cite{abate2019jour}, \MP{others do this too, parametricity results e.g.} this paper also assumes that programs are the result of linking a {\em context} ($\ctx$) and a {\em component} ($\comp$), which are just any syntactic description.
-\MP{just introduce the notion of contexts}
-The component part of a whole program is the main object of interest and thus a known syntactic description.
-In contrast, the context is usually arbitrary and thus has the role of an active {\em attacker} that can interact with the component by means of whatever features the programming language has.
-\MP{and say the semantics is expected (passive, hah) to differentiate between prg and ctx}
-The following extends on \Thmref{def:propsat} to cover {\em robustness} and exploits this interaction between the context and the component:
-\MPin{missing: the context is an attacker! now, unlike before, we security property satisfaction with a clear active attacker}
+Given a partial program $\progvar$, i.e., a program with free variables, the execution of $\progvar$ would get stuck due to the lack of definitions.
+%As described earlier, partial programs cannot be executed \MP{not true anymore, need to define the notion of partial programs} , because they lack definitions and, thus, get stuck.
+To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a new whole program $\link{\progvar[_{1}]}{\progvar[_{2}]}$.
+%Note that linking is not defined on programs, but merely on their syntactic descriptions, since programs contain dynamic state.\MP{ not terminology i really want to use, nor is defined}
+As typically done in secure compilation~\cite{abate2019jour}, \MP{others do this too, parametricity results e.g.} this paper assumes that programs are the result of linking a {\em context} ($\ctx$) and a {\em component} ($\comp$).
+% \MP{just introduce the notion of contexts}
+%       MK: why only contexts?
+%The component part of a whole program is the main object of interest and thus a known syntactic description.
+The context is usually arbitrary\footnote{Up to, e.g., provoking link failure.} and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
+The semantics of the programming language is expected to differentiate between the component and the context.
+%\MP{and say the semantics is expected (passive, hah) to differentiate between prg and ctx}
+%%                                         -> why passive?
+So, the context interacts in some way with the component and this interaction models an attacker.
+With this, \Thmref{def:propsat} can be extended as follows.
+For \bul{programs $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker $\contextvar$ and link it with $\progvar$}, \oul{the result of which must satisfy $\pi$}.
+%The following definition extends on \Thmref{def:propsat} to cover property satisfaction under the presence of an (active, with respect to the semantics of the programming language) attacker: %, which is known as {\em robust satisfaction}:
+%\MPin{missing: the context is an attacker! now, unlike before, we security property satisfaction with a clear active attacker}
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
-  A program $\runtimetermvar$ robustly satisfies $\pi$ ($\rsat{\runtimetermvar}{\pi}$) iff for any partial program $\contextvar$ it holds that $\sat{\link{\contextvar}{\runtimetermvar}}{\pi}$.
+  $\progvar$ robustly satisfies $\pi$, \bul{$\rsat{\progvar}{\pi}$}, iff for \iul{any partial program $\contextvar$} it holds that \oul{$\sat{\link{\contextvar}{\runtimetermvar}}{\pi}$}.
 \end{definition}
-
-\MPin{
-	classes?
-	% 
-}
-Classes of properties can be used to state whether a compiler is correct, or even secure so now we turn to the definition of (secure) compilers.
 
 \subsection{Secure Compilers}\label{subsec:bg:rtp}
 
-A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.\MP{good sentence}
-For the syntactic description of programs written in $\src{L}$, this paper writes $\src{\progvar}$, while for ones written in $\trg{L}$, this paper writes $\trg{\progvar}$.\MP{not a fan of this sentence}
-It is considered good if this translation is semantics-preserving, i.e., correct. \MP{passive}
-Correct compilers may still be insecure compilers\MK{citation needed}.
-Programs translated by insecure compilers may violate security properties that were assumed to hold, given the presence of a context--level program.
-So, ideally, a compiler is secure~\cite{abate2019jour} in the sense of the following definition:
-\MPin{does not really flow.
-% 
-start with compilers (as now),
-then: for a compiler to be correct we expect ... ... (no def)
-then: for a compiler to be secure we use the robust compilation framework of ... that says ... ... def
-}
+A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
+%For the syntactic description of programs written in $\src{L}$, this paper writes $\src{\progvar}$, while for ones written in $\trg{L}$, this paper writes $\trg{\progvar}$.%\MP{not a fan of this sentence}
+%This paper writes $\src{\progvar}$ and $\trg{\progvar}$ for programs written in $\src{L}$ and $\trg{L}$, respectively.
+%      MK: I don't think we need to mention this at all
+This translation is considered {\em correct} if it is semantics--preserving.
+%That is, the compiler encodes any possible $\src{L}$--level feature in $\trg{L}$, such that the semantics are the same.
+Unfortunately, correct compilers may be insecure compilers\MK{citation needed}.
+Programs translated by insecure compilers can violate security properties that the programmer assumes to hold. %, given the presence of a context--level program.
+For a compiler to be secure, this paper makes use of the robust compilation framework~\cite{abate2019jour}, which we summarize in the following definition.
+For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, consider \rul{properties $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} such that \iul{the program $\src{\progvar}$ robustly satisfies $\pi$}.
+Then, \oul{$\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, the compiled version of $\src{\progvar}$, must robustly satisfy $\pi$}.
 
 \begin{definition}[Robust Preservation]\label{def:rtp}
-  A compiler $\cc{\src{L}}{\trg{L}}$ robustly--preserves a class of properties $\class$ ($\rtp{\cc{\src{L}}{\trg{L}}}{\class}$) iff for any property $\pi\in\class$ and component $\src{p}$ such that $\rsat{\src{\progvar}}{\pi}$, it holds that $\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$.
+  Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}, iff \rul{for any $\pi\in\class$ and $\src{p}$} such that \iul{$\rsat{\src{\progvar}}{\pi}$}, it holds that \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
 \end{definition}
-
-\MPin{
-	again, hybrid definition.
-	keep one version.
-	i suggest: text outside (typically before the def, in the text leading to it), formalism inside
-}
-
-
 
 
 

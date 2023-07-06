@@ -682,22 +682,22 @@ Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
 Proof.
   intros H; cbv in H; dependent induction H; try easy; intros.
   - (* e_alloc *)
-    inv H3; cbn in *. eapply push_ok in H1 as H1'; unfold push in H1.
-    crush_undup ({| dL := addr(List.length (getH Φ t)); dt := t |} ↦ {| dρ := ◻; dn := n; dx := γ |} ◘ MΔ Φ).
-    inv H1; clear Hx. constructor; eauto. cbn. rewrite Htgrow_Δ_passthrough.
-    inv H1'. now constructor.
-  - (* e_del *) inv H1. inv H2. cbn in *; clear H3. rewrite H0 in *. constructor; cbn in *; auto.
-    revert H4; clear; intros. induction Δ1; cbn in *.
-    + inv H4; now constructor.
-    + inv H4. specialize (IHΔ1 H3). constructor; try easy.
-      revert H1; clear; intros H1. induction Δ1; cbn in *; try easy.
+    inv H3; cbn in *; eapply push_ok in H1 as H1'; unfold push in H1;
+    crush_undup ({| dL := addr(List.length (getH Φ t)); dt := t |} ↦ {| dρ := ◻; dn := n; dx := γ |} ◘ MΔ Φ);
+    inv H1; clear Hx; constructor; eauto; cbn; rewrite Htgrow_Δ_passthrough;
+    inv H1'; now constructor.
+  - (* e_del *) inv H1; inv H2; cbn in *; clear H3; rewrite H0 in *; constructor; cbn in *; auto;
+    revert H4; clear; intros; induction Δ1; cbn in *; inv H4.
+    + now constructor.
+    + specialize (IHΔ1 H3); constructor; try easy;
+      revert H1; clear; intros H1; induction Δ1; cbn in *; try easy;
       destruct (eq_dec a0 a).
-      * subst. exfalso; apply H1; now left.
-      * intros [H2|H2]; try contradiction.
+      * subst; exfalso; apply H1; now left.
+      * intros [H2|H2]; try contradiction;
         apply IHΔ1; auto.
-  - (* e_set *) inv H3. cbn in *; rewrite H0 in *. constructor; auto.
-    cbn. change (Util.nodupinv (MΔ (setH (Φ <| MΔ := MΔ Φ |>) t H'))).
-    rewrite setH_Δ_passthrough, H0. easy.
+  - (* e_set *) inv H3; cbn in *; rewrite H0 in *; constructor; auto;
+    cbn; change (Util.nodupinv (MΔ (setH (Φ <| MΔ := MΔ Φ |>) t H')));
+    rewrite setH_Δ_passthrough, H0; easy.
 Qed.
 
 (** functional version of the above *)
@@ -738,7 +738,10 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
             let Φ' := Ω.(SΦ) <| MΔ := Δ1 ◘ dK ↦ dl' ◘ Δ2 |> in
             let Ω' := Ω <| SΦ := Φ' |> in
             if Ω.(St) == dK.(dt) then
-              Some(Some(ev(Sdealloc ℓ ; Ω.(St))), Ω' ▷ Xval 0)
+              if γ == dl.(dx) then
+                Some(Some(ev(Sdealloc ℓ ; Ω.(St))), Ω' ▷ Xval 0)
+              else
+                None
             else
               None
           else
@@ -758,7 +761,10 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
                  end
         in
         if Ω.(St) == dk.(dt) then
-          Some(Some(ev(Sget (addr ℓ) n ; Ω.(St))), Ω ▷ Xval(Vpair Vcap v))
+          if γ == dl.(dx) then
+            Some(Some(ev(Sget (addr ℓ) n ; Ω.(St))), Ω ▷ Xval(Vpair Vcap v))
+          else
+            None
         else
           None
       else
@@ -776,7 +782,10 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
         let Φ' := setH Ω.(SΦ) Ω.(St) H' in
         let Ω' := Ω <| SΦ := Φ' |> in
         if Ω.(St) == dk.(dt) then
-          Some(Some(ev(Sset (addr ℓ) n w ; Ω.(St))), Ω' ▷ Xval(Vpair Vcap w))
+          if γ == dl.(dx) then
+            Some(Some(ev(Sset (addr ℓ) n w ; Ω.(St))), Ω' ▷ Xval(Vpair Vcap w))
+          else
+            None
         else
           None
       else
@@ -852,11 +861,11 @@ Proof.
     + (* unpair *) now inv H.
     + (* alloc *) crush_undup (MΔ Φ); inv H; cbn in H1; rewrite H1; easy.
     + (* del *) eq_to_defeq loc_eqb; rewrite eq_refl; apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
-      apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. eq_to_defeq control_tag_eq; rewrite eq_refl. eq_to_defeq vareq; rewrite eq_refl. easy.
+      apply splitat_elim in H as ->. eq_to_defeq loc_eqb; rewrite eq_refl. eq_to_defeq control_tag_eq; rewrite eq_refl. cbn. eq_to_defeq vareq; rewrite eq_refl. easy.
     + (* get *) apply nodupinv_equiv_undup in H as H'. inv H0. rewrite H3, H'.
-      apply splitat_elim in H as ->. cbn. rewrite Nat.eqb_refl. cbn; eq_to_defeq control_tag_eq; rewrite eq_refl. destruct H1 as [-> | [-> ->]]; easy.
+      apply splitat_elim in H as ->. cbn. rewrite Nat.eqb_refl. cbn; eq_to_defeq control_tag_eq; rewrite eq_refl. cbn; destruct H1 as [-> | [-> ->]]; eq_to_defeq vareq; rewrite eq_refl; easy.
     + (* set *) apply nodupinv_equiv_undup in H as H'0. rewrite H0, H'0.
-      apply splitat_elim in H as ->. cbn. rewrite Nat.eqb_refl. inv H2. eq_to_defeq control_tag_eq; rewrite eq_refl. destruct H1 as [-> | [-> ->]]; try easy.
+      apply splitat_elim in H as ->. cbn. rewrite Nat.eqb_refl. inv H2. eq_to_defeq control_tag_eq; rewrite eq_refl. eq_to_defeq vareq; rewrite eq_refl. destruct H1 as [-> | [-> ->]]; try easy.
     + (* unpack *) now inv H.
     + (* pack *) easy.
   - destruct r0 as [Ω e|]; try now cbn.
@@ -867,20 +876,24 @@ Proof.
     + (* get *) grab_value3 e1 e2 e3; destruct ℓ; try now inv H. crush_undup (MΔ (SΦ Ω)).
       apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split. cbn in H.
       rewrite Nat.eqb_refl in H. destruct v; cbn in H; eq_to_defeq control_tag_eq. rewrite eq_refl in H.
+      eq_to_defeq vareq. destruct (eq_dec v2 dx0); try (apply neqb_neq in H1; rewrite H1 in H; congruence); subst.
+      rewrite eq_refl in H.
       crush_option (List.nth_error (getH (SΦ Ω) (St Ω)) (n0 + n)).
       * inv H. cbn in *. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
-        admit. (*destruct Ω; econstructor; try eassumption. now left.*)
+        destruct Ω; econstructor; try eassumption. now left.
       * rewrite Hx0 in H. inv H. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
-        admit. (*destruct Ω; econstructor; try eassumption. right; now split.*)
+        destruct Ω; econstructor; try eassumption. right; now split.
     + (* set *) grab_value3 e1 e2 e3; destruct ℓ; try now inv H. destruct e4; try now inv H. crush_undup (MΔ (SΦ Ω)).
       apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split. destruct v0. cbn in H.
       rewrite Nat.eqb_refl in H.
       cbn in H; eq_to_defeq control_tag_eq. rewrite eq_refl in H.
+      eq_to_defeq vareq. destruct (eq_dec v2 dx0); try (apply neqb_neq in H1; rewrite H1 in H; congruence); subst.
+      rewrite eq_refl in H.
       crush_option (NoDupList.swap_nth_aux (getH (SΦ Ω) (St Ω)) (n0 + n) v).
       * inv H. cbn in *. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
-        admit. (*destruct Ω; cbn in *; econstructor; cbn; try eassumption. left; eassumption. reflexivity.*)
+        destruct Ω; cbn in *; econstructor; cbn; try eassumption. left; eassumption. reflexivity.
       * rewrite Hx0 in H. inv H. cbn in *. rewrite H0 in Hx. apply nodupinv_equiv_undup in Hx.
-        admit. (*destruct Ω; cbn in *; econstructor; cbn; try eassumption. now right. reflexivity.*)
+        destruct Ω; cbn in *; econstructor; cbn; try eassumption. now right. reflexivity.
     + (* let *) grab_value e1; inv H; now constructor.
     + (* new *) destruct e1; try now inv H. grab_value e2.
       crush_undup (MΔ (SΦ Ω)).
@@ -894,8 +907,11 @@ Proof.
       subst; rewrite eq_refl in H.
       crush_undup (MΔ (SΦ Ω)).
       apply nodupinv_equiv_undup in Hx as Hy; recognize_split; elim_split.
-      subst. eq_to_defeq loc_eqb; rewrite eq_refl in H. eq_to_defeq control_tag_eq. rewrite eq_refl in H. inv H.
-      admit.
+      subst. eq_to_defeq loc_eqb; rewrite eq_refl in H. eq_to_defeq control_tag_eq. rewrite eq_refl in H.
+      eq_to_defeq vareq; destruct (eq_dec v (dx v0)); try (apply neqb_neq in H1; rewrite H1 in H; congruence);
+      subst; rewrite eq_refl in H.
+      inv H. rewrite H0 in *. destruct v0; destruct Ω; cbn in *; econstructor; try eassumption.
+      reflexivity.
     + (* unpack *) grab_value e1; inv H; destruct ℓ; try now inv H1; destruct Ω; cbn in *; econstructor.
     + (* pack *) grab_value2 e1 e2; inv H; easy.
     + (* pair *) grab_value2 e1 e2; inv H; constructor.
@@ -904,7 +920,7 @@ Proof.
     + (* call *) inv H.
     + (* ifz *) grab_value e1; destruct n; inv H; constructor; easy.
     + (* crash *) inv H; constructor.
-Admitted.
+Qed.
 Lemma pstepf_is_nodupinv_invariant Ω e Ω' e' a :
   pstepf (Ω ▷ e) = Some(a, Ω' ▷ e') ->
   nodupinv Ω ->

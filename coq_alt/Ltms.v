@@ -667,12 +667,12 @@ Hint Constructors pstep : core.
 Lemma Htgrow_Δ_passthrough Φ Δ n t v :
   MΔ (Htgrow (Φ <| MΔ := Δ |>) n t v) = Δ
 .
-Proof. Admitted.
+Proof. now destruct t; cbn. Qed.
 
 Lemma setH_Δ_passthrough Φ Δ t H' :
   MΔ (setH (Φ <| MΔ := Δ |>) t H') = Δ
 .
-Proof. Admitted.
+Proof. now destruct t; cbn. Qed.
 
 Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
   Ω ▷ e --[, a ]--> Ω' ▷ e' ->

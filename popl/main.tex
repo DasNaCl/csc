@@ -410,7 +410,7 @@ As typically done in secure compilation~\cite{abate2019jour}, \MP{others do this
 % \MP{just introduce the notion of contexts}
 %       MK: why only contexts?
 %The component part of a whole program is the main object of interest and thus a known syntactic description.
-The context is usually arbitrary\footnote{Up to, e.g., provoking link failure.} and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
+The context is usually arbitrary\footnote{Up to, e.g., provoking link failure by giving multiple definitiions for the same name.} and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
 The semantics of the programming language is expected to differentiate between the component and the context.
 %\MP{and say the semantics is expected (passive, hah) to differentiate between prg and ctx}
 %%                                         -> why passive?
@@ -442,18 +442,10 @@ Then, \oul{$\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, the compiled version of 
   Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}, iff \rul{for any $\pi\in\class$ and $\src{p}$} such that \iul{$\rsat{\src{\progvar}}{\pi}$}, it holds that \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
 \end{definition}
 
+\section{Example Properties\pages{1.5}}\label{sec:compprop}
 
-
-
-\section{Example Properties and their Monitors\pages{3}}\label{sec:compprop}
-
-This section introduces a trace model (\Cref{subsec:propdefs}) that is used to define some example properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct}).
+This section introduces a trace model (\Cref{subsec:propdefs}) and defines some example properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct}).
 These properties are of practical importance and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) this paper presents.
-The study uses monitors, which are able to check wether a trace admits a property or not.
-The use of monitors is because they have some structure useful for inductive proofs, whereas traces lack this structure, thus making proofs difficult.
-So, this section also presents monitors for each of the defined properties (\Cref{subsec:monitors}) and introduces monitor-based satisfaction.
-Finally, for each property, it is shown that monitor-based satisfaction implies property satisfaction.
-
 \subsection{Specification Trace Model}\label{subsec:propdefs}
 
 \begin{gather*}
@@ -465,78 +457,118 @@ Finally, for each property, it is shown that monitor-based satisfaction implies 
   \end{aligned}
 \end{gather*}
 
-The specification trace model has events that carry different meta-information, such as security- and control--tags.
-Security tags describe wether an event contains sensitive information ($\lock$) or not ($\unlock$).
-Control tags state wether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
+The specification trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or as tuples consisting of a pre--event, a control--tag, and a security--tag.
+The purpose of the model is to define properties, such as a stricter variant of cryptographic constant time.
+To this end, security--tags indicate wether an event contains sensitive information ($\lock$) or not ($\unlock$), while control--tags state wether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
+The latter is necessary to be able to ignore actions done by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls{tms}.
 %Even though this could be used for blame~\cite{patrignani2023blame}, this is not what this paper is concerned about.
-Now, pre--events describe the actual kind of event that happened.
-One such kind is the allocation event ($\ev{Alloc\ \loc\ n}$) that happens whenever a program claims $n$ cells of memory and stores them at address $\loc$.
+Lastly, pre--events describe the actual kind of event that happened.
+One such kind is the allocation event ($\ev{Alloc\ \loc\ n}$) that fires whenever a program claims $n$ cells of memory and stores them at address $\loc$.
 Likewise, deallocation ($\ev{Dealloc\ \loc}$) announces that the object at location $\loc$ is freed.
-These two events alone allow already a partial description of \gls{tms} by requiring that e.g. there is only one deallocation event that carries a location $\loc$.
+These two events alone allow already a partial description of \gls{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
 To be able to express \gls{sms}, there is also an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
-For cryptographic code, there is a general guideline that secrets must not be visible on a trace.
+Finally, for cryptographic code, there is a general guideline that secrets must not be visible on a trace.
 Moreover, an instruction whose timing is data--dependent must not have a secret as an operand.
-Typical operations with data--dependent timing are branches and certain binary operations, such as division.
+Typical operations with data--dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture dependent, but division is an operation that serves as a classic example for a data--dependent timing instruction.}.
 Both operations are also modelled in the specification trace model ($\ev{Branch\ n}$ and $\ev{Binop\ n}$).
-Lastly, events are either the empty event ($\emptyevent$), a program crash ($\lightning$), or a tuple consisting of a pre-event, a control--tag, and a security--tag.
 
-\gls{tms} requires that pointers are freed exactly once and that no use happens after a free.
+\subsection{Temporal Memory Safety}
+
+\gls{tms} is a safety property that describes that an unallocated object must not be used in any way.
+Moreover, the property requires that all allocated objects must be deallocated at some point.
 
 \begin{definition}[\glsfirst{tms}]\label{def:trace:tmsdef}
-  A trace $\trace$ is temporal memory safe ($\trace\in\tmssafe$) iff $\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Dealloc\ \loc;\sandboxtag';\securitytag'}$, $\ev{Use\ \loc\ n;\sandboxtag;\securitytag}\not\le_{\trace}\ev{Alloc\ \loc\ m;\sandboxtag';\securitytag'}$ and $\ev{Dealloc\ \loc;\sandboxtag;\securitytag}\not\le_{\trace}\ev{Use\ \loc\ n;\sandboxtag';\securitytag'}$.
+  $$
+  \tmssafe:=\left\{\trace \left| \begin{array}{rcl}
+                              \ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
+                              \ev{Use\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
+                              \text{if }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\text{ in }\trace&\text{then}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'}\text{ in }\trace \\
+                              \text{at most one }\ev{Dealloc\ \loc;\sandboxtag;\securitytag}&\text{in}&\trace \\
+                              \text{at most one }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\text{in}&\trace \\
+                            \end{array}\right.\right\}
+  $$
 \end{definition}
+Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\event[_{1}]$ is in $\trace$ and if $\event[_{2}]$ is in $\trace$, then $\event[_{1}]$ appears before $\event[_{2}]$.
 
-\gls{sms} disregards out of bounds accesses.
+\subsection{Spatial Memory Safety}
+
+\gls{sms} disregards out of bounds accesses:
 
 \begin{definition}[\glsfirst{sms}]\label{def:trace:smsdef}
+  $
+  \smssafe:=\left\{\trace \left|\begin{array}{rcl}
+                                  \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}, \text{ then }m<n
+                                \end{array}\right.\right\}
+  $
   A trace $\trace$ is spatial memory safe ($\trace\in\smssafe$) iff given $\ev{Alloc\ \loc\ m;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ n;\sandboxtag';\securitytag'}$, then $n<m$.
 \end{definition}
 
+\subsection{Memory Safety}
+
 Full \gls{ms} is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
+Note, however, that this definition does not entail memory--safety issues introduced by side--channels, such as speculation.
 
 \begin{definition}[\glsfirst{ms}]\label{def:trace:msdef}
+  $
+  \mssafe:=\left\{\trace \left|\begin{array}{rcl}
+                                 \trace\in\tmssafe & \text{ and } & \trace\in\smssafe
+                               \end{array}\right.\right\}
+  $
   A trace $\trace$ is memory safe ($\trace\in\mssafe$) iff $\trace\in\tmssafe$ and $\trace\in\smssafe$.
 \end{definition}
 
-A variant of the \gls{cct} security property is defined.
-Generally, one cannot define \gls{cct} just as trace-property without, e.g., performing a self-composition of a program.
-That is why this paper adopts a stricter variant of \gls{cct}, called \gls{scct}, that enforces common policies to ensure code is \gls{cct}.
-For example, one must not branch on secrets or perform binary operations, such as division, on secrets whose timing is data-dependent.
-Even stronger, \gls{scct} disregards any secrets leaked on a trace.
-To define the property, a function on traces is needed that strips all events with a $\lock$-tag: $\downarrow_{\lock}(\cdot)$.
 
-\begin{definition}[\glsfirst{scct}]
-  A trace $\trace$ is strictly cryptographic constant time ($\trace\in\scctsafe$) iff $\trace=\downarrow_{\lock}\left(\trace\right)$.
+\subsection{Strict Cryptographic Constant Time}
+
+\gls{cct} is a hyperproperty and, thus, not as easy to check with just monitors. %Beutner et al
+Hence, the following defines \gls{scct}, a stricter variant that enforces the policy that no secret should appear on a trace.
+
+\begin{definition}[\glsfirst{scct}]\label{def:trace:scctdef}
+  $
+  \scctsafe:=\left\{\trace \left|\begin{array}{rcl}
+                                   \trace=\hole{\cdot} & \text{ or } & \trace=\event[_{b}];\sandboxtag;\unlock\cdot\trace['] \wedge \trace[']\in\scctsafe
+                                 \end{array}\right.\right\}
+  $
 \end{definition}
 
-\subsection{Monitors and Trace Agreements}\label{subsec:monitors}
+\subsection{Memory Safe, Strict Cryptographic Constant Time}
 
-This subsection presents monitors for properties \gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct}.
-Each monitor $\monitor$ has its own accompanying trace model that abstracts over the most general trace model.
-%This is because monitors should only be concerned with property-relevant information.
-Traces of the accompanying trace model are written as $\abstrace$ and $\monitorcheck{\monitor}{\monitor[']}{\abstrace}$ is the notation for the semantics of a monitor.
-The empty monitor is denoted as $\emptyset$.
-For each model of a monitor, an agreement relation $\traceagree{\pi}{\trace}{\abstrace}$ is defined that relates monitor specific traces with most general traces.
-The notation $\traceagree[]{\pi}{\event}{\absevent}$ is used to relate just events and the star version of it is defined similarily to \Cref{fig:starstep:and:nstep}.
-With this, first, monitor satisfaction is defined and then the individual monitors.
-Finally, for every monitor, it is shown that monitor satisfaction implies trace property satisfaction.
+The combination of \gls{ms} and \gls{scct} is the intersection of these properties, \gls{msscct}.
+It entails all program behaviours that are both memory safe and strictly cryptographic constant time.
+
+\begin{definition}[\glsfirst{ms} and \gls{scct}]\label{def:trace:msscctdef}
+  $
+  \msscctsafe:=\left\{\trace \left| \begin{array}{rcl}
+                                      \trace\in\mssafe & \text{ and } & \trace\in\scctsafe
+                                    \end{array}\right.\right\}
+  $
+\end{definition}
+
+%\section{Monitors and Trace Agreements\pages{1.5}}\label{sec:monitors}
+\section{Monitors\pages{1.5}}\label{sec:monitors}
+This section introduces monitors for each of the properties presented earlier (\Cref{subsec:propdefs}).
+The use of monitors is because they have some structure useful for inductive proofs, whereas traces lack this structure, thus making proofs difficult.
+To lessen the burden when proving, each monitor makes use of a custom trace model that contains only the relevant information related to the property the monitor checks.
+To project specification traces $\trace$ onto these monitor--level traces $\abstrace$, each property has an associated event agreement relation $\traceagree[]{\pi}{\trace}{\abstrace}$.
+This relation performs the actual work of projecting the events, while the stutter--equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.
+With agreements, this section starts to define monitor satisfaction for traces and states that monitor satisfaction implies property satisfaction.
+To this end, monitor satisfaction is defined as follows.
+\bul{A specification trace $\trace$ monitor--satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor\footnote{In this paper, for all monitors, the initial monitor state is denoted as $\emptyset$.} can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
 
 \begin{definition}[Monitor Satisfaction]\label{def:monsat}
-  A given trace $\trace$ monitor-satisfies a property $\pi$ ($\monsafe{\trace}{\pi}$) iff %
-  there exists $\abstrace,\monitor$ such that $\traceagree{\pi}{\trace}{\abstrace}$ and $\monitorcheck{\emptyset}{\monitor}{\abstrace}$.
-  \Coqed
+  \bul{$\monsafe{\trace}{\pi}$} iff $\exists \abstrace\ \monitor$ such that \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
 \end{definition}
 
-\paragraph{Monitor for \glsfirst{tms}}
+\subsection{Monitor for \glsfirst{tms}}
 \begin{gather*}
   \begin{aligned}
-    \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{alloced}:L,\text{freed}:L\right\} \hspace{0.33cm}%
-    \emptyset:=\ \left\{\text{alloced}:\emptyset,\text{freed}:\emptyset\right\}\\
-    \mi{(Abstract\ Events)}~\absevent\bnfdef&\ \absev{\emptyevent} \mid \absev{Alloc\ }\loc \mid \absev{Dealloc\ }\loc \mid \absev{Use\ }\loc \mid \absterm\\
+    \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{allocated}:L\times\sandboxtag,\text{freed}:L\times\sandboxtag\right\} \hspace{0.33cm}%
+    \emptyset:=\ \left\{\text{allocated}:\emptyset,\text{freed}:\emptyset\right\}\\
+    \mi{(Abstract\ Events)}~\absevent\bnfdef&\ \absev{\emptyevent} \mid \absev{Alloc\ }\loc\ \sandboxtag \mid \absev{Dealloc\ }\loc\ \sandboxtag \mid \absev{Use\ }\loc\ \sandboxtag \mid \absterm\\
   \end{aligned}
 \end{gather*}
 \begin{center}
-  \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}}{,,Monitor $\tmsmonitor$ steps to $\tmsmonitor[']$ given event $\absevent$.''}$\;$\\
+  \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}}{,,Monitor $\tmsmonitor$ does one step to $\tmsmonitor[']$ given event $\absevent$.''}$\;$\\
   %
   \typerule{tms-uninteresting}{
   }{
@@ -545,175 +577,172 @@ Finally, for every monitor, it is shown that monitor satisfaction implies trace 
   %
   \typerule{tms-abort}{
   }{
-    \monitorcheck[]{\tmsmonitor}{\emptyset}{\absterm}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absterm}
   }{tms-abort}
   %
   \typerule{tms-use}{
-    \loc\in\tmsmonitor.\text{alloced} &
-    \loc\notin\tmsmonitor.\text{freed}
+    (\loc;\sandboxtag)\in\tmsmonitor.\text{allocated} &
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed}
   }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{Use\ }\loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{Use\ }\loc\ \sandboxtag}
   }{tms-use}
   %
   \typerule{tms-alloc}{
-    \loc\notin\tmsmonitor.\text{alloced} &
-    \loc\notin\tmsmonitor.\text{freed} \\
-    \tmsmonitor[']=\left\{\text{alloced}: \tmsmonitor.\text{alloced}\cup\left\{\loc\right\},\text{freed}: \tmsmonitor.\text{freed}\right\}
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{allocated} &
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed} \\
+    \tmsmonitor[']=\left\{\text{allocated}: \tmsmonitor.\text{allocated}\cup\left\{(\loc;\sandboxtag)\right\},\text{freed}: \tmsmonitor.\text{freed}\right\}
   }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Alloc\ }\loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Alloc\ }\loc\ \sandboxtag}
   }{tms-alloc}
   %
   \typerule{tms-dealloc}{
-    \loc\in\tmsmonitor.\text{alloced} &
-    \loc\notin\tmsmonitor.\text{freed} \\
-    \tmsmonitor[']=\left\{\text{alloced}: \tmsmonitor.\text{alloced}\setminus\left\{\loc\right\},\text{freed}: \tmsmonitor.\text{freed}\cup\left\{\loc\right\}\right\}
+    (\loc;\sandboxtag)\in\tmsmonitor.\text{allocated} &
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed} \\
+    \tmsmonitor[']=\left\{\text{allocated}: \tmsmonitor.\text{allocated}\setminus\left\{(\loc;\sandboxtag)\right\},\text{freed}: \tmsmonitor.\text{freed}\cup\left\{(\loc;\sandboxtag)\right\}\right\}
   }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Dealloc\ }\loc}
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Dealloc\ }\loc\ \sandboxtag}
   }{tms-dealloc}
 \end{center}
+
+The state of the monitor is a record with two sets keeping track of allocated and deallocated locations.
+%The monitor runs on a modified trace semantics with more abstract $\absev{Alloc\ }\loc$,$\absev{Dealloc\ }\loc$,$\absev{Use\ }\loc$, and $\absterm$ events, which represent {\em allocation}, {\em deallocation}, and {\em use} of a location $\loc$ as well as abnormal program termination.
+\Cref{tr:tms-use} simply requires that a location is (i) allocated and (ii) not freed.
+\Cref{tr:tms-alloc,tr:tms-dealloc} both require a location to not be freed already and extend the monitor state accordingly.
+This restriction effectively disallows reallocation to reassign the same location to an object.
+However, the definition can easily be adapted by, e.g., attaching a natural number serving as a counter.
+In the reflexive case of $\monitorcheck{\tmsmonitor}{\tmsmonitor}{\absevent}$, the monitor $\tmsmonitor$ must not contain allocated locations, i.e., $\tmsmonitor.allocated=\emptyset$.
+This ensures that programs do not forget to free memory.
+
 \begin{center}
   \judgbox{\tmstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{tms}.''}$\;$\\
   %
   \typerule{tms-alloc-authentic}{
   }{
-    \tmstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc}
+    \tmstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc\ \sandboxtag}
   }{tms-alloc-authentic}
   %
-  \typerule{tms-dealloc-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
-  }{tms-dealloc-authentic}
+% \typerule{tms-dealloc-authentic}{
+% }{
+%   \tmstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
+% }{tms-dealloc-authentic}
   %
-  \typerule{tms-use-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc}
-  }{tms-use-authentic}
+% \typerule{tms-use-authentic}{
+% }{
+%   \tmstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc}
+% }{tms-use-authentic}
   %
   \typerule{tms-branch-authentic}{
   }{
     \tmstraceagree[]{\ev{Branch\ }n}{\absev{\emptyevent}}
   }{tms-branch-authentic}
   %
-  \typerule{tms-binop-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
-  }{tms-binop-authentic}
-  %
-  \typerule{tms-empty-authentic}{
-  }{
-    \tmstraceagree[]{\emptyevent}{\absev{\emptyevent}}
-  }{tms-empty-authentic}
-  %
+% \typerule{tms-binop-authentic}{
+% }{
+%   \tmstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
+% }{tms-binop-authentic}
+% %
+% \typerule{tms-empty-authentic}{
+% }{
+%   \tmstraceagree[]{\emptyevent}{\absev{\emptyevent}}
+% }{tms-empty-authentic}
+% %
   \typerule{tms-abort-authentic}{
   }{
     \tmstraceagree[]{\lightning}{\absterm}
   }{tms-abort-authentic}
 \end{center}
 
-The state of the monitor is a record containing two sets that keep track of allocated and freed locations.
-The monitor runs on a modified trace semantics with more abstract $\absev{Alloc\ }\loc$,$\absev{Dealloc\ }\loc$,$\absev{Use\ }\loc$, and $\absterm$ events, which represent {\em allocation}, {\em deallocation}, and {\em use} of a location $\loc$ as well as abnormal program termination.
-\Cref{tr:tms-use} simply requires that a location is (i) allocated and (ii) not freed.
-\Cref{tr:tms-alloc,tr:tms-dealloc} both require a location to not be freed already and depending on the witnessed action, extend the internal state of the monitor.
-The trace agreement is entirely straightforward.
+The trace agreement is entirely straightforward, so only allocation, branch, and crash are shown.
 
 \begin{lemma}[Traces with Monitor Satisfaction are $\tmssafe$]\label{lem:mon:tmsafe}
-  If $\montmssafe{\trace}$, then $\trace\in\tmssafe$.\Coqed
+  If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
 \end{lemma}
 
-\paragraph{Monitor for \glsfirst{sms}}
+\subsection{Monitor for \glsfirst{sms}}
 \begin{gather*}
   \begin{aligned}
-    \mi{(Abstract\ Store)}~\smsmonitor:=\ L\times\mb{N}\hspace{0.33cm}&
-    \mi{(Abstract\ Events)}~\absevent\bnfdef\ \absev{\varepsilon} \mid \absev{Alloc\ }\loc\ n \mid \absev{Dealloc\ }\loc \mid \absev{Use\ }\loc\ n \\
+    \mi{(Abstract\ Store)}~\smsmonitor:=\ L\times\sandboxtag\times\mb{N}\hspace{0.33cm}&
+    \mi{(Abstract\ Events)}~\absevent\bnfdef\ \absev{\varepsilon} \mid \absev{Alloc\ }\loc\ \sandboxtag\ n \mid \absev{Use\ }\loc\ \sandboxtag\ n \\
   \end{aligned}
 \end{gather*}
-\MKin{do we really need $\absev{Dealloc}$?}
 \begin{center}
-  \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Monitor $\smsmonitor$ steps to $\smsmonitor[']$ given event $\absevent$.''}$\;$\\
+  \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent}}{,,Monitor $\smsmonitor$ does one step to $\smsmonitor[']$ given event $\absevent$.''}$\;$\\
   %
-  \typerule{sms-uninteresting}{
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{\emptyevent}}
-  }{sms-uninteresting}
-  %
-  \typerule{sms-abort}{
-  }{
-    \monitorcheck[]{\smsmonitor}{\emptyset}{\absterm}
-  }{sms-abort}
+% \typerule{sms-uninteresting}{
+% }{
+%   \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{\emptyevent}}
+% }{sms-uninteresting}
+% %
+% \typerule{sms-abort}{
+% }{
+%   \monitorcheck[]{\smsmonitor}{\emptyset}{\absterm}
+% }{sms-abort}
   %
   \typerule{sms-use}{
-    (\loc,m)\in\smsmonitor &
+    (\loc;\sandboxtag;m)\in\smsmonitor &
     n<m
   }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{Use\ }\loc\ n}
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{Use\ }\loc\ \sandboxtag\ n}
   }{sms-use}
   %
   \typerule{sms-alloc}{
-    \loc\notin\operatorname{dom}\smsmonitor &
-    \smsmonitor[']=\smsmonitor\cup\left\{(\loc,n)\right\}
+    (\loc;\sandboxtag;m)\notin\smsmonitor
   }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absev{Alloc\ }\loc\ n}
+    \monitorcheck[]{\smsmonitor}{\smsmonitor\cup\left\{(\loc;\sandboxtag;n)\right\}}{\absev{Alloc\ }\loc\ \sandboxtag\ n}
   }{sms-alloc}
-  %
-  \typerule{sms-dealloc}{
-    (\loc,n)\in\smsmonitor &
-    \smsmonitor[']=\smsmonitor\setminus\left\{(\loc,n)\right\}
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absev{Dealloc\ }\loc}
-  }{sms-dealloc}
 \end{center}
-\begin{center}
-  \judgbox{\smstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{sms}.''}$\;$\\
-  %
-  \typerule{sms-alloc-authentic}{
-  }{
-    \smstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc\ n}
-  }{sms-alloc-authentic}
-  %
-  \typerule{sms-dealloc-authentic}{
-  }{
-    \smstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
-  }{sms-dealloc-authentic}
-  %
-  \typerule{sms-use-authentic}{
-  }{
-    \smstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc\ n}
-  }{sms-use-authentic}
-  %
-  \typerule{sms-branch-authentic}{
-  }{
-    \smstraceagree[]{\ev{Branch\ }n}{\absev{\emptyevent}}
-  }{sms-branch-authentic}
-  %
-  \typerule{sms-binop-authentic}{
-  }{
-    \smstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
-  }{sms-binop-authentic}
-  %
-  \typerule{sms-empty-authentic}{
-  }{
-    \smstraceagree[]{\emptyevent}{\absev{\emptyevent}}
-  }{sms-empty-authentic}
-  %
-  \typerule{sms-abort-authentic}{
-  }{
-    \smstraceagree[]{\lightning}{\absterm}
-  }{sms-abort-authentic}
-\end{center}
-
-The state of the monitor for \gls{sms} is a set containing pairs of locations and the allocation size of the objects the locations point to.
+The state of the monitor for \gls{sms} is a set containing tuples of locations, control--tags, and the allocation size.
 In comparison to the trace model of the \gls{tms} monitor, the trace model here is extended by sizing and positional information.
-\Cref{tr:sms-use} performs a bounds check and \Cref{tr:sms-alloc,tr:sms-dealloc} add or remove locations and the size of an allocation.
-The trace agreement relation is, again, entirely straightforward.
+\Cref{tr:sms-use} performs a bounds check and \Cref{tr:sms-alloc} adds bounds information to the state of the monitor.
+The trace agreement is entirely straightforward and similar to the one fo \gls{tms}.
+% \begin{center}
+%   \judgbox{\smstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{sms}.''}$\;$\\
+%   %
+%   \typerule{sms-alloc-authentic}{
+%   }{
+%     \smstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc\ n}
+%   }{sms-alloc-authentic}
+%   %
+%   \typerule{sms-dealloc-authentic}{
+%   }{
+%     \smstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
+%   }{sms-dealloc-authentic}
+%   %
+%   \typerule{sms-use-authentic}{
+%   }{
+%     \smstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc\ n}
+%   }{sms-use-authentic}
+%   %
+%   \typerule{sms-branch-authentic}{
+%   }{
+%     \smstraceagree[]{\ev{Branch\ }n}{\absev{\emptyevent}}
+%   }{sms-branch-authentic}
+%   %
+%   \typerule{sms-binop-authentic}{
+%   }{
+%     \smstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
+%   }{sms-binop-authentic}
+%   %
+%   \typerule{sms-empty-authentic}{
+%   }{
+%     \smstraceagree[]{\emptyevent}{\absev{\emptyevent}}
+%   }{sms-empty-authentic}
+%   %
+%   \typerule{sms-abort-authentic}{
+%   }{
+%     \smstraceagree[]{\lightning}{\absterm}
+%   }{sms-abort-authentic}
+% \end{center}
 
-\begin{lemma}[Monitor Traces are $\smssafe$]\label{lem:mon:smsafe}
+
+\begin{lemma}[Traces with Monitor Satisfaction are $\smssafe$]\label{lem:mon:smsafe}
   If $\monsmssafe{\trace}$, then $\trace\in\smssafe$.\Coqed
 \end{lemma}
 
-\paragraph{Comining Monitors: \glsfirst{ms}}
+\subsection{Combining \glsfirst{tms} and \glsfirst{sms} Monitors to obtain \glsfirst{ms}}\label{subsubsec:ms}
 
 \begin{center}
-  \judgbox{\monitorcheck[]{\msmonitor}{\msmonitor[']}{\absevent}}{,,Monitor $\msmonitor$ steps to $\msmonitor[']$ given event $\absevent$.''}$\;$\\
+  \judgbox{\monitorcheck[]{\msmonitor}{\msmonitor[']}{\absevent}}{,,Monitor $\msmonitor$ does one step to $\msmonitor[']$ given event $\absevent$.''}$\;$\\
   \typerule{ms-step}{
     \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent_{\tmssafe}} &
     \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absevent_{\smssafe}} &
@@ -721,32 +750,31 @@ The trace agreement relation is, again, entirely straightforward.
     \monitorcheck[]{(\tmsmonitor,\smsmonitor)}{(\tmsmonitor['],\smsmonitor['])}{(\absevent_{\tmssafe},\absevent_{\smssafe})}
   }{ms-step}
 \end{center}
-\begin{center}
-  \judgbox{\mstraceagree{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{ms}.''}$\;$\\
-  %
-  \typerule{ms-authentic}{
-    \tmstraceagree[]{\event}{\absevent_{\tmssafe}} &
-    \smstraceagree[]{\event}{\absevent_{\smssafe}}
-  }{
-    \mstraceagree[]{\event}{(\absevent_{\tmssafe},\absevent_{\smssafe})}
-  }{ms-authentic}
-\end{center}
+The combined monitor runs the one for \gls{tms} and the one for \gls{sms} in a lockstep. The trace agreement similarily just relates a specification event with an abstract \gls{tms}-event $\abstrace[_{\tmssafe}]$ and with an abstract \gls{sms}-event $\abstrace[_{\smssafe}]$.
+% \begin{center}
+%   \judgbox{\mstraceagree{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{ms}.''}$\;$\\
+%   %
+%   \typerule{ms-authentic}{
+%     \tmstraceagree[]{\event}{\absevent_{\tmssafe}} &
+%     \smstraceagree[]{\event}{\absevent_{\smssafe}}
+%   }{
+%     \mstraceagree[]{\event}{(\absevent_{\tmssafe},\absevent_{\smssafe})}
+%   }{ms-authentic}
+% \end{center}
 
-To obtain a monitor for \gls{ms}, the monitors for \gls{tms} and \gls{sms} are simply combined in lock-step.
-
-\begin{lemma}[Monitor Traces are $\mssafe$]\label{lem:mon:msafe}
+\begin{lemma}[Traces with Monitor Satisfaction are $\mssafe$]\label{lem:mon:msafe}
   If $\monmssafe{\trace}$, then $\trace\in\mssafe$.\Coqed
 \end{lemma}
 
-\paragraph{Monitor for \glsfirst{scct}}
+\subsection{Monitor for \glsfirst{scct}}
 \begin{gather*}
   \begin{aligned}
-    \mi{(Abstract\ Store)}~\scctmonitor&:=\ \emptyset \\
-    \mi{(Abstract\ Events)}~\absevent&:=\ \absev{\varepsilon} \mid \absterm \mid \absev{Any} \\
+    \mi{(Abstract\ Store)}~\scctmonitor&:=\ \emptyset \hspace{0.5cm}
+    \mi{(Abstract\ Events)}~\absevent:=\ \absev{\varepsilon} \mid \absterm \mid \absev{Any} \\
   \end{aligned}
 \end{gather*}
 \begin{center}
-  \judgbox{\monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absevent}}{,,Monitor $\scctmonitor$ steps to $\scctmonitor[']$ given event $\absevent$.''}$\;$\\
+  \judgbox{\monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absevent}}{,,Monitor $\scctmonitor$ does one step to $\scctmonitor[']$ given event $\absevent$.''}$\;$\\
   %
   \typerule{scct-none}{
   }{
@@ -758,6 +786,8 @@ To obtain a monitor for \gls{ms}, the monitors for \gls{tms} and \gls{sms} are s
     \monitorcheck[]{\scctmonitor}{\scctmonitor}{\absterm}
   }{scct-abort}
 \end{center}
+The monitor state for the \gls{scct} monitor is completely empty, since it does not need to keep track of information.
+As soon as any event is hit, the execution gets stuck, since any event is considered confidental from the perspective of this monitor.
 \begin{center}
   \judgbox{\sccttraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{cct}.''}$\;$\\
   %
@@ -781,27 +811,33 @@ To obtain a monitor for \gls{ms}, the monitors for \gls{tms} and \gls{sms} are s
     \sccttraceagree[]{\lightning}{\absterm}
   }{scct-abort-authentic}
 \end{center}
-
-The \gls{scct} monitor simply disregards all private data occuring on a trace.
+Accordingly, the event agreement simply disregards all events that involved public data ($\unlock$) while mapping any other event that does involve private data ($\lock$) to the abstract $\absev{Any}$ event.
 
 \begin{lemma}[Monitor Traces are $\scctsafe$]\label{lem:mon:scctsafe}
-  If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$.\Coqed
+  If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
 \end{lemma}
 
+\subsection{Combining \gls{ms} and \gls{scct} Monitors to obtain \gls{msscct}}
 
-\MKin{combined version of all monitors? maybe just as lemma}
+The combination of monitors for \gls{ms} and \gls{scct} yields one for \gls{msscct}.
+The construction is entirely similar to the one for \gls{ms} (\Cref{subsubsec:ms}).
 
-\section{Composing Secure Compilers\pages{1\sfrac{1}{2}}}\label{sec:compcomp}
+\begin{lemma}[Traces with Monitor Satisfaction are $\msscctsafe$]\label{lem:mon:msscctsafe}
+  If $\monmsscctsafe{\trace}$, then $\trace\in\msscctsafe$. %\Coqed
+\end{lemma}
 
-This section studies different kinds of secure compiler compositions and their corresponding proofs.
+\section{Composing Secure Compilers\pages{1}}\label{sec:compcomp}
+
+This section presents the key results of this paper that have been presented in prior work~\cite{kruse2022csc}.
+The main results are the fact that secure compilers in the robust preservation framework~\cite{abate2019jour} compose.
+...
 Most notably, it looks at the sequential composition of secure compilers and shows a theorem that allows for modular proof engineering: compilers need not to robustly preserve the same property in order to be securely composed.
 Moreover, it demonstrates that the order does not matter for composing compilers with the same source and target language.
 Throughout this section, let $\src{L},\trg{L},$ and $\obj{L}$ be arbitrary programming lanugages.
 
 \begin{definition}[Sequential Composition]\label{def:seqcomp}
-  Let $\cc{\src{L}}{\trg{L}}$, $\cc{\trg{L}}{\obj{L}}$ be compilers.
-  Let $\src{p}$ be any $\src{L}$ program, $\trg{p}=\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, and $\obj{p}=\cc{\trg{L}}{\obj{L}}\left(\trg{p}\right)$.
-  The sequential composition is $\left(\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}\right)\left(\src{p}\right)=\obj{p}$.
+  Let $\cc{\src{L}}{\trg{L}}$, $\cc{\trg{L}}{\obj{L}}$ be compilers from languages $\src{L}$ to $\trg{L}$ and $\trg{L}$ to $\obj{L}$, respectively.
+  Their sequential composition is $\left(\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}\right)\left(\src{p}\right)=\obj{p}$.
 \end{definition}
 
 \begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtp}
@@ -812,7 +848,7 @@ Throughout this section, let $\src{L},\trg{L},$ and $\obj{L}$ be arbitrary progr
 A corollary of \Cref{thm:rtp} is that optimization passes that have the input and output language can be freely swapped:
 \begin{corollary}[Sequential Composition of Secure Compilers]\label{corr:swappable}
   Given classes of properties $\class[_{1}],\class[_{2}]$, let $\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{2}]}$.
-  Then, $\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{V}}}{\class[_{2}]\cap\class[_{1}]}$. \Coqed
+  Then, $\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}\circ\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}\circ\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{2}]\cap\class[_{1}]}$. \Coqed
 \end{corollary}
 
 %\section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
@@ -1138,7 +1174,7 @@ Lastly, calling or returning requires passed values to have an interface type ($
 To ensure that no pointers live after a return, the type of a return is that of a continuation, which is only permitted to propagate towards the end of a term.
 For example, we cannot bind $\src{\lreturn{e}}$ to an identifier in the typecheck of $\src{let}$, because the expression whose result is written into the binder has to be a pre--type, which the type of $\src{\lreturn{e}}$ is not.
 
-\subsubsection{All Well-Typed $\Ltms$ Programs are Temporal Memory Safe}
+\subsection{All Well-Typed $\Ltms$ Programs are Temporal Memory Safe}
 
 \begin{center}
   \judgbox{\thelocmap(\src{\loc})=\loc}{,,Map an $\src{L_{\tmssafe}}$ location to a specification location $\loc$.''}

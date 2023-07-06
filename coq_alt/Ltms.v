@@ -1370,7 +1370,8 @@ Admitted.
 Lemma easy_ectx e0 :
   Some e0 = pestep_compatible e0 ->
   evalctx_of_expr e0 = Some(Khole, e0).
-Proof. Admitted.
+Proof.
+Admitted.
 
 Lemma injective_ectx e0 K e e' :
   Some e0 = pestep_compatible e0 ->
@@ -1494,7 +1495,14 @@ Lemma star_step_is_nodupinv_invariant Ω e Ω' e' As :
   nodupinv Ω'
 .
 Proof.
-Admitted.
+  intros H; cbv in H; dependent induction H; try easy; intros.
+  - destruct r2 as [Ω0 e0|]. specialize (IHstar_step Ω0 e0 Ω' e' As0 JMeq_refl JMeq_refl JMeq_refl).
+    apply IHstar_step. eapply estep_is_nodupinv_invariant; eauto.
+    inv H0. inv H2. inv H2.
+  - destruct r2 as [Ω0 e0|]. specialize (IHstar_step Ω0 e0 Ω' e' As JMeq_refl JMeq_refl JMeq_refl).
+    apply IHstar_step. eapply estep_is_nodupinv_invariant; eauto.
+    inv H0. inv H2. inv H2.
+Qed.
 
 (** Inductive relation modelling linking *)
 Inductive link : symbols -> symbols -> symbols -> Prop :=
@@ -1528,30 +1536,19 @@ Proof.
   - revert Ξ__comp Ξ H; induction Ξ__ctx; intros; cbn in H.
     + inv H; constructor.
     + crush_option (linkf Ξ__ctx Ξ__comp).
-      crush_option (List.find (fun x : vart => vareq x a) (dom x)).
-      inv H.
-      crush_option (List.find (fun x : vart => vareq x a) (dom Ξ__ctx)).
-      rewrite Hx0 in H. inv H.
-      crush_option (List.find (fun x : vart => vareq x a) (dom (Ξ__comp))).
-      rewrite Hx0, Hx1 in H. inv H.
-      rewrite Hx0, Hx1, Hx2 in H. inv H.
-      constructor. intros Hy; eapply List.find_none in Hx0; eauto. eq_to_defeq vareq.
-      apply neqb_neq in Hx0; contradiction.
-      intros Hy; eapply List.find_none in Hx1; eauto. eq_to_defeq vareq.
-      apply neqb_neq in Hx1; contradiction.
-      intros Hy; eapply List.find_none in Hx2; eauto. eq_to_defeq vareq.
-      apply neqb_neq in Hx2; contradiction.
-      eauto.
-  - induction H; cbn; try easy.
-    rewrite IHlink.
-    crush_option (List.find (fun x : vart => vareq x name) (dom Ξ)).
-    apply List.find_some in Hx as [Hx1 Hx2]; eq_to_defeq vareq.
+      crush_option (List.find (fun x : vart => vareq x a) (dom x)); try now inv H.
+      crush_option (List.find (fun x : vart => vareq x a) (dom Ξ__ctx)); try now (rewrite Hx0 in H; inv H).
+      crush_option (List.find (fun x : vart => vareq x a) (dom (Ξ__comp))); try now (rewrite Hx0, Hx1 in H; inv H).
+      rewrite Hx0, Hx1, Hx2 in H; inv H; constructor; eauto.
+      * intros Hy; eapply List.find_none in Hx0; eauto; eq_to_defeq vareq; apply neqb_neq in Hx0; contradiction.
+      * intros Hy; eapply List.find_none in Hx1; eauto; eq_to_defeq vareq; apply neqb_neq in Hx1; contradiction.
+      * intros Hy; eapply List.find_none in Hx2; eauto; eq_to_defeq vareq; apply neqb_neq in Hx2; contradiction.
+  - induction H; cbn; try easy; rewrite IHlink.
+    crush_option (List.find (fun x : vart => vareq x name) (dom Ξ)); try now (apply List.find_some in Hx as [Hx1 Hx2]; eq_to_defeq vareq).
     rewrite Hx.
-    crush_option (List.find (fun x : vart => vareq x name) (dom Ξ__ctx)).
-    apply List.find_some in Hx0 as [Hx1 Hx2]; eq_to_defeq vareq.
+    crush_option (List.find (fun x : vart => vareq x name) (dom Ξ__ctx)); try now (apply List.find_some in Hx0 as [Hx1 Hx2]; eq_to_defeq vareq).
     rewrite Hx0.
-    crush_option (List.find (fun x : vart => vareq x name) (dom (Ξ__comp))).
-    apply List.find_some in Hx1 as [Hx2 Hx3]; eq_to_defeq vareq.
+    crush_option (List.find (fun x : vart => vareq x name) (dom (Ξ__comp))); try now (apply List.find_some in Hx1 as [Hx2 Hx3]; eq_to_defeq vareq).
     rewrite Hx1.
     easy.
 Qed.
@@ -1562,11 +1559,11 @@ Lemma link_determ (Ξ__ctx Ξ__comp Ξ0 Ξ1 : symbols) :
   Ξ0 = Ξ1
 .
 Proof.
-  intros H0%linkf_equiv_link H1%linkf_equiv_link.
-  revert Ξ__comp Ξ0 Ξ1 H0 H1; induction Ξ__ctx; cbn in *; intros; inv H0. now inv H1.
-  crush_option (linkf Ξ__ctx Ξ__comp).
+  intros H0%linkf_equiv_link H1%linkf_equiv_link;
+  revert Ξ__comp Ξ0 Ξ1 H0 H1; induction Ξ__ctx; cbn in *; intros; inv H0; try now inv H1;
+  crush_option (linkf Ξ__ctx Ξ__comp);
   crush_option (List.find (fun x : vart => vareq x a) (dom x)).
-  inv H1.
+  now inv H1.
 Qed.
 
 (** Static Environments. Value Contexts and Location Contexts *)
@@ -1674,7 +1671,7 @@ Lemma noownedptr_split (Γ1 Γ2 : Gamma) :
   NoOwnedPtr Γ1 /\ NoOwnedPtr Γ2
 .
 Proof.
-  remember (Γ1 ◘ Γ2) as Γ. revert Γ1 Γ2 HeqΓ; induction Γ; split; intros.
+  remember (Γ1 ◘ Γ2) as Γ; revert Γ1 Γ2 HeqΓ; induction Γ; split; intros.
   destruct Γ1, Γ2; inv HeqΓ. now split. easy.
   destruct Γ1. inv HeqΓ. cbn in H0. inv H0. now split.
   inv HeqΓ. cbn in H. destruct H as [H0 H1]. assert ((Γ1 ◘ Γ2) = (Γ1 ◘ Γ2)) by reflexivity.
@@ -2628,16 +2625,40 @@ Inductive rt_check : state -> expr -> ty -> Prop :=
     [false ; Δ__ptrs ; Γ |- e : τ] ->
     rt_check Ω e τ
 .
-Definition ectx_rt_check (K : evalctx) (τ τ' : ty) :=
-  forall (Ω : state) (e : expr), rt_check Ω e τ' -> rt_check Ω (insert K e) τ
+Lemma ptrstate_split_determ Ω Δ__ptrs0 Δ__ptrs1 Γ0 Γ1 :
+  ptrstate_split Ω Δ__ptrs0 Γ0 ->
+  ptrstate_split Ω Δ__ptrs1 Γ1 ->
+  Δ__ptrs0 = Δ__ptrs1 /\ Γ0 = Γ1
 .
-Lemma rt_check_recompose (Ω : state) (K : evalctx) (e : expr) (τ : ty) :
-  rt_check Ω (insert K e) τ ->
-  exists τ', ectx_rt_check K τ' τ /\ rt_check Ω e τ'
+Proof.
+Admitted.
+
+Definition ectx_check (b : bool) (Δ__ptrs : Delta) (Γ : Gamma) (K : evalctx) (τ τ' : ty) :=
+  forall (e : expr), [b ; Δ__ptrs ; Γ |- e : τ' ] -> [b ; Δ__ptrs ; Γ |- insert K e : τ]
+.
+Definition ectx_rt_check (Ω : state) (K : evalctx) (τ τ' : ty) :=
+  forall (e : expr), rt_check Ω e τ' -> rt_check Ω (insert K e) τ
+.
+
+Lemma check_recompose (K : evalctx) (e : expr) (b : bool) (Γ : Gamma) (Δ__ptrs : Delta) (τ : ty) :
+  [b; Δ__ptrs; Γ |- insert K e : τ ] ->
+  exists τ', ectx_check b Δ__ptrs Γ K τ' τ /\ [b ; Δ__ptrs ; Γ |- e : τ']
 .
 Proof. Admitted.
+Lemma rt_check_recompose (Ω : state) (K : evalctx) (e : expr) (τ : ty) :
+  rt_check Ω (insert K e) τ ->
+  exists τ', ectx_rt_check Ω K τ' τ /\ rt_check Ω e τ'
+.
+Proof.
+  intros H; inv H; apply check_recompose in H1; deex; destruct H1 as [H1a H1b].
+  exists τ'. split.
+  - intros e' H; econstructor; eauto; eapply H1a; inv H;
+    eapply ptrstate_split_determ in H0; eauto; destruct H0 as [H0a H0b]; subst; assumption.
+  - econstructor; eauto.
+Qed.
+
 Lemma rt_check_decompose (Ω : state) (K : evalctx) (e : expr) (τ τ' : ty) :
-  ectx_rt_check K τ' τ ->
+  ectx_rt_check Ω K τ' τ ->
   rt_check Ω e τ' ->
   rt_check Ω (insert K e) τ
 .

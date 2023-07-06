@@ -664,18 +664,41 @@ Existing Instance pstep.
 #[global]
 Hint Constructors pstep : core.
 
+Lemma Htgrow_Δ_passthrough Φ Δ n t v :
+  MΔ (Htgrow (Φ <| MΔ := Δ |>) n t v) = Δ
+.
+Proof. Admitted.
+
+Lemma setH_Δ_passthrough Φ Δ t H' :
+  MΔ (setH (Φ <| MΔ := Δ |>) t H') = Δ
+.
+Proof. Admitted.
+
 Lemma pstep_is_nodupinv_invariant Ω e Ω' e' a :
   Ω ▷ e --[, a ]--> Ω' ▷ e' ->
   nodupinv Ω ->
   nodupinv Ω'
 .
 Proof.
-  intros H; cbv in H; dependent induction H; try easy.
-  - (* e_alloc *) admit.
-  - (* e_del *) inv H1. inv H2. intros H1. inv H1; constructor; cbn in *; auto.
-    admit.
-  - (* e_set *) admit.
-Admitted.
+  intros H; cbv in H; dependent induction H; try easy; intros.
+  - (* e_alloc *)
+    inv H3; cbn in *. eapply push_ok in H1 as H1'; unfold push in H1.
+    crush_undup ({| dL := addr(List.length (getH Φ t)); dt := t |} ↦ {| dρ := ◻; dn := n; dx := γ |} ◘ MΔ Φ).
+    inv H1; clear Hx. constructor; eauto. cbn. rewrite Htgrow_Δ_passthrough.
+    inv H1'. now constructor.
+  - (* e_del *) inv H1. inv H2. cbn in *; clear H3. rewrite H0 in *. constructor; cbn in *; auto.
+    revert H4; clear; intros. induction Δ1; cbn in *.
+    + inv H4; now constructor.
+    + inv H4. specialize (IHΔ1 H3). constructor; try easy.
+      revert H1; clear; intros H1. induction Δ1; cbn in *; try easy.
+      destruct (eq_dec a0 a).
+      * subst. exfalso; apply H1; now left.
+      * intros [H2|H2]; try contradiction.
+        apply IHΔ1; auto.
+  - (* e_set *) inv H3. cbn in *; rewrite H0 in *. constructor; auto.
+    cbn. change (Util.nodupinv (MΔ (setH (Φ <| MΔ := MΔ Φ |>) t H'))).
+    rewrite setH_Δ_passthrough, H0. easy.
+Qed.
 
 (** functional version of the above *)
 Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
@@ -2601,11 +2624,6 @@ Lemma rt_check_decompose (Ω : state) (K : evalctx) (e : expr) (τ τ' : ty) :
   ectx_rt_check K τ' τ ->
   rt_check Ω e τ' ->
   rt_check Ω (insert K e) τ
-.
-Proof. Admitted.
-
-Lemma Htgrow_Δ_passthrough Φ Δ n t v :
-  MΔ (Htgrow (Φ <| MΔ := Δ |>) n t v) = Δ
 .
 Proof. Admitted.
 

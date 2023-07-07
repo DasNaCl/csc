@@ -910,7 +910,7 @@ print "a"
 \end{figure}
 
 %\section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
-\section{Case Study: Preliminary Definitions\pages{3}}\label{sec:casestud:defs}
+\section{Case Study: Preliminary Definitions\pages{2}}\label{sec:casestud:defs}
 
 This section defines programming languages that the secure compilers defined in the next section will make use of.
 To this end, this section defines the languages $\Ltms$, $\Ltrg$, $\Lms$, and $\Lscct$.
@@ -949,7 +949,7 @@ So, the only values are pairs, pointers, and natural numbers.
 Another non--standard part of the languages is the concept of the poison--tag.
 The poison--tag marks a location as freed ($\poisoned$) without removing the information associated to the freed pointer from $\Omega$.
 This measure prevents the semantics from getting stuck when an already freed pointer is freed again.
-Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldelete{x};\ldelete{x}}$ reduce and emit a trace along the lines of $\specificev{Alloc\ \loc\ \sandboxtag\ 5}\cdot\specificev{Dealloc\ \loc\ \sandboxtag}\cdot\specificev{Dealloc\ \loc\ \sandboxtag}$.
+Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldelete{x};\ldelete{x}}$ reduce and emit a trace along the lines of $\ev{Alloc\ \loc\ \sandboxtag\ 5}\cdot\ev{Dealloc\ \loc\ \sandboxtag}\cdot\ev{Dealloc\ \loc\ \sandboxtag}$.
 
 \begin{gather*}
   \begin{aligned}
@@ -960,8 +960,8 @@ Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldele
 
 Possible events that are emitted during execution are similar to the ones of the specification trace model.
 The key difference is that, as standard in secure compilation work, the traces have a call and return event that signals context switches.
-Hereby, a $\specificev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\specificev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context-- to component--level.
-Contrary, $\specificev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\specificev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component-- to context--level.
+Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context-- to component--level.
+Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component-- to context--level.
 The environmental semantics emits the tag $\nocomm$ for calls from context-- to context--level or component-- to component--level.
 In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$ and also $\operatorname{comm}(\ctx)=\ \ctxtocomp$ and $\operatorname{comm}(\comp)=\ \comptoctx$.
 
@@ -991,226 +991,43 @@ The top--level execution $\progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{
 The trace $\trace$ emitted during that execution serves as abstraction of the behavior of the program enabling the use of \Cref{def:propsat,def:proprsat}.
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Pre\text{--}Types)}~\src{\type[_{e}]}\bnfdef&\ \src{\natt} \mid \src{\ptrn} &
-    \mi{(Type~Environments)}~\src{\typenv}\bnfdef&\ \src{\hole{\cdot}} \mid \hastype{\src{x}}{\src{\type}},\src{\typenv} \\
-    \mi{(Types)}~\src{\type}\bnfdef&\ \src{\type[_{e}]} \mid \src{\type[_{e}]\to\bot} \mid \src{\type[^{(1)}_{e}]\to\type[^{(2)}_{e}]} &
-    \mi{(Pointer\ Qualifiers)}~\src{\ptrqual}\bnfdef&\ \src{\fullq} \mid \src{\halfq} \\
-    \mi{(Symbols)}~\src{\function}\bnfdef&\src{\lfunction{g}{x:\type[_{e}]\to\type[_{e}]}{\expr}} \\
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \judgbox{\tcheck{\src{\typenv}}{\src{\expr}}{\src{\type}}}{,,Under environment $\src{\typenv}$, expression $\src{\expr}$ has type $\src{\type}$.''}
-  %
-  \typerule{t-$\src{x}$}{
-    \src{\typenv}(\src{x})=\src{\type} &
-    \notowned{\src{\typenv}}
-  }{
-    \tcheck{\src{\typenv}}{\src{x}}{\src{\type}}
-  }{t-x}
-  %
-  \typerule{t-$\src{get}$}{
-    \tcheck{\src{\typenv[_2]}}{\src{x}}{\src{\wptr}} &
-    \tcheck{\src{\typenv[_1]}}{\src{\expr}}{\src{\natt}} &
-  }{
-    \tcheck{\typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}}{\src{\lget{x}{\expr}}}{\src{\natt}}
-  }{t-get}
-  %
-  \typerule{t-$\src{let}$}{
-    \tcheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\type[_e]}} &
-    \tcheck{\hastype{\src{x}}{\src{\type[_e]}},\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\type}}
-  }{
-    \tcheck{\typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}}{\src{\llet{x}{\expr[_1]}{\expr[_2]}}}{\src{\type}}
-  }{t-let}
-  %
-  \typerule{t-$\src{delete}$}{
-    \src{\typenv}(\src{x})=\src{\ptr} &
-    \notowned{\src{\typenv}\setminus\left\{\hastype{\src{x}}{\src{\ptr}}\right\}}
-  }{
-    \tcheck{\src{\typenv}}{\src{\ldelete{x}}}{\src{\natt}}
-  }{t-delete}
-  %
-  \typerule{t-$\src{abort}$}{
-    \notowned{\src{\typenv}}
-  }{
-    \tcheck{\src{\typenv}}{\src{\labort}}{\src{\type}}
-  }{t-abort}
-  %
-  \typerule{t-$\src{call}$}{
-    \inttype{\src{\type[^{(1)}_e]}} &
-    \inttype{\src{\type[^{(2)}_e]}} \\
-    \tcheck{\src{\typenv}}{\src{foo}}{\src{\type[^{(1)}_e]\to\type[^{(2)}_e]}} &
-    \tcheck{\src{\typenv}}{\src{\expr}}{\src{\type[^{(1)}_e]}}
-  }{
-    \tcheck{\src{\typenv}}{\src{\lcall{foo}{\expr}}}{\src{\type[^{(2)}_e]}}
-  }{t-call}
-  %
-  \typerule{t-$\src{return}$}{
-    \inttype{\src{\type[_e]}} &
-    \tcheck{\src{\typenv}}{\src{\expr}}{\src{\type[_e]}}
-  }{
-    \tcheck{\src{\typenv}}{\src{\lreturn{\expr}}}{\src{\type[_e]\to\bot}}
-  }{t-return}
-\end{center}
 
-$\src{L_{\tmssafe}}$ is a statically typed language where each well-typed term is temporal memory safe.
-Most parts of the type system are entirely standard, so only the interesting bits are shown here.
-To enforce this, the language marks pointers with respect to their ownership, where $\src{\fullq}$ means {\em owned} and $\src{\halfq}$ means {\em not owned}.
-An owned pointer can only be used by a deallocation (\Cref{tr:t-delete}), whereas reads and writes must be done on non-owned pointers.
-One can convert owned to non-owned pointers implicitly through context splitting $\typenvsplit{\src{\typenv[_{1}]}}{\src{\typenv[_{2}]}}$.\MK{list some rules and explain it a bit}
-Syntactic constraints together with the type system ensure that non-owned pointers never ,,live'' longer than owned pointers.
-For example, in an expression $\src{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}$, if $y$ is a $\src{\ptr}$ in $\src{\expr[_{1}]}$, it cannot appear at all in $\src{\expr[_{2}]}$, but it can if it were of type $\src{\wptr}$ (\Cref{tr:t-let}).
-This mechanism also prevents terms like $\src{\lget{x}{\ldelete{x}}}$ from typechecking (\Cref{tr:t-get}).
-At leafs of the type derivation tree, the typing environment must not contain owned pointers, which is ensured with the $\notowned{\src{\typenv}}$ judgement (\Cref{tr:t-abort,tr:t-x}).
-Lastly, calling or returning requires passed values to have an interface type ($\inttype{\src{\type[_{e}]}}$), which are just $\src{\natt}$ (\Cref{tr:t-call,tr:t-return}).
-To ensure that no pointers live after a return, the type of a return is that of a continuation, which is only permitted to propagate towards the end of a term.
-For example, we cannot bind $\src{\lreturn{e}}$ to an identifier in the typecheck of $\src{let}$, because the expression whose result is written into the binder has to be a pre--type, which the type of $\src{\lreturn{e}}$ is not.
+$\src{L_{\tmssafe}}$ does not extend the base syntax at term level.
+What makes $\src{L_{\tmssafe}}$ special is that it has a type system inspired by $L^{3}$~\cite{morrisett2005L3} that exhibits the property that every well--typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.
+The proof of this property relies on a projection $\msfilterLtms{\src{\event}}=\event$ that projects $\src{L_{\tmssafe}}$ events to specfication events $\event$.
+Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model.
+The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected.
+But, it also filters any action that a contexts does, since these are irrelevant for component--level \gls{tms}.
 
-\subsection{All Well-Typed $\Ltms$ Programs are Temporal Memory Safe}
-
-\begin{center}
-  \judgbox{\thelocmap(\src{\loc})=\loc}{,,Map an $\src{L_{\tmssafe}}$ location to a specification location $\loc$.''}
-  \judgbox{\msfilterLtms{\src{\event}}=\event}{,,Project an $\src{L_{\tmssafe}}$ event $\src{\event}$ to a specification event $\event$.''}
-  \typerule{$\src{L_{\tmssafe}}$-filter-context}{
-    \src{\event[_b]}\not=\src{\lightning}
-  }{
-    \msfilterLtms{\src{\tup{\event[_b]}{\ctx}} = \emptyevent}
-  }{ltms-filter-context}
-  %
-  \typerule{$\src{L_{\tmssafe}}$-filter-abort}{
-  }{
-    \msfilterLtms{\src{\lightning}} = \lightning
-  }{ltms-filter-abort}
-  %
-%  \typerule{$\src{L_{\tmssafe}}$-filter-start}{
-%  }{
-%    \msfilterLtms{\src{\tup{Start}{\comp}}} = \emptyevent
-%  }{ltms-filter-start}
-  %
-  \typerule{$\src{L_{\tmssafe}}$-filter-alloc}{
-    \locmapsto{\src{\loc}}{\loc} &
-    \src{n}=n
-  }{
-    \msfilterLtms{\src{\tup{Alloc\ \loc\ n}{\comp}}} = \tup{\ev{Alloc}\ \loc\ n}{\comp,\unlock}
-  }{ltms-filter-alloc}
-\end{center}
-To prove that well-typed $\src{L_{\tmssafe}}$ programs are temporal memory safe, a map from $\src{L_{\tmssafe}}$ to specification events (see \Cref{subsec:propdefs}) allows the use of \Cref{def:monsat}.
-The map is mostly entirely straight-forward.
-Most notably, it filters any action that the context does (\Cref{tr:ltms-filter-context}), since a context is free to do anything.
-Of course, a context invoking $\src{\labort}$ to crash the program must not go undetected (\Cref{tr:ltms-filter-abort}).
-As for the component, pre--events are essentially recolored to go from blue $\src{L_{\tmssafe}}$ events to the events of the most general trace model (\Cref{tr:ltms-filter-alloc}).
-Events that carry locations make use of a location--map from blue $\src{L_{\tmssafe}}$ locations to the more abstract ones.
-
-\begin{lemma}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{lem:wt:tmsmon}
-  If $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\trace}}$, then $\montmssafe{\msfilterLtms{\src{\trace}}}$.\Coqed
-\end{lemma}
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
 \end{theorem}
 
-\subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
+\subsection{$\Ltrg$: A Memory--Unsafe Language}\label{subsec:lsms}
 
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Expressions)}~\trg{\expr}\bnfdef\ \dots \mid \trg{\lispoisoned{x}} \mid \trg{\lpair{\expr[_{1}]}{\expr[_{2}]}} &\mid \trg{\lproja{\expr}} \mid \trg{\lprojb{\expr}} \mid \trg{\lhast{\expr}{\type}} \hspace{0.5cm}
-    \mi{(Types)}~\trg{\type}\bnfdef\ \trg{\natt} \mid \trg{\natt\times\natt} \\
-    \mi{(Values)}~\trg{\valueexpr}&\bnfdef\ \dots \mid \trg{\lpair{n_{1}}{n_{2}}}
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \typerule{e-$\trg{\lispoisoned{}}$-yes}{
-    \trg{\statevar.\store}(\trg{x})=\trg{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}
-  }{
-    \pstepto{\rtt{\trg{\statevar}}{\trg{\lispoisoned{x}}}}{\rtt{\trg{\statevar}}{\trg{0}}}{\trg{\emptyevent}}
-  }{e-ispoisoned-yes}
-  %
-%  \typerule{e-$\trg{\lispoisoned{}}$-no}{
-%    \trg{\statevar.\store}(\trg{x})=\trg{\tup{\loc}{\statevar.\sandboxtag,\poisonless,n}}
-%  }{
-%    \pstepto{\rtt{\trg{\statevar}}{\trg{\lispoisoned{x}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
-%  }{e-ispoisoned-no}
-  %
-  \typerule{e-$\trg{\lhast{n}{\natt}}$}{
-  }{
-    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{n}{\natt}}}}{\rtt{\trg{\statevar}}{\trg{0}}}{\trg{\emptyevent}}
-  }{e-n-has-nat}
-  %
-%  \typerule{e-$\trg{\lhast{x}{\natt}}$}{
-%  }{
-%    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{x}{\natt}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
-%  }{e-x-has-nat}
-  %
-  \typerule{e-$\trg{\lhast{n}{\natt\times\natt}}$}{
-  }{
-    \pstepto{\rtt{\trg{\statevar}}{\trg{\lhast{n}{\natt\times\natt}}}}{\rtt{\trg{\statevar}}{\trg{1}}}{\trg{\emptyevent}}
-  }{e-n-has-nattimesnat}
-\end{center}
+$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks and a way to inspect poison tags in the metadata of pointers.
+If an object a pointer bound to variable $\trg{x}$ points to is allocated ($\trg{\poisonless}$), the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
+Likewise, if it has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
+Besides these checks, the language remains exactly the same.
 
-The $\Ltrg$ language does not provide any guarantees with regards to memory safety.
-The syntax of it extends the unified syntax for all languages (\Cref{subsec:cs:defs}) with pairs of natural numbers (\Cref{tr:e-proj1}) and two different kinds of dynamic checks.
-One of those checks allows programmers to investigate wether a pointer is freed or not (\Cref{tr:e-ispoisoned-yes}).
-The other check is a simple dynamic type check that evaluates to $\trg{0}$ if the check suceeds and to $\trg{1}$ otherwise (\Cref{tr:e-n-has-nat,tr:e-n-has-nattimesnat}).
-The projection $\msfilterL{\trace}$ is entirely similar to $\msfilterLtms{\trace}$.
+The projection $\msfilterL{\trg{\trace}}$ is entirely similar to $\msfilterLtms{\src{\trace}}$.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
 
 This paper chooses to introduce $\Lms$, despite it being exactly equal to $\Ltrg$.
 The main purpose of this decision is to enhance readability.
-One thing that is added to $\Lms$ is another projection to the most general trace model for reasoning about \gls{scct}.
-Here, any information irrelevant to \gls{scct} is filtered.
-
-\begin{center}
-  \typerule{$\Lms$-filter-alloc}{
-  }{
-    \scctfilterLms{\irl{\tup{Get\ \loc\ n}{\comp}}} = \emptyevent
-  }{lms-filter-get}
-  %
-  \typerule{$\Lms$-filter-abort}{
-  }{
-    \scctfilterLms{\irl{\lightning}} = \lightning
-  }{lms-filter-abort}
-\end{center}
+The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL{\trg{\trace}}$.
 
 \subsection{$\Lscct$: An Unsafe Language}\label{subsec:lscct}
 
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Expressions)}~\obj{\expr}\bnfdef&\dots \mid \obj{\lwrdoit{\expr}} \mid \obj{\lrddoit{x}{\expr}} &
-    \mi{(States)}~\obj{\statevar}\bnfdef&\obj{\tup{\cfstate}{\sandboxtag,n,\memstate}}
-  \end{aligned}
-\end{gather*}
+$\Lscct$ extends the dynamic state with a register for a data (operand) independent timing mode.
+For the other languages seen earlier, this mode is intuitively always--on.
+To modify the mode, $\Lscct$ extends expressions with the term $\obj{\lwrdoit{\expr}}$ that writes the value of $\obj{\expr}$ into the register and with a term $\obj{\lrddoit{x}{\expr}}$ that reads the value of the register into $\obj{x}$.
+If the register is turned on, no secrets can appear on traces.
+If the register is turned off, secrets may appear on traces as well as new events $\obj{Branch\ n}$ and $\obj{Binop\ n}$, which the semantics emits for conditionals and certain binary operations, e.g., division.
+To prevent leakage of secrets but still enable reasoning about memory safety, pre--events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access.
 
-$\Lscct$ extends the state presented earlier (\Cref{subsec:cs:defs}) with another entry that models the value of a register for a data (operand) independent timing mode.
-To modify the register, $\Lscct$ extends expressions with a way to write a value to the register ($\obj{\lwrdoit{\expr}}$) and a way to read it ($\obj{\lrddoit{x}{\expr}}$).
-Finals carry a secrecy annotation, indicating high ($\obj{\lock}$) or low ($\obj{\unlock}$) secrecy.
-Whenever the register is marked as active, parts of the dynamics of $\Lscct$ do not leak information.
-In general, $\Lscct$ can leak more information than the other languages:
-
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Pre\text{--}Events)}~\obj{\event[_{b}]}&\bnfdef\ \dots \mid \obj{{Branch}\ n} \mid \obj{{Binop}\ n} \mid \obj{\widehat{{Get}}\ \loc\ \valueexpr} \mid \obj{\widehat{{Set}}\ \loc\ \valueexpr\ \valueexpr[']} &
-    \mi{(Events)}~\obj{\event}&\bnfdef\ \obj{\varepsilon} \mid \obj{\lightning} \mid \obj{\tup{\event[_{b}]}{\sandboxtag,\securitytag}}
-  \end{aligned}
-\end{gather*}
-
-Events carry a secrecy tag instead of the data they carry.
-Branches and binary operations leak information about the data they compute on.
-If the data (object) independent timing register is set to be active, the read and write to memory events should not leak.
-However, to emit $\obj{\emptyevent}$ in this case would mean that memory unsafe operations are hidden as well.
-Since this language should not have a mechanism to hide memory unsafety, pre--events are extended to model reading from ($\obj{\widehat{{Get}}\ \loc\ \valueexpr}$) and writing to ($\obj{\widehat{Set}\ \loc\ \valueexpr}$) memory without leaking secret information involved in the access.
-
-\begin{center}
-  \typerule{e-$\obj{\lbinop{}{}}$-leak}{
-    \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
-    \obj{\securitytag}\sqcap\obj{\securitytag[']}=\obj{\securitytag['']} &
-    \obj{\oplus}\notin\left\{\obj{\times}, \obj{/}, \obj{<}\right\}
-  }{
-    \pstepto{\rtt{\obj{\tup{\cfstate}{\sandboxtag,0,\memstate}}}{\obj{\lbinop{n_1^{\securitytag}}{n_2^{\securitytag[']}}}}}{\rtt{\obj{\tup{\cfstate}{\sandboxtag,0,\memstate}}}{\obj{n_3^{\securitytag['']}}}}{\obj{\tup{Binop\ n_3}{\sandboxtag,\securitytag['']}}}
-  }{e-binop-leak}
-\end{center}
-
-\MKin{filters to spec events}
+The filters to the specification trace model are straightforward.
 
 \section{Case Study: Secure Compiler Compositions in the Wild\pages{7}}\label{sec:casestud:rtp}
 

@@ -1020,7 +1020,7 @@ The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL
 
 \subsection{$\Lscct$: An Unsafe Language}\label{subsec:lscct}
 
-$\Lscct$ extends the dynamic state with a register for a data (operand) independent timing mode.
+$\Lscct$ extends the dynamic state of $\trg{L}$ (\Cref{subsec:lms}) with a register for a data (operand) independent timing mode.
 For the other languages seen earlier, this mode is intuitively always--on.
 To modify the mode, $\Lscct$ extends expressions with the term $\obj{\lwrdoit{\expr}}$ that writes the value of $\obj{\expr}$ into the register and with a term $\obj{\lrddoit{x}{\expr}}$ that reads the value of the register into $\obj{x}$.
 If the register is turned on, no secrets can appear on traces.
@@ -1070,24 +1070,16 @@ The filters to the specification trace model are straightforward.
   \caption{Visualisation of the optimizing compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}\label{fig:pipeline}
 \end{figure}
 This section defines several secure compilers, each of which robustly preserves a different property of interest (\Cref{fig:pipeline}).
-The power of the framework (\Cref{sec:compprop,sec:compcomp}) is demonstrated by composing these compilers for a secure, but optimizing, compilation chain that robustly preserves \gls{ms} and \gls{cct}.
-Concretely, the section starts with a base-line definition for the used languages (\Cref{subsec:cs:defs}) and extends that to define languages $\src{L_{TMS}}$ and $\trg{L}$.
-For programmers using $\src{L_{TMS}}$, their mental model should be that their code is temporal memory safe and cryptographic constant time.
-The former is proven to be enforced by the static semantics of $\src{L_{TMS}}$, where each well-typed program is temporal memory safe.
-The latter is completely untyped.
-Having languages defined, this section continues with a compiler $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ and proves that $\cc{\src{L_{\tmssafe}}}{\trg{L}}$ robustly preserves \gls{tms} (\Cref{subsec:cs:tms}).
-For readability purposes, it defines $\irl{L_{MS}}$ to be exactly the same as $\trg{L}$ and continues to present a compiler $\cc{\trg{L}}{\irl{L_{MS}}}$ that robustly preserves \gls{sms} (\Cref{subsec:cs:ms}).
-Now leaveraging the power of the framework that this paper introduces (\Cref{sec:compcomp,sec:compprop}), a compiler $\rtp{\cc{\src{L_{TMS}}}{\irl{L_{MS}}}}{\mssafe}$ is attained.
-The next steps in the compilation pipeline are two secure compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ that perform \glsfirst{dce} and \glsfirst{cf}, respectively, to model an optimzing pipeline happening somewhere in the compilation chain (\Cref{subsec:cs:opts}).
-Finally, this section defines the language $\obj{L_{\scctsafe}}$ that is, in contrast to the other languages, not cryptographic constant time by definition.
-Concluding, a compiler $\cc{\irl{L_{MS}}}{\obj{L_{CCT}}}$ that robustly preserves \gls{cct} (\Cref{subsec:cs:scct}) is shown and composed with $\cc{\src{L_{TMS}}}{\irl{L_{MS}}}$ and the optimizing compilers $\cc[_{\gls{dce}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$ and $\cc[_{\gls{cf}}]{\irl{L_{MS}}}{\irl{L_{MS}}}$.
-In turn, this yields $\cc{\src{L_{TMS}}}{\obj{L_{CCT}}}$, a compiler that robustly preserves a combination of \gls{ms} and \gls{cct}.
-
-
+It demonstrates the power of the framework (\Cref{sec:compprop,sec:compcomp}) by composing these compilers for a secure and optimizing compilation chain that robustly preserves \gls{msscct}.
+The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls{tms} (\Cref{thm:cca:rtp:tms}).
+From here, an instrumentation from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls{sms} (\Cref{thm:ccb:rtp:sms}).
+This is enough to get a compiler that robustly preserves \gls{ms} (\Cref{thm:ccab:rtp:ms}).
+At this stage, the section presents two optimizing translations, namely \gls{cf} and \gls{dce}, each of which robustly preserves \gls{ms} (\Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms}).
+These translations can be freely ordered in the compilation chain without compromising memory safety (\Cref{thm:cccfccdce:rtp:ms}).
+The last step ensures that code stays \gls{scct} (\Cref{thm:ccscct:rtp:scct}) which yields the final result that the whole compilation chain robustly preserves \gls{msscct} (\Cref{thm:ccall:rtp:msscct}).
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 
-\begin{center}
   $$
   \begin{array}{rcl}
 %    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\ [0.33cm]
@@ -1096,17 +1088,30 @@ In turn, this yields $\cc{\src{L_{TMS}}}{\obj{L_{CCT}}}$, a compiler that robust
                                                                                                  }{\labort[\trg]}}
   \end{array}
   $$
-\end{center}
 
-The only case where the compiler does something interesting is for top-level functions.
-Here, a dynamic typecheck is inserted to respect the calling-convention.
-Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ calls a symbol accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
-The compiler ensures that execution does not proceed in cases like that.
-This paper considers symbols on $\src{\natt}$.
+The compiler does not have to do anything special besides a typecheck to respect the calling--convention.
+That is, because $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ invokes a callable object accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
+By inserting the check, the compiler ensures that execution does not proceed in such cases.
+The compiler does not insert other checks and simply recolors $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions.
 
 \begin{theorem}[Compiler $\cca$ is secure with respect to \gls{tms}]\label{thm:cca:rtp:tms}
   $\rtp{\cca}{\tmssafe}$ % \Coqed
 \end{theorem}
+
+\begin{proof}[Proof Sketch]
+The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature and is visualized in \Cref{fig:proofdiag:rtp}.
+Concretely, it uses a trace--based backtranslation to reconstruct an $\src{L_{\tmssafe}}$ context from the $\trg{L}$ trace, which, however, behaves similar to the $\trg{L}$--level context.
+\Cref{thm:wt:tms} already gives strong guarantees for programs written in $\src{L_{\tmssafe}}$ and can be exploited for the backtranslated context by ensuring that it typechecks.
+Well--typing means the $\src{L_{\tmssafe}}$ program runs, so the rest of the proof is about relating the $\trg{L}$--level execution with the $\src{L_{\tmssafe}}$--level execution.
+
+For the $\trg{L}$--execution, the compiler wrapper code at state $\trg{\Omega_{1}}$ may either crash the program or continue execution $\trg{\Omega_{w_{1}}}$ right before control is transferred to the component.
+In this specific case, the compiler need not to insert additional code after the component is done with its execution, but a symmetric situation can happen here.
+Similarily, the backtranslation may also insert wrapper code prior and after switching to and from the component to the context.
+\MKin{
+  more detail or not? ;
+  i.e., explain $\multimap$ and $\approx$?
+}
+\end{proof}
 
 \begin{figure}[h]
   \begin{center}
@@ -1170,8 +1175,8 @@ This paper considers symbols on $\src{\natt}$.
         ;
       % legend
       \node[align=left,below right=0.3 and 0.3 of trgempty,font=\tiny] (legend) {%
-        ${\src{\trace[_c]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Call\ ?\finalexpr_i})}$\\%
-        ${\src{\trace[_r]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Ret\ !\finalexpr_o})}$
+        ${\src{\trace[_c]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Call\ ?\ foo\ \valueexpr})}$\\%
+        ${\src{\trace[_r]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Ret\ !\ foo\ \valueexpr})}$
         };
       \draw[thick,loosely dotted,Peach!50,rounded corners] ($(legend.north east)+(0.5,-0.4)$) -- ($(legend.north east)+(1,-0.4)$);
       \node at ($(legend.north east)+(1.5,-0.4)$) (legendwrapper) {};
@@ -1186,7 +1191,7 @@ This paper considers symbols on $\src{\natt}$.
 
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 
-In this section, the language $\irl{L_{\mssafe}}$ is exactly the same as $\trg{L}$ and are considered equal.
+The language $\irl{L_{\mssafe}}$ is exactly the same as $\trg{L}$ and are considered equal.
 However, it is still named and collored differently to emphasize the fact that after this section, compiled $\irl{L_{\mssafe}}$ programs are \gls{ms}.
 
 \begin{center}

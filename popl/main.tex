@@ -337,9 +337,7 @@ In summary, this paper makes the following contributions:
 \end{itemize}
 % }
 
-%In \Cref{sec:background}, the paper establishes the notions of traces, (hyper-)properties, and robust preservation, while \Cref{sec:relwork} compares this work with others.
 This paper starts by introducing relevant notions of security properties and secure compilation (\Cref{sec:background}),
-%We conclude in \Cref{sec:concl} and give an outlook for future work.
 and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:concl}).
 
 \contribution{Open Source \& Technical Report} A technical report and the Coq formalisation are available as supplementary material.\MKin{cite/link}
@@ -361,124 +359,40 @@ Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
 }
 
 Properties $\pi$ are sets of traces of admissible program behaviours, ascribing what said property considers valid~\cite{clarkson2008hyper}.
-%
-% make this intuition formally precise, however, they rely on a trace model.
-% {\em Traces} ($\trace$) are (possibly infinite) sequences of {\em events} ($\event$).
-% Events are an abstract representation of observable actions, in this paper
-% The empty event ($\emptyevent$) is an unobservable (or unimportant) action.
-% A property $\pi$ is a set of admissable traces and 
-%Properties and partitioned in the subsets of safety and liveness\MP{cit}, and given their central role for security, this paper focusses on safety properties.
 The set of all properties can be partitioned into different {\em classes} ($\class$), i.e., safety, liveness, and neither safety nor liveness~\cite{clarkson2008hyper}.
-Given their central role for security, this paper focusses on safety properties.
-% Note that there are other classes $\class$ that contain more domain-specific properties, such as the class of memory safety properties.
-\MPin{
-	remove.
-	what does this sentence add? removing it does not remove any relevant information
-}
-For the class of safety properties, it is decidable wether a trace admits such a property with just a finite trace prefix.
-\MPin{
-	passive. also, ``a trace admits a property'' is wrong, it's the other way around
-}
-As an example, consider a trace describing an interaction with a memory where the deallocation of a pointer $\loc$ precedes its read: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$
-This program behaviour is insecure wrt a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers\MP{cit}, because it reads from a memory location that was freed already.
-\MPin{
-	rewordeda a little for precision (e.g., what is $\loc?$), check the diff
-}
+A class is simply a set of properties and for the class of safety properties, it is decidable wether a trace satisfies a safety property with just a finite trace prefix.
+As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$
+This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets}, because it reads from a memory location that was freed already.
 The previous finite trace prefix is enough to decide that the trace does not satisfy temporal memory safety and there is no way to append events to this prefix which would result in the trace being admissible.
-%Given a safety property, a finite prefix of a longer trace $\trace$ is enough to decide whether a trace is admitted or not by the property.
-%For example, given the trace $\ev{Send\ 1}\cdot\ev{Recv\ 1}\cdot\ev{Send\ 2}\cdot\dots$ and the property $\pi=\left\{\trace \mid \trace=\hole{\cdot} \text{ or } \trace=\ev{Send\ n}\cdot\ev{Recv\ 2n}\cdot\trace[']\wedge \trace[']\in\pi\right\}$, the prefix $\ev{Send\ 1}\cdot\ev{Recv\ 1}$ immediately violates $\pi$.
-%\MP{mention send and recv before already. replace with read/write to contextualise to memory?}
-%
-% The set of security properties is one of many classes of properties ($\class$).
-% Note that existing literature refers to classes of properties as hyperproperties~\cite{clarkson2008hyper}.
-% The framework developed in this paper relies on {\em liftings} ($\lift{\pi}$), which are simply the powerset of a property $\pi$ and thus also considered as a class.
-% This framework is concerned about the secure compilation of programs that admit properties.
-%\MPin{
-%	this par does not flow.
-%	what is the point?
-%}
-%
-% A program ($\runtimetermvar$) is a tuple consisting of some dynamic state ($\statevar$) and a syntactic description ($\progvar$).
-% Programs without free variables are considered {\em whole}.
-% Contrary, they are {\em partial} if they contain variables without an accompanying definition.
-% Whole programs can be run with the multi-step relation $\stepto{\runtimetermvar}{\runtimetermvar[']}{\trace}$ and yield a trace $\trace$.
-% Moreover, the paper assumes for such executions that $\runtimetermvar[']$ is {\em final}, decided by the judgement $\isval{\runtimetermvar}$.
-% Partial programs cannot be executed, since execution would get stuck when reaching an undefined variable.
-% The paper also uses other step-relations, such as a single-step ($\stepto[]{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\event}$) and an $n$-step relation ($\stepton{\runtimetermvar[_{1}]}{\runtimetermvar[_{2}]}{\trace}$) that performs $n$ single-steps.
-% Note that the multi-step relation presented earlier is defined as-standard using the single-step, where the reflexive case makes use of $\isval{\runtimetermvar}$.
-% All multi-step relations filter $\emptyevent$ events.
-%\MPin{
-%	all unnecessary.
-%	unused notation, not needed for sec2, for sec3 and for sec 4.
-%	also i don't agree with what a program is.
-%}
-
-%Given a whole program $\progvar$, i.e., a program without free variables, the {\em behaviour} ($\behav{\progvar}$) is the set containing all traces the program can emit during execution according to its language semantics.
-%This paper only considers deterministic languages, where the behavior $\behav{\runtimetermvar}$ is a singleton set for any whole $\runtimetermvar$.
-%This set is used to define property satisfaction (\Cref{def:propsat}):
-\MPin{
-	fill the blank of the next sentence.
-}
-In the following we write that a whole program \MP{} runs according to the language semantics and produces trace \MP{} as \MP{}. 
-With this, we define that
-\bul{programs $\progvar$ satisfy a property $\pi$} iff \iul{$\progvar$ yields a trace $\trace$} such that \oul{$\trace$ is admissible with respect to $\pi$} (\Cref{def:propsat}).
+In the following, the notation of an execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ is $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
+With this, the definition of property satisfaction is as follows:
+\bul{whole programs $\wholeprogvar$ satisfy a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisifies $\pi$} (\Cref{def:propsat}).
 
 \begin{definition}[Property Satisfaction]\label{def:propsat}
-  % $\progvar$ satisfies $\pi$, 
-  \bul{$\sat{\progvar}{\pi}$} 
-  % iff 
+  \bul{$\sat{\progvar}{\pi}$}
   $\isdef$
-  \iul{running $\progvar$ gives $\trace$}
-  \MP{this does not formalise things, see sentence added above and add formalism}
-   where \oul{$\trace\in\pi$}.
+  if \iul{$\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$},
+  then \oul{$\trace\in\pi$}.
 \end{definition}
 
-\MPin{
-	why are we suddenly going from talking about prop sat to talknig about progs and ctxs?
-	there's a gap here that needs to be bridged.
-	A plausible solution is something along these lines.
-	"property satisfaction only considers passive attackers, to consider a stronger model with active attackers existing work (as well as this paper) uses robust property satisfaction, which we define after introducing the required concept of program context and partial programs"
-}
-Given a partial program $\progvar$, i.e., a program with free variables, the execution of $\progvar$ would get stuck due to the lack of program parts (e.g., function definitions).
-%As described earlier, partial programs cannot be executed \MP{not true anymore, need to define the notion of partial programs} , because they lack definitions and, thus, get stuck.
-To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a new whole program $\link{\progvar[_{1}]}{\progvar[_{2}]}$.
-\MPin{
-	cumbersome notation.
-	`link ... ... ' should be used to identify the notation of the operation, but we should have a metavariable for the result, like `link(p1,p2) = w'
-	W is a known candidate
-}
-%Note that linking is not defined on programs, but merely on their syntactic descriptions, since programs contain dynamic state.\MP{ not terminology i really want to use, nor is defined}
-As typically done in secure compilation~\cite{abate2019jour}, \MP{others do this too, parametricity results e.g.} this paper assumes that \MP{whole?}programs are the result of linking a {\em context} ($\ctx$) and a {\em component} ($\comp$).
-\MPin{
-	these sentences identify the need to have 2 different terms: 1 for partial programs (components?) one for whole programs (just programs) and to use them consistently.
-}
-% \MP{just introduce the notion of contexts}
-%       MK: why only contexts?
-%The component part of a whole program is the main object of interest and thus a known syntactic description.
+Property satisfaction is defined on whole programs, i.e., programs without missing definitions.
+Thus, there is only a passive attacker model that observes the execution and, e.g., retreives secrets from that.
+To consider a stronger model similarily to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, the concept of satisfaction is extended with {\em robustness}.
+Robust satisfaction considers partial programs $\progvar$, i.e., programs with free variables, which need to be defined prior to execution.
+Programs with free variables can get stuck during execution.
+To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
+As typically done in secure compilation~\cite{abate2019jour}, \MP{others do this too, parametricity results e.g.} this paper assumes that whole programs are the result of linking partial programs referred to as {\em context} ($\ctx$) and {\em component} ($\comp$).
 The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
-In this work, the semantics of the programming language is expected to differentiate between the component and the context.
-\MPin{
-	so what?
-}
-%\MP{and say the semantics is expected (passive, hah) to differentiate between prg and ctx}
-%%                                         -> why passive?
-So, the context interacts in some way with the component and this interaction models an attacker.
-\MP{
-	wut?
-	needless sentence, erase.
-}
-With this, \Thmref{def:propsat} can be extended as follows: for \bul{ partialprograms $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker $\contextvar$ and link it with $\progvar$}, \oul{the result of which must satisfy $\pi$}.
-\MPin{
-	the behaviour of the result?
-}
-%The following definition extends on \Thmref{def:propsat} to cover property satisfaction under the presence of an (active, with respect to the semantics of the programming language) attacker: %, which is known as {\em robust satisfaction}:
-%\MPin{missing: the context is an attacker! now, unlike before, we security property satisfaction with a clear active attacker}
+%In this work, the semantics of the programming language is expected to differentiate between the component and the context.
+With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the result of which must satisfy $\pi$}.
+%\MPin{
+% the behaviour of the result?
+%%%%%%%    MK: def:propsat defines satisfaction in terms of programs, no need to talk about behavior here
+%}
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
-  % $\progvar$ robustly satisfies $\pi$, 
   \bul{$\rsat{\progvar}{\pi}$}
-  % iff 
-  $\isdef$ for \iul{any partial program $\contextvar$}\MP{use $\forall$} it holds that \oul{$\sat{\ {\contextvar}{\runtimetermvar}}{\pi}$}. \MP{why r?}
+  $\isdef$ \iul{$\forall \contextvar$, if $\link{\contextvar}{\progvar}=\wholeprogvar$}, then \oul{$\sat{\wholeprogvar}{\pi}$}.
 \end{definition}
 
 \subsection{Secure Compilers}\label{subsec:bg:rtp}
@@ -488,15 +402,9 @@ A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of 
 %This paper writes $\src{\progvar}$ and $\trg{\progvar}$ for programs written in $\src{L}$ and $\trg{L}$, respectively.
 %      MK: I don't think we need to mention this at all
 This translation is considered {\em correct} if it is semantics--preserving.
-\MPin{
-	i.e., ... brief desc?
-}
-%That is, the compiler encodes any possible $\src{L}$--level feature in $\trg{L}$, such that the semantics are the same.
-Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold. %, given the presence of a context--level program.
+That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
+Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
 To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which we summarize in the following definition.
-
-To define robust compilation we only need the notion of a class of properties.
-\MPin{define.}
 
 For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} we have that \iul{the program $\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
 
@@ -505,7 +413,7 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
   \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}
   %, iff 
   $\isdef$
-  \rul{for any $\pi\in\class$ and $\src{p}$} such that \iul{$\rsat{\src{\progvar}}{\pi}$}\MP{ use $\forall$}, it holds that \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
+  \rul{$\forall \left(\pi\in\class\right) \left(\src{p}\in\Ltms\right),$} if \iul{$\rsat{\src{\progvar}}{\pi}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
 \end{definition}
 
 
@@ -623,7 +531,7 @@ To this end, monitor satisfaction is defined as follows.
 \bul{A specification trace $\trace$ monitor--satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor\footnote{In this paper, for all monitors, the initial monitor state is denoted as $\emptyset$.} can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
 
 \begin{definition}[Monitor Satisfaction]\label{def:monsat}
-  \bul{$\monsafe{\trace}{\pi}$} iff $\exists \abstrace\ \monitor$ such that \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
+  \bul{$\monsafe{\trace}{\pi}$} $\isdef$ $\exists \abstrace\ \monitor$, \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
 \end{definition}
 
 \subsubsection{Monitor for \glsfirst{tms}}
@@ -895,14 +803,14 @@ The construction is entirely similar to the one for \gls{ms} (\Cref{subsubsec:ms
 
 \section{Composing Secure Compilers\pages{1}}\label{sec:compcomp}
 
-This section presents the key meta-theoretic results of this paper and extends on prior work~\cite{kruse2022csc}.
+This section presents the key meta-theoretic results of this paper and builds on prior work~\cite{kruse2022csc}.
 A main result is that secure compilers in the robust preservation framework~\cite{abate2019jour} compose.
 This is not intuitive in the sense that there are a number of examples in the security domain where composition does not work~\cite{canetti2006univcomp,mccullough2012compo,fabian2022automatic}.
 For starters, the sequential composition of compilers $\cc{\src{L}}{\trg{L}}$ and $\cc{\trg{L}}{\obj{L}}$ is as expected, i.e., given an $\src{L}$ program $\src{p}$, obtain its compiled $\obj{L}$ program by plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$.
 Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtp}
-  Given $\class[_{1}],\class[_{2}]$, \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$}, and \rul{$\rtp{\cc{\trg{L}}{\obj{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
+  If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\trg{L}}{\obj{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
 \end{theorem}
 
 Since the composition of secure compilers is again a secure compiler, the theorem generalizes to a whole chain of $n$ secure compilers.
@@ -922,7 +830,7 @@ The following corollary justifies that any such order of compilation passes is v
 So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{corollary}[Sequential Composition of Secure Compilers]\label{corr:swappable}
-  Given $\class[_{1}],\class[_{2}]$, \bul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]}$, and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}\circ\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}\circ\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{2}]\cap\class[_{1}]}$}. \Coqed
+  If \bul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}\circ\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}\circ\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{2}]\cap\class[_{1}]}$}. \Coqed
 \end{corollary}
 
 Besides the sequential composition, there are two other compositions that are more at the language- than the compiler--level.

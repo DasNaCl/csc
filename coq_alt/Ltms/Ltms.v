@@ -936,33 +936,16 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
   | Xvar _ => None
   | Xabort => Some(Khole, Xabort)
   | Xbinop b e1 e2 =>
-    match e1 with
-    | Xval(n1) =>
-      match e2 with
-      | Xval(n2) =>
-        Some(Khole, Xbinop b (Xval n1) (Xval n2))
-      | _ =>
-        let* (K, e2') := evalctx_of_expr e2 in
-        Some(KbinopR b n1 K, e2')
-      end
-    | _ =>
-      let* (K, e1') := evalctx_of_expr e1 in
-      Some(KbinopL b K e2, e1')
-    end
-
-
-    (*
     match e1, e2 with
-    | Xval(Vnat n1), Xval(Vnat n2) =>
+    | Xval(n1), Xval(n2) =>
       Some(Khole, Xbinop b (Xval n1) (Xval n2))
-    | Xval(Vnat n1), en2 =>
+    | Xval(n1), en2 =>
       let* (K, e2') := evalctx_of_expr en2 in
       Some(KbinopR b n1 K, e2')
     | _, _ =>
       let* (K, e1') := evalctx_of_expr e1 in
       Some(KbinopL b K e2, e1')
     end
-     *)
   | Xget e0 e1 e2 =>
     match e0, e1, e2 with
     | Xval(v0), Xval(v1), Xval(v2) =>
@@ -1091,8 +1074,8 @@ Definition pstep_compatible (e : expr) : option expr :=
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
   | Xnew γ (Xval v1) (Xval v2) => Some(Xnew γ (Xval v1) (Xval v2))
   | Xdel (Xval v) => Some(Xdel (Xval v))
-  | Xget (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval v) => Some(Xget (Xval Vcap) (Xval(Vptr ℓ γ)) (Xval v))
-  | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
+  | Xget (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat v)) => Some(Xget (Xval Vcap) (Xval(Vptr ℓ γ)) (Xval(Vnat v)))
+  | Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3) => Some(Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3))
   | Xpack (Xval v1) (Xval v2) => Some(Xpack (Xval v1) (Xval v2))
   | Xunpack γ x (Xval v) e => Some(Xunpack γ x (Xval v) e)
   | _ => None
@@ -1109,8 +1092,8 @@ Definition pestep_compatible (e : expr) : option expr :=
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
   | Xnew γ (Xval v1) (Xval v2) => Some(Xnew γ (Xval v1) (Xval v2))
   | Xdel (Xval v) => Some(Xdel (Xval v))
-  | Xget (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval v) => Some(Xget (Xval Vcap) (Xval(Vptr ℓ γ)) (Xval v))
-  | Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3) => Some(Xset (Xval v0) (Xval v1) (Xval v2) (Xval v3))
+  | Xget (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat v)) => Some(Xget (Xval Vcap) (Xval(Vptr ℓ γ)) (Xval(Vnat v)))
+  | Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3) => Some(Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3))
   | Xpack (Xval v1) (Xval v2) => Some(Xpack (Xval v1) (Xval v2))
   | Xunpack γ x (Xval v) e => Some(Xunpack γ x (Xval v) e)
   | Xcall foo (Xval v) => Some(Xcall foo (Xval v))
@@ -1392,21 +1375,44 @@ Proof.
     induction K; cbn; try easy; rewrite IHK;
     try now (remember (insert K (Xget (Xval Vcap) (Xval (Vptr ℓ v2)) (Xval v))) as e';
              induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
- (* and so on *)
+  - grab_value3 e0_1 e0_2 e0_3; inv H. destruct e0_4; inv H2.
+    induction K; cbn; try easy; rewrite IHK;
+    try now (remember (insert K (Xset (Xval Vcap) (Xval (Vptr ℓ v2)) (Xval n) (Xval v))) as e';
+             induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
+    (* and so on *)
 Admitted.
 
 Lemma easy_ectx e0 :
   Some e0 = pestep_compatible e0 ->
   evalctx_of_expr e0 = Some(Khole, e0).
 Proof.
-Admitted.
+  induction e0; cbn; try congruence; intros.
+  grab_value2 e0_1 e0_2; inv H.
+  grab_value3 e0_1 e0_2 e0_3; inv H.
+  grab_value4 e0_1 e0_2 e0_3 e0_4; inv H.
+  grab_value e0_1.
+  grab_value2 e0_1 e0_2.
+  grab_value e0.
+  grab_value e0_1.
+  grab_value2 e0_1 e0_2.
+  grab_value2 e0_1 e0_2.
+  grab_value e0_1.
+  grab_value e0.
+  grab_value e0.
+  grab_value e0_1.
+Qed.
 
 Lemma injective_ectx e0 K e e' :
   Some e0 = pestep_compatible e0 ->
   evalctx_of_expr e = Some(K, e0) ->
   evalctx_of_expr e' = Some(K, e0) ->
   e = e'.
-Proof. Admitted.
+Proof.
+  revert K e e'; induction e0; intros.
+  - inv H.
+  - inv H.
+  - inv H; grab_value2 e0_1 e0_2; clear H3.
+Admitted.
 
 Lemma ungrab_ectx e K e0 :
   Some e0 = pestep_compatible e0 ->

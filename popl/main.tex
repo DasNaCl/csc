@@ -272,7 +272,7 @@ The aim of this paper is to devise the theoretical foundation to be able to buil
 Consider the program bolow which copies a \texttt{C}-style string \texttt{x} into \texttt{y} up to a length of \texttt{n}:
 
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
-int strncpy(char n, char *x, char *y) {
+void strncpy(int n, char *x, char *y) {
   for(int i = 0; x[i] != '\0' && i < n; ++i) {
     y[i] = x[i];
   }
@@ -294,28 +294,31 @@ Consider a program context that calls \texttt{strncpy} with a very large \texttt
 It is easy to see that such a function invocation leads to a series of reads from uninitialised memory, an immediate \gls{ms} issue.
 To mitigate these situtations, it is important that \texttt{strncpy} ensures that the provided arguments satisfy the assumptions being made.
 After all, the environment cannot be trusted and potentially behaves in a hostile manner.
+Unfortunately, these checks do not work in C without additional features, since there is no way to check wether a pointer points into a valid allocated region or not.
+To enable this would require extra metadata~\cite{kwon2013lowfat,akritidis2009baggy} which must not be modifiable by a malicious context.
+So, for sake of simplicity, assume the language at hand provides an operator \texttt{is\_valid(p, s, n)} that faithfully checks wether a pointer \texttt{p} points into a valid array of objects sized \texttt{s} of length \texttt{n} or not --- in constant time.
+This could be an abstraction that the operating system provides.
+With this feature at hand, it is possible to modify the original \texttt{strncpy} to be robust, given this is the compiled program without optimisations:
 
-\MKin{
-  show final implementation?
+\begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
+void strncpy(int n, char *x, char *y) {
+  int const c = __ct_min(n, MAX_ALLOC_SIZE);
+  assert(is_valid(x, sizeof(char), c) & is_valid(y, sizeof(char), c));
+  for(int i = 0; i < c; ++i) {
+    y[i] = x[i];
+  }
 }
-%\begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
-%int strncpy(char n, char *x, char *y) {
-%  for(int i = 0; x[i] != '\0' && i < n; ++i) {
-%    y[i] = x[i];
-%  }
-%}
-%\end{lstlisting}
+\end{lstlisting}
 
 As stated earlier, this work wants to establish the theoretical foundation to ensure the secure compilation of programs like \texttt{strncpy} to satisfy properties \gls{ms} and \gls{cct} robustly.
-To this end, this paper chooses the robust preservation framework, which is a model of secure compilation that is well--established~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}. % and has a stronger attacker model than a passive attacker whose only means of interacting with a program are timing analyses and so on.
-Unfortunately, this framework of secure compilers does not support modularity: One has to make a secure compiler for all possible properties {\em or} for a combination of \gls{ms} and \gls{cct}.
-
-\MKin{
-blablabla continue blablabla
-}
+Secure compilation in terms of robust preservation is well--established~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}.
+Unfortunately, at the time of writing this paper, it is unclear if and how the theory of robust preservation would support modularity.
+Missing out on modularity would mean that one has to make a secure compiler for all possible properties {\em or} for a combination of \gls{ms} and \gls{cct}.
+Ideally, both for proof engineering and reusability factor, a secure compiler for just \gls{ms} and a secure compiler for just \gls{cct} can compose in some way to get a secure compiler for the combination of the two.
+This also reflects real--world compilation chains, where several compilation passes perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source--code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfills a property of interest.
 
 % keyword: pass
-This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
+In turn, this paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as temporal and spatial memory safety into general memory safety, and cryptographic constant time.
 Then, this paper defines several secure compiler passes, where each is either preserving a different security property (e.g., temporal or spatial memory safety) or performing a security-preserving optimisation, (e.g., applying constant-folding or dead-code elimination).
 % keyword- end to end, composition

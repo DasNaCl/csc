@@ -509,9 +509,7 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
 \end{definition}
 
 
-
-
-\section{Example Properties\pages{1.5}}\label{sec:compprop}
+\section{Example Properties and their Monitors\pages{1.5}}\label{sec:compprop}
 
 This section introduces a trace model (\Cref{subsec:propdefs}) and defines some example properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct}).
 These properties are of practical importance and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) this paper presents.
@@ -541,7 +539,7 @@ Moreover, an instruction whose timing is data--dependent must not have a secret 
 Typical operations with data--dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture dependent, but division is an operation that serves as a classic example for a data--dependent timing instruction.}.
 Both operations are also modelled in the specification trace model ($\ev{Branch\ n}$ and $\ev{Binop\ n}$).
 
-\subsection{Temporal Memory Safety}
+\subsubsection{Temporal Memory Safety}
 
 \gls{tms} is a safety property that describes that an unallocated object must not be used in any way.
 Moreover, the property requires that all allocated objects must be deallocated at some point.
@@ -559,7 +557,7 @@ Moreover, the property requires that all allocated objects must be deallocated a
 \end{definition}
 Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\event[_{1}]$ is in $\trace$ and if $\event[_{2}]$ is in $\trace$, then $\event[_{1}]$ appears before $\event[_{2}]$.
 
-\subsection{Spatial Memory Safety}
+\subsubsection{Spatial Memory Safety}
 
 \gls{sms} disregards out of bounds accesses:
 
@@ -572,7 +570,7 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
   A trace $\trace$ is spatial memory safe ($\trace\in\smssafe$) iff given $\ev{Alloc\ \loc\ m;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ n;\sandboxtag';\securitytag'}$, then $n<m$.
 \end{definition}
 
-\subsection{Memory Safety}
+\subsubsection{Memory Safety}
 
 Full \gls{ms} is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
 Note, however, that this definition does not entail memory--safety issues introduced by side--channels, such as speculation.
@@ -587,7 +585,7 @@ Note, however, that this definition does not entail memory--safety issues introd
 \end{definition}
 
 
-\subsection{Strict Cryptographic Constant Time}
+\subsubsection{Strict Cryptographic Constant Time}
 
 \gls{cct} is a hyperproperty and, thus, not as easy to check with just monitors. %Beutner et al
 Hence, the following defines \gls{scct}, a stricter variant that enforces the policy that no secret should appear on a trace.
@@ -600,7 +598,7 @@ Hence, the following defines \gls{scct}, a stricter variant that enforces the po
   $
 \end{definition}
 
-\subsection{Memory Safe, Strict Cryptographic Constant Time}
+\subsubsection{Memory Safe, Strict Cryptographic Constant Time}
 
 The combination of \gls{ms} and \gls{scct} is the intersection of these properties, \gls{msscct}.
 It entails all program behaviours that are both memory safe and strictly cryptographic constant time.
@@ -614,7 +612,7 @@ It entails all program behaviours that are both memory safe and strictly cryptog
 \end{definition}
 
 %\section{Monitors and Trace Agreements\pages{1.5}}\label{sec:monitors}
-\section{Monitors\pages{1.5}}\label{sec:monitors}
+\subsection{Monitors\pages{1.5}}\label{sec:monitors}
 This section introduces monitors for each of the properties presented earlier (\Cref{subsec:propdefs}).
 The use of monitors is because they have some structure useful for inductive proofs, whereas traces lack this structure, thus making proofs difficult.
 To lessen the burden when proving, each monitor makes use of a custom trace model that contains only the relevant information related to the property the monitor checks.
@@ -628,7 +626,7 @@ To this end, monitor satisfaction is defined as follows.
   \bul{$\monsafe{\trace}{\pi}$} iff $\exists \abstrace\ \monitor$ such that \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
 \end{definition}
 
-\subsection{Monitor for \glsfirst{tms}}
+\subsubsection{Monitor for \glsfirst{tms}}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{allocated}:L\times\sandboxtag,\text{freed}:L\times\sandboxtag\right\} \hspace{0.33cm}%
@@ -639,15 +637,15 @@ To this end, monitor satisfaction is defined as follows.
 \begin{center}
   \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}}{,,Monitor $\tmsmonitor$ does one step to $\tmsmonitor[']$ given event $\absevent$.''}$\;$\\
   %
-  \typerule{tms-uninteresting}{
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{\emptyevent}}
-  }{tms-uninteresting}
-  %
-  \typerule{tms-abort}{
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absterm}
-  }{tms-abort}
+% \typerule{tms-uninteresting}{
+% }{
+%   \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{\emptyevent}}
+% }{tms-uninteresting}
+% %
+% \typerule{tms-abort}{
+% }{
+%   \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absterm}
+% }{tms-abort}
   %
   \typerule{tms-use}{
     (\loc;\sandboxtag)\in\tmsmonitor.\text{allocated} &
@@ -727,7 +725,7 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
   If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
 \end{lemma}
 
-\subsection{Monitor for \glsfirst{sms}}
+\subsubsection{Monitor for \glsfirst{sms}}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\smsmonitor:=\ L\times\sandboxtag\times\mb{N}\hspace{0.33cm}&
@@ -808,7 +806,7 @@ The trace agreement is entirely straightforward and similar to the one fo \gls{t
   If $\monsmssafe{\trace}$, then $\trace\in\smssafe$.\Coqed
 \end{lemma}
 
-\subsection{Combining \glsfirst{tms} and \glsfirst{sms} Monitors to obtain \glsfirst{ms}}\label{subsubsec:ms}
+\subsubsection{Combining \glsfirst{tms} and \glsfirst{sms} Monitors to obtain \glsfirst{ms}}\label{subsubsec:ms}
 
 \begin{center}
   \judgbox{\monitorcheck[]{\msmonitor}{\msmonitor[']}{\absevent}}{,,Monitor $\msmonitor$ does one step to $\msmonitor[']$ given event $\absevent$.''}$\;$\\
@@ -835,7 +833,7 @@ The combined monitor runs the one for \gls{tms} and the one for \gls{sms} in a l
   If $\monmssafe{\trace}$, then $\trace\in\mssafe$.\Coqed
 \end{lemma}
 
-\subsection{Monitor for \glsfirst{scct}}
+\subsubsection{Monitor for \glsfirst{scct}}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\scctmonitor&:=\ \emptyset \hspace{0.5cm}
@@ -886,7 +884,7 @@ Accordingly, the event agreement simply disregards all events that involved publ
   If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
 \end{lemma}
 
-\subsection{Combining \gls{ms} and \gls{scct} Monitors to obtain \gls{msscct}}
+\subsubsection{Combining \gls{ms} and \gls{scct} Monitors to obtain \gls{msscct}}
 
 The combination of monitors for \gls{ms} and \gls{scct} yields one for \gls{msscct}.
 The construction is entirely similar to the one for \gls{ms} (\Cref{subsubsec:ms}).

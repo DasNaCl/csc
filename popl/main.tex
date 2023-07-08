@@ -1287,7 +1287,7 @@ Let $\cc{\Ltms}{\Lscct}$ be the compiler that is the composition of $\cca$, $\cc
 \section{Related Work\pages{2}}\label{sec:relwork}
 
 This section compares existing work with the one presented in this paper.
-To this end, work on robust preservation criteria (\Cref{subsec:relw:seccomprtp}) and on other secure compiler criteria (\Cref{subsec:relw:seccompcrit}) is being looked at.
+To this end, work on robust preservation (\Cref{subsec:relw:seccomprtp}) and on other secure compiler criteria (\Cref{subsec:relw:seccompcrit}) is looked at.
 The case study of this paper (\Cref{sec:casestud:defs,sec:casestud:rtp}) implements measures for ensuring \gls{ms} as well as \gls{cct} and these are compared with previous work as well (\Cref{subsec:relw:msmechs,subsec:relw:cctmechs}).
 
 \subsection{Secure Compilation as Robust Preservation}\label{subsec:relw:seccomprtp}
@@ -1297,7 +1297,7 @@ This work has made use of that previous work.
 While there exists a composition theorem~\cite{abate2019jour} already, that theorem is not concerned with composing robustly safe compilers, but rather program components and contexts.
 The work relating robust preservation with universal composability~\cite{patrignani2022universal} is closest to what this paper presents.
 The authors demonstrate a similar compositionality theorem to what is presented here (\Cref{sec:compcomp}) as well as in an earlier version of this work~\cite{kruse2022csc}.
-However, they do not demonstrate the scalability of the approach in the context of a compilation chain.
+However, they do not demonstrate the scalability of the approach by means of a case study.
 
 \subsection{Other Secure Compilation Criteria}\label{subsec:relw:seccompcrit}
 
@@ -1308,16 +1308,21 @@ However, they do not demonstrate the scalability of the approach in the context 
 
 \subsection{Memory Safety Mechanisms}\label{subsec:relw:msmechs}
 
-There is still no consensus what the formal definition of memory safety as a program property should be. %cite
-Yet, different mechanisms for memory safety exist that also consider the secure compilation domain, i.e., have an attacker model that is not just the observing attacker.
-For example, the ,,pointers as capabilities'' principle represents pointers as machine--level capabilities~\cite{korashy2021capableptrs}, which behave in a similar fashion to capabilities by means of  linear typing~\cite{morrisett2005L3}.
-The approach of this paper to memory safety and the countermeasures against memory safety insecurities are inspired by seminal work in the literature~\cite{nagarakatte2009soft,nagarakatte2010cets}.
-The view of memory safety in this paper exhibits the classic split between temporal and spatial memory safety.
-The former making sure that there are no double deallocations or use after frees.
-The latter making sure that there are no out of bounds accesses.
-When extending the languages in this paper with a less restricted form of pointer arithmetic, the region coloring memory safety monitor presented in earlier work~\cite{michael2023mswasm} can be used.
-The work presenting this monitor provides an approach for the robust {\em enforcement}, which implies robust preservation, of memory safety.
-But, they do not compose the enforcement mechanism with other secure compilation passes.
+Different mechanisms for memory safety exist that also consider the secure compilation domain, i.e., have an active attacker model.
+For example, the ,,pointers as capabilities'' principle represents pointers as machine--level capabilities~\cite{korashy2021capableptrs}, which behave in a similar fashion to capabilities by means of linear typing~\cite{morrisett2005L3}.
+The approach of this paper also uses linear typing, but differs from $L^{3}$~\cite{morrisett2005L3} in the way that functions are not first--class.
+Moreover, this paper considers an active attacker, while the work on $L^{3}$ only discusses whole programs and, thus, has no active attacker model.
+The instrumentation to ensure memory safety that this paper presents is inspired by seminal work in the literature~\cite{nagarakatte2009soft}.
+That work inserts bounds--checks in front of pointer--dereferences and, for this to work, inserts meta--data information on pointer creation.
+It also works in a more advanced setting with structured fields accesses and also introduces a table--lookup for pointers that are stored in memory.
+This paper only considers pointers to arrays of simple objects, i.e., there are no pointers to pointers or structures.
+Of course, there are a lot of other approaches to memory--safety in literature, specifically as compiler instrumentations~\cite{akritidis2009baggy,younan2010paricheck,jung2021pico,shankaranarayana2023tailcheck,dhumbumroong2020boundwarden,nam2019framer,zhou2023fatptrs}, hardware--extensions~\cite{kwon2013lowfat,saileshwar2022heapcheck,chen2023flexpointer,kim2023whistle}, or programming language extensions~\cite{elliott2018checkedc,li2022formalcheckedc,jim2002cyclone,elliott2015guilt,west2005cuckoo,weis2019fyr,benoit2019uniqueness}, to name a few.
+What differentiates this work from them is that this work uses known, compiler--based approaches to ensure memory--safety as a means to investigate secure compiler compositions.
+This paper does not provide efficient memory--safety, but serves as a theoretical foundation for the secure compilation domain.
+
+To extend the languages in this paper with a less restricted form of pointer arithmetic, the region coloring memory safety monitor presented in earlier work~\cite{michael2023mswasm} can be used.
+The work presenting this monitor provides an approach for the robust preservation of memory safety compiling from C to WASM.
+However, they do not discuss composition of secure compilers but rather investigate an instance of a secure compiler.
 
 \subsection{Cryptographic Constant Time Mechanisms}\label{subsec:relw:cctmechs}
 

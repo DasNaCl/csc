@@ -1072,6 +1072,12 @@ Above is a fraction of the shared syntax of all the programming languages of thi
 \MP{why a fraction? what exprs are missing}
 The syntax and semantics are mostly standard.\MP{and therefore omitted}
 However, when allocating pointers\MP{arrays?} with $\lnew{\expr[_{1}]}{\expr[_{2}]}$, the expression $\expr[_{1}]$ determines the initial value of the objects\MP{cells?} and $\expr[_{2}]$ the overall size of an array.
+
+\MPin{
+	below is semantics info. should go with their symbols and the semantics rules.
+	and a better description of the semantics symbols.
+
+}
 The data associated to pointers resides in the dynamic state $\Omega$ that contains sandboxed heaps, one for the context and the other for the component.
 Because of the sandboxing, locations pointing into heaps must be associated with a control--tag\MP{symbol} to know the heap they point into.
 Other metadata in $\Omega$ entails a list of callable objects\MP{functions? objects are other things in PL} with information on wether they belong to the context or the component.
@@ -1082,6 +1088,9 @@ Another non-standard part of the languages is the concept of the poison-tag.
 The poison-tag marks a location as freed ($\poisoned$) without removing the information associated to the freed pointer from $\Omega$.
 This measure prevents the semantics from getting stuck when an already freed pointer is freed again.
 Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldelete{x};\ldelete{x}}$ reduce and emit a trace along the lines of $\ev{Alloc\ \loc\ \sandboxtag\ 5}\cdot\ev{Dealloc\ \loc\ \sandboxtag}\cdot\ev{Dealloc\ \loc\ \sandboxtag}$.
+\MPin{
+	last line is mixing operational semantics and trace semantics
+}
 
 \begin{gather*}
   \begin{aligned}
@@ -1090,12 +1099,13 @@ Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldele
   \end{aligned}
 \end{gather*}
 
-Possible events that are emitted during execution are similar to the ones of the specification trace model.
-The key difference is that, as standard in secure compilation work, the traces have a call and return event that signals context switches.
+Possible events that are emitted during execution are similar to the ones of the specification trace model \MP{ref?}.
+The key difference is that, as standard in secure compilation work, the traces have a call and return event that signals context switches.\MP{why? to help with proofs?}
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
 Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
 The environmental semantics emits the tag $\nocomm$ for calls from context- to context-level or component- to component-level.
 In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$ and also $\operatorname{comm}(\ctx)=\ \ctxtocomp$ and $\operatorname{comm}(\comp)=\ \comptoctx$.
+\MP{intuition? these are aux functions for the semantics}
 
 \begin{center}
   \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime-term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
@@ -1124,11 +1134,11 @@ The trace $\trace$ emitted during that execution serves as abstraction of the be
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
-$\src{L_{\tmssafe}}$ does not extend the base syntax at term level.
-What makes $\src{L_{\tmssafe}}$ special is that it has a type system inspired by $L^{3}$~\cite{morrisett2005L3} that exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.
-The proof of this property relies on a projection $\msfilterLtms{\src{\event}}=\event$ that projects $\src{L_{\tmssafe}}$ events to specfication events $\event$.
-Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model.
-The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected.
+$\src{L_{\tmssafe}}$ does not extend the base syntax at term level.\MP{avoid negations. ltms programs use the same syntax presentd before without extensions}
+What makes $\src{L_{\tmssafe}}$ special is that it has a type system inspired by $L^{3}$~\cite{morrisett2005L3} that exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.\MPin{it's not really special ... Just say  "L3 has a type system ... ""}
+The proof of this property relies on a projection $\msfilterLtms{\src{\event}}=\event$ that projects $\src{L_{\tmssafe}}$ events to specfication events $\event$. \MP{why}
+Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model.\MP{why, where is this needed}
+The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected\MP{what}.
 But, it also filters any action that a contexts does, since these are irrelevant for component-level \gls{tms}.
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
@@ -1138,16 +1148,15 @@ But, it also filters any action that a contexts does, since these are irrelevant
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks and a way to inspect poison tags in the metadata of pointers.
-If an object a pointer bound to variable $\trg{x}$ points to is allocated ($\trg{\poisonless}$), the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
-Likewise, if it has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
-Besides these checks, the language remains exactly the same.
+If an object\MP{?} a pointer bound to variable $\trg{x}$ points to is allocated ($\trg{\poisonless}$), the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
+Likewise, if it\MP{what} has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
+Besides these checks, the language remains exactly the same\MP{to what}.
 
 The projection $\msfilterL{\trg{\trace}}$ is entirely similar to $\msfilterLtms{\src{\trace}}$.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
-
-This paper chooses to introduce $\Lms$, despite it being exactly equal to $\Ltrg$.
-The main purpose of this decision is to enhance readability.
+This paper chooses to introduce\MP{uses / defines . use 1 word} $\Lms$, despite it being exactly equal to $\Ltrg$.
+The main purpose of this decision is to enhance readability.\MPin{you can shorten these 2 sentences into 1. yes the section will be supershort, it's ok}
 The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL{\trg{\trace}}$.
 
 \subsection{$\Lscct$: An Unsafe Language}\label{subsec:lscct}
@@ -1156,18 +1165,26 @@ The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL
 	a possibly-CCT language?
 }
 
-$\Lscct$ extends the dynamic state of $\trg{L}$ (\Cref{subsec:lms}) with a register for a data (operand) independent timing mode.
+$\Lscct$ extends the dynamic state\MPin{i really prefer operational state ... or runtime state. i think i'm not used to this terminology.} of $\trg{L}$ (\Cref{subsec:lms}) with a register for a data (operand) independent timing mode.
 For the other languages seen earlier, this mode is intuitively always-on.
+\MP{spell out the formal changes in an align* environmtn}
 To modify the mode, $\Lscct$ extends expressions with the term $\obj{\lwrdoit{\expr}}$ that writes the value of $\obj{\expr}$ into the register and with a term $\obj{\lrddoit{x}{\expr}}$ that reads the value of the register into $\obj{x}$.
 If the register is turned on, no secrets can appear on traces.
 If the register is turned off, secrets may appear on traces as well as new events $\obj{Branch\ n}$ and $\obj{Binop\ n}$, which the semantics emits for conditionals and certain binary operations, e.g., division.
 To prevent leakage of secrets but still enable reasoning about memory safety, pre-events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access.
+\MPin{
+	an example program and how it uses the flag and what kind of traces are produced is really needed here
+}
 
 The filters to the specification trace model are straightforward.
 
-\section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
 
-\begin{figure}[h]
+
+
+
+\section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
+\MP{use modifer [!h]. i HATE figs that float outside their section}
+\begin{figure}[!h]
   \begin{center}
     \begin{tikzpicture}
       \node (S) {$\src{L_{\tmssafe}}$};
@@ -1205,17 +1222,26 @@ The filters to the specification trace model are straightforward.
   \end{center}
   \caption{Visualisation of the optimising compilation pipeline that attains a combination of \gls{ms} and \gls{cct}.}\label{fig:pipeline}
 \end{figure}
-This section defines several secure compilers, each of which robustly preserves a different property of interest (\Cref{fig:pipeline}).
-It demonstrates the power of the framework (\Cref{sec:compprop,sec:compcomp}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls{msscct}.
+
+This section defines several secure compilers, each of which robustly preserves a different property of interest as depicted in \Cref{fig:pipeline}.
+\MPin{
+	explain how to read the figure: arrows mean, annotations mean ... ...
+}
+It\MP{what} demonstrates the power of the framework (\Cref{sec:compprop,sec:compcomp}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls{msscct}.
 The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls{tms} (\Cref{thm:cca:rtp:tms}).
 From here, an instrumentation from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls{sms} (\Cref{thm:ccb:rtp:sms}).
-This is enough to get a compiler that robustly preserves \gls{ms} (\Cref{thm:ccab:rtp:ms}).
+Since these properties compose into \MP{}, composing these passes yields a compiler that robustly preserves \gls{ms} (\Cref{thm:ccab:rtp:ms}).
 At this stage, the section presents two optimising translations, namely \gls{cf} and \gls{dce}, each of which robustly preserves \gls{ms} (\Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms}).
 These translations can be freely ordered in the compilation chain without compromising memory safety (\Cref{thm:cccfccdce:rtp:ms}).
-The last step ensures that code stays \gls{scct} (\Cref{thm:ccscct:rtp:scct}) when lowered from $\Lms$ to $\Lscct$ which yields the final result that the whole compilation chain robustly preserves \gls{msscct} (\Cref{thm:ccall:rtp:msscct}).
+The last step of the chain ensures that code stays \gls{scct} (\Cref{thm:ccscct:rtp:scct}) when lowered from $\Lms$ to $\Lscct$.
+The final result is that the whole compilation chain robustly preserves \gls{msscct} (\Cref{thm:ccall:rtp:msscct}).
+
+
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
-
+\MPin{
+	this environment should just be a align*
+}
   $$
   \begin{array}{rcl}
 %    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\ [0.33cm]
@@ -1225,28 +1251,52 @@ The last step ensures that code stays \gls{scct} (\Cref{thm:ccscct:rtp:scct}) wh
   \end{array}
   $$
 
-The compiler does not have to do anything special besides a typecheck to respect the calling-convention.
-That is, because $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ invokes a callable object accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
+The compiler only inserts a dynamic typecheck to respect the well-typedness of function bodies.
+Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ invokes a callable object accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
 By inserting the check, the compiler ensures that execution does not proceed in such cases.
-The compiler does not insert other checks and simply recolors $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions.
-Hypothesizing an implementation of the \texttt{strncpy} function from \Cref{sec:introduction} in $\Ltms$, the compiler would in this case ensure that the arguments are valid.
+The compiler does not insert other checks and proceeds as the identity function (which in this paper amounts to a simple re-colouring of $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions).
+
+Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$, the compiler would in this case ensure that the arguments are valid.
 
 \begin{theorem}[Compiler $\cca$ is secure with respect to \gls{tms}]\label{thm:cca:rtp:tms}
   $\rtp{\cca}{\tmssafe}$ % \Coqed
 \end{theorem}
 
+\MPin{
+	this should be a subsection, not a proof sketch.
+}
+
 \begin{proof}[Proof Sketch]
 The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature and is visualized in \Cref{fig:proofdiag:rtp}.
+\MPin{
+	explain how to read the figure
+}
 Concretely, given the execution of the compiled $\Ltms$ program linked with an arbitrary $\trg{L}$ context yields a trace $\trg{\trace}$, it uses a trace-based backtranslation of $\trg{\trace}$ to reconstruct an $\src{L_{\tmssafe}}$ context.
+\MPin{
+	what does this mean?
+	what is a backtranslation?
+}
+\MPin{
+	why can we use a BT?
+	it's because the def in section 2.2 is eq to anotehr one, because the props are Safety, we use the RSC equivalent def.
+	all these intuitions are missing.
+	they are technical, so we only keep them here.
+}
 \Cref{thm:wt:tms} already gives strong guarantees for programs written in $\src{L_{\tmssafe}}$ and can be exploited for the backtranslated context by ensuring that it typechecks.
-Well-typing means the $\src{L_{\tmssafe}}$ program runs, so the rest of the proof is about relating the $\trg{L}$-level execution with the $\src{L_{\tmssafe}}$-level execution.
+Well-typing\MP{well-typedness} means the $\src{L_{\tmssafe}}$ program runs, so the rest of the proof is about relating the $\trg{L}$-level execution with the $\src{L_{\tmssafe}}$-level execution.
 
-For the $\trg{L}$-execution, the compiler wrapper code at state $\trg{\Omega_{1}}$ may either crash the program or continue execution $\trg{\Omega_{w_{1}}}$ right before control is transferred to the component.
-In this specific case, the compiler need not to insert additional code after the component is done with its execution, but a symmetric situation can happen here.
-Similarily, the backtranslation may also insert wrapper code prior and after switching to and from the component to the context.
+For the $\trg{L}$-execution, the compiler wrapper\MP{undefined terminology. call it like this before} code at state $\trg{\Omega_{1}}$ may either crash the program or continue execution $\trg{\Omega_{w_{1}}}$ right before control is transferred to the component.
+In this specific case, the compiler needs not insert additional code after the component is done with its execution, but a symmetric situation can happen here.\MP{vague and imprecise}
+Similarly, the backtranslation may also insert wrapper code prior and after switching to and from the component to the context. \MP{wut? why is a wrapper needed?}
 \MKin{
   more detail or not? ;
   i.e., explain $\multimap$ and $\approx$?
+  \MPin{
+  yes
+  }
+}
+\MPin{
+	the general idea that later proofs use the same structure is also not here.
 }
 \end{proof}
 
@@ -1338,16 +1388,22 @@ Similarily, the backtranslation may also insert wrapper code prior and after swi
   $$
 \end{center}
 
-Up to getting and setting memory, the compiler is the identity function, i.e., all omitted cases are a recoloring of $\trg{L}$ to $\Lms$.
-For memory accesses, however, a bounds-check is inserted that enforces \gls{sms}.
+Up to getting and setting memory\MP{reading and writing? uniform lingo}, the compiler\MP{notation} is the identity function, i.e., all omitted cases are a recoloring of $\trg{L}$ to $\Lms$.\MP{reword as before}
+For memory accesses, however, the compiler inserts a bounds-check that enforces \gls{sms}.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
 Again, linking this back to the \texttt{strncpy} example corresponds to the insertion of bounds check right in front of the accesses to \texttt{y[i]} and \texttt{x[i]}.
+\MPin{
+	example code?
+}
 
 \begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}
   $\rtp{\ccb}{\smssafe}$ % \Coqed
 \end{theorem}
 
-It is now possible to make use of \Cref{thm:rtp} to extract a compiler from $\Ltms$ to $\Lms$ that is \gls{ms} by applying \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms}:
+It is now possible to make use of \Cref{thm:rtp} to extract a compiler from $\Ltms$ to $\Lms$ that is \gls{ms} by applying \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms}.
+\MP{
+	bad sentence. rewrite.
+}
 
 \begin{theorem}[Compiler $\cca\circ\ccb$ is secure with respect to \gls{ms}]\label{thm:ccab:rtp:ms}
   $\rtp{\cca\circ\ccb}{\mssafe}$ % \Coqed
@@ -1372,9 +1428,20 @@ It is now possible to make use of \Cref{thm:rtp} to extract a compiler from $\Lt
   \end{array}
   $$
 \end{center}
+\MPin{
+	substitution are a runtime semantics thing.
+	what you want is a compiler with 2 arguments, where in one you keep track of the static substitions to perform,
+	and 2 cases on how to handle variables: if they're in the second arg, then substitute, otherwise don't
+}
 
 The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls{dce} and \gls{cf}, respectively.
 Both are secure with respect to \gls{ms}, the proof of which is relatively easy, since the backtranslation can use the original context without modification and both transformations do not change anything with regards to allocation, use, or deallocation.
+\MPin{
+	the point is different: the proof is easy because the transofrmations do not change the way memory is touched,
+	and from a security perspective, the attacker has no extra power since the target is the same as in the source.
+	.
+	rewrite.
+}
 That is, the order of appearance of the events on the execution trace stays the same.
 
 \begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls{ms}]\label{thm:ccdce:rtp:ms}
@@ -1401,8 +1468,11 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
 \end{center}
 
 Given the fact that $\Lscct$ provides a \gls{cct}-mode, the compiler has to ensure that execution in the component always happen in this mode.
-The context could overwrite the flag and exit the mode, but upon invoking a callable object that is part of the component, the flag would be set again.
-Because of this, the compiler is secure with respect ot \gls{scct}, similarily proven as in \Cref{subsec:cs:tms}.
+\MPin{
+	reuse the word 'wrapper' here
+}
+The context can overwrite the flag and exit the mode, but upon invoking a callable object\MP{again with the word object} that is part of the component, the flag would be set again.
+Because of this, the compiler is secure with respect to \gls{scct}, similarily\MP{misspelled} proven as in \Cref{subsec:cs:tms}.
 
 \begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls{scct}]\label{thm:ccscct:rtp:scct}
   $\rtp{\ccscct}{\scctsafe}$ % \Coqed
@@ -1410,11 +1480,15 @@ Because of this, the compiler is secure with respect ot \gls{scct}, similarily p
 
 \subsection{Robust Preservation of Intersection of Memory Safety and Strict Cryptographic Constant Time}
 
-Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, and $\ccscct$, then the following theorem can be shown.
+Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, and $\ccscct$, then the following theorem can be shown\MP{holds}.
 
 \begin{theorem}[Compiler $\ccmsscct$ is secure with respect to \gls{scct}]\label{thm:ccall:rtp:msscct}
   $\rtp{\cc{\Ltms}{\Lscct}}{\mssafe\cap\scctsafe}$ % \Coqed
 \end{theorem}
+\MPin{
+This you can write the proof of.
+Probably even in coq
+}
 
 %\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']
 %if at <= bounds {

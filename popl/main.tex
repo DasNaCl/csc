@@ -775,7 +775,7 @@ int main() {  // allocates 17 integers initialized to 2
 The state of the monitor for \gls{sms} is a set containing tuples of locations, control-tags, and the allocation size.
 In comparison to the trace model of the \gls{tms} monitor, the trace model here is extended by sizing and positional information.
 \Cref{tr:sms-use} performs a bounds check and \Cref{tr:sms-alloc} adds bounds information to the state of the monitor.
-The trace agreement is entirely straightforward and similar to the one fo \gls{tms}.
+The trace agreement is entirely straightforward and similar to the one for \gls{tms}.
 % \begin{center}
 %   \judgbox{\smstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{sms}.''}$\;$\\
 %   %
@@ -820,9 +820,16 @@ The trace agreement is entirely straightforward and similar to the one fo \gls{t
   If $\monsmssafe{\trace}$, then $\trace\in\smssafe$.\Coqed
 \end{lemma}
 
-\begin{example}[\texttt{strncpy}]\label{ex:strncpy:sms}
-  Consider the \texttt{strncpy} functions from \Cref{ex:strncpy}.
-  \MKin{do trace and explain why monitor finds out that it violates sms prop}
+\begin{example}[Normal invocation of \texttt{strncpy}]\label{ex:strncpy:sms}
+  Consider the insecure \texttt{strncpy} function from \Cref{ex:strncpy} with a context \texttt{strncpy(2, x, y)}, where \texttt{x} and \texttt{y} are pointers to valid regions of memory with allocated space for exactly two cells and do not contain the null-terminating character \texttt{'\textbackslash 0'}.
+  For the sake of this example, the pointers have been allocated by the component and passed to the context.
+  The loop of \texttt{strncpy} will copy exactly two cells and then check the loop condition for the last time.
+  At that stage, the induction variable \texttt{i} is equal to \texttt{2} and, unfortunately, the order of checks is such that first the cell \texttt{x[i]} is read prior to bounds checking \texttt{i < n}.
+  Because of this, there is an out of bounds memory access right before exiting the function.
+  This is also visible on the trace, which can be sketched as $\ldots\cdot\ev{Alloc}\ \loc_{x}\ 2;\comp;\unlock\cdot\ldots\cdot\ev{Alloc}\ \loc_{y}\ 2;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 1;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 2;\comp;\unlock\cdot\ldots$, where $\loc_{x}$ and $\loc_{y}$ are the memory addresses associated to \texttt{x} and \texttt{y}, respectively.
+  Omitting the events for all ,,$\ldots$'' for sake of brevity, the abstract monitor trace of this is $\absev{Alloc}\ \loc_{x}\ \comp\ 2\cdot\absev{Alloc}\ \loc_{y}\ \comp\ 2\cdot\absev{Use}\ \loc_{x}\ \comp\ 0\cdot\absev{Use}\ \loc_{y}\ \comp\ 0\cdot\absev{Use}\ \loc_{x}\ \comp\ 1\cdot\absev{Use}\ \loc_{y}\ \comp\ 1\cdot\absev{Use}\ \loc_{x}\ \comp\ 2$.
+  It is easy to see that, after the allocation events, the state of the monitor is $\left\{(\loc_{x};\comp;2),(\loc_{y};\comp;2)\right\}$.
+  Furthermore, all uses up to the last are acceptable by the monitor, but the last event does not satisfy the premise $2<2$ in \Cref{tr:sms-use}. Therefore, the whole program (\texttt{strncpy} linked with this kind of context) is not \gls{sms}.
 \end{example}
 
 \subsubsection{Combining \glsfirst{tms} and \glsfirst{sms} Monitors to obtain \glsfirst{ms}}\label{subsubsec:ms}

@@ -505,10 +505,19 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
   Thus, even if $\src{foo}$ may have been robust with respect to the no--reads--out--of--bounds property, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
 \end{example}
 
-\section{Example Properties and their Monitors\pages{1.5}}\label{sec:compprop}
 
-This section introduces a trace model (\Cref{subsec:propdefs}) and defines some example properties (\gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct}).
-These properties are of practical importance and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) this paper presents.
+
+
+\section{Security Properties: Formalisation, Enforcement and Composition\pages{1.5}}\label{sec:compprop}
+
+This section introduces a trace model and uses it to define the key properties of interest for this paper: \gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct} (\Cref{subsec:propdefs}).
+These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) this paper presents later. 
+\MPin{
+	missing 3.2 ref? added below?
+}
+Then, this section introduces monitors for each of the properties presented earlier (\Cref{??}).
+
+
 \subsection{Specification Trace Model}\label{subsec:propdefs}
 
 \begin{gather*}
@@ -520,19 +529,19 @@ These properties are of practical importance and also of interest in the case st
   \end{aligned}
 \end{gather*}
 
-The specification trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or as tuples consisting of a pre--event, a control--tag, and a security--tag.
-The purpose of the model is to define properties, such as a stricter variant of cryptographic constant time.
-To this end, security--tags indicate wether an event contains sensitive information ($\lock$) or not ($\unlock$), while control--tags state wether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
-The latter is necessary to be able to ignore actions done by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls{tms}.
+The specification trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or as tuples consisting of a pre-event, a control-tag, and a security-tag.
+The purpose of the model is to define key security properties of interest, such as \MP{ms?} a stricter variant of cryptographic constant time.
+To this end, security-tags indicate wether an event contains sensitive information ($\lock$) or not ($\unlock$), while control-tags state wether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
+The latter is necessary to be able to ignore actions done by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls{tms}. \MP{cits?}
 %Even though this could be used for blame~\cite{patrignani2023blame}, this is not what this paper is concerned about.
-Lastly, pre--events describe the actual kind of event that happened.
+Lastly, pre-events describe the actual kind of event that happened.
 One such kind is the allocation event ($\ev{Alloc\ \loc\ n}$) that fires whenever a program claims $n$ cells of memory and stores them at address $\loc$.
-Likewise, deallocation ($\ev{Dealloc\ \loc}$) announces that the object at location $\loc$ is freed.
-These two events alone allow already a partial description of \gls{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
+Dually, deallocation ($\ev{Dealloc\ \loc}$) announces that the object at location $\loc$ is freed.
+These two events alone allow\MP{allow who? allow needs an object, this is improper english} already a partial description of \gls{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
 To be able to express \gls{sms}, there is also an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
 Finally, for cryptographic code, there is a general guideline that secrets must not be visible on a trace.
 Moreover, an instruction whose timing is data--dependent must not have a secret as an operand.
-Typical operations with data--dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture dependent, but division is an operation that serves as a classic example for a data--dependent timing instruction.}.
+Typical operations with data--dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture-dependent\MPin{hyphen needed}, but division is an operation that serves as a classic example for a data-dependent timing instruction.}.
 Both operations are also modelled in the specification trace model ($\ev{Branch\ n}$ and $\ev{Binop\ n}$).
 
 \subsubsection{Temporal Memory Safety}
@@ -607,8 +616,8 @@ It entails all program behaviours that are both memory safe and strictly cryptog
 
 %\section{Monitors and Trace Agreements\pages{1.5}}\label{sec:monitors}
 \subsection{Monitors\pages{1.5}}\label{sec:monitors}
-This section introduces monitors for each of the properties presented earlier (\Cref{subsec:propdefs}).
-The use of monitors is because they have some structure useful for inductive proofs, whereas traces lack this structure, thus making proofs difficult.
+
+The use of monitors is because they have some structure useful for inductive proofs, whereas traces lack this structure, thus making proofs difficult.\MP{not true. safety props are enforced by monitors}
 To lessen the burden when proving, each monitor makes use of a custom trace model that contains only the relevant information related to the property the monitor checks.
 To project specification traces $\trace$ onto these monitor--level traces $\abstrace$, each property has an associated event agreement relation $\traceagree[]{\pi}{\trace}{\abstrace}$.
 This relation performs the actual work of projecting the events, while the stutter--equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.

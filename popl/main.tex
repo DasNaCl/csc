@@ -153,6 +153,8 @@
 %% The "title" command has an optional parameter,
 %% allowing the author to define a "short title" to be used in page headers.
 \title{Secure Composition of Robust and Optimising Compilers}
+% Composing Secure and Optimising Compilers
+% 
 
 %%
 %% The "author" command and its associated commands are used to define
@@ -275,23 +277,26 @@
 \section{Introduction\pages{4}}\label{sec:introduction}
 
 \gls{ms} is a security property of programs that, e.g., ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialized memory.
-Without memory safety, private data can easily leak or corrupt~\cite{lemay2021ccc}.
+Without memory safety, private data can easily leak or be corrupted~\cite{lemay2021ccc}.
 Because of this, \gls{ms} is a requirement for programs to attain an even stronger security property, namely \gls{cct}.
 Programs that attain \gls{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
 Timing attacks have become more and more relevant recently, especially given the era of cloud-computing~\cite{aviram2010cloudtime,kumar2019cloudsecsurvey}, where programs share the same hardware but are supposed to run in a sandboxed environment that does not leak secrets.
 Unfortunately, several attacks within such a cloud environment have been demonstrated as viable strategies to extract secrets~\cite{mehmet2015getoff,flowers2022zeroday,atya2019catchme,venkatanathan2015placevul}.
 
 Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, the literature shows that some compilers may optimize these mitigations away~\cite{barthe2018sec}.
-This is of course not what the programmer expects and necessitates the need for a {\em secure} compiler that ensures security properties hold even when the program runs in a hostile context, i.e., where it interacts with other possibly malicious programs.
-Secure compilers can be described formally with the theory on {\em robust preservation}~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, which takes this interaction between components and potentially malicious contexts into account.
-Unfortunately, it is unclear if and how robust preservation supports modularity.
-Modularity is an inherent part of software engineering and real-world compilers are no exception to that~\cite{lattner2004llvm,googlev8}.
-Compilation passes are typically developed as a standalone module that can plugged into a compilation pipeline.
-Different kinds of such passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfills a property of interest.
+This is of course not what programmers expect and necessitates the need for a {\em secure} compiler that ensures such mitigations persist in the code they generate.
+More generally, secure compilers should preserve security properties even when the program runs in a hostile context such as the cloud one, i.e., where it interacts with other possibly malicious programs.
+An example of such secure compilers are those that ascribe to the theory of robust compilation~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, which takes this interaction between components and potentially malicious contexts into account.
+Unfortunately, it is unclear if and how robust compilation supports compositionality.
+
+% Compositionality is an inherent part of software engineering and real-world compilers are no exception to that~\cite{lattner2004llvm,googlev8}.
+Compilation passes are typically developed as a standalone module to be plugged into a compilation pipeline and composed with other passes.
+Different kinds of such passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
 Without a modular framework, there is no hope to enable this separation of concerns, where, e.g., a secure pass that ensures \gls{ms} can be developed independently of a secure pass for \gls{cct}.
 %% MK: no idea how/where to fit this in or if this is even necessary
 %Because of the potentially hostile context, secure compilers attain security by relying on protection mechanisms, such as ... and ...\MK{cits}.
-The aim of this paper is to devise the theoretical foundation to be able to modularily build a secure compiler that is capable of dealing with the following example.
+The aim of this paper is to devise the theoretical foundation to be able to build a secure compiler as the composition of several smaller ones.
+Let us now introduce a minimal example of what such a secure compiler should be capable of dealing with.
 %\MPin{ MK: hope it's solved now
 %	this does not really introduce the compositionality issue.
 %	i think the problem is the last sentence.

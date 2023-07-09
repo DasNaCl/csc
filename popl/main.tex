@@ -1046,7 +1046,7 @@ In spirit of this, the language $\Lscct$ allows violating \gls{cct} by emitting 
   \end{aligned}
   \\
   \begin{aligned}
-  \mi{(Symbols)}~&\function\bnfdef\ \lfunction{g}{x}{e}
+  \mi{(Functions)}~&\function\bnfdef\ \lfunction{g}{x}{e}
   &
   \mi{(Libraries)}~&\library\bnfdef\ \hole{\cdot} \mid \function,\library \\
   \mi{(Programs)}~&\prog{\library_{\ctx}}{\library_{\comp}}
@@ -1054,38 +1054,37 @@ In spirit of this, the language $\Lscct$ allows violating \gls{cct} by emitting 
   \mi{(Substitutions)}~&\substvar\bnfdef \hole{\cdot} \mid \subst{\valueexpr}{x},\gamma
   \end{aligned}
 \end{gather*}
-\MPin{
-	this latex had many issues.
-	the \& were at different spots
-	it used hspace to space things instead of \&
-	and it did not use \& to align the following things on a line
-	and it did not use multiple aligned into the gather
-	(what's the point of gather if you don't have several aligned inside? use a single align* instead)
-}
+% \MPin{
+%   this latex had many issues.
+%   the \& were at different spots
+%   it used hspace to space things instead of \&
+%   and it did not use \& to align the following things on a line
+%   and it did not use multiple aligned into the gather
+%   (what's the point of gather if you don't have several aligned inside? use a single align* instead)
+% }
+% oh... that's good to know! the tech report is also riddled with this... :/
 
 Above is a fraction of the shared syntax of all the programming languages of this paper.
 \MP{why a fraction? what exprs are missing}
-The syntax and semantics are mostly standard.\MP{and therefore omitted}
-However, when allocating pointers\MP{arrays?} with $\lnew{\expr[_{1}]}{\expr[_{2}]}$, the expression $\expr[_{1}]$ determines the initial value of the objects\MP{cells?} and $\expr[_{2}]$ the overall size of an array.
+%% MK: Things that are missing here are: Evaluation contexts, states Ω and transitively other definitions affected by this
+The syntax and semantics are mostly standard and therefore omitted.
+However, when allocating arrays with $\lnew{\expr[_{1}]}{\expr[_{2}]}$, the expression $\expr[_{1}]$ determines the initial value of the cells and $\expr[_{2}]$ the overall size of an array.
 
 \MPin{
 	below is semantics info. should go with their symbols and the semantics rules.
 	and a better description of the semantics symbols.
-
+% MK: this moved to appendix! should we bring it back?
 }
 The data associated to pointers resides in the dynamic state $\Omega$ that contains sandboxed heaps, one for the context and the other for the component.
-Because of the sandboxing, locations pointing into heaps must be associated with a control--tag\MP{symbol} to know the heap they point into.
-Other metadata in $\Omega$ entails a list of callable objects\MP{functions? objects are other things in PL} with information on wether they belong to the context or the component.
-That way, when calling a callable object, the semantics can take care of emitting appropriate events that signal a context switch.
-For the languages considered in this paper, no callable objects are first-class.
+Because of the sandboxing, locations pointing into heaps must be associated with a control-tag $\sandboxtag$ (either $\ctx$ or $\comp$) to know the heap they point into.
+Other metadata in $\Omega$ entails a list of functions with information on whether they belong to the context or the component.
+That way, when calling a function, the semantics can take care of emitting appropriate events that signal a context switch.
+For the languages considered in this paper, functions are second-class.
 So, the only values are pairs, pointers, and natural numbers.
 Another non-standard part of the languages is the concept of the poison-tag.
-The poison-tag marks a location as freed ($\poisoned$) without removing the information associated to the freed pointer from $\Omega$.
+The poison-tag marks an array as freed ($\poisoned$) without removing the information associated to the freed pointer from $\Omega$.
 This measure prevents the semantics from getting stuck when an already freed pointer is freed again.
-Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldelete{x};\ldelete{x}}$ reduce and emit a trace along the lines of $\ev{Alloc\ \loc\ \sandboxtag\ 5}\cdot\ev{Dealloc\ \loc\ \sandboxtag}\cdot\ev{Dealloc\ \loc\ \sandboxtag}$.
-\MPin{
-	last line is mixing operational semantics and trace semantics
-}
+Because of this, it is possible that a program like $\llet{x}{\lnew{0}{5}}{\ldelete{x};\ldelete{x}}$ yields a trace $\ev{Alloc\ \loc\ \sandboxtag\ 5}\cdot\ev{Dealloc\ \loc\ \sandboxtag}\cdot\ev{Dealloc\ \loc\ \sandboxtag}$ when executing.
 
 \begin{gather*}
   \begin{aligned}
@@ -1094,7 +1093,7 @@ Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldele
   \end{aligned}
 \end{gather*}
 
-Possible events that are emitted during execution are similar to the ones of the specification trace model \MP{ref?}.
+Possible events that are emitted during execution are similar to the ones of the specification trace model (\Cref{subsec:propdefs}).
 The key difference is that, as standard in secure compilation work, the traces have a call and return event that signals context switches.\MP{why? to help with proofs?}
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
 Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.

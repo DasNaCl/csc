@@ -939,22 +939,52 @@ First, $\src{TypeScript}$ programs are translated to $\trg{JavaScript}$ which, e
 Were all these compilation steps robustly secure with respect to \gls{ms}, the resulting $\irl{Ignition BC}$ code would be \gls{ms} regardless of the context the binary runs in.
 
 \subsubsection{Securing Optimisations}
-\MPin{note that i'm always using british spelling. optimisation VS optimization. etc. }
+%\MPin{note that i'm always using british spelling. optimisation VS optimization. etc. }
+% MK: I'll go over the doc with the antidote spellchecker as soon as it is reasonably stable.
 
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
-\MPin{
-	do not say the negation of something before the non-negation.
-	say what things are first, and what they are not later (if at all)
-}
-Both examples can be seen in the wild~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion}, it is infeasible to list them all\MP{survey to cite? this is a bit informal}.
+%\MPin{
+%	do not say the negation of something before the non-negation.
+%	say what things are first, and what they are not later (if at all)
+%}  MK: that for sure is less confusing... Good suggestion!
+Both examples can be seen in practice~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion}, it is infeasible to list them all\MP{survey to cite? this is a bit informal}. % MK: hard to find a survey on different compiler passes... I can't even find one just for memsafety
 Consider the compilation passes of LLVM~\cite{lattner2004llvm} whose source-code optimisations are industry--competitive\MP{meaning?}.
-In LLVM, the pass manager\MP{meaning} can be used to schedule passes in a way where the optimisations yield the best results.
-Take \gls{cf} and \gls{dce}. \MPin{
-	brief explanation?
-}
+In LLVM, compiler passes are handled in the \texttt{PassManager} class.
+By means of manipulating the internal state of the \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
+That way, an order of optimisations can be found by hand that yields the best results.
+Take \gls{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls{dce}, which removes dead code by rewriting conditional branches.
 Unfortunately, the order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
-\MPin{figure here, or closer, not far away}
-This {\em phase ordering problem} is well--known in literature and a practical solution is to simply perform a fixpoint iteration\MP{of what}.\MP{cit?}
+\begin{figure}
+  \begin{center}
+    \begin{tikzpicture}
+      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left] (progunopt) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
+let a = true in
+if a then
+  print "a"
+else
+  print "b"
+\end{lstlisting}};
+      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progunopt] (progoptcf) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
+if true then
+  print "a"
+else
+  print "b"
+\end{lstlisting}};
+      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progoptcf] (progoptcfdce) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
+print "a"
+\end{lstlisting}};% the following is a hack to get my syntax highlighting to work again \end{lstlisting}
+      % edges
+      \draw[->,very thick] (progunopt) edge[loop left,left] node {\gls{dce}} (progunopt);
+      \draw[->,very thick] (progunopt) edge[sloped,above] node {\gls{cf}} (progoptcf);
+      \draw[->,very thick] (progoptcf) edge[sloped,above] node {\gls{dce}} (progoptcfdce);
+    \end{tikzpicture}
+  \end{center}
+  \caption{Example program where the level of optimisations differ for one pass of applying \gls{cf} and \gls{dce} in any order. %
+  Every edge is a compilation pass and the label on the edge states what the pass does, i.e., \gls{cf} or \gls{dce}. %
+  The source code in the nodes is a glorified compiler intermediate representation and the code gets more optimised towards the right hand side of the figure.}\label{fig:cfdceex}
+\end{figure}
+This {\em phase ordering problem} is well--known in literature and a practical solution is to simply perform a fixpoint iteration of the optimisation pipeline~\cite{click1995combining}.
+%If possible, optimisations are merged to enhance the analysis' result, since even when iterating to a fixpoint the final program may not be as optimised as it could be~\cite{click1995combining}.
 Compiler engineers typically try to find an order of optimisations that yields well-optimised programs for either code size~\cite{cooper1999geneticphases} or performance~\cite{kulkarni2006exhaustivephase}.
 \Cref{corr:swappable} justifies that any such order of compilation passes is valid with respect to security.
 So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
@@ -990,36 +1020,6 @@ Either the user of LLVM provides an explicit flag that instructs the overall com
 In general, there are two options to deal with these nuances in a concrete, practical setting:
 Given secure compilers, either (i) view the whole compilation chain involving them as the upper/sequential/lower compositions and conclude the robust preservation of the intersection of all involved classes, or (ii) specify meta-parameters that, e.g., specify the target language, and thus reduce the compilation chain to a nested sequential composition of the involved compilers.
 The first approach yields a more imprecise statement about the whole compilation chain while the second approach is more precise, but also less flexible.
-
-\begin{figure}
-  \begin{center}
-    \begin{tikzpicture}
-      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left] (progunopt) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
-let a = true in
-if a then
-  print "a"
-else
-  print "b"
-\end{lstlisting}};
-      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progunopt] (progoptcf) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
-if true then
-  print "a"
-else
-  print "b"
-\end{lstlisting}};
-      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progoptcf] (progoptcfdce) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
-print "a"
-\end{lstlisting}};% the following is a hack to get my syntax highlighting to work again \end{lstlisting}
-      % edges
-      \draw[->,very thick] (progunopt) edge[loop left,left] node {\gls{dce}} (progunopt);
-      \draw[->,very thick] (progunopt) edge[sloped,above] node {\gls{cf}} (progoptcf);
-      \draw[->,very thick] (progoptcf) edge[sloped,above] node {\gls{dce}} (progoptcfdce);
-    \end{tikzpicture}
-  \end{center}
-  \caption{Example program where the level of optimisations differ for one pass of applying \gls{cf} and \gls{dce} in any order. %
-  Every edge is a compilation pass and the label on the edge states what the pass does, i.e., \gls{cf} or \gls{dce}. %
-  The source code in the nodes is a glorified compiler intermediate representation and the code gets more optimised towards the right hand side of the figure.}\label{fig:cfdceex}
-\end{figure}
 
 %\section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}

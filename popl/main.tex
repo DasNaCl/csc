@@ -291,15 +291,6 @@ An example of such secure compilers are those that ascribe to the theory of robu
 Unfortunately, it is unclear if and how robust compilation supports compositionality, and compilation passes are typically developed as a standalone module to be plugged into a compilation pipeline and composed with other passes.
 Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
 Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct} as showcased in \Cref{ex:strncpy}.
-%% MK: no idea how/where to fit this in or if this is even necessary
-%Because of the potentially hostile context, secure compilers attain security by relying on protection mechanisms, such as ... and ...\MK{cits}.
-% This paper presents one such framework to be able to build a secure compiler as the composition of several smaller ones.
-% Let us now introduce a minimal example of what such a secure compiler should be capable of dealing with.
-%\MPin{ MK: hope it's solved now
-%	this does not really introduce the compositionality issue.
-%	i think the problem is the last sentence.
-%	try and divert the story after the 'because' line, to go into the need for composing compilers
-%}
 \begin{example}[strncpy]\label{ex:strncpy}
 Consider the program below which copies a \texttt{C}-style string \texttt{x} into \texttt{y} up to a length of \texttt{n}:
 
@@ -347,9 +338,6 @@ Then, this paper defines several secure compiler passes, where each is either pr
 Finally, this paper shows how to compose these secure compiler passes into a multi-pass compilation chain which is proven to provide end-to-end preservation of general memory safety and cryptographic constant time.
 Crucially, this end-to-end security preservation is obtained by having each compilation pass (i) preserve a sub-part of the overall security property individually and then (ii) compose each preserved security property as dictated by the framework of this paper.
 The results showcase how the framework allows the kind of formal security reasoning that compiler writers already want (and do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
-%\MPin{
-%	last line: connect with the many citations of the previous paragraph
-%}
 
 In summary, this paper makes the following contributions:
 \begin{itemize}
@@ -388,7 +376,7 @@ In summary, this paper makes the following contributions:
         The chain ultimately preserves a combination of \gls{ms} and \gls{cct} by means of composing the individual, secure passes concerning \gls{tms}, \gls{sms}, and a stricter variant of \gls{cct}, respectively.
         Furthermore, the chain includes two passes for \gls{ms} that are optimising: One performs a simple \gls{dce} and the other \gls{cf}.
         The formalisation of this case study showcases the power of the presented framework.
-        Namely, the divide-and-conquer approach is a viable strategy even for engineering secure compilers.
+        Namely, the divide-and-conquer approach to software engineering is a viable strategy even for the developement of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
   \item The key contributions of this paper are formalized in the Coq proof assistant and the paper indicates this with \CoqSymbol.
@@ -910,8 +898,13 @@ Accordingly, the event agreement simply disregards all events that involved publ
   If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
 \end{lemma}
 
-\begin{example}[DIT on vs DIT off]
-  \MKin{fill in the blank}
+\begin{example}[Data independent timing mode]
+  Consider an excerpt from a component that reads from non-confidential memory \texttt{x} and writes the result to confidential memory \texttt{y}.
+  The trace of just this part may look like $\ev{Use}\ \loc_{x}\ 1729;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 1729;\comp;\lock$.
+  In terms of the abstract monitor trace, this is just $\absev{Any}$.
+  Running this on the monitor would result in getting stuck, since there is no matching rule to step in the presence of $\absev{Any}$ event. % pun intended
+  By means of additional features to ensure cryptographic constant time even in the presence of memory reads and loads, such as a flag to enable a data independent timing mode, which is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors, the original trace can contain $\ev{Use}\ \loc_{y}\ 1729;\comp;\unlock$ instead of $\ev{Use}\ \loc_{y}\ 1729;\comp\lock$.
+  Because of this, the whole trace of the component equates to $\absev{\emptyevent}$ and the monitor can step without getting stuck.
 \end{example}
 
 \subsubsection{Combining \gls{ms} and \gls{scct} Monitors to obtain \gls{msscct}}
@@ -955,7 +948,7 @@ Notably, real-world compilation chains also perform a series of (sequential) pas
 %	say what things are first, and what they are not later (if at all)
 %}  MK: that for sure is less confusing... Good suggestion!
 Both examples can be seen in practice~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion}, it is infeasible to list them all\MP{survey to cite? this is a bit informal}. % MK: hard to find a survey on different compiler passes... I can't even find one just for memsafety
-Consider the compilation passes of LLVM~\cite{lattner2004llvm} whose source-code optimisations are industry--competitive\MP{meaning?}.
+Consider the compilation passes of LLVM~\cite{lattner2004llvm}.
 In LLVM, compiler passes are handled in the \texttt{PassManager} class.
 By means of manipulating the internal state of the \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
 That way, an order of optimisations can be found by hand that yields the best results.

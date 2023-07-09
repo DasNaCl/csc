@@ -56,7 +56,7 @@
 \usepackage{soul}
 \usepackage{bm}
 
-\setul{0.5ex}{0.3ex}
+\setul{0.95ex}{0.3ex}
 
 % https://tex.stackexchange.com/questions/648845/sans-serif-uppercase-greek-no-longer-showing-in-acmart
 \DeclareMathAlphabet{\mathsf}{OT1}{LibertinusSans-LF}{m}{n}
@@ -994,32 +994,33 @@ So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{
 \end{corollary}
 
 \subsection{Secure Upper and Lower Composition}\label{sec:other-compos}
-Besides sequential composition, there are two other compositions that are more at the language- than the compiler-level\MP{namely ...}.
-Nevertheless, consider $\trg{JVM BC}$, which is a popular target for programming language designers due to its high performance and relevance in industry.
-As an example, $\src{Java}$ and $\obj{Kotlin}$ compile to $\trg{JVM BC}$.
-Technically speaking, they both lower\MP{undefined verb. no need for synonyms here.} to class files and $\obj{Kotlin}$ objects are considered to be the same as $\src{Java}$ objects at that point.
-A compiler that accepts both $\src{Java}$ and $\obj{Kotlin}$ code translating to the same target language, or rather, intermediate representation, performs a kind of {\em upper} composition.
-Given a secure compiler from $\src{Java}$ to $\trg{JVM BC}$ and one from $\obj{Kotlin}$ to $\trg{JVM BC}$, it is easy to envision that one can engineer a combined compiler that accepts both $\src{Java}$ and $\obj{Kotlin}$.
-A practical example of this, which is, however, insecure, is {\tt Android Studio}~\cite{androidstudio}.
-The proof of \Cref{thm:rtp} can be easily adapted to also works for this {\em upper} composition.
-The corresponding theorem is not listed, since there is no general definition of this kind of composition.
-\MPin{
-	mmm need to think about this.
-	this looks like discussion section material
-}
-\MPin{
-	we could turn this into a : "if you expected upper adn lower, they are language composition ops, not compiler ones, so that's out of scope"
-}
+Besides sequential composition, there are two other compositions, namely an {\em upper}, i.e., a compiler that takes multiple inputs and yields one output, and a {\em lower} composition, i.e., a compiler that takes one input and yields multiple outputs.
+Examples of this are present in industry:
+Consider the Java Virtual Machine bytecode $\trg{JVM BC}$, which is a popular target for programming language designers due to its high performance and relevance in industry.
+Compilers for several programming languages have it as their target language, some popular instances are $\src{Java}$ and $\obj{Kotlin}$.
+Technically speaking, they both compile to class files and $\obj{Kotlin}$ objects are considered to be the same as $\src{Java}$ objects at that point.
+Both languages can be used at the same time in one project~\cite{androidstudio}.
+A compiler that accepts both $\src{Java}$ and $\obj{Kotlin}$ code translating to the same target language or intermediate representation performs a kind of {\em upper} composition.
+The definition of upper composition is as follows: given a program $\mathtt{p}$, its compiled $\trg{L}$ counterpart is obtained by plugging $\mathtt{p}$ into $\cc{\src{L}}{\trg{L}}$ if $\mathtt{p}\in\src{L}$ or by plugging $\mathtt{p}$ into $\cc{\obj{L}}{\trg{L}}$ if $\mathtt{p}\in\obj{L}$, written as $\cc{\src{L}+\obj{L}}{\trg{L}}$.
+Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\obj{L}}{\trg{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
-Likewise, the {\em lower} composition is concerned about compilers that accept the same source but yield different target languages and the same theoretical results apply.
-However, especially for this kind of composition, it is rather difficult to provide a general definition.
-Consider two compilers both accepting $\src{LLVM IR}$ and one of them emits $\trg{x86\_64}$, while the other emits $\trg{ARMv8}$.
-It is intuitive that they are in some sense composed in the LLVM framework, but the decision of when to use one over the other is inherently {\em unobservable} to the formalization effort of this kind of composition.
-Either the user of LLVM provides an explicit flag that instructs the overall compiler to emit $\trg{x86\_64}$ or the framework itself detects the target platform via heuristics.
+\begin{theorem}[Upper Composition of Secure Compilers]\label{thm:urtp}
+  If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\obj{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}+\obj{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
+\end{theorem}
+
+Dually, the {\em lower} composition is concerned about compilers that accept the same source but yield different target languages. %and the same theoretical results apply.
+Consider two compilers both accepting $\src{LLVM IR}$~\cite{lattner2004llvm} and one of them emits $\trg{x86\_64}$, while the other emits $\trg{ARMv8}$.
+It is intuitive that they are in some sense composed in the LLVM framework, but the decision of when to use one over the other is inherently {\em internal} to the formalisation effort of this kind of composition.
+For example, the user of this compiler provides an explicit flag that instructs to emit $\trg{x86\_64}$ or the framework itself detects the target platform via heuristics, such as supported instructions.
+The %proposed
+definition of lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ is as follows: given a program $\src{p}$, its compiled $\trg{L}$ or $\obj{L}$ program is obtained by performing an internal decision and threading $\src{p}$ into $\cc{\src{L}}{\trg{L}}$ or into $\cc{\src{L}}{\obj{L}}$ depending on that decision.
+Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\src{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
+
+\begin{theorem}[Lower Composition of Secure Compilers]\label{thm:lrtp}
+  If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\obj{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}+\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. %\Coqed
+\end{theorem}
+
 %Either way, the theoretical results suggest that it is possible to always find a ,,most-general'', secure compiler, given two secure compilers, that robustly preserves the least-upper bound of the classes involved in their compilation process.
-In general, there are two options to deal with these nuances in a concrete, practical setting:
-Given secure compilers, either (i) view the whole compilation chain involving them as the upper/sequential/lower compositions and conclude the robust preservation of the intersection of all involved classes, or (ii) specify meta-parameters that, e.g., specify the target language, and thus reduce the compilation chain to a nested sequential composition of the involved compilers.
-The first approach yields a more imprecise statement about the whole compilation chain while the second approach is more precise, but also less flexible.
 
 %\section{Case Study: Memory Safe and Cryptographic Constant Time Code}\label{sec:casestud}
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}
@@ -1563,7 +1564,7 @@ In future work, it would be interesting to investigate whether it is possible to
 %To this end, it may be necessary to extend existing frameworks for multi-language semantics.
 It is also interesting to extend our case-study and verify all results of it in Coq.
 This way, it is possible to obtain an executable, secure compiler.
-However, the formalization effort for backtranslation proofs is known to be enormous, so another research avenue may be to find better ways to (semi-)automate standard secure compilation proofs.
+However, the formalisation effort for backtranslation proofs is known to be enormous, so another research avenue may be to find better ways to (semi-)automate standard secure compilation proofs.
 
 %% The acknowledgments section is defined using the "acks" environment
 %% (and NOT an unnumbered section). This ensures the proper

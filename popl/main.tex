@@ -272,7 +272,7 @@
 %% information and builds the first part of the formatted document.
 \maketitle
 
-\section{Introduction\pages{4}}
+\section{Introduction\pages{4}}\label{sec:introduction}
 
 \gls{ms} is a security property of programs.
 Without memory safety, private data can easily leak or corrupt~\cite{lemay2021ccc}.
@@ -1118,6 +1118,7 @@ The compiler does not have to do anything special besides a typecheck to respect
 That is, because $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ invokes a callable object accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
 By inserting the check, the compiler ensures that execution does not proceed in such cases.
 The compiler does not insert other checks and simply recolors $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions.
+Hypothesizing an implementation of the \texttt{strncpy} function from \Cref{sec:introduction} in $\Ltms$, the compiler would in this case ensure that the arguments are valid.
 
 \begin{theorem}[Compiler $\cca$ is secure with respect to \gls{tms}]\label{thm:cca:rtp:tms}
   $\rtp{\cca}{\tmssafe}$ % \Coqed
@@ -1216,9 +1217,6 @@ Similarily, the backtranslation may also insert wrapper code prior and after swi
 
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 
-The language $\irl{L_{\mssafe}}$ is exactly the same as $\trg{L}$ and are considered equal.
-However, it is still named and collored differently to emphasize the fact that after this section, compiled $\irl{L_{\mssafe}}$ programs are \gls{ms}.
-
 \begin{center}
   $$
   \begin{array}{rcl}
@@ -1229,15 +1227,16 @@ However, it is still named and collored differently to emphasize the fact that a
   $$
 \end{center}
 
-Up to getting and setting memory, the compiler is the identity function.
+Up to getting and setting memory, the compiler is the identity function, i.e., all omitted cases are a recoloring of $\trg{L}$ to $\Lms$.
 For memory accesses, however, a bounds--check is inserted that enforces \gls{sms}.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
+Again, linking this back to the \texttt{strncpy} example corresponds to the insertion of bounds check right in front of the accesses to \texttt{y[i]} and \texttt{x[i]}.
 
 \begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}
   $\rtp{\ccb}{\smssafe}$ % \Coqed
 \end{theorem}
 
-The composition of $\cca$ and $\ccb$ attains full memory safety using \Cref{thm:rtp,thm:cca:rtp:tms,thm:ccb:rtp:sms}.
+It is now possible to make use of \Cref{thm:rtp} to extract a compiler from $\Ltms$ to $\Lms$ that is \gls{ms} by applying \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms}:
 
 \begin{theorem}[Compiler $\cca\circ\ccb$ is secure with respect to \gls{ms}]\label{thm:ccab:rtp:ms}
   $\rtp{\cca\circ\ccb}{\mssafe}$ % \Coqed
@@ -1263,12 +1262,18 @@ The composition of $\cca$ and $\ccb$ attains full memory safety using \Cref{thm:
   $$
 \end{center}
 
+The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls{dce} and \gls{cf}, respectively.
+Both are secure with respect to \gls{ms}, the proof of which is relatively easy, since the backtranslation can use the original context without modification and both transformations do not change anything with regards to allocation, use, or deallocation.
+That is, the order of appearance of the events on the execution trace stays the same.
+
 \begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls{ms}]\label{thm:ccdce:rtp:ms}
   $\rtp{\ccdce}{\mssafe}$ % \Coqed
 \end{theorem}
 \begin{theorem}[Compiler $\cccf$ is secure with respect to \gls{ms}]\label{thm:cccf:rtp:ms}
   $\rtp{\cccf}{\mssafe}$ % \Coqed
 \end{theorem}
+
+With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swappable} that the two passes can be interchanged arbitrarily:
 
 \begin{theorem}[Compilers $\cccf\circ\ccdce$ and $\cccf\circ\ccdce$ are secure with respect to \gls{ms}]\label{thm:cccfccdce:rtp:ms}
   $\rtp{\cccf\circ\ccdce}{\mssafe}$ and $\rtp{\ccdce\circ\cccf}{\mssafe}$ % \Coqed
@@ -1284,19 +1289,19 @@ The composition of $\cca$ and $\ccb$ attains full memory safety using \Cref{thm:
   $$
 \end{center}
 
+Given the fact that $\Lscct$ provides a \gls{cct}--mode, the compiler has to ensure that execution in the component always happen in this mode.
+The context could overwrite the flag and exit the mode, but upon invoking a callable object that is part of the component, the flag would be set again.
+Because of this, the compiler is secure with respect ot \gls{scct}, similarily proven as in \Cref{subsec:cs:tms}.
+
 \begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls{scct}]\label{thm:ccscct:rtp:scct}
   $\rtp{\ccscct}{\scctsafe}$ % \Coqed
 \end{theorem}
 
 \subsection{Robust Preservation of Intersection of Memory Safety and Strict Cryptographic Constant Time}
 
-Let $\cc{\Ltms}{\Lscct}$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, and $\ccscct$, then the following theorem can be shown.
+Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, and $\ccscct$, then the following theorem can be shown.
 
-\begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls{scct}]\label{thm:ccscct:rtp:scct}
-  $\rtp{\ccscct}{\scctsafe}$ % \Coqed
-\end{theorem}
-
-\begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls{scct}]\label{thm:ccall:rtp:msscct}
+\begin{theorem}[Compiler $\ccmsscct$ is secure with respect to \gls{scct}]\label{thm:ccall:rtp:msscct}
   $\rtp{\cc{\Ltms}{\Lscct}}{\mssafe\cap\scctsafe}$ % \Coqed
 \end{theorem}
 

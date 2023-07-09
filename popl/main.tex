@@ -287,16 +287,14 @@ Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jas
 This is of course not what programmers expect and necessitates the need for a {\em secure} compiler that ensures such mitigations persist in the code they generate.
 More generally, secure compilers should preserve security properties even when the program runs in a hostile context such as the cloud one, i.e., where it interacts with other possibly malicious programs.
 An example of such secure compilers are those that ascribe to the theory of robust compilation~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, which takes this interaction between components and potentially malicious contexts into account.
-Unfortunately, it is unclear if and how robust compilation supports compositionality.
 
-% Compositionality is an inherent part of software engineering and real-world compilers are no exception to that~\cite{lattner2004llvm,googlev8}.
-Compilation passes are typically developed as a standalone module to be plugged into a compilation pipeline and composed with other passes.
-Different kinds of such passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
-Without a modular framework, there is no hope to enable this separation of concerns, where, e.g., a secure pass that ensures \gls{ms} can be developed independently of a secure pass for \gls{cct}.
+Unfortunately, it is unclear if and how robust compilation supports compositionality, and compilation passes are typically developed as a standalone module to be plugged into a compilation pipeline and composed with other passes.
+Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
+Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct} as showcased in \Cref{ex:strncpy}.
 %% MK: no idea how/where to fit this in or if this is even necessary
 %Because of the potentially hostile context, secure compilers attain security by relying on protection mechanisms, such as ... and ...\MK{cits}.
-The aim of this paper is to devise the theoretical foundation to be able to build a secure compiler as the composition of several smaller ones.
-Let us now introduce a minimal example of what such a secure compiler should be capable of dealing with.
+% This paper presents one such framework to be able to build a secure compiler as the composition of several smaller ones.
+% Let us now introduce a minimal example of what such a secure compiler should be capable of dealing with.
 %\MPin{ MK: hope it's solved now
 %	this does not really introduce the compositionality issue.
 %	i think the problem is the last sentence.
@@ -314,20 +312,19 @@ void strncpy(int n, char *x, char *y) {
 \end{lstlisting}
 
 For sake of simplicity, assume that the buffer \texttt{y} is at least as large as \texttt{n} as well as \texttt{x} terminated by \texttt{'\textbackslash 0'}.
-Even under these assumptions, there is a subtle \gls{ms} bug in the program which can be exploited to read sensitive data:
-The bounds check, i.e., \texttt{i < n}, should happen {\it prior} to the access to memory location \texttt{x[i]}.
+Even under these assumptions, there is a subtle \gls{ms} bug in the program which can be exploited to read sensitive data: The bounds check, i.e., \texttt{i < n}, should happen {\it prior} to the access to memory location \texttt{x[i]}.
 Otherwise, if \texttt{n} is larger than the length of the array object \texttt{x} points to, the memory location past this array object is read, which is an out-of-bounds memory access.
 Unfortunately, even though flipping the conditions does fix the \gls{ms} issue, it still violates \gls{cct}, so the program is susceptible to timing attacks.
 This is because the loop can terminate early: As soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, the loop exits.
 Thus, the program execution time is proportional to the length of the array object \texttt{x}.
-The fix commonly employed in such a case is to rewrite the program to run a {\it fixed} number of iterations regardless of the length of \texttt{x} or \texttt{y}.
+The fix commonly employed in such a case is to rewrite the program to run a {\it fixed} number of iterations regardless of the length of \texttt{x} or \texttt{y}. \MP{ can we write this is a compiler-inserted fix?}
 To this end, there must be an upper bound for the length of \texttt{x} and \texttt{y} and then the loop can just iterate until the induction variable \texttt{i} hits this upper bound.
 
-These fixes alone are not enough to make this program robust, i.e., not violating either \gls{ms} or \gls{cct} in a potentially malicious context.
+These fixes alone are not enough to make this program secure in a robust setting, i.e., not violating either \gls{ms} or \gls{cct} in a potentially malicious context.
 Consider a program context that calls \texttt{strncpy} with a very large \texttt{n}, some uninitialised memory \texttt{x}, and \texttt{y} does not matter for the sake of this example.
 While the context seems conceptually simple, uninitialized memory can appear in programs very subtly and invoking \texttt{strncpy} now leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue that can have devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 To mitigate these situations, it is important that \texttt{strncpy} ensures that the provided arguments satisfy the assumptions being made by the maintainer of \texttt{strncpy}, since the calling context can behave in a hostile manner.
-Unfortunately, these checks do not work in C\MP{why are we talking of C now?} without additional features, since there is no way to check whether a pointer points into a valid allocated region or not.
+Unfortunately, these checks do not work in C without additional features, since there is no way to check whether a pointer points into a valid allocated region or not.
 To enable this would require extra metadata~\cite{kwon2013lowfat,akritidis2009baggy} which must not be modifiable by a malicious context.
 So, for sake of simplicity, assume the language at hand provides an operator \texttt{is\_valid(p, s, n)} that faithfully checks whether a pointer \texttt{p} points into a valid array of objects sized \texttt{s} of length \texttt{n} or not -- in constant time.
 This could be an abstraction that the operating system provides.\MP{cits absolutely needed and the narrative needs to be stronger, using those cits}

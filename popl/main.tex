@@ -437,7 +437,9 @@ To consider a stronger model similarily to what existing work does~\cite{abate20
 Robust satisfaction considers partial programs $\progvar$, i.e., programs with free variables, which need to be defined prior to execution.
 Programs with free variables can get stuck during execution.
 To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
-As typically done in not only secure compilation~\cite{abate2019jour,devriese2018parametricity}, \MP{others do this too, parametricity results e.g.} this paper assumes that whole programs are the result of linking partial programs referred to as {\em context} ($\ctx$) and {\em component} ($\comp$).
+As typically done in not only secure compilation~\cite{abate2019jour,devriese2018parametricity}, %
+% \MP{others do this too, parametricity results e.g.}
+this paper assumes that whole programs are the result of linking partial programs referred to as {\em context} ($\ctx$) and {\em component} ($\comp$).
 The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
 %In this work, the semantics of the programming language is expected to differentiate between the component and the context.
 With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the result of which must satisfy $\pi$}.
@@ -504,10 +506,7 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
 
 This section introduces a trace model and uses it to define the key properties of interest for this paper: \gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct} (\Cref{subsec:propdefs}).
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) this paper presents later. 
-\MPin{
-	missing 3.2 ref? added below?
-}
-Then, this section introduces monitors for each of the properties presented earlier (\Cref{??}).
+Then, this section introduces monitors for each of the properties presented earlier (\Cref{subsec:monitors}).
 
 
 \subsection{Specification Trace Model}\label{subsec:propdefs}
@@ -529,7 +528,7 @@ The latter is necessary to be able to ignore actions done by a spurious context 
 Lastly, pre-events describe the actual kind of event that happened.
 One such kind is the allocation event ($\ev{Alloc\ \loc\ n}$) that fires whenever a program claims $n$ cells of memory and stores them at address $\loc$.
 Dually, deallocation ($\ev{Dealloc\ \loc}$) announces that the object at location $\loc$ is freed.
-These two events alone allow\MP{allow who? allow needs an object, this is improper english} already a partial description of \gls{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
+These two events alone are enough to provide a partial description of \gls{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
 To be able to express \gls{sms}, there is also an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
 Finally, for cryptographic code, there is a general guideline that secrets must not be visible on a trace.
 Moreover, an instruction whose timing is data-dependent must not have a secret as an operand.
@@ -606,10 +605,10 @@ It entails all program behaviours that are both memory safe and strictly cryptog
   $
 \end{definition}
 
-%\section{Monitors and Trace Agreements\pages{1.5}}\label{sec:monitors}
-\subsection{Monitors\pages{1.5}}\label{sec:monitors}
+%\section{Monitors and Trace Agreements\pages{1.5}}\label{subsec:monitors}
+\subsection{Monitors\pages{1.5}}\label{subsec:monitors}
 
-The use of monitors is because they have some structure useful for inductive proofs, whereas traces lack this structure, thus making proofs difficult.\MP{not true. safety props are enforced by monitors}
+Monitors can be used to enforce safety properties and this section presents concrete instantiations of monitors for the previousvy presented properties (\Cref{subsec:propdefs}).
 To lessen the burden when proving, each monitor makes use of a custom trace model that contains only the relevant information related to the property the monitor checks.
 To project specification traces $\trace$ onto these monitor-level traces $\abstrace$, each property has an associated event agreement relation $\traceagree[]{\pi}{\trace}{\abstrace}$.
 This relation performs the actual work of projecting the events, while the stutter-equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.
@@ -923,9 +922,9 @@ This section presents the key meta-theoretic results of this paper concerning se
 \subsection{Secure Sequential Composition}\label{sec:sequential}
 
 The main result is that secure compilers in the robust compilation framework~\cite{abate2019jour} compose {\em sequentially}.
-This is not intuitive in the sense that there are a number of examples in the security domain where sequential composition does not work~\cite{canetti2006univcomp,mccullough2012compo,fabian2022automatic}.\MP{?canetti?}
+This is not intuitive in the sense that there are a number of examples in the security domain where sequential composition does not work~\cite{canetti2006univcomp,mccullough2012compo,fabian2022automatic}.%
+\MP{?canetti?} %% protocols under certain security notions are not secure when composed
 The sequential composition of compilers $\cc{\src{L}}{\trg{L}}$ and $\cc{\trg{L}}{\obj{L}}$ is defined as follows: given an $\src{L}$ program $\src{p}$, its compiled $\obj{L}$ counterpart is obtained by plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$.
-% MP: i know, i added a passive verb. here it works. i think. but i appreciate the effort!
 Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtp}

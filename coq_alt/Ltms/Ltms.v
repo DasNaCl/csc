@@ -1072,7 +1072,7 @@ Definition pstep_compatible (e : expr) : option expr :=
   | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
   | Xpair (Xval v1) (Xval v2) => Some(Xpair (Xval v1) (Xval v2))
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
-  | Xnew γ (Xval v1) (Xval v2) => Some(Xnew γ (Xval v1) (Xval v2))
+  | Xnew γ (Xval(Vnat v1)) (Xval v2) => Some(Xnew γ (Xval(Vnat v1)) (Xval v2))
   | Xdel (Xval v) => Some(Xdel (Xval v))
   | Xget (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat v)) => Some(Xget (Xval Vcap) (Xval(Vptr ℓ γ)) (Xval(Vnat v)))
   | Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3) => Some(Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3))
@@ -1090,7 +1090,7 @@ Definition pestep_compatible (e : expr) : option expr :=
   | Xlet x (Xval v) e => Some(Xlet x (Xval v) e)
   | Xpair (Xval v1) (Xval v2) => Some(Xpair (Xval v1) (Xval v2))
   | Xunpair x1 x2 (Xval v) e => Some(Xunpair x1 x2 (Xval v) e)
-  | Xnew γ (Xval v1) (Xval v2) => Some(Xnew γ (Xval v1) (Xval v2))
+  | Xnew γ (Xval(Vnat v1)) (Xval v2) => Some(Xnew γ (Xval(Vnat v1)) (Xval v2))
   | Xdel (Xval v) => Some(Xdel (Xval v))
   | Xget (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat v)) => Some(Xget (Xval Vcap) (Xval(Vptr ℓ γ)) (Xval(Vnat v)))
   | Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3) => Some(Xset (Xval(Vcap)) (Xval(Vptr ℓ γ)) (Xval(Vnat n)) (Xval v3))
@@ -1379,7 +1379,11 @@ Proof.
     induction K; cbn; try easy; rewrite IHK;
     try now (remember (insert K (Xset (Xval Vcap) (Xval (Vptr ℓ v2)) (Xval n) (Xval v))) as e';
              induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
-    (* and so on *)
+  - grab_value e0_1; admit.
+  - grab_value e0_1; destruct e0_2; inv H.
+    induction K; cbn; try easy; rewrite IHK;
+    try now (remember (insert K (Xnew γ (Xval n) (Xval v))) as e';
+             induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
 Admitted.
 
 Lemma easy_ectx e0 :

@@ -286,6 +286,7 @@ Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jas
 This is of course not what the programmer expects and necessitates the need for a {\em secure} compiler that ensures security properties hold even when the program runs in a hostile environment, i.e., interacts with other programs by any means.
 Because of this hostile environment, secure compilers attain security by relying on certain protection mechanisms, such as ... and ...\MK{cits}.
 The aim of this paper is to devise the theoretical foundation to be able to build a secure compiler that is capable of dealing with the following example.
+\begin{example}[strncpy]\label{ex:strncpy}
 Consider the program bolow which copies a \texttt{C}-style string \texttt{x} into \texttt{y} up to a length of \texttt{n}:
 
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
@@ -326,8 +327,9 @@ void strncpy(int n, char *x, char *y) {
   }
 }
 \end{lstlisting}
+\end{example}
 
-As stated earlier, this work wants to establish the theoretical foundation to ensure the secure compilation of programs like \texttt{strncpy} to satisfy properties \gls{ms} and \gls{cct} robustly.
+As stated earlier, this work wants to establish the theoretical foundation to ensure the secure compilation of programs like \texttt{strncpy} (\Cref{ex:strncpy}) to satisfy properties \gls{ms} and \gls{cct} robustly.
 Secure compilation in terms of robust preservation is well--established~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}.
 Unfortunately, at the time of writing this paper, it is unclear if and how the theory of robust preservation would support modularity.
 Missing out on modularity would mean that one has to make a secure compiler for all possible properties {\em or} for a combination of \gls{ms} and \gls{cct}.
@@ -447,6 +449,13 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
   \bul{$\rsat{\progvar}{\pi}$}
   $\isdef$ \iul{$\forall \contextvar$, if $\link{\contextvar}{\progvar}=\wholeprogvar$}, then \oul{$\sat{\wholeprogvar}{\pi}$}.
 \end{definition}
+
+\begin{example}[Double Free in Bluetooth Subsystem]
+  Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double--free vulnerability.
+  The bug arises due to a race condition where the context--level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source--code repository where the vulnerability occurs.
+  Nevertheless, the component--level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check wether the pointer has been freed already:
+  Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no--double--frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
+\end{example}
 
 \subsection{Secure Compilers}\label{subsec:bg:rtp}
 

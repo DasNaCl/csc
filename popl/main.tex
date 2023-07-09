@@ -478,6 +478,23 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
   \rul{$\forall \left(\pi\in\class\right) \left(\src{p}\in\Ltms\right),$} if \iul{$\rsat{\src{\progvar}}{\pi}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
 \end{definition}
 
+\begin{example}[Types]
+  Suppose $\src{L}$ is a statically typed language similar to \texttt{C} and $\trg{T}$ is dynamically typed, where both share the same syntax up to dynamic type checks.
+  Consider the following $\src{L}$ component and its compiled version below.
+  \begin{center}
+  $
+  \begin{array}{l}
+    \src{\lfunction{foo}{(char* x, int\ n)}{\lifz{valid\_ptr(x, n, sizeof(char))}{x[0]}{-1}}} \\
+    \trg{\lfunction{foo}{(\phantom{char*\ }x, \phantom{int\ }n)}{\lifz{valid\_ptr(x, n, sizeof(char))}{x[0]}{-1}}}
+  \end{array}
+  $
+  \end{center}
+  While the implementation the compiler emits may look correct, it does not check that the provided argument is of the right type.
+  Even though the pointer $\trg{x}$ is checked for validity, the context $\trg{foo((int*)y, 1)}$ is able to provoke a read out of bounds.
+  Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context now calls the component again but casts this buffer to an $\trg{int*}$ prior to that call.
+  The pointer is valid for one $\trg{char}$--sized memory cell, as expected, but the actual read operation now returns $\trg{sizeof(int)}$ many bytes instead of just $\trg{sizeof(char)}$ many.
+  Thus, even if $\src{foo}$ may have been robust with respect to the no--reads--out--of--bounds property, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
+\end{example}
 
 \section{Example Properties and their Monitors\pages{1.5}}\label{sec:compprop}
 

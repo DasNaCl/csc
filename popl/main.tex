@@ -108,7 +108,7 @@
 %  from ``Proceedings of ...''!
 %
 %\acmBooktitle{Woodstock '18: ACM Symposium on Neural Gaze Detection,
-%  June 03--05, 2018, Woodstock, NY} 
+%  June 03-05, 2018, Woodstock, NY}
 \acmPrice{15.00}
 \acmISBN{978-1-4503-XXXX-X/18/06}
 
@@ -209,30 +209,30 @@
 %% article.
 \begin{abstract}
 
-  Memory safety necessitates secrecy, since breaking it can lead to an arbitrarily large attack space, i.e., from simply reading a secret up to alteration of control--flow in order to execute arbitrary code.
+  Memory safety necessitates secrecy, since breaking it can lead to an arbitrarily large attack space, i.e., from simply reading a secret up to alteration of control-flow in order to execute arbitrary code.
   However, secrecy cannot be achieved with just memory safety alone, since, e.g., private data could be leaked by differences in execution time for varying program inputs.
   This leakage is avoidable by ensuring that programs are cryptographic constant time, i.e., different inputs do not change execution time.
   Prior work has shown that strategies to ensure cryptographic constant time can be rendered useless, since a compiler may simply optimize them away.
   This is why secure compilation is an integral ingredient to achieve security, because a secure compiler guarantees (formally) that properties that hold in the source, also hold in the target. %% mention attacker? the text describes correctness
 
-  Unfortunately, it is an open question wether secure compilers can be engineered in a modular way.
-  Ideally, compiler engineers develop two different compilation passes, one that ensures memory safety and another one that is security preserving with respect to cryptographic constant time. %, because this style of engineering is well--established for its simplifying divide--and--conquer approach as well as enhanced reusability.
+  Unfortunately, it is an open question whether secure compilers can be engineered in a modular way.
+  Ideally, compiler engineers develop two different compilation passes, one that ensures memory safety and another one that is security preserving with respect to cryptographic constant time. %, because this style of engineering is well-established for its simplifying divide-and-conquer approach as well as enhanced reusability.
 
-  This paper answers that question positively: The composition of compilers that are secure with respect to some security--properties yields the intersection of these properties.
-  This article discusses different variants of compositions of secure compilers and instantiates parts of these results in a case--study.
+  This paper answers that question positively: The composition of compilers that are secure with respect to some security-properties yields the intersection of these properties.
+  This article discusses different variants of compositions of secure compilers and instantiates parts of these results in a case-study.
   To this end, it presents an optimizing, secure compilation chain that preserves both memory safety and cryptographic constant time.
-%  Memory safety is achieved by composing secure compilers for both temporal and spatial memory safety, where the compiler for spatial memory safety is an instrumentation that inserts bounds--checks in front of pointer dereferences.
+%  Memory safety is achieved by composing secure compilers for both temporal and spatial memory safety, where the compiler for spatial memory safety is an instrumentation that inserts bounds-checks in front of pointer dereferences.
   %The compiler for cryptographic constant time exploits the use of a data (operand) timing independent mode and the employed optimisations of the compilation chain are constant folding and dead code elimination.
   The compositionality results enable modular proofs for the presented, secure compiler. % that is secure with respect to both memory safety and cryptographic constant time.
   Some results of this work are implemented in the Coq proof assistant.
 
 
-% Secure compilers emit code that is hardened against adversarial target--level attacks, such as memory corruption or alteration of control--flow.
-% It is an open question wether secure compilers compose in a well--behaved manner.
-% This paper answers this question positively: The composition of compilers that are secure with respect to some security--properties yields the intersection of these properties.
-% This article discusses different variants of compositions of secure compilers and instantiates parts of these results in a case--study.
+% Secure compilers emit code that is hardened against adversarial target-level attacks, such as memory corruption or alteration of control-flow.
+% It is an open question whether secure compilers compose in a well-behaved manner.
+% This paper answers this question positively: The composition of compilers that are secure with respect to some security-properties yields the intersection of these properties.
+% This article discusses different variants of compositions of secure compilers and instantiates parts of these results in a case-study.
 % To this end, it presents an optimizing, secure compilation chain that preserves both memory safety and cryptographic constant time.
-% Memory safety is achieved by composing secure compilers for both temporal and spatial memory safety, where the compiler for spatial memory safety is an instrumentation that inserts bounds--checks in front of pointer dereferences.
+% Memory safety is achieved by composing secure compilers for both temporal and spatial memory safety, where the compiler for spatial memory safety is an instrumentation that inserts bounds-checks in front of pointer dereferences.
 % The compiler for cryptographic constant time exploits the use of a data (operand) timing independent mode and the employed optimisations of the compilation chain are constant folding and dead code elimination.
 % The compositionality results enable modular proofs for the whole compilation chain that is secure with respect to both memory safety and cryptographic constant time.
 
@@ -274,7 +274,7 @@
 
 \section{Introduction\pages{4}}\label{sec:introduction}
 
-\gls{ms} is a security property of programs.
+\gls{ms} is a security property of programs that, e.g., ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialized memory.
 Without memory safety, private data can easily leak or corrupt~\cite{lemay2021ccc}.
 Because of this, \gls{ms} is a requirement for programs to attain an even stronger security property, namely \gls{cct}.
 Programs that attain \gls{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
@@ -282,14 +282,21 @@ Timing attacks have become more and more relevant recently, especially given the
 Unfortunately, several attacks within such a cloud environment have been demonstrated as viable strategies to extract secrets~\cite{mehmet2015getoff,flowers2022zeroday,atya2019catchme,venkatanathan2015placevul}.
 
 Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, the literature shows that some compilers may optimize these mitigations away~\cite{barthe2018sec}.
-This is of course not what the programmer expects and necessitates the need for a {\em secure} compiler that ensures security properties hold even when the program runs in a hostile environment, interacting with other possibly malicious programs.
-Because of this hostile environment, secure compilers attain security by relying on protection mechanisms, such as ... and ...\MK{cits}.
-The aim of this paper is to devise the theoretical foundation to be able to build a secure compiler that is capable of dealing with the following example.
-\MPin{
-	this does not really introduce the compositionality issue.
-	i think the problem is the last sentence.
-	try and divert the story after the 'because' line, to go into the need for composing compilers
-}
+This is of course not what the programmer expects and necessitates the need for a {\em secure} compiler that ensures security properties hold even when the program runs in a hostile context, i.e., where it interacts with other possibly malicious programs.
+Secure compilers can be described formally with the theory on {\em robust preservation}~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, which takes this interaction between components and potentially malicious contexts into account.
+Unfortunately, it is unclear if and how robust preservation supports modularity.
+Modularity is an inherent part of software engineering and real-world compilers are no exception to that~\cite{lattner2004llvm,googlev8}.
+Compilation passes are typically developed as a standalone module that can plugged into a compilation pipeline.
+Different kinds of such passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfills a property of interest.
+Without a modular framework, there is no hope to enable this separation of concerns, where, e.g., a secure pass that ensures \gls{ms} can be developed independently of a secure pass for \gls{cct}.
+%% MK: no idea how/where to fit this in or if this is even necessary
+%Because of the potentially hostile context, secure compilers attain security by relying on protection mechanisms, such as ... and ...\MK{cits}.
+The aim of this paper is to devise the theoretical foundation to be able to modularily build a secure compiler that is capable of dealing with the following example.
+%\MPin{ MK: hope it's solved now
+%	this does not really introduce the compositionality issue.
+%	i think the problem is the last sentence.
+%	try and divert the story after the 'because' line, to go into the need for composing compilers
+%}
 \begin{example}[strncpy]\label{ex:strncpy}
 Consider the program below which copies a \texttt{C}-style string \texttt{x} into \texttt{y} up to a length of \texttt{n}:
 
@@ -304,23 +311,20 @@ void strncpy(int n, char *x, char *y) {
 For sake of simplicity, assume that the buffer \texttt{y} is at least as large as \texttt{n} as well as \texttt{x} terminated by \texttt{'\textbackslash 0'}.
 Even under these assumptions, there is a subtle \gls{ms} bug in the program which can be exploited to read sensitive data:
 The bounds check, i.e., \texttt{i < n}, should happen {\it prior} to the access to memory location \texttt{x[i]}.
-Otherwise, if \texttt{n} is larger than the length of the array object \texttt{x} points to, the memory location past this array object is read, which is an out--of--bounds memory access.
+Otherwise, if \texttt{n} is larger than the length of the array object \texttt{x} points to, the memory location past this array object is read, which is an out-of-bounds memory access.
 Unfortunately, even though flipping the conditions does fix the \gls{ms} issue, it still violates \gls{cct}, so the program is susceptible to timing attacks.
-This is because,\MP{this is a german comma. english does not work this way :) please erase.} the loop can terminate early: As soon as the string--\MP{only 1 dash here (also happened before but i already edited)}terminating character \texttt{'\textbackslash 0'} is encountered, the loop exits.
+This is because the loop can terminate early: As soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, the loop exits.
 Thus, the program execution time is proportional to the length of the array object \texttt{x}.
 The fix commonly employed in such a case is to rewrite the program to run a {\it fixed} number of iterations regardless of the length of \texttt{x} or \texttt{y}.
 To this end, there must be an upper bound for the length of \texttt{x} and \texttt{y} and then the loop can just iterate until the induction variable \texttt{i} hits this upper bound.
 
-These fixes alone are not enough to make this program robust, i.e., not violating either \gls{ms} or \gls{cct} in a malicious environment.
-Consider a program context that calls \texttt{strncpy} with a very large \texttt{n}, some uninitialised memory \texttt{x}, and \texttt{y} whatever\MP{? whatever?}.
-Such a function invocation leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue.
-\MPin{
-	we have a very very high-level definition of MS, so the issue may not be clear
-}
-To mitigate these situations, it is important that \texttt{strncpy} ensures that the provided arguments satisfy the assumptions being made by the programmer, since the environment\MP{env? ctx? tetrminology} can behave in a hostile manner.
-Unfortunately, these checks do not work in C\MP{why are we talking of C now?} without additional features, since there is no way to check wether\MP{please use a spell checker, this word is written 'whether'} a pointer points into a valid allocated region or not.
+These fixes alone are not enough to make this program robust, i.e., not violating either \gls{ms} or \gls{cct} in a potentially malicious context.
+Consider a program context that calls \texttt{strncpy} with a very large \texttt{n}, some uninitialised memory \texttt{x}, and \texttt{y} does not matter for the sake of this example.
+While the context seems conceptually simple, uninitialized memory can appear in programs very subtly and invoking \texttt{strncpy} now leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue that can have devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
+To mitigate these situations, it is important that \texttt{strncpy} ensures that the provided arguments satisfy the assumptions being made by the maintainer of \texttt{strncpy}, since the calling context can behave in a hostile manner.
+Unfortunately, these checks do not work in C\MP{why are we talking of C now?} without additional features, since there is no way to check whether a pointer points into a valid allocated region or not.
 To enable this would require extra metadata~\cite{kwon2013lowfat,akritidis2009baggy} which must not be modifiable by a malicious context.
-So, for sake of simplicity, assume the language at hand provides an operator \texttt{is\_valid(p, s, n)} that faithfully checks wether a pointer \texttt{p} points into a valid array of objects sized \texttt{s} of length \texttt{n} or not --- in constant time.
+So, for sake of simplicity, assume the language at hand provides an operator \texttt{is\_valid(p, s, n)} that faithfully checks whether a pointer \texttt{p} points into a valid array of objects sized \texttt{s} of length \texttt{n} or not -- in constant time.
 This could be an abstraction that the operating system provides.\MP{cits absolutely needed and the narrative needs to be stronger, using those cits}
 With this feature at hand, it is possible to modify the original \texttt{strncpy} to be robust, given this is the compiled program without optimisations:
 
@@ -335,27 +339,15 @@ void strncpy(int n, char *x, char *y) {
 \end{lstlisting}
 \end{example}
 
-\MPin{
-	this bit should be introduced earlier
-}
-As stated earlier, this work wants to establish the theoretical foundation to ensure the secure compilation of programs like \texttt{strncpy} (\Cref{ex:strncpy}) to satisfy properties \gls{ms} and \gls{cct} robustly.
-Secure compilation in terms of robust preservation is well-established~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}.
-Unfortunately, currently, it is unclear how the theory of robust preservation supports modularity.
-Missing out on modularity would mean that one has to make a secure compiler for all possible properties {\em or} for a combination of \gls{ms} and \gls{cct}.
-Ideally, both for proof engineering and reusability, a secure compiler for just \gls{ms} and a secure compiler for just \gls{cct} can compose in some way to get a secure compiler for the combination of the two.
-This also reflects real--world compilation chains, where several compilation passes perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source--code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfills a property of interest.
-
-% keyword: pass
-Thus, this paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
+This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as temporal and spatial memory safety into general memory safety, and cryptographic constant time.
 Then, this paper defines several secure compiler passes, where each is either preserving a different security property (e.g., temporal or spatial memory safety) or performing a security-preserving optimisation, (e.g., applying constant-folding or dead-code elimination).
-% keyword- end to end, composition
 Finally, this paper shows how to compose these secure compiler passes into a multi-pass compilation chain which is proven to provide end-to-end preservation of general memory safety and cryptographic constant time.
 Crucially, this end-to-end security preservation is obtained by having each compilation pass (i) preserve a sub-part of the overall security property individually and then (ii) compose each preserved security property as dictated by the framework of this paper.
 The results showcase how the framework allows the kind of formal security reasoning that compiler writers already want (and do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
-\MPin{
-	last line: connect with the many citations of the previous paragraph
-}
+%\MPin{
+%	last line: connect with the many citations of the previous paragraph
+%}
 
 In summary, this paper makes the following contributions:
 \begin{itemize}
@@ -367,7 +359,7 @@ In summary, this paper makes the following contributions:
         % 
         This paper then showcases the benefits of this composition by composing \gls{tms} and \gls{sms} into \gls{ms}, and ultimately adding \gls{cct} to the composition, yielding the the conjunction of \gls{ms} and \gls{cct}.
         % 
-        The resulting security property is the golden standard of safety properties that secure cryptographic code should have~\cite{lemay2021ccc}\MK{more cits?}.
+        The resulting security property is the golden standard of safety properties that secure cryptographic code should have~\cite{lemay2021ccc}.
 %        \MPin{
 %        	conclude that did this prop in a single pass, we show how to do it compositionally
 %        }
@@ -376,8 +368,8 @@ In summary, this paper makes the following contributions:
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
         This paper takes the secure compilation framework of~\citep{abate2019jour} and extends it to reason about the security of all different known forms of compiler composition (\Cref{sec:compcomp}).
         %Concretely, it investigates upper and lower compositions, as well as the sequential composition.
-        For this, this paper studies the sequential composition of compilers, as typically done when engineering compilation chains, as well as an upper and a lower composition that discuss multi--in- and multi--output compilers.\MP{upper and lower?}
-        % 
+        For this, this paper studies compilers with multiple inputs or multiple outputs as well as the sequential composition of compilers, as typically done when engineering compilation chains.
+        %
         This paper proves that starting from two compilers that preserve two properties, their composition preserves the intersection of those properties.
         For example, a compiler that is secure with respect to \gls{ms} can be composed with a compiler that is secure with respect to \gls{cct}, resulting in a compiler that is secure with respect to the composition of \gls{ms} and \gls{cct}.
 %       \MPin{
@@ -394,7 +386,7 @@ In summary, this paper makes the following contributions:
         The chain ultimately preserves a combination of \gls{ms} and \gls{cct} by means of composing the individual, secure passes concerning \gls{tms}, \gls{sms}, and a stricter variant of \gls{cct}, respectively.
         Furthermore, the chain includes two passes for \gls{ms} that are optimising: One performs a simple \gls{dce} and the other \gls{cf}.
         The formalisation of this case study showcases the power of the presented framework.
-        Namely, the divide--and--conquer approach is a viable strategy even for engineering secure compilers.
+        Namely, the divide-and-conquer approach is a viable strategy even for engineering secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
   \item The key contributions of this paper are formalized in the Coq proof assistant and the paper indicates this with \CoqSymbol.
@@ -415,7 +407,7 @@ Then, borrowing from existing work~\cite{abate2019jour,abate2021extacc,patrignan
 \subsection{Properties and (Robust) Satisfaction}\label{subsec:bg:tprop}
 
 This paper employs the security model where programs are written in a language whose semantics emits events $\event$.
-Events include security--relevant actions (e.g., reading from and writing to memory) and the unobservable event $\emptyevent$.
+Events include security-relevant actions (e.g., reading from and writing to memory) and the unobservable event $\emptyevent$.
 As programs execute, their emitted events are concatenated in traces $\trace$, which serve as the description of the behaviour of a program.%
 \footnote{
 Throughout the paper, we indicate sequences with an overbar (i.e., $\trace$), we denote empty sequences with $\hole{\cdot}$ and concatenate sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
@@ -424,7 +416,7 @@ Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
 
 Properties $\pi$ are sets of traces of admissible program behaviours, ascribing what said property considers valid~\cite{clarkson2008hyper}.
 The set of all properties can be partitioned into different {\em classes} ($\class$), i.e., safety, liveness, and neither safety nor liveness~\cite{clarkson2008hyper}.
-A class is simply a set of properties and for the class of safety properties, it is decidable wether a trace satisfies a safety property with just a finite trace prefix.
+A class is simply a set of properties and for the class of safety properties, it is decidable whether a trace satisfies a safety property with just a finite trace prefix.
 As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$
 This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets}, because it reads from a memory location that was freed already.
 The previous finite trace prefix is enough to decide that the trace does not satisfy temporal memory safety and there is no way to append events to this prefix which would result in the trace being admissible.
@@ -460,10 +452,10 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 \end{definition}
 
 \begin{example}[Double Free in Bluetooth Subsystem]
-  Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double--free vulnerability.
-  The bug arises due to a race condition where the context--level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source--code repository where the vulnerability occurs.
-  Nevertheless, the component--level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check wether the pointer has been freed already:
-  Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no--double--frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
+  Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
+  The bug arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
+  Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether the pointer has been freed already:
+  Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
 \end{example}
 
 \subsection{Secure Compilers}\label{subsec:bg:rtp}
@@ -472,7 +464,7 @@ A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of 
 %For the syntactic description of programs written in $\src{L}$, this paper writes $\src{\progvar}$, while for ones written in $\trg{L}$, this paper writes $\trg{\progvar}$.%\MP{not a fan of this sentence}
 %This paper writes $\src{\progvar}$ and $\trg{\progvar}$ for programs written in $\src{L}$ and $\trg{L}$, respectively.
 %      MK: I don't think we need to mention this at all
-This translation is considered {\em correct} if it is semantics--preserving.
+This translation is considered {\em correct} if it is semantics-preserving.
 That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
 Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
 To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which we summarize in the following definition.
@@ -501,8 +493,8 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
   While the implementation the compiler emits may look correct, it does not check that the provided argument is of the right type.
   Even though the pointer $\trg{x}$ is checked for validity, the context $\trg{foo((int*)y, 1)}$ is able to provoke a read out of bounds.
   Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context now calls the component again but casts this buffer to an $\trg{int*}$ prior to that call.
-  The pointer is valid for one $\trg{char}$--sized memory cell, as expected, but the actual read operation now returns $\trg{sizeof(int)}$ many bytes instead of just $\trg{sizeof(char)}$ many.
-  Thus, even if $\src{foo}$ may have been robust with respect to the no--reads--out--of--bounds property, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
+  The pointer is valid for one $\trg{char}$-sized memory cell, as expected, but the actual read operation now returns $\trg{sizeof(int)}$ many bytes instead of just $\trg{sizeof(char)}$ many.
+  Thus, even if $\src{foo}$ may have been robust with respect to the no-reads-out-of-bounds property, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
 \end{example}
 
 \section{Example Properties and their Monitors\pages{1.5}}\label{sec:compprop}
@@ -516,23 +508,23 @@ These properties are of practical importance and also of interest in the case st
   \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock\hspace{0.5cm}
   \mi{(Control\ Tag)}~\sandboxtag\bnfdef \ctx\mid\comp\hspace{0.5cm}
   \mi{(Event)}~\event\bnfdef\ \emptyevent \mid \lightning \mid \event[_{b}];\sandboxtag;\sigma \\
-  \mi{(Pre\text{--}event)}&~\event[_{b}]\bnfdef\ \ev{Alloc\ \loc\ n} \mid \ev{Dealloc\ \loc} \mid \ev{Use\ \loc\ n} \mid \ev{Branch\ n} \mid \ev{Binop\ n} \\
+  \mi{(Pre\text{-}event)}&~\event[_{b}]\bnfdef\ \ev{Alloc\ \loc\ n} \mid \ev{Dealloc\ \loc} \mid \ev{Use\ \loc\ n} \mid \ev{Branch\ n} \mid \ev{Binop\ n} \\
   \end{aligned}
 \end{gather*}
 
-The specification trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or as tuples consisting of a pre--event, a control--tag, and a security--tag.
+The specification trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or as tuples consisting of a pre-event, a control-tag, and a security-tag.
 The purpose of the model is to define properties, such as a stricter variant of cryptographic constant time.
-To this end, security--tags indicate wether an event contains sensitive information ($\lock$) or not ($\unlock$), while control--tags state wether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
+To this end, security-tags indicate whether an event contains sensitive information ($\lock$) or not ($\unlock$), while control-tags state whether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
 The latter is necessary to be able to ignore actions done by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls{tms}.
 %Even though this could be used for blame~\cite{patrignani2023blame}, this is not what this paper is concerned about.
-Lastly, pre--events describe the actual kind of event that happened.
+Lastly, pre-events describe the actual kind of event that happened.
 One such kind is the allocation event ($\ev{Alloc\ \loc\ n}$) that fires whenever a program claims $n$ cells of memory and stores them at address $\loc$.
 Likewise, deallocation ($\ev{Dealloc\ \loc}$) announces that the object at location $\loc$ is freed.
 These two events alone allow already a partial description of \gls{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
 To be able to express \gls{sms}, there is also an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
 Finally, for cryptographic code, there is a general guideline that secrets must not be visible on a trace.
-Moreover, an instruction whose timing is data--dependent must not have a secret as an operand.
-Typical operations with data--dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture dependent, but division is an operation that serves as a classic example for a data--dependent timing instruction.}.
+Moreover, an instruction whose timing is data-dependent must not have a secret as an operand.
+Typical operations with data-dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture dependent, but division is an operation that serves as a classic example for a data-dependent timing instruction.}.
 Both operations are also modelled in the specification trace model ($\ev{Branch\ n}$ and $\ev{Binop\ n}$).
 
 \subsubsection{Temporal Memory Safety}
@@ -568,7 +560,7 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 \subsubsection{Memory Safety}
 
 Full \gls{ms} is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
-Note, however, that this definition does not entail memory--safety issues introduced by side--channels, such as speculation.
+Note, however, that this definition does not entail memory-safety issues introduced by side-channels, such as speculation.
 
 \begin{definition}[\glsfirst{ms}]\label{def:trace:msdef}
   $
@@ -610,11 +602,11 @@ It entails all program behaviours that are both memory safe and strictly cryptog
 This section introduces monitors for each of the properties presented earlier (\Cref{subsec:propdefs}).
 The use of monitors is because they have some structure useful for inductive proofs, whereas traces lack this structure, thus making proofs difficult.
 To lessen the burden when proving, each monitor makes use of a custom trace model that contains only the relevant information related to the property the monitor checks.
-To project specification traces $\trace$ onto these monitor--level traces $\abstrace$, each property has an associated event agreement relation $\traceagree[]{\pi}{\trace}{\abstrace}$.
-This relation performs the actual work of projecting the events, while the stutter--equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.
+To project specification traces $\trace$ onto these monitor-level traces $\abstrace$, each property has an associated event agreement relation $\traceagree[]{\pi}{\trace}{\abstrace}$.
+This relation performs the actual work of projecting the events, while the stutter-equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.
 With agreements, this section starts to define monitor satisfaction for traces and states that monitor satisfaction implies property satisfaction.
 To this end, monitor satisfaction is defined as follows.
-\bul{A specification trace $\trace$ monitor--satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor\footnote{In this paper, for all monitors, the initial monitor state is denoted as $\emptyset$.} can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
+\bul{A specification trace $\trace$ monitor-satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor\footnote{In this paper, for all monitors, the initial monitor state is denoted as $\emptyset$.} can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
 
 \begin{definition}[Monitor Satisfaction]\label{def:monsat}
   \bul{$\monsafe{\trace}{\pi}$} $\isdef$ $\exists \abstrace\ \monitor$, \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
@@ -770,7 +762,7 @@ int main() {  // allocates 17 integers initialized to 2
     \monitorcheck[]{\smsmonitor}{\smsmonitor\cup\left\{(\loc;\sandboxtag;n)\right\}}{\absev{Alloc\ }\loc\ \sandboxtag\ n}
   }{sms-alloc}
 \end{center}
-The state of the monitor for \gls{sms} is a set containing tuples of locations, control--tags, and the allocation size.
+The state of the monitor for \gls{sms} is a set containing tuples of locations, control-tags, and the allocation size.
 In comparison to the trace model of the \gls{tms} monitor, the trace model here is extended by sizing and positional information.
 \Cref{tr:sms-use} performs a bounds check and \Cref{tr:sms-alloc} adds bounds information to the state of the monitor.
 The trace agreement is entirely straightforward and similar to the one fo \gls{tms}.
@@ -933,12 +925,12 @@ Were all these compilation steps robustly secure with respect to \gls{ms}, the r
 
 Notably, real-world compilation chains also perform a series of passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
 Both examples can be seen in the wild~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion}, it is infeasible to list them all.
-Consider the compilation passes of LLVM\cite{lattner2004llvm} whose source-code optimisations are industry--competitive.
+Consider the compilation passes of LLVM\cite{lattner2004llvm} whose source-code optimisations are industry-competitive.
 In LLVM, the pass manager can be used to schedule passes in a way where the optimisations yield the best results.
 Take \gls{cf} and \gls{dce}.
 Unfortunately, the order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
-This {\em phase ordering problem} is well--known in literature and a practical solution is to simply perform a fixpoint iteration.
-Compiler engineers typically try to find an order of optimisations that yields well--optimised programs for either code size~\cite{cooper1999geneticphases} or performance~\cite{kulkarni2006exhaustivephase}.
+This {\em phase ordering problem} is well-known in literature and a practical solution is to simply perform a fixpoint iteration.
+Compiler engineers typically try to find an order of optimisations that yields well-optimised programs for either code size~\cite{cooper1999geneticphases} or performance~\cite{kulkarni2006exhaustivephase}.
 The following corollary justifies that any such order of compilation passes is valid with respect to security.
 So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
 
@@ -946,7 +938,7 @@ So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{
   If \bul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}\circ\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}\circ\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{2}]\cap\class[_{1}]}$}. \Coqed
 \end{corollary}
 
-Besides the sequential composition, there are two other compositions that are more at the language- than the compiler--level.
+Besides the sequential composition, there are two other compositions that are more at the language- than the compiler-level.
 Nevertheless, consider $\trg{JVM BC}$, which is a popular target for programming language designers due to its high performance and relevance in industry.
 As an example, $\src{Java}$ and $\obj{Kotlin}$ compile to $\trg{JVM BC}$.
 Technically speaking, they both lower to class files and $\obj{Kotlin}$ objects are considered to be the same as $\src{Java}$ objects at that point.
@@ -961,7 +953,7 @@ However, especially for this kind of composition, it is rather difficult to prov
 Consider two compilers both accepting $\src{LLVM IR}$ and one of them emits $\trg{x86\_64}$, while the other emits $\trg{ARMv8}$.
 It is intuitive that they are in some sense composed in the LLVM framework, but the decision of when to use one over the other is inherently {\em unobservable} to the formalization effort of this kind of composition.
 Either the user of LLVM provides an explicit flag that instructs the overall compiler to emit $\trg{x86\_64}$ or the framework itself detects the target platform via heuristics.
-%Either way, the theoretical results suggest that it is possible to always find a ,,most--general'', secure compiler, given two secure compilers, that robustly preserves the least--upper bound of the classes involved in their compilation process.
+%Either way, the theoretical results suggest that it is possible to always find a ,,most-general'', secure compiler, given two secure compilers, that robustly preserves the least-upper bound of the classes involved in their compilation process.
 In general, there are two options to deal with these nuances in a concrete, practical setting:
 Given secure compilers, either (i) view the whole compilation chain involving them as the upper/sequential/lower compositions and conclude the robust preservation of the intersection of all involved classes, or (ii) specify meta-parameters that, e.g., specify the target language, and thus reduce the compilation chain to a nested sequential composition of the involved compilers.
 The first approach yields a more imprecise statement about the whole compilation chain while the second approach is more precise, but also less flexible.
@@ -1003,13 +995,13 @@ This section defines programming languages that the secure compilers defined in 
 To this end, this section defines the languages $\Ltms$, $\Ltrg$, $\Lms$, and $\Lscct$.
 In this paper, $\Ltms$ is the only statically typed language and exhibits the property that all well-typed programs are \gls{tms}.
 However, $\Ltms$ programs are not \gls{sms}.
-That is, there are well--typed $\Ltms$ programs that perform an out--of--bounds access.
+That is, there are well-typed $\Ltms$ programs that perform an out-of-bounds access.
 In contrast, $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls{ms}.
 $\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability.
-All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls{cct} to hold.
+All three languages -- so $\Ltms$, $\Ltrg$, and $\Lms$ -- assume \gls{cct} to hold.
 Even though it is possible to write programs that, e.g., return early in loops, which is trivially not \gls{cct}, they can be transformed to adhere to \gls{cct}~\cite{cauligi2019fact}.
 The language $\Lscct$ allows violating \gls{cct} by emitting events on, e.g., branching and division, that contain secrets.
-As a countermeasure, the language provides a way to read and write to a {\em model--specific register} that enables a ``\gls{cct}-mode''.
+As a countermeasure, the language provides a way to read and write to a {\em model-specific register} that enables a ``\gls{cct}-mode''.
 
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 
@@ -1028,32 +1020,32 @@ Above is a fraction of the shared syntax of all the programming languages of thi
 The syntax and semantics are mostly standard.
 However, when allocating pointers with $\lnew{\expr[_{1}]}{\expr[_{2}]}$, the expression $\expr[_{1}]$ determines the initial value of the objects and $\expr[_{2}]$ the overall size of an array.
 The data associated to pointers resides in the dynamic state $\Omega$ that contains sandboxed heaps, one for the context and the other for the component.
-Because of the sandboxing, locations pointing into heaps must be associated with a control--tag to know the heap they point into.
-Other metadata in $\Omega$ entails a list of callable objects with information on wether they belong to the context or the component.
+Because of the sandboxing, locations pointing into heaps must be associated with a control-tag to know the heap they point into.
+Other metadata in $\Omega$ entails a list of callable objects with information on whether they belong to the context or the component.
 That way, when calling a callable object, the semantics can take care of emitting appropriate events that signal a context switch.
-For the languages considered in this paper, no callable objects are first--class.
+For the languages considered in this paper, no callable objects are first-class.
 So, the only values are pairs, pointers, and natural numbers.
-Another non--standard part of the languages is the concept of the poison--tag.
-The poison--tag marks a location as freed ($\poisoned$) without removing the information associated to the freed pointer from $\Omega$.
+Another non-standard part of the languages is the concept of the poison-tag.
+The poison-tag marks a location as freed ($\poisoned$) without removing the information associated to the freed pointer from $\Omega$.
 This measure prevents the semantics from getting stuck when an already freed pointer is freed again.
 Because of this, it is possible that programs like $\llet{x}{\lnew{0}{5}}{\ldelete{x};\ldelete{x}}$ reduce and emit a trace along the lines of $\ev{Alloc\ \loc\ \sandboxtag\ 5}\cdot\ev{Dealloc\ \loc\ \sandboxtag}\cdot\ev{Dealloc\ \loc\ \sandboxtag}$.
 
 \begin{gather*}
   \begin{aligned}
-  \mi{(Pre\text{--}Events)}~\event[_{b}]\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr &\mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
+  \mi{(Pre\text{-}Events)}~\event[_{b}]\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr &\mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
   \mi{(Events)}~\event&\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag} \\
   \end{aligned}
 \end{gather*}
 
 Possible events that are emitted during execution are similar to the ones of the specification trace model.
 The key difference is that, as standard in secure compilation work, the traces have a call and return event that signals context switches.
-Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context-- to component--level.
-Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component-- to context--level.
-The environmental semantics emits the tag $\nocomm$ for calls from context-- to context--level or component-- to component--level.
+Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
+Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
+The environmental semantics emits the tag $\nocomm$ for calls from context- to context-level or component- to component-level.
 In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$ and also $\operatorname{comm}(\ctx)=\ \ctxtocomp$ and $\operatorname{comm}(\comp)=\ \comptoctx$.
 
 \begin{center}
-  \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime--term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
+  \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime-term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
   %
   \typerule{$e-\text{ret}$}{
     \statevar.\ectxstack=\tup{\ectx}{\text{foo}},\ectxstack['] &
@@ -1071,26 +1063,26 @@ In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$ and also $\operatorname{
 \end{center}
 
 The environmental semantics is also mostly straightforward.
-In \Cref{tr:e-ret-notsame,tr:e-call-notsame} the judgement $\commlib\vdash\text{foo}:\Omega.\sandboxtag$ checks wether $\text{foo}$ is a component--level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
-Additional rules that are left out ensure that, e.g., when calling the $\text{main}$ function, the event $\ev{Start}$ is emitted, which is a design choice this paper does for convenience when reasoning about call--chains.
+In \Cref{tr:e-ret-notsame,tr:e-call-notsame} the judgement $\commlib\vdash\text{foo}:\Omega.\sandboxtag$ checks whether $\text{foo}$ is a component-level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
+Additional rules that are left out ensure that, e.g., when calling the $\text{main}$ function, the event $\ev{Start}$ is emitted, which is a design choice this paper does for convenience when reasoning about call-chains.
 
-The top--level execution $\progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\runtimetermvar}{\trace}$ constructs an initial state $\Omega$ by linking $\library_{\ctx}$ and $\library_{\ctx}$ and then starts execution by calling the $\text{main}$ function.
+The top-level execution $\progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\runtimetermvar}{\trace}$ constructs an initial state $\Omega$ by linking $\library_{\ctx}$ and $\library_{\ctx}$ and then starts execution by calling the $\text{main}$ function.
 The trace $\trace$ emitted during that execution serves as abstraction of the behavior of the program enabling the use of \Cref{def:propsat,def:proprsat}.
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
 $\src{L_{\tmssafe}}$ does not extend the base syntax at term level.
-What makes $\src{L_{\tmssafe}}$ special is that it has a type system inspired by $L^{3}$~\cite{morrisett2005L3} that exhibits the property that every well--typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.
+What makes $\src{L_{\tmssafe}}$ special is that it has a type system inspired by $L^{3}$~\cite{morrisett2005L3} that exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.
 The proof of this property relies on a projection $\msfilterLtms{\src{\event}}=\event$ that projects $\src{L_{\tmssafe}}$ events to specfication events $\event$.
 Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model.
 The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected.
-But, it also filters any action that a contexts does, since these are irrelevant for component--level \gls{tms}.
+But, it also filters any action that a contexts does, since these are irrelevant for component-level \gls{tms}.
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
 \end{theorem}
 
-\subsection{$\Ltrg$: A Memory--Unsafe Language}\label{subsec:lsms}
+\subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks and a way to inspect poison tags in the metadata of pointers.
 If an object a pointer bound to variable $\trg{x}$ points to is allocated ($\trg{\poisonless}$), the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
@@ -1108,11 +1100,11 @@ The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL
 \subsection{$\Lscct$: An Unsafe Language}\label{subsec:lscct}
 
 $\Lscct$ extends the dynamic state of $\trg{L}$ (\Cref{subsec:lms}) with a register for a data (operand) independent timing mode.
-For the other languages seen earlier, this mode is intuitively always--on.
+For the other languages seen earlier, this mode is intuitively always-on.
 To modify the mode, $\Lscct$ extends expressions with the term $\obj{\lwrdoit{\expr}}$ that writes the value of $\obj{\expr}$ into the register and with a term $\obj{\lrddoit{x}{\expr}}$ that reads the value of the register into $\obj{x}$.
 If the register is turned on, no secrets can appear on traces.
 If the register is turned off, secrets may appear on traces as well as new events $\obj{Branch\ n}$ and $\obj{Binop\ n}$, which the semantics emits for conditionals and certain binary operations, e.g., division.
-To prevent leakage of secrets but still enable reasoning about memory safety, pre--events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access.
+To prevent leakage of secrets but still enable reasoning about memory safety, pre-events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access.
 
 The filters to the specification trace model are straightforward.
 
@@ -1176,7 +1168,7 @@ The last step ensures that code stays \gls{scct} (\Cref{thm:ccscct:rtp:scct}) wh
   \end{array}
   $$
 
-The compiler does not have to do anything special besides a typecheck to respect the calling--convention.
+The compiler does not have to do anything special besides a typecheck to respect the calling-convention.
 That is, because $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ invokes a callable object accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
 By inserting the check, the compiler ensures that execution does not proceed in such cases.
 The compiler does not insert other checks and simply recolors $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions.
@@ -1188,11 +1180,11 @@ Hypothesizing an implementation of the \texttt{strncpy} function from \Cref{sec:
 
 \begin{proof}[Proof Sketch]
 The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature and is visualized in \Cref{fig:proofdiag:rtp}.
-Concretely, given the execution of the compiled $\Ltms$ program linked with an arbitrary $\trg{L}$ context yields a trace $\trg{\trace}$, it uses a trace--based backtranslation of $\trg{\trace}$ to reconstruct an $\src{L_{\tmssafe}}$ context.
+Concretely, given the execution of the compiled $\Ltms$ program linked with an arbitrary $\trg{L}$ context yields a trace $\trg{\trace}$, it uses a trace-based backtranslation of $\trg{\trace}$ to reconstruct an $\src{L_{\tmssafe}}$ context.
 \Cref{thm:wt:tms} already gives strong guarantees for programs written in $\src{L_{\tmssafe}}$ and can be exploited for the backtranslated context by ensuring that it typechecks.
-Well--typing means the $\src{L_{\tmssafe}}$ program runs, so the rest of the proof is about relating the $\trg{L}$--level execution with the $\src{L_{\tmssafe}}$--level execution.
+Well-typing means the $\src{L_{\tmssafe}}$ program runs, so the rest of the proof is about relating the $\trg{L}$-level execution with the $\src{L_{\tmssafe}}$-level execution.
 
-For the $\trg{L}$--execution, the compiler wrapper code at state $\trg{\Omega_{1}}$ may either crash the program or continue execution $\trg{\Omega_{w_{1}}}$ right before control is transferred to the component.
+For the $\trg{L}$-execution, the compiler wrapper code at state $\trg{\Omega_{1}}$ may either crash the program or continue execution $\trg{\Omega_{w_{1}}}$ right before control is transferred to the component.
 In this specific case, the compiler need not to insert additional code after the component is done with its execution, but a symmetric situation can happen here.
 Similarily, the backtranslation may also insert wrapper code prior and after switching to and from the component to the context.
 \MKin{
@@ -1290,7 +1282,7 @@ Similarily, the backtranslation may also insert wrapper code prior and after swi
 \end{center}
 
 Up to getting and setting memory, the compiler is the identity function, i.e., all omitted cases are a recoloring of $\trg{L}$ to $\Lms$.
-For memory accesses, however, a bounds--check is inserted that enforces \gls{sms}.
+For memory accesses, however, a bounds-check is inserted that enforces \gls{sms}.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
 Again, linking this back to the \texttt{strncpy} example corresponds to the insertion of bounds check right in front of the accesses to \texttt{y[i]} and \texttt{x[i]}.
 
@@ -1351,7 +1343,7 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
   $$
 \end{center}
 
-Given the fact that $\Lscct$ provides a \gls{cct}--mode, the compiler has to ensure that execution in the component always happen in this mode.
+Given the fact that $\Lscct$ provides a \gls{cct}-mode, the compiler has to ensure that execution in the component always happen in this mode.
 The context could overwrite the flag and exit the mode, but upon invoking a callable object that is part of the component, the flag would be set again.
 Because of this, the compiler is secure with respect ot \gls{scct}, similarily proven as in \Cref{subsec:cs:tms}.
 
@@ -1384,7 +1376,7 @@ The case study of this paper (\Cref{sec:casestud:defs,sec:casestud:rtp}) impleme
 
 \subsection{Secure Compilation as Robust Preservation}\label{subsec:relw:seccomprtp}
 
-The robust preservation of properties as a compiler--level criterion has been analyzed extensively~\cite{abate2019jour,patrignani2021rsc,abate2021extacc,patrignani2022universal,patrignani2019survey,kruse2022csc}.
+The robust preservation of properties as a compiler-level criterion has been analyzed extensively~\cite{abate2019jour,patrignani2021rsc,abate2021extacc,patrignani2022universal,patrignani2019survey,kruse2022csc}.
 This work has made use of that previous work.
 While there exists a composition theorem~\cite{abate2019jour} already, that theorem is not concerned with composing robustly safe compilers, but rather program components and contexts.
 The work relating robust preservation with universal composability~\cite{patrignani2022universal} is closest to what this paper presents.
@@ -1394,7 +1386,7 @@ However, they do not demonstrate the scalability of the approach by means of a c
 \subsection{Other Secure Compilation Criteria}\label{subsec:relw:seccompcrit}
 
 While this paper focuses on the robust preservation framework~\cite{abate2019jour}, other secure compilation criteria exist.
-The survey on formal approaches to secure compilation~\cite{patrignani2019survey} discusses a broad spectrum already, while this section presents a very high--level overview.
+The survey on formal approaches to secure compilation~\cite{patrignani2019survey} discusses a broad spectrum already, while this section presents a very high-level overview.
 The full abstraction approach~\cite{abadi1999fullabstraction} states that a compiler should preserve and reflect observational equivalence between source and target programs.
 It was shown~\cite{abate2021faandrc} that fully abstract compilers robustly preserve program properties that are either trivial or meaningless.
 As a mitigation for this, the authors presented a categorical approach based on maps of distributive laws~\cite{watanabe2002modl}, which they call many maps of distributive laws.
@@ -1406,16 +1398,16 @@ Lastly, the authors of this paper have presented ongoing work~\cite{patrignani20
 \subsection{Memory Safety Mechanisms}\label{subsec:relw:msmechs}
 
 Different mechanisms for memory safety exist that also consider the secure compilation domain, i.e., have an active attacker model.
-For example, the ,,pointers as capabilities'' principle represents pointers as machine--level capabilities~\cite{korashy2021capableptrs}, which behave in a similar fashion to capabilities by means of linear typing~\cite{morrisett2005L3}.
-The approach of this paper also uses linear typing, but differs from $L^{3}$~\cite{morrisett2005L3} in the way that functions are not first--class.
+For example, the ,,pointers as capabilities'' principle represents pointers as machine-level capabilities~\cite{korashy2021capableptrs}, which behave in a similar fashion to capabilities by means of linear typing~\cite{morrisett2005L3}.
+The approach of this paper also uses linear typing, but differs from $L^{3}$~\cite{morrisett2005L3} in the way that functions are not first-class.
 Moreover, this paper considers an active attacker, while the work on $L^{3}$ only discusses whole programs and, thus, has no active attacker model.
 The instrumentation to ensure memory safety that this paper presents is inspired by seminal work in the literature~\cite{nagarakatte2009soft}.
-That work inserts bounds--checks in front of pointer--dereferences and, for this to work, inserts meta--data information on pointer creation.
-It also works in a more advanced setting with structured fields accesses and also introduces a table--lookup for pointers that are stored in memory.
+That work inserts bounds-checks in front of pointer-dereferences and, for this to work, inserts meta-data information on pointer creation.
+It also works in a more advanced setting with structured fields accesses and also introduces a table-lookup for pointers that are stored in memory.
 This paper only considers pointers to arrays of simple objects, i.e., there are no pointers to pointers or structures.
-Of course, there are a lot of other approaches to memory--safety in literature, specifically as compiler instrumentations~\cite{akritidis2009baggy,younan2010paricheck,jung2021pico,shankaranarayana2023tailcheck,dhumbumroong2020boundwarden,nam2019framer,zhou2023fatptrs}, hardware--extensions~\cite{kwon2013lowfat,saileshwar2022heapcheck,chen2023flexpointer,kim2023whistle}, or programming language extensions~\cite{elliott2018checkedc,li2022formalcheckedc,jim2002cyclone,elliott2015guilt,west2005cuckoo,weis2019fyr,benoit2019uniqueness}, to name a few.
-What differentiates this work from them is that this work uses known, compiler--based approaches to ensure memory--safety as a means to investigate secure compiler compositions.
-This paper does not provide efficient memory--safety, but serves as a theoretical foundation for the secure compilation domain.
+Of course, there are a lot of other approaches to memory-safety in literature, specifically as compiler instrumentations~\cite{akritidis2009baggy,younan2010paricheck,jung2021pico,shankaranarayana2023tailcheck,dhumbumroong2020boundwarden,nam2019framer,zhou2023fatptrs}, hardware-extensions~\cite{kwon2013lowfat,saileshwar2022heapcheck,chen2023flexpointer,kim2023whistle}, or programming language extensions~\cite{elliott2018checkedc,li2022formalcheckedc,jim2002cyclone,elliott2015guilt,west2005cuckoo,weis2019fyr,benoit2019uniqueness}, to name a few.
+What differentiates this work from them is that this work uses known, compiler-based approaches to ensure memory-safety as a means to investigate secure compiler compositions.
+This paper does not provide efficient memory-safety, but serves as a theoretical foundation for the secure compilation domain.
 
 To extend the languages in this paper with a less restricted form of pointer arithmetic, the region coloring memory safety monitor presented in earlier work~\cite{michael2023mswasm} can be used.
 The work presenting this monitor provides an approach for the robust preservation of memory safety compiling from C to WASM.
@@ -1423,22 +1415,22 @@ However, they do not discuss composition of secure compilers but rather investig
 
 \subsection{Cryptographic Constant Time Mechanisms}\label{subsec:relw:cctmechs}
 
-The approach to cryptographic constant time in this paper is high--level, where a programming language exposes a way to switch the semantics to a data (operand) independent timing mode.
+The approach to cryptographic constant time in this paper is high-level, where a programming language exposes a way to switch the semantics to a data (operand) independent timing mode.
 Since identifiers in $\Lscct$ are annotated with a secrecy tag, this approach is similar to others with information flow control.
-For example, Vale~\cite{bond2017vale} uses Dafny to ensure constant--time assembly code, while Jasmin~\cite{almeida2017jasmin} makes use of the Coq proof assistant to reject non--constant--time programs.
-CT-Wasm~\cite{watt2019ctwasm} enforces constant--timeness by means of a type system.
+For example, Vale~\cite{bond2017vale} uses Dafny to ensure constant-time assembly code, while Jasmin~\cite{almeida2017jasmin} makes use of the Coq proof assistant to reject non-constant-time programs.
+CT-Wasm~\cite{watt2019ctwasm} enforces constant-timeness by means of a type system.
 Different to the approach of this paper, these approaches necessitate that the programmer writes \gls{cct} code.
-An approach to allow programmers to write more high--level code is CryptOpt~\cite{kuepper2023cryptopt}, which generates efficient target-code by means of a randomized search.
-This paper abstracts over concrete mitigation strategies and simply assumes that there is a flag to switch to a cryptographic--constant time execution mode.
-This can be realized by employing the FaCT~\cite{cauligi2019fact} compiler, which translates common non-constant time code patterns to be constant--time, and the data (object) independent timing execution mode of modern processors.
+An approach to allow programmers to write more high-level code is CryptOpt~\cite{kuepper2023cryptopt}, which generates efficient target-code by means of a randomized search.
+This paper abstracts over concrete mitigation strategies and simply assumes that there is a flag to switch to a cryptographic-constant time execution mode.
+This can be realized by employing the FaCT~\cite{cauligi2019fact} compiler, which translates common non-constant time code patterns to be constant-time, and the data (object) independent timing execution mode of modern processors.
 
 \section{Conclusion\pages{$\sfrac{1}{2}$}}\label{sec:concl}
 
 This paper does a first step towards practical secure compilation chains by introducing a theoretical framework demonstrating that secure compilers compose.
 The paper exercises this framework on a case-study that consists of an optimising compilation chain that is secure with respect to \gls{msscct}.
-In future work, it would be interesting to investigate wether it is possible to provide {\em secure compiler combinators}, similarily to how parser combinators work.
-%To this end, it may be necessary to extend existing frameworks for multi--language semantics.
-It is also interesting to extend our case--study and verify all results of it in Coq.
+In future work, it would be interesting to investigate whether it is possible to provide {\em secure compiler combinators}, similarily to how parser combinators work.
+%To this end, it may be necessary to extend existing frameworks for multi-language semantics.
+It is also interesting to extend our case-study and verify all results of it in Coq.
 This way, it is possible to obtain an executable, secure compiler.
 However, the formalization effort for backtranslation proofs is known to be enormous, so another research avenue may be to find better ways to (semi-)automate standard secure compilation proofs.
 

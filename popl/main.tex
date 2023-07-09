@@ -276,18 +276,22 @@
 
 \gls{ms} is a security property of programs.
 Without memory safety, private data can easily leak or corrupt~\cite{lemay2021ccc}.
-Because of this, \gls{ms} is a necessity for programs to be \gls{cct}, which is an important security property for secrecy.
-Programs that attain \gls{cct} are secure with respect to timing attacks~\cite{kocher1996timing}.
-Timing attacks may expose secrets from a simple performance analysis.
-These attacks have become more and more relevant since \citeauthor{kocher1996timing}'s paper, especially given the era of cloud--computing~\cite{aviram2010cloudtime,kumar2019cloudsecsurvey}, where programs share the same hardware but are supposed to run in a sandboxed environment that does not leak secrets.
+Because of this, \gls{ms} is a requirement for programs to attain an even stronger security property, namely \gls{cct}.
+Programs that attain \gls{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
+Timing attacks have become more and more relevant recently, especially given the era of cloud-computing~\cite{aviram2010cloudtime,kumar2019cloudsecsurvey}, where programs share the same hardware but are supposed to run in a sandboxed environment that does not leak secrets.
 Unfortunately, several attacks within such a cloud environment have been demonstrated as viable strategies to extract secrets~\cite{mehmet2015getoff,flowers2022zeroday,atya2019catchme,venkatanathan2015placevul}.
 
-Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, it has been shown in literature that some compilers may optimize these mitigations away~\cite{barthe2018sec}.
-This is of course not what the programmer expects and necessitates the need for a {\em secure} compiler that ensures security properties hold even when the program runs in a hostile environment, i.e., interacts with other programs by any means.
-Because of this hostile environment, secure compilers attain security by relying on certain protection mechanisms, such as ... and ...\MK{cits}.
+Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, the literature shows that some compilers may optimize these mitigations away~\cite{barthe2018sec}.
+This is of course not what the programmer expects and necessitates the need for a {\em secure} compiler that ensures security properties hold even when the program runs in a hostile environment, interacting with other possibly malicious programs.
+Because of this hostile environment, secure compilers attain security by relying on protection mechanisms, such as ... and ...\MK{cits}.
 The aim of this paper is to devise the theoretical foundation to be able to build a secure compiler that is capable of dealing with the following example.
+\MPin{
+	this does not really introduce the compositionality issue.
+	i think the problem is the last sentence.
+	try and divert the story after the 'because' line, to go into the need for composing compilers
+}
 \begin{example}[strncpy]\label{ex:strncpy}
-Consider the program bolow which copies a \texttt{C}-style string \texttt{x} into \texttt{y} up to a length of \texttt{n}:
+Consider the program below which copies a \texttt{C}-style string \texttt{x} into \texttt{y} up to a length of \texttt{n}:
 
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
 void strncpy(int n, char *x, char *y) {
@@ -297,25 +301,27 @@ void strncpy(int n, char *x, char *y) {
 }
 \end{lstlisting}
 
-For sake of simplicity it is assumed that the buffer \texttt{y} is at least as large as \texttt{n} as well as \texttt{x} terminated by \texttt{'\textbackslash 0'}.
+For sake of simplicity, assume that the buffer \texttt{y} is at least as large as \texttt{n} as well as \texttt{x} terminated by \texttt{'\textbackslash 0'}.
 Even under these assumptions, there is a subtle \gls{ms} bug in the program which can be exploited to read sensitive data:
-The bounds check, i.e., \texttt{i < n}, should happen prior to the access to memory location \texttt{x[i]}.
-Because otherwise, if \texttt{n} is larger than the length of the array object \texttt{x} points to, the memory location past this array object is being read, which is an out--of--bounds memory access.
-Unfortunately, even though flipping the conditions does fix the \gls{ms} issue, \gls{cct} is violated, so the program is susceptible to timing attacks.
-This is because, the loop can terminate early: As soon as the string--terminating character \texttt{'\textbackslash 0'} is encountered, the loop exits.
-Thus, program execution time is proportional to the length of the array object \texttt{x}.
-The fix commonly employed in such a case is to rewrite the program to run a fixed number of iterations regardless of the length of \texttt{x} or \texttt{y}.
+The bounds check, i.e., \texttt{i < n}, should happen {\it prior} to the access to memory location \texttt{x[i]}.
+Otherwise, if \texttt{n} is larger than the length of the array object \texttt{x} points to, the memory location past this array object is read, which is an out--of--bounds memory access.
+Unfortunately, even though flipping the conditions does fix the \gls{ms} issue, it still violates \gls{cct}, so the program is susceptible to timing attacks.
+This is because,\MP{this is a german comma. english does not work this way :) please erase.} the loop can terminate early: As soon as the string--\MP{only 1 dash here (also happened before but i already edited)}terminating character \texttt{'\textbackslash 0'} is encountered, the loop exits.
+Thus, the program execution time is proportional to the length of the array object \texttt{x}.
+The fix commonly employed in such a case is to rewrite the program to run a {\it fixed} number of iterations regardless of the length of \texttt{x} or \texttt{y}.
 To this end, there must be an upper bound for the length of \texttt{x} and \texttt{y} and then the loop can just iterate until the induction variable \texttt{i} hits this upper bound.
 
 These fixes alone are not enough to make this program robust, i.e., not violating either \gls{ms} or \gls{cct} in a malicious environment.
-Consider a program context that calls \texttt{strncpy} with a very large \texttt{n}, some uninitialised memory \texttt{x}, and \texttt{y} whatever.
-It is easy to see that such a function invocation leads to a series of reads from uninitialised memory, an immediate \gls{ms} issue.
-To mitigate these situtations, it is important that \texttt{strncpy} ensures that the provided arguments satisfy the assumptions being made.
-After all, the environment cannot be trusted and potentially behaves in a hostile manner.
-Unfortunately, these checks do not work in C without additional features, since there is no way to check wether a pointer points into a valid allocated region or not.
+Consider a program context that calls \texttt{strncpy} with a very large \texttt{n}, some uninitialised memory \texttt{x}, and \texttt{y} whatever\MP{? whatever?}.
+Such a function invocation leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue.
+\MPin{
+	we have a very very high-level definition of MS, so the issue may not be clear
+}
+To mitigate these situations, it is important that \texttt{strncpy} ensures that the provided arguments satisfy the assumptions being made by the programmer, since the environment\MP{env? ctx? tetrminology} can behave in a hostile manner.
+Unfortunately, these checks do not work in C\MP{why are we talking of C now?} without additional features, since there is no way to check wether\MP{please use a spell checker, this word is written 'whether'} a pointer points into a valid allocated region or not.
 To enable this would require extra metadata~\cite{kwon2013lowfat,akritidis2009baggy} which must not be modifiable by a malicious context.
 So, for sake of simplicity, assume the language at hand provides an operator \texttt{is\_valid(p, s, n)} that faithfully checks wether a pointer \texttt{p} points into a valid array of objects sized \texttt{s} of length \texttt{n} or not --- in constant time.
-This could be an abstraction that the operating system provides.
+This could be an abstraction that the operating system provides.\MP{cits absolutely needed and the narrative needs to be stronger, using those cits}
 With this feature at hand, it is possible to modify the original \texttt{strncpy} to be robust, given this is the compiled program without optimisations:
 
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
@@ -329,31 +335,33 @@ void strncpy(int n, char *x, char *y) {
 \end{lstlisting}
 \end{example}
 
+\MPin{
+	this bit should be introduced earlier
+}
 As stated earlier, this work wants to establish the theoretical foundation to ensure the secure compilation of programs like \texttt{strncpy} (\Cref{ex:strncpy}) to satisfy properties \gls{ms} and \gls{cct} robustly.
-Secure compilation in terms of robust preservation is well--established~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}.
-Unfortunately, at the time of writing this paper, it is unclear if and how the theory of robust preservation would support modularity.
+Secure compilation in terms of robust preservation is well-established~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}.
+Unfortunately, currently, it is unclear how the theory of robust preservation supports modularity.
 Missing out on modularity would mean that one has to make a secure compiler for all possible properties {\em or} for a combination of \gls{ms} and \gls{cct}.
-Ideally, both for proof engineering and reusability factor, a secure compiler for just \gls{ms} and a secure compiler for just \gls{cct} can compose in some way to get a secure compiler for the combination of the two.
+Ideally, both for proof engineering and reusability, a secure compiler for just \gls{ms} and a secure compiler for just \gls{cct} can compose in some way to get a secure compiler for the combination of the two.
 This also reflects real--world compilation chains, where several compilation passes perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source--code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfills a property of interest.
 
 % keyword: pass
-In turn, this paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
+Thus, this paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as temporal and spatial memory safety into general memory safety, and cryptographic constant time.
 Then, this paper defines several secure compiler passes, where each is either preserving a different security property (e.g., temporal or spatial memory safety) or performing a security-preserving optimisation, (e.g., applying constant-folding or dead-code elimination).
 % keyword- end to end, composition
 Finally, this paper shows how to compose these secure compiler passes into a multi-pass compilation chain which is proven to provide end-to-end preservation of general memory safety and cryptographic constant time.
 Crucially, this end-to-end security preservation is obtained by having each compilation pass (i) preserve a sub-part of the overall security property individually and then (ii) compose each preserved security property as dictated by the framework of this paper.
 The results showcase how the framework allows the kind of formal security reasoning that compiler writers already want (and do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
-%\MPin{
-%	last line: not the best.
-%}
+\MPin{
+	last line: connect with the many citations of the previous paragraph
+}
 
 In summary, this paper makes the following contributions:
-
 \begin{itemize}
   \item %
         %\Cref{sec:compprop} presents a formal framework to reason about compositions of security properties and demonstrate its usage with concrete examples:
-        First, this paper studies the formalisation and the composition of security properties (\Cref{sec:compprop}) by focussing on those properties that are of interest for real-world compiler writers (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}\MK{even more cits?}).
+        First, this paper studies the formalisation and the composition of security properties (\Cref{sec:compprop}) by focussing on those properties that are of interest for real-world compiler writers (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}).
         % 
         Starting from ways to formalise and enforce those properties individually, this paper shows how to compose their formalisation. % and their composition. %% MK: compose their composition??
         % 
@@ -368,7 +376,7 @@ In summary, this paper makes the following contributions:
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
         This paper takes the secure compilation framework of~\citep{abate2019jour} and extends it to reason about the security of all different known forms of compiler composition (\Cref{sec:compcomp}).
         %Concretely, it investigates upper and lower compositions, as well as the sequential composition.
-        For this, this paper studies the sequential composition of compilers, as typically done when engineering compilation chains, as well as an upper and a lower composition that discuss multi--in- and multi--output compilers.
+        For this, this paper studies the sequential composition of compilers, as typically done when engineering compilation chains, as well as an upper and a lower composition that discuss multi--in- and multi--output compilers.\MP{upper and lower?}
         % 
         This paper proves that starting from two compilers that preserve two properties, their composition preserves the intersection of those properties.
         For example, a compiler that is secure with respect to \gls{ms} can be composed with a compiler that is secure with respect to \gls{cct}, resulting in a compiler that is secure with respect to the composition of \gls{ms} and \gls{cct}.
@@ -389,13 +397,14 @@ In summary, this paper makes the following contributions:
         Namely, the divide--and--conquer approach is a viable strategy even for engineering secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
-  \item The key contributions are formalized in the Coq proof assistant and the paper indicates this with \CoqSymbol.
+  \item The key contributions of this paper are formalized in the Coq proof assistant and the paper indicates this with \CoqSymbol.
 \end{itemize}
 
 This paper starts by introducing relevant notions of security properties and secure compilation (\Cref{sec:background}),
 and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:concl}).
 
-\contribution{Open Source \& Technical Report} A technical report and the Coq formalisation are available as supplementary material.\MKin{cite/link}
+\contribution{Open Source \& Technical Report} A technical report with the omitted formal details, lemmas and proofs, as well as the Coq formalisation are available as supplementary material.
+% \MKin{cite/link}
 
 
 \section{Background: Security Properties and Secure Compilers\pages{1}}\label{sec:background}

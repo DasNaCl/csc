@@ -1272,38 +1272,37 @@ Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$
   $\rtp{\cca}{\tmssafe}$ % \Coqed
 \end{theorem}
 
-\subsubsection{Proof Sketch of Robust Temporal Memory Safety Preservation}
+\subsubsection{Proof Sketch of Robust Safety Property Preservation}
 
-The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature and is visualized in \Cref{fig:proofdiag:rtp}.
-\MPin{
-	explain how to read the figure
-}
-Concretely, given the execution of the compiled $\Ltms$ program linked with an arbitrary $\trg{L}$ context yields a trace $\trg{\trace}$, it uses a trace-based backtranslation of $\trg{\trace}$ to reconstruct an $\src{L_{\tmssafe}}$ context.
-\MPin{
-	what does this mean?
-	what is a backtranslation?
-}
+The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature that are also used for similar theorems in this paper.
+
+When proving robust safety property preservation for the concrete property \gls{tms}, a target-level execution of a compiled $\Ltms$ component $\src{\library_{\comp}}$ linked with an arbitrary context $\trg{\library_{\ctx}}$ is assumed, where the execution yields a trace $\trg{\trace}$.
+The proof goal is to show that $\trg{\trace}$ satisfies \gls{tms}.
+To get this satisfaction, one way of doing so is to use the other assumption in the proof context: $\rsat{\src{\library_{\comp}}}{\tmssafe}$.
+However, this requires a source-level execution for some concrete $\src{\library_{\ctx}}$ that yields a trace $\src{\trace}$ similar to $\trg{\trace}$.
+This paper uses the well-known trace-based backtranslation technique~\cite{abate2019jour} to construct such a context $\src{\library_{\ctx}}$.
+It is shown for that obtained context $\src{\library_{\ctx}}$ that the whole program $\link{\src{\library_{\ctx}}}{\src{\library_{comp}}}$ is well-typed.
+By \Cref{thm:wt:tms}, the fact that this program satisfies \gls{tms} is obtained and by typesafety, it is known that there must be some $\Ltms$ execution.
+The proof now needs to relate the two execution with eachother.
+\Cref{fig:proofdiag:rtp} visualizes this situation.
+At the bottom, there is the target-level execution between operational states $\trg{\emptyset},\trg{\Omega_{1}}$, and so on.
+The execution starts in the context $\trg{\library_{\ctx}}$ and is split by transitivity of $\trg{\estepto{}{}{}}$ into parts before, in, and after the component $\cc{\Ltms}{\trg{L}}(\src{p})$ executes\footnote{For sake of simplicity, this paper considers only one context-switch from context to component and back again. Recursive calls between context and component functions are disregarded.}.
+Initially, the empty operational states $\src{\emptyset}$ and $\trg{\emptyset}$ need to agree by means of a cross-language state relation $\multimap_{\emptyset}$.
+This relation is indexed by a function $\delta$ that maps $\trg{L}$-level locations $\trg{\loc}$ to $\Ltms$-level locations.
+The operational state of the executions up to the component $\src{p}$ need to agree via $\multimap_{\delta}$, both contexts need to behave in a similar way such that the traces also agree with each other.
+However, the relation allows $\trg{\library_{\ctx}}$ to perform internal actions that may change the operational state but are not visible on the trace, such as internal function calls, that does not $\src{\library_{\ctx}}$ need to reflect.
+Before and after the compiler wrapper code, the operational states must agree via another cross-language relation $\approx_{\delta_{w_{}}}$, which disallows these mismatches with respect to internal function calls.
+Intuitively, the behavior of the components should be tight: the source-level execution must be preserved by the compiler in the target-level execution.
+Dually, when the component is done, the relations take turns again and the states must be related with $\multimap_{\delta_{w_{2}}}$
+Finally, since both execution traces are similar in the sense that their projections $\msfilterLtms{\src{\trace}}$ and $\msfilterL{\trg{\trace}}$ yield specification traces that satisfy \Cref{def:monsat}, the claim follows \Cref{lem:mon:tmsafe}.
+
 \MPin{
 	why can we use a BT?
 	it's because the def in section 2.2 is eq to anotehr one, because the props are Safety, we use the RSC equivalent def.
 	all these intuitions are missing.
 	they are technical, so we only keep them here.
-}
-\Cref{thm:wt:tms} already gives strong guarantees for programs written in $\src{L_{\tmssafe}}$ and can be exploited for the backtranslated context by ensuring that it typechecks.
-Well-typing\MP{well-typedness} means the $\src{L_{\tmssafe}}$ program runs, so the rest of the proof is about relating the $\trg{L}$-level execution with the $\src{L_{\tmssafe}}$-level execution.
 
-For the $\trg{L}$-execution, the compiler wrapper\MP{undefined terminology. call it like this before} code at state $\trg{\Omega_{1}}$ may either crash the program or continue execution $\trg{\Omega_{w_{1}}}$ right before control is transferred to the component.
-In this specific case, the compiler needs not insert additional code after the component is done with its execution, but a symmetric situation can happen here.\MP{vague and imprecise}
-Similarly, the backtranslation may also insert wrapper code prior and after switching to and from the component to the context. \MP{wut? why is a wrapper needed?}
-\MKin{
-  more detail or not? ;
-  i.e., explain $\multimap$ and $\approx$?
-  \MPin{
-  yes
-  }
-}
-\MPin{
-	the general idea that later proofs use the same structure is also not here.
+  MK: but, we don't actually rewrite it to RSC when doing the proof! The compilers are not robustly preserving with respect to an arbitrary safety property, but, e.g., just for \gls{tms}!
 }
 
 \begin{figure}[h]

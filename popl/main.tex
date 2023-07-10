@@ -276,21 +276,21 @@
 
 \section{Introduction\pages{4}}\label{sec:introduction}
 
-\gls{ms} is a security property of programs that, e.g., ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialized memory.
-Without memory safety, private data can easily leak or be corrupted~\cite{lemay2021ccc}.
+\gls{ms} is a security property that ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialized memory.
+Programs that do not attain memory safety, can easily have their private data be leaked to attackers or be corrupted~\cite{lemay2021ccc}.
 Because of this, \gls{ms} is a requirement for programs to attain an even stronger security property, namely \gls{cct}.
-Programs that attain \gls{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
+Programs that attain \gls{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones, since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
 Timing attacks have become more and more relevant recently, especially given the era of cloud-computing~\cite{aviram2010cloudtime,kumar2019cloudsecsurvey}, where programs share the same hardware but are supposed to run in a sandboxed environment that does not leak secrets.
 Unfortunately, several attacks within such a cloud environment have been demonstrated as viable strategies to extract secrets~\cite{mehmet2015getoff,flowers2022zeroday,atya2019catchme,venkatanathan2015placevul}.
 
-Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, the literature shows that some compilers may optimize these mitigations away~\cite{barthe2018sec}.
-This is of course not what programmers expect and necessitates the need for a {\em secure} compiler that ensures such mitigations persist in the code they generate.
+Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, some compilers may optimize these mitigations away~\cite{barthe2018sec}.
+This is of course not what programmers expect and to ensure such mitigations persist in the compiled code, one can use a {\em secure} compilers.
 More generally, secure compilers should preserve security properties even when the program runs in a hostile context such as the cloud one, i.e., where it interacts with other possibly malicious programs.
 An example of such secure compilers are those that ascribe to the theory of robust compilation~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, which takes this interaction between components and potentially malicious contexts into account.
 
 Unfortunately, it is unclear if and how robust compilation supports compositionality, and compilation passes are typically developed as a standalone module to be plugged into a compilation pipeline and composed with other passes.
 Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
-Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct} as showcased in \Cref{ex:strncpy}.
+Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct} as suggested before and as showcased in \Cref{ex:strncpy}.
 \begin{example}[strncpy]\label{ex:strncpy}
 Consider the \texttt{C} program below that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}:
 
@@ -302,27 +302,39 @@ void strncpy(size_t n, char *dst, char *src) {
 }
 \end{lstlisting}
 
-For sake of simplicity, assume that the length of the array \texttt{dst} points to is at least as large as \texttt{n} as well as \texttt{src} terminated by \texttt{'\textbackslash 0'}.
-Even under these assumptions, there is a subtle \gls{ms} bug in the program: The bounds check \texttt{i < n} should happen {\it prior} to the access to memory location \texttt{x[i]}:
+For sake of simplicity, assume that the length of the array \texttt{dst} points to is at least \texttt{n}, and \texttt{src} is terminated by \texttt{'\textbackslash 0'}.
+Even under these assumptions, there is a subtle \gls{ms} vulnerability in the program: The bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}:
 If \texttt{n} is at least as large as the length of the array \texttt{src}, the memory location past the last element will be read.
-A compilation pass that enforces spatial memory safety, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}, could have prevented this accidental error.
+To prevent this vulnerability, one can use a compilation pass that enforces spatial memory safety, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}.
 
 Unfortunately, fixing \gls{ms} is not enough to have a secure program, because \texttt{strncpy} is susceptible to timing attacks.
 This is because the loop can terminate early: As soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, the loop exits.
-Thus, the program execution time is proportional to the length of the array \texttt{src} points to.
-Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
-However, compiler passes are capable of rewriting such programs~\cite{cauligi2019fact} and a modification by hand is not necessary.
+Thus, the program execution time is proportional to the length of the array that \texttt{src} points to.
+% Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
+Also in this case there exist compiler passes that can rewrite such programs~\cite{cauligi2019fact} so that they are no longer vulnerable to timing attacks.
 
 These fixes alone are not enough to make this program secure in a robust setting, i.e., a malicious context could trigger a violation of either \gls{ms} or \gls{cct}.
-Consider a program context \texttt{strncpy(1729,dst,src)} that calls \texttt{strncpy} with pointers \texttt{dst} and \texttt{src}, where \texttt{src} is some uninitialized memory.
+Consider a program context that calls \texttt{strncpy} with an argument for \texttt{src} that points to uninitialized memory.
 This leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue that can have devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 With this, a secure compiler needs to ensure that no malicious target-level context can supply unitialised memory and thereby sidestep the guarantees of the source language, e.g., by inserting appropriate checks prior to entering the body of \texttt{strncpy}.
+\MPin{
+	do we have examples of such wrapper-chesk inserting secure compilers?
+	mswasm compiler ... not really.
+	or we could say that another solution is  using capabilities, and then the mswasm compiler can be used
+}
 \end{example}
 
-This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
+This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as temporal and spatial memory safety into general memory safety, and cryptographic constant time.
-Then, this paper defines several secure compiler passes, where each is either preserving a different security property (e.g., temporal or spatial memory safety) or performing a security-preserving optimisation, (e.g., applying constant-folding or dead-code elimination).
+\MP{
+	acronym? non acronym? 
+}
+Then, this paper defines compiler composition and formalises what kind of security properties does the composition of two compiler passes preserve, given what the individual passes preserve.
+The paper then defines several secure compiler passes, where each is either preserving a different security property (e.g., temporal or spatial memory safety) or performing a security-preserving optimisation, (e.g., applying constant-folding or dead-code elimination).
+\MP{
+	acro? non acro?
+}
 Finally, this paper shows how to compose these secure compiler passes into a multi-pass compilation chain which is proven to provide end-to-end preservation of general memory safety and cryptographic constant time.
 Crucially, this end-to-end security preservation is obtained by having each compilation pass (i) preserve a sub-part of the overall security property individually and then (ii) compose each preserved security property as dictated by the framework of this paper.
 The results showcase how the framework allows the kind of formal security reasoning that compiler writers already want (and do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
@@ -346,10 +358,10 @@ In summary, this paper makes the following contributions:
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
         This paper takes the secure compilation framework of~\citep{abate2019jour} and extends it to reason about the security of all different known forms of compiler composition (\Cref{sec:compcomp}).
         %Concretely, it investigates upper and lower compositions, as well as the sequential composition.
-        For this, this paper studies compilers with multiple inputs or multiple outputs as well as the sequential composition of compilers, as typically done when engineering compilation chains.
+        For this, this paper studies compilers with multiple inputs or multiple outputs as well as the sequential composition of compilers, as typically done in existing compilation chains.
         %
-        This paper proves that starting from two compilers that preserve two properties, their composition preserves the intersection of those properties.
-        For example, a compiler that is secure with respect to \gls{ms} can be composed with a compiler that is secure with respect to \gls{cct}, resulting in a compiler that is secure with respect to the composition of \gls{ms} and \gls{cct}.
+        This paper proves that starting from two compilers that preserve two (possibly distinct) properties, their composition preserves the intersection of those properties.
+        For example, a compiler that is secure with respect to \gls{tms} can be composed with a compiler that is secure with respect to \gls{sms}, resulting in a compiler that is secure with respect to \gls{ms}.
 %       \MPin{
 %      		find way to connect to previous contrib
 %       }
@@ -363,8 +375,7 @@ In summary, this paper makes the following contributions:
         To this end, it presents a compilation chain consisting of several passes.
         The chain ultimately preserves a combination of \gls{ms} and \gls{cct} by means of composing the individual, secure passes concerning \gls{tms}, \gls{sms}, and a stricter variant of \gls{cct}, respectively.
         Furthermore, the chain includes two passes for \gls{ms} that are optimising: One performs a simple \gls{dce} and the other \gls{cf}.
-        The formalisation of this case study showcases the power of the presented framework.
-        Namely, the divide-and-conquer approach to software engineering is a viable strategy even for the developement of secure compilers.
+        The formalisation of this case study showcases the power of the presented framework: Namely, the divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
   \item The key contributions of this paper are formalized in the Coq proof assistant and the paper indicates this with \CoqSymbol.
@@ -395,11 +406,11 @@ Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
 Properties $\pi$ are sets of traces of admissible program behaviours, ascribing what said property considers valid~\cite{clarkson2008hyper}.
 The set of all properties can be partitioned into different {\em classes} ($\class$), i.e., safety, liveness, and neither safety nor liveness~\cite{clarkson2008hyper}.
 A class is simply a set of properties and for the class of safety properties, it is decidable whether a trace satisfies a safety property with just a finite trace prefix.
-As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$
-This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets}, because it reads from a memory location that was freed already.
+As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$.
+This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets}\MP{should cite catalin's MS paper too}, because it reads from a memory location that was freed already.
 The previous finite trace prefix is enough to decide that the trace does not satisfy temporal memory safety and there is no way to append events to this prefix which would result in the trace being admissible.
-In the following, the notation of an execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ is $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
-With this, the definition of property satisfaction is as follows:
+In the following, we indicate the execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ as: $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
+With this, we define property satisfaction as follows:
 \bul{whole programs $\wholeprogvar$ satisfy a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisifies $\pi$} (\Cref{def:propsat}).
 
 \begin{definition}[Property Satisfaction]\label{def:propsat}
@@ -410,17 +421,15 @@ With this, the definition of property satisfaction is as follows:
 \end{definition}
 
 Property satisfaction is defined on whole programs, i.e., programs without missing definitions.
-Thus, there is only a passive attacker model that observes the execution and, e.g., retreives secrets from that.
-To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, the concept of satisfaction is extended with {\em robustness}.
-Robust satisfaction considers partial programs $\progvar$, i.e., programs with free variables, which need to be defined prior to execution.
-Programs with free variables can get stuck during execution.
+Thus, from a security perspective, this considers only a passive attacker model, where the attacker observes the execution and, e.g., retrieves secrets from that.
+To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}\MP{many more things on RS here}, we extend the concept of satisfaction with {\em robustness}.
+Robust satisfaction considers partial programs $\progvar$, i.e., components with missing imports, which cannot run until said imports are fulfilled.
 To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
-As typically done in not only secure compilation~\cite{abate2019jour,devriese2018parametricity}, %
-% \MP{others do this too, parametricity results e.g.}
+As typically done in works that consider the execution of partial programs~\cite{abate2019jour,devriese2018parametricity}, \MP{Add papers from Amal. Papers from just Dominique on FAC. RS works.}
 this paper assumes that whole programs are the result of linking partial programs referred to as {\em context} ($\ctx$) and {\em component} ($\comp$).
 The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
 %In this work, the semantics of the programming language is expected to differentiate between the component and the context.
-With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the result of which must satisfy $\pi$}.
+With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the resulting whole program must satisfy $\pi$}.
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
   \bul{$\rsat{\progvar}{\pi}$}
@@ -429,7 +438,7 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 
 \begin{example}[Double Free in Bluetooth Subsystem]
   Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
-  The bug arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
+  The bug\MP{not bug, vulnerability. uniform below (perhaps?)} arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
   Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether the pointer has been freed already:
   Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
 \end{example}
@@ -439,12 +448,15 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
 This translation is considered {\em correct} if it is semantics-preserving.
 That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
-Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
+Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}\MP{cite kennedy and teh general SC dagstuhl and ACM papers too}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
 To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which we summarize in the following definition.
 
 For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} we have that \iul{the program $\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
+\MPin{
+	somewhere we should say that a class of props can also include a single prop
+}
 
-\begin{definition}[Robust Preservation]\label{def:rtp}
+\begin{definition}[Robust Compilation]\label{def:rtp}
   % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
   \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}
   %, iff 
@@ -463,11 +475,11 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
   \end{array}
   $
   \end{center}
-  While the implementation the compiler emits may look correct, it does not check that the provided argument is of the right type.
+  While the compiler emits code that may look correct, the generated code does not check that the provided argument is of the right type.
   Even though the pointer $\trg{x}$ is checked for validity, the context $\trg{foo((int*)y, 1)}$ is able to provoke a read out of bounds.
-  Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context now calls the component again but casts this buffer to an $\trg{int*}$ prior to that call.
+  Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context can now call the component again, casting this buffer to an $\trg{int*}$ prior to that call.
   The pointer is valid for one $\trg{char}$-sized memory cell, as expected, but the actual read operation now returns $\trg{sizeof(int)}$ many bytes instead of just $\trg{sizeof(char)}$ many.
-  Thus, even if $\src{foo}$ may have been robust with respect to the no-reads-out-of-bounds property, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
+  Thus, even if $\src{foo}$ may have been robust with respect to the no-reads-out-of-bounds property\MP{sms?}, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
 \end{example}
 
 

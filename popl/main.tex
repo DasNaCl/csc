@@ -479,7 +479,7 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
 This section introduces a trace model and uses it to define the key properties of interest for this paper: \gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct} (\Cref{subsec:propdefs}).
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) this paper presents later. 
 Then, this section introduces monitors for each of the properties presented earlier (\Cref{subsec:monitors}).
-
+\MP{why?}
 
 \subsection{Specification Trace Model}\label{subsec:propdefs}
 
@@ -527,7 +527,7 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 
 \subsubsection{Spatial Memory Safety}
 
-\gls{sms} disregards out of bounds accesses:
+\gls{sms} disregards\MP{prohibits?} out-of-bounds accesses:
 
 \begin{definition}[\glsfirst{sms}]\label{def:trace:smsdef}
   $
@@ -540,7 +540,7 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 \subsubsection{Memory Safety}
 
 Full \gls{ms} is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
-Note, however, that this definition does not entail memory-safety issues introduced by side-channels, such as speculation.
+Note, however, that this definition says nothing about memory-safety issues introduced by side-channels, such as speculation.
 
 \begin{definition}[\glsfirst{ms}]\label{def:trace:msdef}
   $
@@ -549,12 +549,15 @@ Note, however, that this definition does not entail memory-safety issues introdu
                                \end{array}\right.\right\}
   $
 \end{definition}
+\MPin{
+	cite catalin's paper and the mswasm paper for the def of ms
+}
 
 
 \subsubsection{Strict Cryptographic Constant Time}
 
-\gls{cct} is a hyperproperty and, thus, not as easy to check with just monitors. %Beutner et al
-Hence, the following defines \gls{scct}, a stricter variant that enforces the policy that no secret should appear on a trace.
+\gls{cct} is a hyperproperty\MP{hypersafety?}\MP{what is a hp?} and, thus, not as easy to check with just monitors.\MP{chy? cit?} %Beutner et al
+Hence, we define \gls{scct}, a stricter variant that enforces the policy that no secret should appear on a trace.\MP{cit? did we take some inspiration}
 
 \begin{definition}[\glsfirst{scct}]\label{def:trace:scctdef}
   $
@@ -576,15 +579,21 @@ It entails all program behaviours that are both memory safe and strictly cryptog
                                     \end{array}\right.\right\}
   $
 \end{definition}
+\MPin{
+	comment on the composition at this levle?
+}
 
 %\section{Monitors and Trace Agreements\pages{1.5}}\label{subsec:monitors}
 \subsection{Monitors\pages{1.5}}\label{subsec:monitors}
 
 Monitors can be used to enforce safety properties and this section presents concrete instantiations of monitors for the previousvy presented properties (\Cref{subsec:propdefs}).
-To lessen the burden when proving, each monitor makes use of a custom trace model that contains only the relevant information related to the property the monitor checks.
+\MPin{
+	why
+}
+To lessen the burden when proving\MP{proving what}, each monitor makes use\MP{uses} of a custom trace model that contains only the relevant information related to the property the monitor checks.
 To project specification traces $\trace$ onto these monitor-level traces $\abstrace$, each property has an associated event agreement relation $\traceagree[]{\pi}{\trace}{\abstrace}$.
-This relation performs the actual work of projecting the events, while the stutter-equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.
-With agreements, this section starts to define monitor satisfaction for traces and states that monitor satisfaction implies property satisfaction.
+This relation projects the events\MP{whaddaya mean?}, while the stutter-equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.\MP{unclear sentence}
+With agreements, this section defines monitor satisfaction for traces and then it proves that monitor satisfaction implies property satisfaction.
 To this end, monitor satisfaction is defined as follows.
 \bul{A specification trace $\trace$ monitor-satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor\footnote{In this paper, for all monitors, the initial monitor state is denoted as $\emptyset$.} can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
 
@@ -637,13 +646,13 @@ To this end, monitor satisfaction is defined as follows.
   }{tms-dealloc}
 \end{center}
 
-The state of the monitor is a record with two sets keeping track of allocated and deallocated locations.
+For \gls{tms}, the state of the monitor is a record with two sets keeping track of allocated and deallocated locations.
 %The monitor runs on a modified trace semantics with more abstract $\absev{Alloc\ }\loc$,$\absev{Dealloc\ }\loc$,$\absev{Use\ }\loc$, and $\absterm$ events, which represent {\em allocation}, {\em deallocation}, and {\em use} of a location $\loc$ as well as abnormal program termination.
 \Cref{tr:tms-use} simply requires that a location is (i) allocated and (ii) not freed.
 \Cref{tr:tms-alloc,tr:tms-dealloc} both require a location to not be freed already and extend the monitor state accordingly.
 This restriction effectively disallows reallocation to reassign the same location to an object.
 However, the definition can easily be adapted by, e.g., attaching a natural number serving as a counter.
-In the reflexive case of $\monitorcheck{\tmsmonitor}{\tmsmonitor}{\absevent}$, the monitor $\tmsmonitor$ must not contain allocated locations, i.e., $\tmsmonitor.allocated=\emptyset$.
+In the reflexive case of $\monitorcheck{\tmsmonitor}{\tmsmonitor}{\absevent}$, the monitor $\tmsmonitor$ must not contain allocated locations, i.e., $\tmsmonitor.allocated=\emptyset$.\MP{wut?}
 This ensures that programs do not forget to free memory.
 
 \begin{center}
@@ -708,6 +717,9 @@ int main() {  // allocates 17 integers initialized to 2
   It is easy to see that $\montmssafe{\abstrace}$.
   From \Thmref{lem:mon:tmsafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}.
 \end{example}
+\MPin{
+	example is good, but it'd be nice to tie it to the running example?
+}
 
 \subsubsection{Monitor for \glsfirst{sms}}
 \begin{gather*}
@@ -795,10 +807,11 @@ The trace agreement is entirely straightforward and similar to the one for \gls{
   For the sake of this example, the pointers have been allocated by the component and passed to the context.
   The loop of \texttt{strncpy} will copy exactly two cells and then check the loop condition for the last time.
   At that stage, the induction variable \texttt{i} is equal to \texttt{2} and, unfortunately, the order of checks is such that first the cell \texttt{x[i]} is read prior to bounds checking \texttt{i < n}.
-  Because of this, there is an out of bounds memory access right before exiting the function.
+  Because of this, there is an out of bounds\MP{hyphenate: out-of-bounds} memory access right before exiting the function.
   This is also visible on the trace, which can be sketched as $\ldots\cdot\ev{Alloc}\ \loc_{x}\ 2;\comp;\unlock\cdot\ldots\cdot\ev{Alloc}\ \loc_{y}\ 2;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 1;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 2;\comp;\unlock\cdot\ldots$, where $\loc_{x}$ and $\loc_{y}$ are the memory addresses associated to \texttt{x} and \texttt{y}, respectively.
   Omitting the events for all ,,$\ldots$'' for sake of brevity, the abstract monitor trace of this is $\absev{Alloc}\ \loc_{x}\ \comp\ 2\cdot\absev{Alloc}\ \loc_{y}\ \comp\ 2\cdot\absev{Use}\ \loc_{x}\ \comp\ 0\cdot\absev{Use}\ \loc_{y}\ \comp\ 0\cdot\absev{Use}\ \loc_{x}\ \comp\ 1\cdot\absev{Use}\ \loc_{y}\ \comp\ 1\cdot\absev{Use}\ \loc_{x}\ \comp\ 2$.
-  It is easy to see that, after the allocation events, the state of the monitor is $\left\{(\loc_{x};\comp;2),(\loc_{y};\comp;2)\right\}$.
+
+  It is easy to see that,\MP{erase. we don't know what's easy} after the allocation events, the state of the monitor is $\left\{(\loc_{x};\comp;2),(\loc_{y};\comp;2)\right\}$.
   Furthermore, all uses up to the last are acceptable by the monitor, but the last event does not satisfy the premise $2<2$ in \Cref{tr:sms-use}. Therefore, the whole program (\texttt{strncpy} linked with this kind of context) is not \gls{sms}.
 \end{example}
 
@@ -880,7 +893,7 @@ Accordingly, the event agreement simply disregards all events that involved publ
   If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
 \end{lemma}
 
-\begin{example}[Data independent timing mode]
+\begin{example}[Data-independent timing mode]
   Consider an excerpt from a component that reads from non-confidential memory \texttt{x} and writes the result to confidential memory \texttt{y}.
   The trace of just this part may look like $\ev{Use}\ \loc_{x}\ 1729;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 1729;\comp;\lock$.
   In terms of the abstract monitor trace, this is just $\absev{Any}$.
@@ -910,6 +923,11 @@ This is not intuitive in the sense that there are a number of examples in the se
 \MP{?canetti?} %% protocols under certain security notions are not secure when composed
 The sequential composition of compilers $\cc{\src{L}}{\trg{L}}$ and $\cc{\trg{L}}{\obj{L}}$ is defined as follows: given an $\src{L}$ program $\src{p}$, its compiled $\obj{L}$ counterpart is obtained by plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$.
 Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
+\MPin{
+	section 3.1 never defined the $\cap$ operator on properties, nor on classes.
+	it uses the 'and'.
+	rectify
+}
 
 \begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtp}
   If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\trg{L}}{\obj{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
@@ -922,14 +940,15 @@ Were all these compilation steps robustly secure with respect to \gls{ms}, the r
 
 \subsubsection{Securing Optimisations}
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
-Both examples can be seen in practice~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion}, it is infeasible to list them all\MPin{survey to cite? this is a bit informal MK: hard to find a survey on different compiler passes... I can't even find one just for compiler enforced memsafety (that looks good) or for compiler translations in general}.
+Both examples can be seen in practice, e.g. as in the work of~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion} and many more.
+% \MPin{survey to cite? this is a bit informal MK: hard to find a survey on different compiler passes... I can't even find one just for compiler enforced memsafety (that looks good) or for compiler translations in general}.
 Consider the compilation passes of LLVM~\cite{lattner2004llvm}.
 In LLVM, compiler passes are handled in the \texttt{PassManager} class.
 By means of manipulating the internal state of the \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
 That way, an order of optimisations can be found by hand that yields the best results.
 Take \gls{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls{dce}, which removes dead code by rewriting conditional branches.
 Unfortunately, the order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
-\begin{figure}
+\begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}
       \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left] (progunopt) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]

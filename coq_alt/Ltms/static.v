@@ -2,7 +2,7 @@ Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
 Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Props.
 
-Require Import CSC.Ltms.Ltms.
+Require Import CSC.Ltms.syntax CSC.Ltms.dynamic.
 
 From RecordUpdate Require Import RecordUpdate.
 

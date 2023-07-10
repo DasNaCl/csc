@@ -345,7 +345,7 @@ In summary, this paper makes the following contributions:
         %\Cref{sec:compprop} presents a formal framework to reason about compositions of security properties and demonstrate its usage with concrete examples:
         First, this paper studies the formalisation and the composition of security properties (\Cref{sec:compprop}) by focussing on those properties that are of interest for real-world compiler writers (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}).
         % 
-        Starting from ways to formalise and enforce those properties individually, this paper shows how to compose their formalisation. % and their composition. %% MK: compose their composition??
+        Starting from ways to formalise and enforce those properties individually, this paper shows how to compose their formalisation.
         % 
         This paper then showcases the benefits of this composition by composing \gls{tms} and \gls{sms} into \gls{ms}, and ultimately adding \gls{cct} to the composition, yielding the the conjunction of \gls{ms} and \gls{cct}.
         % 
@@ -433,10 +433,6 @@ this paper assumes that whole programs are the result of linking partial program
 The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
 %In this work, the semantics of the programming language is expected to differentiate between the component and the context.
 With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the result of which must satisfy $\pi$}.
-%\MPin{
-% the behaviour of the result?
-%%%%%%%    MK: def:propsat defines satisfaction in terms of programs, no need to talk about behavior here
-%}
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
   \bul{$\rsat{\progvar}{\pi}$}
@@ -453,9 +449,6 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 \subsection{Secure Compilers}\label{subsec:bg:rtp}
 
 A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
-%For the syntactic description of programs written in $\src{L}$, this paper writes $\src{\progvar}$, while for ones written in $\trg{L}$, this paper writes $\trg{\progvar}$.%\MP{not a fan of this sentence}
-%This paper writes $\src{\progvar}$ and $\trg{\progvar}$ for programs written in $\src{L}$ and $\trg{L}$, respectively.
-%      MK: I don't think we need to mention this at all
 This translation is considered {\em correct} if it is semantics-preserving.
 That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
 Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
@@ -939,15 +932,8 @@ First, $\src{TypeScript}$ programs are translated to $\trg{JavaScript}$ which, e
 Were all these compilation steps robustly secure with respect to \gls{ms}, the resulting $\irl{Ignition BC}$ code would be \gls{ms} regardless of the context the binary runs in.
 
 \subsubsection{Securing Optimisations}
-%\MPin{note that i'm always using british spelling. optimisation VS optimization. etc. }
-% MK: I'll go over the doc with the antidote spellchecker as soon as it is reasonably stable.
-
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
-%\MPin{
-%	do not say the negation of something before the non-negation.
-%	say what things are first, and what they are not later (if at all)
-%}  MK: that for sure is less confusing... Good suggestion!
-Both examples can be seen in practice~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion}, it is infeasible to list them all\MP{survey to cite? this is a bit informal}. % MK: hard to find a survey on different compiler passes... I can't even find one just for memsafety
+Both examples can be seen in practice~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion}, it is infeasible to list them all\MPin{survey to cite? this is a bit informal MK: hard to find a survey on different compiler passes... I can't even find one just for compiler enforced memsafety (that looks good) or for compiler translations in general}.
 Consider the compilation passes of LLVM~\cite{lattner2004llvm}.
 In LLVM, compiler passes are handled in the \texttt{PassManager} class.
 By means of manipulating the internal state of the \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
@@ -1065,15 +1051,16 @@ In spirit of this, the language $\Lscct$ allows violating \gls{cct} by emitting 
 % oh... that's good to know! the tech report is also riddled with this... :/
 
 Above is a fraction of the shared syntax of all the programming languages of this paper.
-\MP{why a fraction? what exprs are missing}
-%% MK: Things that are missing here are: Evaluation contexts, states Ω and transitively other definitions affected by this
+\MPin{why a fraction? what exprs are missing
+MK: Things that are missing here are: Evaluation contexts, states Ω and transitively other definitions affected by this
+}
 The syntax and semantics are mostly standard and therefore omitted.
 However, when allocating arrays with $\lnew{\expr[_{1}]}{\expr[_{2}]}$, the expression $\expr[_{1}]$ determines the initial value of the cells and $\expr[_{2}]$ the overall size of an array.
 
 \MPin{
 	below is semantics info. should go with their symbols and the semantics rules.
 	and a better description of the semantics symbols.
-% MK: this moved to appendix! should we bring it back?
+  MK: this moved to appendix! should we bring it back? what exactly should be left out?
 }
 The data associated to pointers resides in the dynamic state $\Omega$ that contains sandboxed heaps, one for the context and the other for the component.
 Because of the sandboxing, locations pointing into heaps must be associated with a control-tag $\sandboxtag$ (either $\ctx$ or $\comp$) to know the heap they point into.

@@ -1,13 +1,17 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
-Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Props.
+Require Import CSC.Sets CSC.Props.
 
-Require Import CSC.Ltms.syntax CSC.Ltms.dynamic.
+Require Import CSC.Shared.Fresh CSC.Shared.Sema CSC.Shared.Trace CSC.Ltms.syntax.
+Require Import CSC.Ltms.dynamic CSC.Util.NoDupInv.
 
 From RecordUpdate Require Import RecordUpdate.
 
 Import LangNotations.
 Open Scope LangNotationsScope.
+
+#[local]
+Existing Instance varteq__Instance.
 
 (** Static Environments. Value Contexts and Location Contexts *)
 Definition Gamma : Type := mapind varteq__Instance ty.

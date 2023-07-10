@@ -1,6 +1,7 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
-Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Props.
+
+Require Import CSC.Shared.Sema CSC.Shared.Fresh CSC.Sets CSC.Util CSC.Fresh CSC.Props.
 
 From RecordUpdate Require Import RecordSet.
 
@@ -72,16 +73,6 @@ Instance valueeq__Instance : HasEquality value := {
   eqb_eq := value_eqb_eq ;
 }.
 #[local]
-Existing Instance varteq__Instance.
-(** Possible binary operations. *)
-Variant binopsymb : Type :=
-| Badd : binopsymb
-| Bsub : binopsymb
-| Bmul : binopsymb
-| Bdiv : binopsymb
-| Bless : binopsymb
-.
-#[export]
 Existing Instance varteq__Instance.
 Inductive expr : Type :=
 | Xval (v : value) : expr

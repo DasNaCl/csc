@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
-Require Import CSC.Sets CSC.Util CSC.Fresh CSC.Props.
+Require Import CSC.Shared.Fresh CSC.Shared.Sema CSC.Sets CSC.Util CSC.Props.
 
 From RecordUpdate Require Import RecordSet.
 
@@ -37,45 +37,6 @@ Fixpoint insert (K : evalctx) (withh : expr) : expr :=
   | Kcall foo K' => Xcall foo (R K')
   end
 .
-(** * Dynamics *)
-
-(** Evaluation of binary expressions. Note that 0 means `true` in S, so `5 < 42` evals to `0`. *)
-Definition eval_binop (b : binopsymb) (v0 v1 : value) : option value :=
-  let* n0 := match v0 with | Vnat n => Some n | _ => None end in
-  let* n1 := match v1 with | Vnat n => Some n | _ => None end in
-  Some(Vnat(match b with
-       | Bless => (if Nat.ltb n0 n1 then 0 else 1)
-       | Badd => (n0 + n1)
-       | Bdiv => (n0 / n1)
-       | Bsub => (n0 - n1)
-       | Bmul => (n0 * n1)
-       end))
-.
-(** Poison used to mark locations in our operational state. *)
-Inductive poison : Type :=
-| poisonless : poison
-| poisoned : poison
-.
-#[global]
-Notation "'◻'" := (poisonless).
-#[global]
-Notation "'☣'" := (poisoned).
-Definition poison_eqb :=
-  fun (ρ1 ρ2 : poison) =>
-    match ρ1, ρ2 with
-    | ◻, ◻ | ☣, ☣ => true
-    | _, _ => false
-    end
-.
-Lemma poison_eqb_eq ρ1 ρ2 :
-  poison_eqb ρ1 ρ2 = true <-> ρ1 = ρ2.
-Proof. destruct ρ1, ρ2; now cbn. Qed.
-#[export]
-Instance poisoneq__Instance : HasEquality poison := {
-  eq := poison_eqb ;
-  eqb_eq := poison_eqb_eq ;
-}.
-
 (* A "dynamic" location contains the location and its poison *)
 Record dynloc : Type := mkdL {
   dρ : poison ;     (* wether the location is already deallocated *)
@@ -94,8 +55,8 @@ Lemma dynloc_eqb_eq dℓ0 dℓ1 :
   dynloc_eqb dℓ0 dℓ1 = true <-> dℓ0 = dℓ1.
 Proof.
   unfold dynloc_eqb; split; intros.
-  eq_to_defeq Nat.eqb. cbv in *; destruct dℓ0, dℓ1; inv H. inv H1. apply Nat.eqb_eq in H0. inv H0. reflexivity.
-  inv H; eq_to_defeq Nat.eqb; try apply Nat.eqb_eq. repeat split; try apply eq_refl. apply Nat.eqb_refl.
+  - eq_to_defeq Nat.eqb. cbv in *; destruct dℓ0, dℓ1; inv H; trivial.
+  - inv H; eq_to_defeq Nat.eqb; try apply Nat.eqb_eq.
 Qed.
 #[export]
 Instance dynloceq__Instance : HasEquality dynloc := {
@@ -137,52 +98,7 @@ Notation "'dK(' bl ';' bt ')'" := (({| dL := bl ; dt := bt |}) : ptr_key) (at le
 Definition ptrstore := mapind ptrkeyeq__Instance dynloc.
 Definition snil : ptrstore := mapNil ptrkeyeq__Instance dynloc.
 
-#[export]
-Instance nateq__Instance : HasEquality nat := {
-  eq := Nat.eqb ;
-  eqb_eq := Nat.eqb_eq ;
-}.
-Definition heap := list (value).
-Definition hNil : heap := nil.
-Fixpoint Hgrow_aux (H : heap) (s : nat) (default : value) : heap :=
-  match s with
-  | 0 => H
-  | S n' => default :: Hgrow_aux H n' default
-  end
-.
-Definition Hgrow (H : heap) (s : nat) (default : value) : heap :=
-  Hgrow_aux H s default
-.
-(* Context switch indicators. The paper calls these Transfer Tags *)
-Variant comms : Type :=
-| Qctxtocomp : comms
-| Qcomptoctx : comms
-| Qinternal : comms
-.
-Definition comms_eqb (q1 q2 : comms) :=
-  match q1, q2 with
-  | Qctxtocomp, Qctxtocomp => true
-  | Qcomptoctx, Qcomptoctx => true
-  | Qinternal, Qinternal => true
-  | _, _ => false
-  end
-.
-Lemma comms_eqb_eq (q1 q2 : comms) :
-  comms_eqb q1 q2 = true <-> q1 = q2.
-Proof. destruct q1, q2; now cbn. Qed.
-#[export]
-Instance commseq__Instance : HasEquality comms := {
-  eq := comms_eqb ;
-  eqb_eq := comms_eqb_eq ;
-}.
-Definition string_of_comms (q : comms) :=
-  match q with
-  | Qctxtocomp => "?"%string
-  | Qcomptoctx => "!"%string
-  | Qinternal => "∅"%string
-  end
-.
-(* Continuation Stacks *)
+(** Continuation Stacks *)
 Definition active_ectx := list (evalctx * vart).
 
 #[local]
@@ -194,6 +110,9 @@ Record CfState : Type := mkΨ {
 }.
 #[export]
 Instance etaCfState : Settable _ := settable! mkΨ <CΞ; Cξ; CKs>.
+
+Definition heap := @Sema.heap value.
+
 Record MemState : Type := mkΦ {
   MH__ctx : heap ;
   MH__comp : heap ;
@@ -394,8 +313,8 @@ Definition subst (what : vart) (inn forr : expr) : expr :=
 .
 Inductive pstep : PrimStep rtexpr event :=
 | e_binop : forall (Ω : state) (n1 n2 n3 : nat) (b : binopsymb),
-    Some(Vnat n3) = eval_binop b n1 n2 ->
-    Ω ▷ Xbinop b (Xval n1) (Xval n2) --[]--> Ω ▷ (Xval n3)
+    Some(n3) = eval_binop b n1 n2 ->
+    Ω ▷ Xbinop b (Xval n1) (Xval n2) --[]--> Ω ▷ (Xval(Vnat n3))
 | e_ifz_true : forall (Ω : state) (e1 e2 : expr),
     Ω ▷ Xifz (Xval 0) e1 e2 --[]--> Ω ▷ e1
 | e_ifz_false : forall (Ω : state) (e1 e2 : expr) (n : nat),
@@ -491,8 +410,12 @@ Definition pstepf (r : rtexpr) : option (option event * rtexpr) :=
   | RTerm Ω e =>
     match e with
     | Xbinop b (Xval v1) (Xval v2) =>
-      let* v3 := eval_binop b v1 v2 in
-      Some(None, Ω ▷ Xval v3)
+      match v1, v2 with
+      | Vnat v1, Vnat v2 =>
+        let* v3 := eval_binop b v1 v2 in
+        Some(None, Ω ▷ Xval(Vnat v3))
+      | _, _ => None
+      end
     | Xifz (Xval(Vnat n)) e1 e2 =>
       match n with
       | 0 => Some(None, Ω ▷ e1)
@@ -594,41 +517,6 @@ Ltac grab_value e :=
 Ltac grab_value2 e1 e2 := (grab_value e1; grab_value e2).
 Ltac grab_value3 e1 e2 e3 := (grab_value e1; grab_value e2; grab_value e3).
 Ltac grab_value4 e1 e2 e3 e4 := (grab_value e1; grab_value e2; grab_value e3; grab_value e4).
-
-Lemma Hget_none (H : heap) (n : nat) :
-  n >= List.length H -> List.nth_error H n = None.
-Proof.
-  revert n; induction H; cbn; intros.
-  - destruct n; easy.
-  - destruct n; cbn; try easy. assert (n >= List.length H) by lia.
-    now specialize (IHlist n H1).
-Qed.
-Lemma Hget_some (H : heap) (n : nat) :
-  n < List.length H -> exists v, List.nth_error H n = Some v.
-Proof.
-  revert n; induction H; cbn; intros.
-  - destruct n; easy.
-  - destruct n; cbn; try easy. exists a; easy.
-    assert (n < List.length H) by lia.
-    now specialize (IHlist n H1).
-Qed.
-Lemma Hset_none (H : heap) (n : nat) v :
-  n >= List.length H -> NoDupList.swap_nth_aux H n v = None.
-Proof.
-  revert n; induction H; cbn; intros.
-  - now inv H.
-  - destruct n; try easy. assert (n >= List.length H) by lia.
-    specialize (IHlist n H1); now rewrite IHlist.
-Qed.
-Lemma Hset_some (H : heap) (n : nat) v :
-  n < List.length H -> exists H', NoDupList.swap_nth_aux H n v = Some H'.
-Proof.
-  revert n; induction H; cbn; intros.
-  - destruct n; easy.
-  - destruct n; cbn; try easy. exists (v :: H); easy.
-    assert (n < List.length H) by lia.
-    specialize (IHlist n H1); deex. exists (a :: H'); now rewrite IHlist.
-Qed.
 
 (** We use an alternative notation of pstep here that does not constrain a to be *either* Some/None *)
 Lemma equiv_pstep (r0 : rtexpr) (a : option event) (r1 : rtexpr) :
@@ -919,12 +807,6 @@ Ltac In_find_resolve_contr := (
          Hy : List.find (fun x : string => vareq _ ?bar) _ = Some _ |- _] =>
         In_find_resolve_contr_hook Hx Hy
       end)
-.
-Definition comm (t : ControlTag) : comms :=
-  match t with
-  | CCtx => Qctxtocomp
-  | CComp => Qcomptoctx
-  end
 .
 Inductive context_switched : commlib -> vart -> ControlTag -> comms -> ControlTag -> Prop :=
 | SwitchCtxToComp : forall (ξ : commlib) (foo : vart),

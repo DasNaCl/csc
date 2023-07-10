@@ -389,7 +389,7 @@ This paper employs the security model where programs are written in a language w
 Events include security-relevant actions (e.g., reading from and writing to memory) and the unobservable event $\emptyevent$.
 As programs execute, their emitted events are concatenated in traces $\trace$, which serve as the description of the behaviour of a program.%
 \footnote{
-Throughout the paper, we indicate sequences with an overbar (i.e., $\trace$), we denote empty sequences with $\hole{\cdot}$ and concatenate sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
+Throughout the paper, sequences are indicated with an overbar (i.e., $\trace$), empty sequences with $\hole{\cdot}$, and concatenation of sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
 Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
 }
 
@@ -398,9 +398,9 @@ The set of all properties can be partitioned into different {\em classes} ($\cla
 A class is simply a set of properties and for the class of safety properties, it is decidable whether a trace satisfies a safety property with just a finite trace prefix.
 As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$.
 This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets}\MP{should cite catalin's MS paper too}, because it reads from a memory location that was freed already.
-The previous finite trace prefix is enough to decide that the trace does not satisfy temporal memory safety and there is no way to append events to this prefix which would result in the trace being admissible.
-In the following, we indicate the execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ as: $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
-With this, we define property satisfaction as follows:
+The previous finite trace prefix is enough to decide that the trace does not satisfy \gls{tms} and there is no way to append events to this prefix which would result in the trace being admissible.
+In the following, the execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ is written as $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
+With this, property satisfaction is defined as follows:
 \bul{whole programs $\wholeprogvar$ satisfy a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisifies $\pi$} (\Cref{def:propsat}).
 
 \begin{definition}[Property Satisfaction]\label{def:propsat}
@@ -412,7 +412,7 @@ With this, we define property satisfaction as follows:
 
 Property satisfaction is defined on whole programs, i.e., programs without missing definitions.
 Thus, from a security perspective, this considers only a passive attacker model, where the attacker observes the execution and, e.g., retrieves secrets from that.
-To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}\MP{many more things on RS here}, we extend the concept of satisfaction with {\em robustness}.
+To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}\MP{many more things on RS here}, the concept of satisfaction can be extended with {\em robustness}.
 Robust satisfaction considers partial programs $\progvar$, i.e., components with missing imports, which cannot run until said imports are fulfilled.
 To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
 As typically done in works that consider the execution of partial programs~\cite{abate2019jour,devriese2018parametricity}, \MP{Add papers from Amal. Papers from just Dominique on FAC. RS works.}
@@ -428,7 +428,7 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 
 \begin{example}[Double Free in Bluetooth Subsystem]
   Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
-  The bug\MP{not bug, vulnerability. uniform below (perhaps?)} arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
+  The vulnerability arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
   Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether the pointer has been freed already:
   Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
 \end{example}
@@ -439,9 +439,9 @@ A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of 
 This translation is considered {\em correct} if it is semantics-preserving.
 That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
 Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}\MP{cite kennedy and teh general SC dagstuhl and ACM papers too}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
-To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which we summarize in the following definition.
+To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which the following definition summarizes.
 
-For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} we have that \iul{the program $\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
+For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} where \iul{$\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
 \MPin{
 	somewhere we should say that a class of props can also include a single prop
 }
@@ -558,7 +558,7 @@ Note, however, that this definition says nothing about memory-safety issues intr
 \subsubsection{Strict Cryptographic Constant Time}
 
 \gls{cct} is a hyperproperty\MP{hypersafety?}\MP{what is a hp?} and, thus, not as easy to check with just monitors.\MP{chy? cit?} %Beutner et al
-Hence, we define \gls{scct}, a stricter variant that enforces the policy that no secret should appear on a trace.\MP{cit? did we take some inspiration}
+To remedy this, this section defines the property \gls{scct}, a stricter variant of \gls{cct} that enforces the policy that no secret should appear on a trace.\MP{cit? did we take some inspiration}
 
 \begin{definition}[\glsfirst{scct}]\label{def:trace:scctdef}
   $
@@ -1499,15 +1499,6 @@ Probably even in coq
 
 	\MPin{yes it should}}
 }
-
-%\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']
-%if at <= bounds {
-%  x[at] = 42;
-%}
-%\end{lstlisting}
-%Note the subtle bug of using \verb|<=| instead of \verb|<|, leading to an out-of-bounds access whenever \verb|at = bounds|.
-%Furthermore, when \verb|at| and \verb|bounds| are 64-bit integers on a 32-bit architecture, the comparison may not be performed in constant-time: The compiler may bail out as soon as the lower 32 bits are unequal, not bothering to compare the higher 32 bits.
-
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 

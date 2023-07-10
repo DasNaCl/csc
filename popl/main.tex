@@ -406,11 +406,11 @@ Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
 Properties $\pi$ are sets of traces of admissible program behaviours, ascribing what said property considers valid~\cite{clarkson2008hyper}.
 The set of all properties can be partitioned into different {\em classes} ($\class$), i.e., safety, liveness, and neither safety nor liveness~\cite{clarkson2008hyper}.
 A class is simply a set of properties and for the class of safety properties, it is decidable whether a trace satisfies a safety property with just a finite trace prefix.
-As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$
-This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets}, because it reads from a memory location that was freed already.
+As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$.
+This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets}\MP{should cite catalin's MS paper too}, because it reads from a memory location that was freed already.
 The previous finite trace prefix is enough to decide that the trace does not satisfy temporal memory safety and there is no way to append events to this prefix which would result in the trace being admissible.
-In the following, the notation of an execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ is $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
-With this, the definition of property satisfaction is as follows:
+In the following, we indicate the execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ as: $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
+With this, we define property satisfaction as follows:
 \bul{whole programs $\wholeprogvar$ satisfy a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisifies $\pi$} (\Cref{def:propsat}).
 
 \begin{definition}[Property Satisfaction]\label{def:propsat}
@@ -421,17 +421,15 @@ With this, the definition of property satisfaction is as follows:
 \end{definition}
 
 Property satisfaction is defined on whole programs, i.e., programs without missing definitions.
-Thus, there is only a passive attacker model that observes the execution and, e.g., retreives secrets from that.
-To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, the concept of satisfaction is extended with {\em robustness}.
-Robust satisfaction considers partial programs $\progvar$, i.e., programs with free variables, which need to be defined prior to execution.
-Programs with free variables can get stuck during execution.
+Thus, from a security perspective, this considers only a passive attacker model, where the attacker observes the execution and, e.g., retrieves secrets from that.
+To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}\MP{many more things on RS here}, we extend the concept of satisfaction with {\em robustness}.
+Robust satisfaction considers partial programs $\progvar$, i.e., components with missing imports, which cannot run until said imports are fulfilled.
 To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
-As typically done in not only secure compilation~\cite{abate2019jour,devriese2018parametricity}, %
-% \MP{others do this too, parametricity results e.g.}
+As typically done in works that consider the execution of partial programs~\cite{abate2019jour,devriese2018parametricity}, \MP{Add papers from Amal. Papers from just Dominique on FAC. RS works.}
 this paper assumes that whole programs are the result of linking partial programs referred to as {\em context} ($\ctx$) and {\em component} ($\comp$).
 The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
 %In this work, the semantics of the programming language is expected to differentiate between the component and the context.
-With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the result of which must satisfy $\pi$}.
+With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the resulting whole program must satisfy $\pi$}.
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
   \bul{$\rsat{\progvar}{\pi}$}
@@ -440,7 +438,7 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 
 \begin{example}[Double Free in Bluetooth Subsystem]
   Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
-  The bug arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
+  The bug\MP{not bug, vulnerability. uniform below (perhaps?)} arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
   Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether the pointer has been freed already:
   Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
 \end{example}
@@ -450,12 +448,15 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
 This translation is considered {\em correct} if it is semantics-preserving.
 That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
-Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
+Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}\MP{cite kennedy and teh general SC dagstuhl and ACM papers too}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
 To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which we summarize in the following definition.
 
 For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} we have that \iul{the program $\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
+\MPin{
+	somewhere we should say that a class of props can also include a single prop
+}
 
-\begin{definition}[Robust Preservation]\label{def:rtp}
+\begin{definition}[Robust Compilation]\label{def:rtp}
   % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
   \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}
   %, iff 
@@ -474,11 +475,11 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
   \end{array}
   $
   \end{center}
-  While the implementation the compiler emits may look correct, it does not check that the provided argument is of the right type.
+  While the compiler emits code that may look correct, the generated code does not check that the provided argument is of the right type.
   Even though the pointer $\trg{x}$ is checked for validity, the context $\trg{foo((int*)y, 1)}$ is able to provoke a read out of bounds.
-  Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context now calls the component again but casts this buffer to an $\trg{int*}$ prior to that call.
+  Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context can now call the component again, casting this buffer to an $\trg{int*}$ prior to that call.
   The pointer is valid for one $\trg{char}$-sized memory cell, as expected, but the actual read operation now returns $\trg{sizeof(int)}$ many bytes instead of just $\trg{sizeof(char)}$ many.
-  Thus, even if $\src{foo}$ may have been robust with respect to the no-reads-out-of-bounds property, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
+  Thus, even if $\src{foo}$ may have been robust with respect to the no-reads-out-of-bounds property\MP{sms?}, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
 \end{example}
 
 

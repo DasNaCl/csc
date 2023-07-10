@@ -1,6 +1,7 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Lists.List Lia.
-Require Import CSC.Util.
+
+Require Import CSC.Util.Convenience CSC.Util.HasEquality CSC.Util.NoDupInv.
 
 From RecordUpdate Require Import RecordSet.
 

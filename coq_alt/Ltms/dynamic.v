@@ -1,6 +1,7 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
-Require Import CSC.Shared.Fresh CSC.Shared.Sema CSC.Sets CSC.Util CSC.Props.
+Require Import CSC.Shared.Fresh CSC.Shared.Sema CSC.Util.Sets CSC.Shared.Props CSC.Util.HasEquality.
+Require Import CSC.Util.Convenience CSC.Util.NoDupInv CSC.Shared.Trace.
 
 From RecordUpdate Require Import RecordSet.
 
@@ -122,7 +123,7 @@ Record MemState : Type := mkΦ {
 Instance etaMemState : Settable _ := settable! mkΦ <MH__ctx; MH__comp; MΔ>.
 Definition EmptyΦ : MemState := mkΦ hNil hNil snil.
 Record state : Type := mkΩ {
-  SF : CSC.Fresh.fresh_state ;
+  SF : CSC.Shared.Fresh.fresh_state ;
   SΨ : CfState ;
   St : ControlTag ;
   SΦ : MemState ;
@@ -164,7 +165,7 @@ Definition nodupinv (Ω : state) : Prop :=
   nodupinv (Ω.(SΨ).(CΞ)) /\ nodupinv (Ω.(SΦ).(MΔ))
 .
 Lemma nodupinv_empty (Ξ : symbols) (ξ : commlib) :
-  Util.nodupinv Ξ ->
+  Util.NoDupInv.nodupinv Ξ ->
   nodupinv (Ω(Fresh.empty_fresh; Ξ; ξ; List.nil; CComp; hNil; hNil; snil)).
 Proof. intros H; cbn; repeat split; eauto; constructor. Qed.
 
@@ -206,7 +207,7 @@ Proof.
   - apply Nat.eqb_eq in H0; inv H0; reflexivity.
   - inv H; repeat split; try easy. apply Nat.eqb_refl.
   - apply String.eqb_eq in H; inv H; reflexivity.
-  - inv H; repeat split; easy.
+  - inv H; repeat split; eq_to_defeq a; apply String.eqb_refl.
   - inv H; split; easy.
 Qed.
 #[export]
@@ -330,28 +331,28 @@ Inductive pstep : PrimStep rtexpr event :=
 | e_unpair : forall (Ω : state) (v1 v2 : value) (x1 x2 : vart) (e e' : expr),
     e' = subst x1 (subst x2 e (Xval v2)) (Xval v1) ->
     Ω ▷ Xunpair x1 x2 (Xval(Vpair v1 v2)) e --[]--> Ω ▷ e'
-| e_alloc : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
+| e_alloc : forall (F : CSC.Shared.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
               (Φ Φ' : MemState) (v : value) (n : nat) (ℓ : loc) (Δ' : ptrstore) (γ : vart),
     ℓ = addr(List.length (getH Φ t)) ->
-    Util.nodupinv Φ.(MΔ) ->
+    Util.NoDupInv.nodupinv Φ.(MΔ) ->
     push (dK(ℓ ; t)) (dL(◻ ; n ; γ)) Φ.(MΔ) = Some Δ' ->
     Φ' = Htgrow (Φ <| MΔ := Δ' |>) n t v ->
     (Ωa(F ; Ψ ; t ; Φ)) ▷ Xnew γ (Xval v) (Xval n) --[ ev( Salloc ℓ n ; t ) ]--> (Ωa(F ; Ψ ; t ; Φ')) ▷ Xval (Vpack (LConst ℓ γ) (Vpair Vcap (Vptr ℓ γ)))
-| e_delete : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
+| e_delete : forall (F : CSC.Shared.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
                (Φ Φ' : MemState) (n : nat) (ℓ : loc) (ρ : poison) (Δ1 Δ2 : ptrstore) (γ : vart),
-    Util.nodupinv (Δ1 ◘ (dK(ℓ ; t)) ↦ (dL(ρ ; n ; γ)) ◘ Δ2) ->
+    Util.NoDupInv.nodupinv (Δ1 ◘ (dK(ℓ ; t)) ↦ (dL(ρ ; n ; γ)) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (dK(ℓ ; t)) ↦ dL(ρ ; n ; γ) ◘ Δ2) ->
     Φ' = Φ <| MΔ := Δ1 ◘ (dK(ℓ ; t)) ↦ (dL(☣ ; n ; γ)) ◘ Δ2 |> ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xdel (Xval (Vpack (LConst ℓ γ) (Vpair Vcap (Vptr ℓ γ)))) --[ ev( Sdealloc ℓ ; t ) ]--> Ωa(F ; Ψ ; t ; Φ') ▷ Xval 0
-| e_get : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
+| e_get : forall (F : CSC.Shared.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag)
             (Φ : MemState) (n m ℓ : nat) (v : value)  (ρ : poison) (Δ1 Δ2 : ptrstore) (γ : vart),
-    Util.nodupinv (Δ1 ◘ (dK((addr ℓ) ; t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
+    Util.NoDupInv.nodupinv (Δ1 ◘ (dK((addr ℓ) ; t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (dK((addr ℓ) ; t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
     (List.nth_error (getH Φ t) (ℓ + n) = (Some v) \/ (v = Vnat 1729 /\ List.nth_error (getH Φ t) (ℓ + n) = None)) ->
     Ωa(F ; Ψ ; t ; Φ) ▷ Xget (Xval Vcap) (Xval(Vptr (addr ℓ) γ)) (Xval n) --[ ev( Sget (addr ℓ) n ; t ) ]--> Ωa(F ; Ψ ; t ; Φ) ▷ Xval (Vpair Vcap v)
-| e_set : forall (F : CSC.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
+| e_set : forall (F : CSC.Shared.Fresh.fresh_state) (Ψ : CfState) (t : ControlTag) (H' : heap)
             (Φ Φ' : MemState) (n m ℓ : nat) (w : value) (ρ : poison) (Δ1 Δ2 : ptrstore) (γ : vart),
-    Util.nodupinv (Δ1 ◘ (dK((addr ℓ); t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
+    Util.NoDupInv.nodupinv (Δ1 ◘ (dK((addr ℓ); t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
     Φ.(MΔ) = (Δ1 ◘ (dK((addr ℓ); t)) ↦ dL(ρ ; m ; γ) ◘ Δ2) ->
     (NoDupList.swap_nth_aux (getH Φ t) (ℓ + n) (w) = Some H' \/ (H' = getH Φ t /\ NoDupList.swap_nth_aux (getH Φ t) (ℓ + n) (w) = None)) ->
     Φ' = setH Φ t H' ->
@@ -399,7 +400,7 @@ Proof.
       * intros [H2|H2]; try contradiction;
         apply IHΔ1; auto.
   - (* e_set *) inv H3; cbn in *; rewrite H0 in *; constructor; auto;
-    cbn; change (Util.nodupinv (MΔ (setH (Φ <| MΔ := MΔ Φ |>) t H')));
+    cbn; change (Util.NoDupInv.nodupinv (MΔ (setH (Φ <| MΔ := MΔ Φ |>) t H')));
     rewrite setH_Δ_passthrough, H0; easy.
 Qed.
 
@@ -953,7 +954,7 @@ Definition estepf (r : rtexpr) : option (option event * rtexpr) :=
            (andb (Ω.(St) == CComp)
            (andb (Nat.eqb (List.length Ω.(SΦ).(MH__ctx)) 0)
            (andb (Nat.eqb (List.length Ω.(SΦ).(MH__comp)) 0)
-                 (Nat.eqb (Util.length Ω.(SΦ).(MΔ)) 0)))) then
+                 (Nat.eqb (Util.NoDupInv.length Ω.(SΦ).(MΔ)) 0)))) then
           match v, K, Ω.(SΨ).(CKs), Ω.(St) with
           | Vnat 0, Khole, nil, CComp =>
             Some(Some(ev(Sstart ; CComp)), Ω' ▷ e)
@@ -1159,7 +1160,7 @@ Instance TMS__LangParams : LangParams := {
   step := estep ;
   is_value := rtexpr_is_val ;
 }.
-Definition tracepref : Type := @Util.tracepref TMS__TraceParams.
+Definition tracepref : Type := @CSC.Shared.Trace.tracepref TMS__TraceParams.
 Import LangNotations.
 Open Scope LangNotationsScope.
 

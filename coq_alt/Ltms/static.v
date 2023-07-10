@@ -1,6 +1,6 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
-Require Import CSC.Sets CSC.Props.
+Require Import CSC.Util.Sets CSC.Shared.Props CSC.Util.Convenience CSC.Util.HasEquality.
 
 Require Import CSC.Shared.Fresh CSC.Shared.Sema CSC.Shared.Trace CSC.Ltms.syntax.
 Require Import CSC.Ltms.dynamic CSC.Util.NoDupInv.
@@ -1262,7 +1262,7 @@ Proof. Admitted.
 Lemma store_agree_notin_comm Δ ℓ t v T__TMS :
   tms_store_agree T__TMS Δ ->
   ~ In (dK(ℓ ; t)) (dom Δ) ->
-  Util.nodupinv (dK(ℓ ; t) ↦ v ◘ Δ) ->
+  Util.NoDupInv.nodupinv (dK(ℓ ; t) ↦ v ◘ Δ) ->
   ~ List.In (ℓ,t) (TMSMonAux.alloced T__TMS) /\
   ~ List.In (ℓ,t) (TMSMonAux.freed T__TMS)
 .

@@ -1,7 +1,8 @@
 Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
 
-Require Import CSC.Shared.Sema CSC.Shared.Fresh CSC.Sets CSC.Util CSC.Fresh CSC.Props.
+Require Import CSC.Shared.Sema CSC.Shared.Fresh CSC.Util.Sets CSC.Shared.Fresh CSC.Shared.Props.
+Require Import CSC.Util.HasEquality CSC.Util.Convenience CSC.Util.NoDupInv.
 
 From RecordUpdate Require Import RecordSet.
 
@@ -24,7 +25,7 @@ Proof.
   try ((change ((l == l0) = true) in H + change ((v == v0) = true) in H);
        apply eqb_eq in H; subst; easy).
   eq_to_defeq vareq; eq_to_defeq loc_eqb.
-  inv H; eq_to_defeq loc_eqb.
+  inv H; eq_to_defeq loc_eqb. split; eauto. eq_to_defeq vareq.
   inv H; eq_to_defeq vareq.
 Qed.
 #[export]
@@ -63,7 +64,7 @@ Proof.
   - destruct v2; inv H. reflexivity.
   - destruct v2; inv H. reflexivity.
   - destruct v2; inv H; eq_to_defeq loc_eqb. eq_to_defeq vareq.
-  - destruct v2; inv H; eq_to_defeq loc_eqb.
+  - destruct v2; inv H; eq_to_defeq loc_eqb. split; eq_to_defeq vareq.
   - destruct v2; inv H; eq_to_defeq Loc_eqb. apply IHv1 in H0; subst. reflexivity.
   - destruct v2; inv H; eq_to_defeq Loc_eqb; split; try easy. now apply IHv1.
 Qed.

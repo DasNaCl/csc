@@ -1,6 +1,8 @@
 Set Implicit Arguments.
-Require Import Strings.String CSC.Util CSC.Sets CSC.Props Coq.Program.Equality Lia.
+Require Import Strings.String Coq.Program.Equality Lia.
 
+Require Import CSC.Util.Convenience CSC.Util.Sets CSC.Shared.Props CSC.Shared.Trace.
+Require Import CSC.Shared.Sema CSC.Util.HasEquality CSC.Util.NoDupInv.
 
 (** * This file defines the various monitors from the paper. *)
 
@@ -30,7 +32,7 @@ Module Monitor (M : MonitorT) <: MonitorT.
     step := MonCheck;
     is_value := ValueState;
   }.
-  Definition tracepref := @Util.tracepref Trace__Instance.
+  Definition tracepref := @CSC.Shared.Trace.tracepref Trace__Instance.
   (** Monitor traces must not stutter, which makes sense, because monitors should operate on relevant information. *)
   (** The empty event is not relevant, in case you wondered. *)
   Inductive cong : Props.tracepref -> tracepref -> Prop :=

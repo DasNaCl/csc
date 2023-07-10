@@ -1088,18 +1088,18 @@ Because of this, it is possible that a program like $\llet{x}{\lnew{0}{5}}{\ldel
 
 \begin{gather*}
   \begin{aligned}
-  \mi{(Pre\text{-}Events)}~&\event[_{b}]\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr &\mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
-  \mi{(Events)}~&\event\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag} \\
+  \mi{(Pre\text{-}Events)}~\event[_{b}]&\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr \mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
+  \mi{(Events)}~\event&\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag} \\
   \end{aligned}
 \end{gather*}
 
 Possible events that are emitted during execution are similar to the ones of the specification trace model (\Cref{subsec:propdefs}).
-The key difference is that, as standard in secure compilation work, the traces have a call and return event that signals context switches.\MP{why? to help with proofs?}
+The key difference is that, as standard in secure compilation work~\cite{patrignani2021rsc,abate2019jour}, the traces have a call and return event that signals context switches, which are referred to as {\em interaction events}.
+The reason for these interaction events is technical: They are a proof artifact for reconstructing a source context from a potentially malicious target context, where during that translation, the insertion of some wrapper code right before context switching may be necessary to make the proof succeed.
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
 Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
 The environmental semantics emits the tag $\nocomm$ for calls from context- to context-level or component- to component-level.
-In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$ and also $\operatorname{comm}(\ctx)=\ \ctxtocomp$ and $\operatorname{comm}(\comp)=\ \comptoctx$.
-\MP{intuition? these are aux functions for the semantics}
+In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
 
 \begin{center}
   \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime-term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
@@ -1128,12 +1128,13 @@ The trace $\trace$ emitted during that execution serves as abstraction of the be
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
-$\src{L_{\tmssafe}}$ does not extend the base syntax at term level.\MP{avoid negations. ltms programs use the same syntax presentd before without extensions}
-What makes $\src{L_{\tmssafe}}$ special is that it has a type system inspired by $L^{3}$~\cite{morrisett2005L3} that exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.\MPin{it's not really special ... Just say  "L3 has a type system ... ""}
-The proof of this property relies on a projection $\msfilterLtms{\src{\event}}=\event$ that projects $\src{L_{\tmssafe}}$ events to specfication events $\event$. \MP{why}
-Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model.\MP{why, where is this needed}
-The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected\MP{what}.
-But, it also filters any action that a contexts does, since these are irrelevant for component-level \gls{tms}.
+$\src{L_{\tmssafe}}$ uses the same syntax as presented earlier (\Cref{sec:casestud:defs}) without extensions to the term level.
+But, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3}.
+The type system of $\src{L_{\tmssafe}}$ exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.
+The proof of this property relies on a projection $\msfilterLtms{\src{\event}}=\event$ that projects $\src{L_{\tmssafe}}$ events to specfication events $\event$, because the properties defined earlier (\Cref{subsec:propdefs}) are defined in the specification trace model.
+Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model whenever an event with a location is projected.
+The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected, e.g., $\msfilterLtms{\src{\ev{Alloc}\ \loc\ n;\comp;\securitytag}}=\ev{Alloc}\ \delta(\loc)\ n;\comp;\securitytag$.
+But, it also filters any action that a context does as well as the interaction events, since these are irrelevant for component-level \gls{tms}.
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
@@ -1142,42 +1143,55 @@ But, it also filters any action that a contexts does, since these are irrelevant
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks and a way to inspect poison tags in the metadata of pointers.
-If an object\MP{?} a pointer bound to variable $\trg{x}$ points to is allocated ($\trg{\poisonless}$), the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
-Likewise, if it\MP{what} has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
-Besides these checks, the language remains exactly the same\MP{to what}.
-
+For allocated ($\trg{\poisonless}$) arrays bound to variable $\trg{x}$, the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
+If the array bound to $\trg{x}$ was allocated, i.e., has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
+%
 The projection $\msfilterL{\trg{\trace}}$ is entirely similar to $\msfilterLtms{\src{\trace}}$.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
-This paper chooses to introduce\MP{uses / defines . use 1 word} $\Lms$, despite it being exactly equal to $\Ltrg$.
-The main purpose of this decision is to enhance readability.\MPin{you can shorten these 2 sentences into 1. yes the section will be supershort, it's ok}
+To enhance readablity, this paper uses $\Lms$, despite it being exactly equal to $\Ltrg$.
 The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL{\trg{\trace}}$.
 
-\subsection{$\Lscct$: An Unsafe Language}\label{subsec:lscct}
-\MPin{
-	unsafe? 
-	a possibly-CCT language?
-}
+\subsection{$\Lscct$: A Language with a Data Independent Timing Mode}\label{subsec:lscct}
 
-$\Lscct$ extends the dynamic state\MPin{i really prefer operational state ... or runtime state. i think i'm not used to this terminology.} of $\trg{L}$ (\Cref{subsec:lms}) with a register for a data (operand) independent timing mode.
+While the previous languages (\Cref{subsec:ltms,subsec:lsms,subsec:lms}) are not concerned with \gls{cct}, $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a register flag for a data (operand) independent timing mode\footnote{As present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.}.
 For the other languages seen earlier, this mode is intuitively always-on.
-\MP{spell out the formal changes in an align* environmtn}
+\MP{spell out the formal changes in an align* environmtn} % this necessitates that we present Ω also in the shared lang defs
 To modify the mode, $\Lscct$ extends expressions with the term $\obj{\lwrdoit{\expr}}$ that writes the value of $\obj{\expr}$ into the register and with a term $\obj{\lrddoit{x}{\expr}}$ that reads the value of the register into $\obj{x}$.
 If the register is turned on, no secrets can appear on traces.
 If the register is turned off, secrets may appear on traces as well as new events $\obj{Branch\ n}$ and $\obj{Binop\ n}$, which the semantics emits for conditionals and certain binary operations, e.g., division.
-To prevent leakage of secrets but still enable reasoning about memory safety, pre-events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access.
-\MPin{
-	an example program and how it uses the flag and what kind of traces are produced is really needed here
-}
+To prevent leakage of secrets but still enable reasoning about memory safety, pre-events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access, which is taken care of by the projection to specification events.
+\Cref{ex:lscct} illustrates these changes.
 
-The filters to the specification trace model are straightforward.
+The projection to the specification trace model is mostly straightforward.
+But for events containing the pre-events $\obj{\widehat{Get}}$ and $\obj{\widehat{Set}}$, the projection always translates the security-tag $\obj{\sigma}$ to $\unlock$, regardless of its actual value.
+The pre-events themselves still translate to just $\ev{Get}$ and $\ev{Set}$, respectively.
+With this technical setup, the information wether a read or write happened on a secret value is not hidden by the semantics, e.g., by emitting $\obj{\emptyevent}$, but when projecting to specification events.
+This allows flexibility: The trace can be checked to satisfy different properties, such as, in this case, \gls{tms}, \gls{sms}, \gls{scct}, and their combined versions.
 
+\begin{example}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
+  Consider the following $\Lscct$ program and the execution trace $\obj{\trace}$ juxtaposed with it.
 
+  $$
+  \begin{array}{lcc}
+  \obj{\lwrdoit{0};} & \mid & \obj{\emptyevent}\\
+  \obj{\llet{x_{\lock}}{\lnew{5}{4}}{}} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 4;\sandboxtag;\unlock} \\
+  \obj{\lset{x}{2}{\lifz{0_{\lock}}{1}{3}};} & \mid & \obj{\ev{Branch}\ 0;\sandboxtag;\lock\cdot\ev{Set}\ \loc_{x}\ 2\ 1;\sandboxtag;\lock} \\
+  \obj{\lwrdoit{1};} & \mid & \obj{\emptyevent}\\
+  \obj{\llet{y_{\lock}}{\lnew{5}{4}}{}} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 4;\sandboxtag;\unlock}\\
+  \obj{\lset{y_{\lock}}{2}{\lifz{0_{\lock}}{1}{3}};} & \mid & \obj{\emptyevent\cdot\widehat{Set}\ \loc_{y}\ 2;\sandboxtag;\lock}\\
+  \end{array}
+  $$
 
-
+  When the data independent timing mode is off, the execution yields events in similar fashion to before (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
+  But, if it is turned on, then the branching event does not fire anymore.
+  Moreover, writing to memory now yields the pre-event $\obj{\widehat{Set}}$, whose difference to $\obj{Set}$ becomes apparent when looking at the projection to the specification trace model.
+  Projecting the above trace to the specification trace model yields the following trace (emitting empty events):
+  $\ev{Alloc}\ \loc_{x}\ 4;\sandboxtag;\unlock\cdot\ev{Branch\ 0}\cdot\ev{Set}\ \loc_{x}\ 2\ 1;\sandboxtag;\lock\cdot\ev{Alloc}\ \loc_{y}\ 4;\sandboxtag;\unlock\cdot\ev{Set}\ \loc_{y}\ 2;\sandboxtag;\unlock$.
+  Clearly, secrets are hidden ($\unlock$) after this projection for the section of the program where the data independent timing mode is turned on, while still containing the appropriate events to check for \gls{ms}.
+\end{example}
 
 \section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
-\MP{use modifer [!h]. i HATE figs that float outside their section}
 \begin{figure}[!h]
   \begin{center}
     \begin{tikzpicture}

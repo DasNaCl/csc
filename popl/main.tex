@@ -953,12 +953,13 @@ Were all these compilation steps robustly secure with respect to \gls{ms}, the r
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
 Both examples can be seen in practice, e.g. as in the work of~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion} and many more.
 % \MPin{survey to cite? this is a bit informal MK: hard to find a survey on different compiler passes... I can't even find one just for compiler enforced memsafety (that looks good) or for compiler translations in general}.
-Consider the compilation passes of LLVM~\cite{lattner2004llvm}.
-In LLVM, compiler passes are handled in the \texttt{PassManager} class.
-By means of manipulating the internal state of the \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
-That way, an order of optimisations can be found by hand that yields the best results.
-Take \gls{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls{dce}, which removes dead code by rewriting conditional branches.
-Unfortunately, the order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
+% 
+% Consider the compilation passes of LLVM~\cite{lattner2004llvm}, which are handled in the \texttt{PassManager} class.
+% By manipulating the internal state of a \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
+% That way, an order of optimisations can be found by hand that yields the best results.
+% \MP{what's the point of the previous 3 sentences?(commented)}
+Consider the following two LLVM optimisation passes: \gls{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls{dce}, which removes dead code by rewriting conditional branches.
+The order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
 \begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}
@@ -1007,6 +1008,9 @@ Technically speaking, they both compile to class files and $\obj{Kotlin}$ object
 Both languages can be used at the same time in one project~\cite{androidstudio}.
 A compiler that accepts both $\src{Java}$ and $\obj{Kotlin}$ code translating to the same target language or intermediate representation performs a kind of {\em upper} composition.
 The definition of upper composition is as follows: given a program $\mathtt{p}$, its compiled $\trg{L}$ counterpart is obtained by plugging $\mathtt{p}$ into $\cc{\src{L}}{\trg{L}}$ if $\mathtt{p}\in\src{L}$ or by plugging $\mathtt{p}$ into $\cc{\obj{L}}{\trg{L}}$ if $\mathtt{p}\in\obj{L}$, written as $\cc{\src{L}+\obj{L}}{\trg{L}}$.
+\MP{
+	put into def env
+}
 Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\obj{L}}{\trg{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Upper Composition of Secure Compilers]\label{thm:urtp}
@@ -1019,6 +1023,7 @@ It is intuitive that they are in some sense composed in the LLVM framework, but 
 For example, the user of this compiler provides an explicit flag that instructs to emit $\trg{x86\_64}$ or the framework itself detects the target platform via heuristics, such as supported instructions.
 The %proposed
 definition of lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ is as follows: given a program $\src{p}$, its compiled $\trg{L}$ or $\obj{L}$ program is obtained by performing an internal decision and threading $\src{p}$ into $\cc{\src{L}}{\trg{L}}$ or into $\cc{\src{L}}{\obj{L}}$ depending on that decision.
+\MP{into def}
 Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\src{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Lower Composition of Secure Compilers]\label{thm:lrtp}

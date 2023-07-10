@@ -292,44 +292,32 @@ Unfortunately, it is unclear if and how robust compilation supports compositiona
 Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
 Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct} as showcased in \Cref{ex:strncpy}.
 \begin{example}[strncpy]\label{ex:strncpy}
-Consider the program below which copies a \texttt{C}-style string \texttt{x} into \texttt{y} up to a length of \texttt{n}:
+Consider the \texttt{C} program below that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}:
 
-\begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
-void strncpy(int n, char *x, char *y) {
-  for(int i = 0; x[i] != '\0' && i < n; ++i) {
-    y[i] = x[i];
+\begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={size_t}]
+void strncpy(size_t n, char *dst, char *src) {
+  for(size_t i = 0; src[i] != '\0' && i < n; ++i) {
+    dst[i] = src[i];
   }
 }
 \end{lstlisting}
 
-For sake of simplicity, assume that the buffer \texttt{y} is at least as large as \texttt{n} as well as \texttt{x} terminated by \texttt{'\textbackslash 0'}.
-Even under these assumptions, there is a subtle \gls{ms} bug in the program which can be exploited to read sensitive data: The bounds check, i.e., \texttt{i < n}, should happen {\it prior} to the access to memory location \texttt{x[i]}.
-Otherwise, if \texttt{n} is larger than the length of the array object \texttt{x} points to, the memory location past this array object is read, which is an out-of-bounds memory access.
-Unfortunately, even though flipping the conditions does fix the \gls{ms} issue, it still violates \gls{cct}, so the program is susceptible to timing attacks.
+For sake of simplicity, assume that the length of the array \texttt{dst} points to is at least as large as \texttt{n} as well as \texttt{src} terminated by \texttt{'\textbackslash 0'}.
+Even under these assumptions, there is a subtle \gls{ms} bug in the program: The bounds check \texttt{i < n} should happen {\it prior} to the access to memory location \texttt{x[i]}:
+If \texttt{n} is at least as large as the length of the array \texttt{src}, the memory location past the last element will be read.
+A compilation pass that enforces spatial memory safety, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}, could have prevented this accidental error.
+
+Unfortunately, fixing \gls{ms} is not enough to have a secure program, because \texttt{strncpy} is susceptible to timing attacks.
 This is because the loop can terminate early: As soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, the loop exits.
-Thus, the program execution time is proportional to the length of the array object \texttt{x}.
-The fix commonly employed in such a case is to rewrite the program to run a {\it fixed} number of iterations regardless of the length of \texttt{x} or \texttt{y}. \MP{ can we write this is a compiler-inserted fix?}
-To this end, there must be an upper bound for the length of \texttt{x} and \texttt{y} and then the loop can just iterate until the induction variable \texttt{i} hits this upper bound.
+Thus, the program execution time is proportional to the length of the array \texttt{src} points to.
+Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
+However, compiler passes are capable of rewriting such programs~\cite{cauligi2019fact} and a modification by hand is not necessary.
 
-These fixes alone are not enough to make this program secure in a robust setting, i.e., not violating either \gls{ms} or \gls{cct} in a potentially malicious context.
-Consider a program context that calls \texttt{strncpy} with a very large \texttt{n}, some uninitialised memory \texttt{x}, and \texttt{y} does not matter for the sake of this example.
-While the context seems conceptually simple, uninitialized memory can appear in programs very subtly and invoking \texttt{strncpy} now leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue that can have devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
-To mitigate these situations, it is important that \texttt{strncpy} ensures that the provided arguments satisfy the assumptions being made by the maintainer of \texttt{strncpy}, since the calling context can behave in a hostile manner.
-Unfortunately, these checks do not work in C without additional features, since there is no way to check whether a pointer points into a valid allocated region or not.
-To enable this would require extra metadata~\cite{kwon2013lowfat,akritidis2009baggy} which must not be modifiable by a malicious context.
-So, for sake of simplicity, assume the language at hand provides an operator \texttt{is\_valid(p, s, n)} that faithfully checks whether a pointer \texttt{p} points into a valid array of objects sized \texttt{s} of length \texttt{n} or not -- in constant time.
-This could be an abstraction that the operating system provides.\MP{cits absolutely needed and the narrative needs to be stronger, using those cits}
-With this feature at hand, it is possible to modify the original \texttt{strncpy} to be robust, given this is the compiled program without optimisations:
-
-\begin{lstlisting}[language=c,basicstyle=\small\ttfamily]
-void strncpy(int n, char *x, char *y) {
-  int const c = __ct_min(n, MAX_ALLOC_SIZE);
-  assert(is_valid(x, sizeof(char), c) & is_valid(y, sizeof(char), c));
-  for(int i = 0; i < c; ++i) {
-    y[i] = x[i];
-  }
-}
-\end{lstlisting}
+These fixes alone are not enough to make this program secure in a robust setting, i.e., a malicious context could trigger a violation of either \gls{ms} or \gls{cct}.
+Consider a program context \texttt{strncpy(1729,dst,src)} that calls \texttt{strncpy} with pointers \texttt{dst} and \texttt{src}, where \texttt{src} is some uninitialized memory.
+This leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue that can have devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
+An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
+With this, a secure compiler needs to ensure that no malicious target-level context can supply unitialised memory and thereby sidestep the guarantees of the source language, e.g., by inserting appropriate checks prior to entering the body of \texttt{strncpy}.
 \end{example}
 
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
@@ -704,7 +692,7 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
 
 \begin{example}[A program satisfying \gls{tms}]
   Consider the following program which, when run, yields the trace $\ev{Alloc}\ \loc[_{1}]\ 17;\comp;\unlock\cdot\ev{Use}\ \loc[_{1}]\ 5;\comp;\unlock\cdot\ev{Use}\ \loc[_{1}]\ 5;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{1}];\comp;\unlock$, where $\loc[_{1}]$ is some memory address determined by the semantics of the programming language.
-  \begin{lstlisting}[language=c,basicstyle=\ttfamily,morekeywords={new,delete}]
+  \begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={new,delete}]
 int main() {  // allocates 17 integers initialized to 2
   int* x = new[17](2);
 

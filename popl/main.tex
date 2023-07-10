@@ -942,12 +942,13 @@ Were all these compilation steps robustly secure with respect to \gls{ms}, the r
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
 Both examples can be seen in practice, e.g. as in the work of~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion} and many more.
 % \MPin{survey to cite? this is a bit informal MK: hard to find a survey on different compiler passes... I can't even find one just for compiler enforced memsafety (that looks good) or for compiler translations in general}.
-Consider the compilation passes of LLVM~\cite{lattner2004llvm}.
-In LLVM, compiler passes are handled in the \texttt{PassManager} class.
-By means of manipulating the internal state of the \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
-That way, an order of optimisations can be found by hand that yields the best results.
-Take \gls{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls{dce}, which removes dead code by rewriting conditional branches.
-Unfortunately, the order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
+% 
+% Consider the compilation passes of LLVM~\cite{lattner2004llvm}, which are handled in the \texttt{PassManager} class.
+% By manipulating the internal state of a \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
+% That way, an order of optimisations can be found by hand that yields the best results.
+% \MP{what's the point of the previous 3 sentences?(commented)}
+Consider the following two LLVM optimisation passes: \gls{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls{dce}, which removes dead code by rewriting conditional branches.
+The order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
 \begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}
@@ -996,6 +997,9 @@ Technically speaking, they both compile to class files and $\obj{Kotlin}$ object
 Both languages can be used at the same time in one project~\cite{androidstudio}.
 A compiler that accepts both $\src{Java}$ and $\obj{Kotlin}$ code translating to the same target language or intermediate representation performs a kind of {\em upper} composition.
 The definition of upper composition is as follows: given a program $\mathtt{p}$, its compiled $\trg{L}$ counterpart is obtained by plugging $\mathtt{p}$ into $\cc{\src{L}}{\trg{L}}$ if $\mathtt{p}\in\src{L}$ or by plugging $\mathtt{p}$ into $\cc{\obj{L}}{\trg{L}}$ if $\mathtt{p}\in\obj{L}$, written as $\cc{\src{L}+\obj{L}}{\trg{L}}$.
+\MP{
+	put into def env
+}
 Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\obj{L}}{\trg{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Upper Composition of Secure Compilers]\label{thm:urtp}
@@ -1008,6 +1012,7 @@ It is intuitive that they are in some sense composed in the LLVM framework, but 
 For example, the user of this compiler provides an explicit flag that instructs to emit $\trg{x86\_64}$ or the framework itself detects the target platform via heuristics, such as supported instructions.
 The %proposed
 definition of lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ is as follows: given a program $\src{p}$, its compiled $\trg{L}$ or $\obj{L}$ program is obtained by performing an internal decision and threading $\src{p}$ into $\cc{\src{L}}{\trg{L}}$ or into $\cc{\src{L}}{\obj{L}}$ depending on that decision.
+\MP{into def}
 Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\src{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Lower Composition of Secure Compilers]\label{thm:lrtp}
@@ -1021,16 +1026,16 @@ Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \
 
 This section defines programming languages that the secure compilers defined in the next section will use.
 To this end, this section defines the languages $\Ltms$, $\Ltrg$, $\Lms$, and $\Lscct$ which share many common elements (presented in \Cref{subsec:cs:defs}).
-In this paper, $\Ltms$ is the only statically typed language and exhibits the property that all well-typed programs are \gls{tms} (\Cref{subsec:ltms}).
+$\Ltms$ is the only statically typed language and exhibits the property that all well-typed programs are \gls{tms} (\Cref{subsec:ltms}).
 However, not all $\Ltms$ programs are \gls{sms}.
 That is, there are well-typed $\Ltms$ programs that perform an out-of-bounds access.
-In contrast, $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls{ms} (\Cref{subsec:lsms}).
+Language $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls{ms} (\Cref{subsec:lsms}).
 $\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability (\Cref{subsec:lms}).
 All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls{cct} to hold.
 
-This paper considers \gls{cct} as an architecture-dependent property that should not be one of the programmer's concerns~\cite{cauligi2019fact}.
+This paper considers \gls{cct} as an architecture-dependent property writing \gls{cct} should not be one of the programmer's concerns~\cite{cauligi2019fact}.
 Such consideration is backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
-In spirit of this, the language $\Lscct$ allows violating \gls{cct} by emitting events on, e.g., branching and division, that contain secrets (\Cref{subsec:lscct}), but provides a way to read and write to a {\em model--specific register} that enables a ``\gls{cct}-mode''.
+In spirit of this, language $\Lscct$ allows violating \gls{cct} by emitting events on, e.g., branching and division, that contain secrets (\Cref{subsec:lscct}), but provides a way to read and write to a {\em model--specific register} that enables a ``\gls{cct}-mode''.
 
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 \begin{gather*}
@@ -1124,12 +1129,14 @@ The trace $\trace$ emitted during that execution serves as abstraction of the be
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
 $\src{L_{\tmssafe}}$ uses the same syntax as presented earlier (\Cref{sec:casestud:defs}) without extensions to the term level.
-But, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3}.
-The type system of $\src{L_{\tmssafe}}$ exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms}.
-The proof of this property relies on a projection $\msfilterLtms{\src{\event}}=\event$ that projects $\src{L_{\tmssafe}}$ events to specfication events $\event$, because the properties defined earlier (\Cref{subsec:propdefs}) are defined in the specification trace model.
+But, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3}.\MP{fabulous paper from amal?relevant?}
+\MP{and therefore omitted?}
+The type system of $\src{L_{\tmssafe}}$ exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms} (\Cref{thm:wt:tms}).
+The proof of this theorem relies on a projection $\msfilterLtms{\src{\event}}=\event$ from $\src{L_{\tmssafe}}$ events to specification events $\event$, because the properties defined earlier (\Cref{subsec:propdefs}) are defined in the specification trace model.
 Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model whenever an event with a location is projected.
 The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected, e.g., $\msfilterLtms{\src{\ev{Alloc}\ \loc\ n;\comp;\securitytag}}=\ev{Alloc}\ \delta(\loc)\ n;\comp;\securitytag$.
 But, it also filters any action that a context does as well as the interaction events, since these are irrelevant for component-level \gls{tms}.
+\MPin{ok let's add details}
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
@@ -1142,6 +1149,7 @@ For allocated ($\trg{\poisonless}$) arrays bound to variable $\trg{x}$, the chec
 If the array bound to $\trg{x}$ was allocated, i.e., has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
 %
 The projection $\msfilterL{\trg{\trace}}$ is entirely similar to $\msfilterLtms{\src{\trace}}$.
+\MP{ok, details}
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
 To enhance readablity, this paper uses $\Lms$, despite it being exactly equal to $\Ltrg$.
@@ -1149,7 +1157,7 @@ The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL
 
 \subsection{$\Lscct$: A Language with a Data Independent Timing Mode}\label{subsec:lscct}
 
-While the previous languages (\Cref{subsec:ltms,subsec:lsms,subsec:lms}) are not concerned with \gls{cct}, $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a register flag for a data (operand) independent timing mode\footnote{As present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.}.
+While the previous languages (\Cref{subsec:ltms,subsec:lsms,subsec:lms}) are not concerned with \gls{cct}, $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a register flag for a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
 For the other languages seen earlier, this mode is intuitively always-on.
 \MP{spell out the formal changes in an align* environmtn} % this necessitates that we present $\Omega$ also in the shared lang defs
 To modify the mode, $\Lscct$ extends expressions with the term $\obj{\lwrdoit{\expr}}$ that writes the value of $\obj{\expr}$ into the register and with a term $\obj{\lrddoit{x}{\expr}}$ that reads the value of the register into $\obj{x}$.
@@ -1157,11 +1165,12 @@ If the register is turned on, no secrets can appear on traces.
 If the register is turned off, secrets may appear on traces as well as new events $\obj{Branch\ n}$ and $\obj{Binop\ n}$, which the semantics emits for conditionals and certain binary operations, e.g., division.
 To prevent leakage of secrets but still enable reasoning about memory safety, pre-events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access, which is taken care of by the projection to specification events.
 \Cref{ex:lscct} illustrates these changes.
+\MPin{formalisation additions in algin* env}
 
 The projection to the specification trace model is mostly straightforward.
 But for events containing the pre-events $\obj{\widehat{Get}}$ and $\obj{\widehat{Set}}$, the projection always translates the security-tag $\obj{\sigma}$ to $\unlock$, regardless of its actual value.
 The pre-events themselves still translate to just $\ev{Get}$ and $\ev{Set}$, respectively.
-With this technical setup, the information wether a read or write happened on a secret value is not hidden by the semantics, e.g., by emitting $\obj{\emptyevent}$, but when projecting to specification events.
+With this technical setup, the information wether\MP{spelling} a read or write happened on a secret value is not hidden by the semantics, e.g., by emitting $\obj{\emptyevent}$, but when projecting to specification events.
 This allows flexibility: The trace can be checked to satisfy different properties, such as, in this case, \gls{tms}, \gls{sms}, \gls{scct}, and their combined versions.
 
 \begin{example}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
@@ -1181,12 +1190,14 @@ This allows flexibility: The trace can be checked to satisfy different propertie
   When the data independent timing mode is off, the execution yields events in similar fashion to before (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
   But, if it is turned on, then the branching event does not fire anymore.
   Moreover, writing to memory now yields the pre-event $\obj{\widehat{Set}}$, whose difference to $\obj{Set}$ becomes apparent when looking at the projection to the specification trace model.
+  \MPin{shouldn't we have 2 traces, one with the bit set, one without}
   Projecting the above trace to the specification trace model yields the following trace (emitting empty events):
   $\ev{Alloc}\ \loc_{x}\ 4;\sandboxtag;\unlock\cdot\ev{Branch\ 0}\cdot\ev{Set}\ \loc_{x}\ 2\ 1;\sandboxtag;\lock\cdot\ev{Alloc}\ \loc_{y}\ 4;\sandboxtag;\unlock\cdot\ev{Set}\ \loc_{y}\ 2;\sandboxtag;\unlock$.
   Clearly, secrets are hidden ($\unlock$) after this projection for the section of the program where the data independent timing mode is turned on, while still containing the appropriate events to check for \gls{ms}.
 \end{example}
 
 \section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
+This section defines several secure compilers, each of which robustly preserves a different property of interest as depicted in \Cref{fig:pipeline}.
 \begin{figure}[!h]
   \begin{center}
     \begin{tikzpicture}
@@ -1229,8 +1240,6 @@ This allows flexibility: The trace can be checked to satisfy different propertie
     The dashed lines partition the graph into the sections where the respective theorems are presented.
   }\label{fig:pipeline}
 \end{figure}
-
-This section defines several secure compilers, each of which robustly preserves a different property of interest as depicted in \Cref{fig:pipeline}.
 The section demonstrates the power of the framework (\Cref{sec:compprop,sec:compcomp}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls{msscct}.
 The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls{tms} (\Cref{thm:cca:rtp:tms}).
 From here, an instrumentation from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls{sms} (\Cref{thm:ccb:rtp:sms}).
@@ -1243,6 +1252,8 @@ The final result is that the whole compilation chain robustly preserves \gls{mss
 
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
+\MPin{some text should introduce the compiler defs}
+
   \begin{align*}
 %    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\ [0.33cm]
     \cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}}) = \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{%
@@ -1250,51 +1261,34 @@ The final result is that the whole compilation chain robustly preserves \gls{mss
                                                                                                  }{\labort[\trg]}}
   \end{align*}
 
-The compiler only inserts a dynamic typecheck to respect the well-typedness of function bodies.
+The first compiler only inserts a dynamic typecheck to respect the well-typedness of function bodies.
 Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ invokes a callable object accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
 By inserting the check, the compiler ensures that execution does not proceed in such cases.
 The compiler does not insert other checks and proceeds as the identity function (which in this paper amounts to a simple re-colouring of $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions).
 
-Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$, the compiler would in this case ensure that the arguments are valid.
+Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$, the compiler would in this case ensure that the arguments that are evaluated in the compiled \texttt{strncpy} are valid.
 
 \begin{theorem}[Compiler $\cca$ is secure with respect to \gls{tms}]\label{thm:cca:rtp:tms}
   $\rtp{\cca}{\tmssafe}$ % \Coqed
 \end{theorem}
 
-\subsubsection{Proof Sketch of Robust Safety Property Preservation}
+\subsubsection{Proving Robust Safety Property Preservation}
 
-The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature that are also used for similar theorems in this paper.
+The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature that are also used for the following theorems of this section.
+\MP{so what?}
 
 When proving robust safety property preservation for the concrete property \gls{tms}, a target-level execution of a compiled $\Ltms$ component $\src{\library_{\comp}}$ linked with an arbitrary context $\trg{\library_{\ctx}}$ is assumed, where the execution yields a trace $\trg{\trace}$.
+\MP{passive + not justified}
 The proof goal is to show that $\trg{\trace}$ satisfies \gls{tms}.
+\MP{no, the goal is to BT}
 To get this satisfaction, one way of doing so is to use the other assumption in the proof context: $\rsat{\src{\library_{\comp}}}{\tmssafe}$.
 However, this requires a source-level execution for some concrete $\src{\library_{\ctx}}$ that yields a trace $\src{\trace}$ similar to $\trg{\trace}$.
 This paper uses the well-known trace-based backtranslation technique~\cite{abate2019jour} to construct such a context $\src{\library_{\ctx}}$.
-It is shown for that obtained context $\src{\library_{\ctx}}$ that the whole program $\link{\src{\library_{\ctx}}}{\src{\library_{comp}}}$ is well-typed.
-By \Cref{thm:wt:tms}, the fact that this program satisfies \gls{tms} is obtained and by typesafety, it is known that there must be some $\Ltms$ execution.
-The proof now needs to relate the two execution with eachother.
-\Cref{fig:proofdiag:rtp} visualizes this situation.
-At the bottom, there is the target-level execution between operational states $\trg{\emptyset},\trg{\Omega_{1}}$, and so on.
-The execution starts in the context $\trg{\library_{\ctx}}$ and is split by transitivity of $\trg{\estepto{}{}{}}$ into parts before, in, and after the component $\cc{\Ltms}{\trg{L}}(\src{p})$ executes\footnote{For sake of simplicity, this paper considers only one context-switch from context to component and back again. Recursive calls between context and component functions are disregarded.}.
-Initially, the empty operational states $\src{\emptyset}$ and $\trg{\emptyset}$ need to agree by means of a cross-language state relation $\multimap_{\emptyset}$.
-This relation is indexed by a function $\delta$ that maps $\trg{L}$-level locations $\trg{\loc}$ to $\Ltms$-level locations.
-The operational state of the executions up to the component $\src{p}$ need to agree via $\multimap_{\delta}$, both contexts need to behave in a similar way such that the traces also agree with each other.
-However, the relation allows $\trg{\library_{\ctx}}$ to perform internal actions that may change the operational state but are not visible on the trace, such as internal function calls, that does not $\src{\library_{\ctx}}$ need to reflect.
-Before and after the compiler wrapper code, the operational states must agree via another cross-language relation $\approx_{\delta_{w_{}}}$, which disallows these mismatches with respect to internal function calls.
-Intuitively, the behavior of the components should be tight: the source-level execution must be preserved by the compiler in the target-level execution.
-Dually, when the component is done, the relations take turns again and the states must be related with $\multimap_{\delta_{w_{2}}}$
-Finally, since both execution traces are similar in the sense that their projections $\msfilterLtms{\src{\trace}}$ and $\msfilterL{\trg{\trace}}$ yield specification traces that satisfy \Cref{def:monsat}, the claim follows \Cref{lem:mon:tmsafe}.
-
-\MPin{
-	why can we use a BT?
-	it's because the def in section 2.2 is eq to anotehr one, because the props are Safety, we use the RSC equivalent def.
-	all these intuitions are missing.
-	they are technical, so we only keep them here.
-
-  MK: but, we don't actually rewrite it to RSC when doing the proof! The compilers are not robustly preserving with respect to an arbitrary safety property, but, e.g., just for \gls{tms}!
-}
-
-\begin{figure}[h]
+It is shown for that obtained context $\src{\library_{\ctx}}$ that the whole program $\link{\src{\library_{\ctx}}}{\src{\library_{comp}}}$ is well-typed.\MP{passive}
+By \Cref{thm:wt:tms}, the fact that this program satisfies \gls{tms} is obtained and by typesafety, it is known that there must be some $\Ltms$ execution.\MP{passive passive passive, and imprecise}
+The proof now needs to relate the two execution with each other.
+\Cref{fig:proofdiag:rtp} visualizes this situation\MP{imprec}.
+\begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}[state/.style={minimum height=0.6cm}]
       % relative horizontal/vertical distance between states
@@ -1369,6 +1363,30 @@ Finally, since both execution traces are similar in the sense that their project
     \caption{Proof diagram for \Cref{thm:cca:rtp:tms} depicting the general structure of robust preservation proofs.}\label{fig:proofdiag:rtp}
   \end{center}
 \end{figure}
+\MPin{
+	thicker lines and dots needed, not visible otherwise
+}
+
+At the bottom, there is the target-level execution between operational states $\trg{\emptyset},\trg{\Omega_{1}}$, and so on.
+The execution starts in the context $\trg{\library_{\ctx}}$ and is split by transitivity of $\trg{\estepto{}{}{}}$ into parts before, in, and after the component $\cc{\Ltms}{\trg{L}}(\src{p})$ executes\footnote{For sake of simplicity, this paper considers only one context-switch from context to component and back again. Recursive calls between context and component functions are disregarded.}.
+Initially, the empty operational states $\src{\emptyset}$ and $\trg{\emptyset}$ need to agree by means of a cross-language state relation $\multimap_{\emptyset}$.
+This relation is indexed by a function $\delta$ that maps $\trg{L}$-level locations $\trg{\loc}$ to $\Ltms$-level locations.
+The operational state of the executions up to the component $\src{p}$ need to agree via $\multimap_{\delta}$, both contexts need to behave in a similar way such that the traces also agree with each other.
+However, the relation allows $\trg{\library_{\ctx}}$ to perform internal actions that may change the operational state but are not visible on the trace, such as internal function calls, that does not $\src{\library_{\ctx}}$ need to reflect.
+Before and after the compiler wrapper code, the operational states must agree via another cross-language relation $\approx_{\delta_{w_{}}}$, which disallows these mismatches with respect to internal function calls.
+Intuitively, the behavior of the components should be tight: the source-level execution must be preserved by the compiler in the target-level execution.
+Dually, when the component is done, the relations take turns again and the states must be related with $\multimap_{\delta_{w_{2}}}$
+Finally, since both execution traces are similar in the sense that their projections $\msfilterLtms{\src{\trace}}$ and $\msfilterL{\trg{\trace}}$ yield specification traces that satisfy \Cref{def:monsat}, the claim follows \Cref{lem:mon:tmsafe}.
+
+\MPin{
+	why can we use a BT?
+	it's because the def in section 2.2 is eq to anotehr one, because the props are Safety, we use the RSC equivalent def.
+	all these intuitions are missing.
+	they are technical, so we only keep them here.
+
+  MK: but, we don't actually rewrite it to RSC when doing the proof! The compilers are not robustly preserving with respect to an arbitrary safety property, but, e.g., just for \gls{tms}!
+}
+
 
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 
@@ -1387,15 +1405,14 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
 Again, linking this back to the \texttt{strncpy} example (\Cref{ex:strncpy:sms}) corresponds to the insertion of bounds check right in front of the accesses to \texttt{y[i]} and \texttt{x[i]}.
 In turn, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution.
 \MPin{
-	example code?
-    MK: still needed now that we reference ex. 3.10?
+	show the result of the compilation as listing, and then describe the trace a bit more in detail ?
 }
 
 \begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}
   $\rtp{\ccb}{\smssafe}$ % \Coqed
 \end{theorem}
 
-\Cref{thm:ccab:rtp:ms} follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtp}.
+\Cref{thm:ccab:rtp:ms}\MP{states ... } follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtp}.
 
 \begin{theorem}[Compiler $\cca\circ\ccb$ is secure with respect to \gls{ms}]\label{thm:ccab:rtp:ms}
   $\rtp{\cca\circ\ccb}{\mssafe}$ % \Coqed
@@ -1425,7 +1442,9 @@ In turn, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted du
 	what you want is a compiler with 2 arguments, where in one you keep track of the static substitions to perform,
 	and 2 cases on how to handle variables: if they're in the second arg, then substitute, otherwise don't
   %
+  \MKin{
   MK: No? I get how they are used as part of the runtime semantics, but a compiler can just as well make use of a substitution function that models the runtime semantics. I see how these two are different. However, I think it's easier in this case to be a bit inprecise, since adding another argument to the compiler breaks our compositionality framework (unless it's hidden with a monad...) so, IMO, we should view substitution here as a meta-level, but still language-dependent, function that the compiler has access to. If we don't do this, we essentially re-encode the definition of subst into the compiler
+  }
 }
 
 The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls{dce} and \gls{cf}, respectively.
@@ -1474,7 +1493,10 @@ Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\ccc
 This you can write the proof of.
 Probably even in coq
 %
-MK: Should this appear here in the paper? It's basically identical to \Cref{thm:ccab:rtp:ms}
+	\MKin{ 
+	Should this appear here in the paper? It's basically identical to \Cref{thm:ccab:rtp:ms}
+
+	\MPin{yes it should}}
 }
 
 %\begin{lstlisting}[language=c,caption=``Wrong bounds check of two 64-bit integers.'']

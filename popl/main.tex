@@ -1306,14 +1306,39 @@ The trace $\trace$ emitted during that execution serves as abstraction of the be
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
 $\src{L_{\tmssafe}}$ uses the same syntax as presented earlier (\Cref{sec:casestud:defs}) without extensions to the term level.
-But, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3}.\MP{fabulous paper from amal?relevant?}
-\MP{and therefore omitted?}
+But, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
 The type system of $\src{L_{\tmssafe}}$ exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms} (\Cref{thm:wt:tms}).
 The proof of this theorem relies on a projection $\msfilterLtms{\src{\event}}=\event$ from $\src{L_{\tmssafe}}$ events to specification events $\event$, because the properties defined earlier (\Cref{subsec:propdefs}) are defined in the specification trace model.
-Hereby, $\delta$ maps $\src{L_{\tmssafe}}$ locations $\src{\loc}$ to locations $\loc$ of the specification trace model whenever an event with a location is projected.
-The projection $\msfilterLtms{\src{\event}}$ for the most part does the expected, e.g., $\msfilterLtms{\src{\ev{Alloc}\ \loc\ n;\comp;\securitytag}}=\ev{Alloc}\ \delta(\loc)\ n;\comp;\securitytag$.
+Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a location $\loc$ of the specification trace model.
+
+\begin{center}
+  \judgbox{\msfilterLtms{\src{\event}}=\event}{,,Project an $\Ltms$ event $\src{\event}$ to a specification event $\event$.''}
+  \typerule{$\Ltms$-filter-context}{
+    \src{\event[_b]}\not=\src{\lightning}
+  }{
+    \msfilterLtms{\src{\tup{\event[_b]}{\ctx}} = \emptyevent}
+  }{ltms-filter-context}
+  %
+  \typerule{$\Ltms$-filter-abort}{
+  }{
+    \msfilterLtms{\src{\lightning}} = \lightning
+  }{ltms-filter-abort}
+  %
+  \typerule{$\Ltms$-filter-start}{
+  }{
+    \msfilterLtms{\src{\tup{Start}{\comp}}} = \emptyevent
+  }{ltms-filter-start}
+  %
+  \typerule{$\Ltms$-filter-alloc}{
+    \locmapsto{\src{\loc}}{\loc} &
+    \src{n}=n
+  }{
+    \msfilterLtms{\src{\tup{Alloc\ \loc\ n}{\comp}}} = \tup{\ev{Alloc}\ \loc\ n}{\comp,\unlock}
+  }{ltms-filter-alloc}
+\end{center}
+
+Most rules of the projection $\msfilterLtms{\src{\event}}$ are left out since, for the most part, it does the expected, e.g., $\msfilterLtms{\src{\ev{Dealloc}\ \loc;\comp;\securitytag}}=\ev{Dealloc}\ \delta(\loc);\comp;\securitytag$.
 But, it also filters any action that a context does as well as the interaction events, since these are irrelevant for component-level \gls{tms}.
-\MPin{ok let's add details}
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed

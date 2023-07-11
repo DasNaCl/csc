@@ -1124,51 +1124,64 @@ In spirit of this, language $\Lscct$ allows violating \gls{cct} by emitting even
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 \begin{gather*}
   \begin{aligned}
-  \mi{(Expressions)}~&\expr\bnfdef\ x \mid \valueexpr \mid \lbinop{\expr[_{1}]}{\expr[_{2}]} \mid \lget{x}{\expr} \mid \lnew{\expr[_{1}]}{\expr[_{2}]} \mid \ldelete{x} \mid \lset{x}{\expr[_{1}]}{\expr[_{2}]} \\
-    & \mid \llet{x}{\expr[_{1}]}{\expr[_{2}]}  \mid \lreturn{\expr} \mid \lcall{g}{\expr} \mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \mid \labort
+    \mi{(Expressions)}~&\expr\bnfdef\ x \mid \valueexpr \mid \lbinop{\expr[_{1}]}{\expr[_{2}]} \mid \lget{x}{\expr} \mid \llet{x}{\lnew{\expr[_{1}]}{\expr[_{2}]}}{\expr[_{3}]} \mid \ldelete{x} \mid \lset{x}{\expr[_{1}]}{\expr[_{2}]} \\
+                       & \mid \lpair{\expr[_{1}]}{\expr[_{2}]} \mid \lproja{\expr} \mid \lprojb{\expr} \mid \llet{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lreturn{\expr} \mid \lcall{g}{\expr} \mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \mid \labort
   \end{aligned}
   \\
   \begin{aligned}
+  \mi{(Types)}~&\type\bnfdef\natt
+  &
   \mi{(Functions)}~&\function\bnfdef\ \lfunction{g}{x}{e}
   &
-  \mi{(Libraries)}~&\library\bnfdef\ \hole{\cdot} \mid \function,\library \\
+    \mi{(Libraries)}~&\library\bnfdef\ \hole{\cdot} \mid \function,\library \\
   \mi{(Programs)}~&\prog{\library_{\ctx}}{\library_{\comp}}
-  &
-  \mi{(Substitutions)}~&\substvar\bnfdef \hole{\cdot} \mid \subst{\valueexpr}{x},\gamma
   \end{aligned}
 \end{gather*}
-% \MPin{
-%   this latex had many issues.
-%   the \& were at different spots
-%   it used hspace to space things instead of \&
-%   and it did not use \& to align the following things on a line
-%   and it did not use multiple aligned into the gather
-%   (what's the point of gather if you don't have several aligned inside? use a single align* instead)
-% }
-% oh... that's good to know! the tech report is also riddled with this... :/
 
-Above is a fraction of the shared syntax of all the programming languages of this paper.
-\MPin{why a fraction? what exprs are missing
-MK: Things that are missing here are: Evaluation contexts, states $\Omega$ and transitively other definitions affected by this
-}
-The syntax and semantics are mostly standard and therefore omitted.
-However, when allocating arrays with $\lnew{\expr[_{1}]}{\expr[_{2}]}$, the expression $\expr[_{1}]$ determines the initial value of the cells and $\expr[_{2}]$ the overall size of an array.
+Above is the shared syntax of all the programming languages of this paper.
+Variables are referred to as $x,y,z,a,b,c,\ldots$ while functions may be referred to as multi-character words, such as $\texttt{foo}$, as well as short-forms like $f,g,h$.
+All languages share the type $\natt$ representing natural numbers.
+Functions are constrained to take one argument and can only call other functions listed in libraries, which are just lists of functions.
+A program $\prog{\library_{\ctx}}{\library_{\comp}}$ is indexed by two libraries that represent all context- and component-level functions, respectively.
 
-\MPin{
-	below is semantics info. should go with their symbols and the semantics rules.
-	and a better description of the semantics symbols.
-  MK: this moved to appendix! should we bring it back? what exactly should be left out?
-}
-The data associated to pointers resides in the dynamic state $\Omega$ that contains sandboxed heaps, one for the context and the other for the component.
-Because of the sandboxing, locations pointing into heaps must be associated with a control-tag $\sandboxtag$ (either $\ctx$ or $\comp$) to know the heap they point into.
-Other metadata in $\Omega$ entails a list of functions with information on whether they belong to the context or the component.
-That way, when calling a function, the semantics can take care of emitting appropriate events that signal a context switch.
-For the languages considered in this paper, functions are second-class.
-So, the only values are pairs, pointers, and natural numbers.
-Another non-standard part of the languages is the concept of the poison-tag.
-The poison-tag marks an array as freed ($\poisoned$) without removing the information associated to the freed pointer from $\Omega$.
-This measure prevents the semantics from getting stuck when an already freed pointer is freed again.
-Because of this, it is possible that a program like $\llet{x}{\lnew{0}{5}}{\ldelete{x};\ldelete{x}}$ yields a trace $\ev{Alloc\ \loc\ \sandboxtag\ 5}\cdot\ev{Dealloc\ \loc\ \sandboxtag}\cdot\ev{Dealloc\ \loc\ \sandboxtag}$ when executing.
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Control~Tags)}~&\sandboxtag\bnfdef\ctx \mid \comp
+    &
+    \mi{(Communication~Tags)}~&\comm\bnfdef\ \ctxtocomp \mid\ \comptoctx \mid \nocomm
+    &
+    \mi{(Poison~Tags)}~&\poison\bnfdef \poisoned \mid \poisonless
+  \end{aligned}\\
+  \begin{aligned}
+    \mi{(Continuation~Stacks)}~&\ectxstack\bnfdef\hole{\cdot} \mid \tup{K}{g},\ectxstack
+    &
+    \mi{(Control~Flow~States)}~&\cfstate\bnfdef\tup{\library}{\ectxstack}
+  \end{aligned}\\
+  \begin{aligned}
+    \mi{(Locations)}~&\loc\in\nat
+    &
+    \mi{(Substitutions)}~&\substvar\bnfdef \hole{\cdot} \mid \subst{\valueexpr}{x},\gamma
+  \end{aligned}\\
+  \begin{aligned}
+    \mi{(Stores)}~&\Delta\bnfdef\hole{\cdot} \mid x\mapsto\tup{\loc}{\sandboxtag,\poison,n},\Delta
+    &
+    \mi{(Heaps)}~&H\bnfdef\hole{\cdot} | \valueexpr,H
+    \\
+    \mi{(Memory~States)}~&\memstate\bnfdef\tup{H^{\ctx}}{H^{\comp};\Delta}
+    &
+    \mi{(States)}~&\statevar\bnfdef\tup{\cfstate}{\sandboxtag,\memstate}
+  \end{aligned}
+\end{gather*}
+
+States $\statevar$ are tuples containing a control flow state $\cfstate$, control tags $\sandboxtag$, and a memory state $\memstate$.
+A control flow state $\cfstate$ entails a library, which provides definitions for functions when calling, as well as a stack of continuations $\ectxstack$.
+Elements of the stack $\ectxstack$ are pairs of evaluation contexts and the name of a function associated to that evaluation context.
+Memory states $\memstate$ are tuples of two separate heaps $H$ and a store $\Delta$, which contains pointer metadata, such as the concrete memory location $\loc$, a control tag $\sandboxtag$ indicating which heap the pointer points into, a poison tag $\poison$, as well as bounds information $n$.
+The bounds information is a mere proof artifact that has no semantic significance.
+For details see the accompanying tech report~\MK{cit}.
+Memory states $\memstate$ have two separate heaps, essentially modelling a sandbox, to prevent contexts from performing pointer arithmetic and reading from or writing to the data owned by a component.
+While this prevents the effects of out of bounds accesses across the context and component boundary, the goal of the design of the languages of this paper is to be able to express security violations.
+To this end, the poison tag $\poison$ indicates whether a pointer has been freed ($\poisoned$) or is still allocated ($\poisonless$), so that uses of pointers can happen even after their deallocation without the semantics getting stuck.
 
 \begin{gather*}
   \begin{aligned}
@@ -1177,12 +1190,12 @@ Because of this, it is possible that a program like $\llet{x}{\lnew{0}{5}}{\ldel
   \end{aligned}
 \end{gather*}
 
-Possible events that are emitted during execution are similar to the ones of the specification trace model (\Cref{subsec:propdefs}).
-The key difference is that, as standard in secure compilation work~\cite{patrignani2021rsc,abate2019jour}, the traces have a call and return event that signals context switches, which are referred to as {\em interaction events}.
+The possible events that are emitted during execution are similar to the ones of the specification trace model (\Cref{subsec:propdefs}).
+The key difference is that, as standard in secure compilation work~\cite{patrignani2021rsc,abate2019jour,korashy2021capableptrs}, the traces have a call and return event that signals context switches, which are referred to as {\em interaction events}.
 The reason for these interaction events is technical: They are a proof artifact for reconstructing a source context from a potentially malicious target context, where during that translation, the insertion of some wrapper code right before context switching may be necessary to make the proof succeed.
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
 Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
-The environmental semantics emits the tag $\nocomm$ for calls from context- to context-level or component- to component-level.
+For calls without this context switch, the environmental semantics attaches the $\nocomm$ tag.
 In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
 
 \begin{center}
@@ -1203,7 +1216,7 @@ In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
   }{e-call-notsame}
 \end{center}
 
-The environmental semantics is also mostly straightforward.
+The environmental semantics is mostly straightforward.
 In \Cref{tr:e-ret-notsame,tr:e-call-notsame} the judgement $\commlib\vdash\text{foo}:\Omega.\sandboxtag$ checks whether $\text{foo}$ is a component-level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
 Additional rules that are left out ensure that, e.g., when calling the $\text{main}$ function, the event $\ev{Start}$ is emitted, which is a design choice this paper does for convenience when reasoning about call-chains.
 

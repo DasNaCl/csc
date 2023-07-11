@@ -520,11 +520,11 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 \gls{sms} prohibits out-of-bounds accesses:
 
 \begin{definition}[\glsfirst{sms}]\label{def:trace:smsdef}
-  $
+  $$
   \smssafe:=\left\{\trace \left|\begin{array}{rcl}
                                   \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}, \text{ then }m<n
                                 \end{array}\right.\right\}
-  $
+  $$
 \end{definition}
 
 \subsubsection{Memory Safety}
@@ -535,11 +535,11 @@ Full \gls{ms} (similar to earlier work~\cite{nagarakatte2009soft,nagarakatte2010
 Note, however, that this definition says nothing about memory-safety issues introduced by side-channels, such as speculation.
 
 \begin{definition}[\glsfirst{ms}]\label{def:trace:msdef}
-  $
+  $$
   \mssafe:=\left\{\trace \left|\begin{array}{rcl}
                                  \trace\in\tmssafe & \text{ and } & \trace\in\smssafe
                                \end{array}\right.\right\}
-  $
+  $$
 \end{definition}
 
 \subsubsection{Strict Cryptographic Constant Time}
@@ -549,11 +549,11 @@ This is because, intuitively, hypersafety properties can relate multiple executi
 To sidestep this issue, this section defines the property \gls{scct}, a stricter variant of \gls{cct} that enforces the policy that no secret appears on a trace (inspired by earlier work~\cite{almeida2017jasmin}).
 
 \begin{definition}[\glsfirst{scct}]\label{def:trace:scctdef}
-  $
+  $$
   \scctsafe:=\left\{\trace \left|\begin{array}{rcl}
                                    \trace=\hole{\cdot} & \text{ or } & \trace=\event[_{b}];\sandboxtag;\unlock\cdot\trace['] \wedge \trace[']\in\scctsafe
                                  \end{array}\right.\right\}
-  $
+  $$
 \end{definition}
 
 \subsubsection{Memory Safe, Strict Cryptographic Constant Time}
@@ -562,15 +562,23 @@ The combination of \gls{ms} and \gls{scct} is the intersection of these properti
 Since \gls{ms} and \gls{scct} are just sets of traces that, intuitively, contain all program behaviors that follow a security policy, the intersection of them contains all program behaviors that follow both security policies, i.e., it entails all program behaviours that are both \gls{ms} and \gls{scct}.
 
 \begin{definition}[\glsfirst{ms} and \gls{scct}]\label{def:trace:msscctdef}
-  $
+  $$
   \msscctsafe:=\mssafe\cap\scctsafe
-  $
+  $$
 \end{definition}
+\MPin{
+	why is this defined differently than MS? they should be defined in the same way
+}
 
 %\section{Monitors and Trace Agreements\pages{1.5}}\label{subsec:monitors}
 \subsection{Monitors\pages{1.5}}\label{subsec:monitors}
 
-\begin{figure}[h!]
+Monitors enforce safety properties by accepting or rejecting traces, i.e., if it rejects a trace, the trace does not satisfy the property the monitor checks.
+Since reasoning on monitors is easier than directly on just traces, this section presents a monitor for each of the previously shown safety properties (\Cref{subsec:propdefs}).
+To lessen the burden when proving that a monitor accepts the trace of a program execution, each monitor uses a custom trace model that contains only the relevant information related to the property the monitor checks.
+To go from specification traces $\trace$ to monitor-level traces $\abstrace$, each property $\pi$ has an associated event agreement relation $\traceagree[]{\pi}{\event}{\absevent}$.
+\Cref{fig:stuttereq} shows how the event agreement is lifted to traces.
+\begin{figure}[!ht]
   \judgbox{\traceagree{\pi}{\trace}{\abstrace}}{,,Specification-level trace $\trace$ agrees with monitor-level trace $\abstrace$ with respect to property $\pi$.''}
   %
   \typerule{traceagree-empty}{}{
@@ -597,12 +605,6 @@ Since \gls{ms} and \gls{scct} are just sets of traces that, intuitively, contain
   }{traceagree-cons}
   \caption{Trace-Agreement relation that equates specification-level traces with monitor-level traces.}\label{fig:stuttereq}
 \end{figure}
-
-Monitors enforce safety properties by accepting or rejecting traces, i.e., if it rejects a trace, the trace does not satisfy the property the monitor checks.
-Since reasoning on monitors is easier than directly on just traces, this section presents a monitor for each of the previously shown safety properties (\Cref{subsec:propdefs}).
-To lessen the burden when proving that a monitor accepts the trace of a program execution, each monitor uses a custom trace model that contains only the relevant information related to the property the monitor checks.
-To go from specification traces $\trace$ to monitor-level traces $\abstrace$, each property $\pi$ has an associated event agreement relation $\traceagree[]{\pi}{\event}{\absevent}$.
-\Cref{fig:stuttereq} shows how the event agreement is lifted to traces.
 The trace agreement is the same for all properties $\pi$ up to the use of the event agreement in \Cref{tr:traceagree-cons}.
 With agreements, this section defines monitor satisfaction for traces and then it proves that monitor satisfaction implies property satisfaction.
 To this end, monitor satisfaction is defined as follows.
@@ -1033,7 +1035,9 @@ Besides sequential composition, there are two other compositions, namely an {\em
 \bul{Define the upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$} as follows:
 Given a program \texttt{p}, its compiled counterpart is obtained by \rul{plugging \texttt{p} into $\cc{\src{L}}{\trg{L}}$ if $\texttt{p}\in\src{L}$} or by \oul{plugging \texttt{p} into $\cc{\obj{L}}{\trg{L}}$ if $\texttt{p}\in\obj{L}$}.
 \begin{definition}[Upper Composition]
-  \bul{$\cc{\src{L}+\obj{L}}{\trg{L}}$} $\isdef$ Given \texttt{p}, yield
+  \bul{$\cc{\src{L}+\obj{L}}{\trg{L}}$} $\isdef$ 
+  % Given \texttt{p}, yield
+  $\lambda \texttt{p}\ldotp$
   $\left\{\mbox{\begin{tabular}{c}
     {\rul{if $\texttt{p}\in\src{L}$, then $\cc{\src{L}}{\trg{L}}(\texttt{p})$}} \\
     \mbox{\oul{if $\texttt{p}\in\obj{L}$, then $\cc{\obj{L}}{\trg{L}}(\texttt{p})$}} \\
@@ -1063,7 +1067,9 @@ Dually, the {\em lower} composition is concerned about compilers that accept the
 \bul{Define the lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$} as follows:
 Given a program $\src{p}$, its compiled counterpart is obtained by \rul{plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}$} or by \oul{plugging \texttt{p} into $\cc{\src{L}}{\obj{L}}$}, respectively, \pul{based on the internal decision}.
 \begin{definition}[Lower Composition]
-  \bul{$\cc{\src{L}}{\trg{L}+\obj{L}}$} $\isdef$ Given $L$ and $\src{p}$, yield
+  \bul{$\cc{\src{L}}{\trg{L}+\obj{L}}$} $\isdef$ 
+  % Given $L$ and $\src{p}$, yield
+  $\lambda \src{p}, L\ldotp$
   $\left\{\mbox{\begin{tabular}{c}
     {\pul{if $L=\trg{L}$, then} \rul{$\cc{\src{L}}{\trg{L}}(\src{p})$}} \\
     \mbox{\pul{if $L=\obj{L}$, then} \oul{$\cc{\src{L}}{\obj{L}}(\src{p})$}} \\
@@ -1589,16 +1595,18 @@ Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\ccc
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 
-This section compares existing work with the one presented in this paper.
-To this end, work on robust preservation (\Cref{subsec:relw:seccomprtp}) and on other secure compiler criteria (\Cref{subsec:relw:seccompcrit}) is looked at.
-The case study of this paper (\Cref{sec:casestud:defs,sec:casestud:rtp}) implements measures for ensuring \gls{ms} as well as \gls{cct} and these are compared with previous work as well (\Cref{subsec:relw:msmechs,subsec:relw:cctmechs}).
+This section discusses work on robust preservation\MP{
+	robust compilation.
+	NOT robust preservation
+} (\Cref{subsec:relw:seccomprtp}) and on other secure compilation criteria (\Cref{subsec:relw:seccompcrit}).
+Since the case study of \Cref{sec:casestud:defs,sec:casestud:rtp} implements measures for preserving \gls{ms} and \gls{cct}, this section then presents relevant related work as well (\Cref{subsec:relw:msmechs,subsec:relw:cctmechs}).
 
 \subsection{Secure Compilation as Robust Preservation}\label{subsec:relw:seccomprtp}
 
-The robust preservation of properties as a compiler-level criterion has been analyzed extensively~\cite{abate2019jour,patrignani2021rsc,abate2021extacc,patrignani2022universal,patrignani2019survey}.
-This work has made use of that previous work.
-While there exists a composition theorem~\cite{abate2019jour} already, that theorem is not concerned with composing robustly safe compilers, but rather program components and contexts.
-The work relating robust preservation with universal composability~\cite{patrignani2022universal} is closest to what this paper presents.
+The robust preservation of properties as a compiler-level criterion has been analyzed extensively~\cite{abate2019jour,patrignani2021rsc,abate2021extacc,patrignani2019survey} and thus we build on that framework.
+No existing work is concerned with composing robustly safe compilers.
+\MP{perhaps say taht we believe this scales to different trace models too and differnet kinds of props, but the ocmposition of monitors becomes tricky}
+The work relating robust preservation with universal composability~\cite{patrignani2022universal} is closest to what this paper presents.\MP{why}
 % The authors demonstrate a similar compositionality theorem to what is presented here (\Cref{sec:compcomp}) as well as in an earlier version of this work~\cite{kruse2022csc}.
 % However, they do not demonstrate the scalability of the approach by means of a case study.
 
@@ -1606,7 +1614,7 @@ The work relating robust preservation with universal composability~\cite{patrign
 
 While this paper focuses on the robust preservation framework~\cite{abate2019jour}, other secure compilation criteria exist.
 The survey on formal approaches to secure compilation~\cite{patrignani2019survey} discusses a broad spectrum already, while this section presents a very high-level overview.
-The full abstraction approach~\cite{abadi1999fullabstraction} states that a compiler should preserve and reflect observational equivalence between source and target programs.
+Fully abstract compilation~\cite{abadi1999fullabstraction} states that a compiler should preserve and reflect observational equivalence between source and target programs.
 It was shown~\cite{abate2021faandrc} that fully abstract compilers robustly preserve program properties that are either trivial or meaningless.
 As a mitigation for this, the authors presented a categorical approach based on maps of distributive laws~\cite{watanabe2002modl}, which they call many maps of distributive laws.
 Maps of distributive laws have been investigated before as a possible secure compilation criterion~\cite{tsampas2020catsc}.
@@ -1616,15 +1624,15 @@ Note that this work also presents secure compilers that are optimising, but cont
 
 \subsection{Memory Safety Mechanisms}\label{subsec:relw:msmechs}
 
-Different mechanisms for memory safety exist that also consider the secure compilation domain, i.e., have an active attacker model.
+Different mechanisms for \MP{enforcing?}memory safety exist that also consider the secure compilation domain, i.e., have an active attacker model.
 For example, the ,,pointers as capabilities'' principle represents pointers as machine-level capabilities~\cite{korashy2021capableptrs}, which behave in a similar fashion to capabilities by means of linear typing~\cite{morrisett2005L3}.
 The approach of this paper also uses linear typing, but differs from $L^{3}$~\cite{morrisett2005L3} in the way that functions are not first-class.
 Moreover, this paper considers an active attacker, while the work on $L^{3}$ only discusses whole programs and, thus, has no active attacker model.
 The instrumentation to ensure memory safety that this paper presents is inspired by seminal work in the literature~\cite{nagarakatte2009soft}.
 That work inserts bounds-checks in front of pointer-dereferences and, for this to work, inserts meta-data information on pointer creation.
-It also works in a more advanced setting with structured fields accesses and also introduces a table-lookup for pointers that are stored in memory.
-This paper only considers pointers to arrays of simple objects, i.e., there are no pointers to pointers or structures.
-Of course, there are a lot of other approaches to memory-safety in literature, specifically as compiler instrumentations~\cite{akritidis2009baggy,younan2010paricheck,jung2021pico,shankaranarayana2023tailcheck,dhumbumroong2020boundwarden,nam2019framer,zhou2023fatptrs}, hardware-extensions~\cite{kwon2013lowfat,saileshwar2022heapcheck,chen2023flexpointer,kim2023whistle}, or programming language extensions~\cite{elliott2018checkedc,li2022formalcheckedc,necula2005ccured,jim2002cyclone,elliott2015guilt,west2005cuckoo,weis2019fyr,benoit2019uniqueness}, to name a few.
+It\MP{what} also works in a more advanced setting with structured fields accesses and also introduces a table-lookup for pointers that are stored in memory.
+This paper only considers pointers to arrays of simple objects\MP{NOT OBJECTS}, i.e., there are no pointers to pointers or structures.
+Several other approaches to memory-safety exist in literature, specifically as compiler instrumentations~\cite{akritidis2009baggy,younan2010paricheck,jung2021pico,shankaranarayana2023tailcheck,dhumbumroong2020boundwarden,nam2019framer,zhou2023fatptrs}, hardware-extensions~\cite{kwon2013lowfat,saileshwar2022heapcheck,chen2023flexpointer,kim2023whistle}, or programming language extensions~\cite{elliott2018checkedc,li2022formalcheckedc,jim2002cyclone,elliott2015guilt,west2005cuckoo,weis2019fyr,benoit2019uniqueness}.
 What differentiates this work from them is that this work uses known, compiler-based approaches to ensure memory-safety as a means to investigate secure compiler compositions.
 This paper does not provide efficient memory-safety, but serves as a theoretical foundation for the secure compilation domain.
 
@@ -1634,7 +1642,7 @@ However, they do not discuss composition of secure compilers but rather investig
 
 \subsection{Cryptographic Constant Time Mechanisms}\label{subsec:relw:cctmechs}
 
-The approach to cryptographic constant time in this paper is high-level, where a programming language exposes a way to switch the semantics to a data (operand) independent timing mode.
+The approach to \MP{preserving?enforcing?} cryptographic constant time in this paper is high-level, where a programming language exposes a way to switch the semantics to a data (operand) independent timing mode.
 Since identifiers in $\Lscct$ are annotated with a secrecy tag, this approach is similar to others with information flow control.
 For example, Vale~\cite{bond2017vale} uses Dafny to ensure constant-time assembly code, while Jasmin~\cite{almeida2017jasmin} makes use of the Coq proof assistant to reject non-constant-time programs.
 CT-Wasm~\cite{watt2019ctwasm} enforces constant-timeness by means of a type system.
@@ -1647,20 +1655,32 @@ This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, whic
 
 This paper does a first step towards practical secure compilation chains by introducing a theoretical framework demonstrating that secure compilers compose.
 The paper exercises this framework on a case-study that consists of an optimising compilation chain that is secure with respect to \gls{msscct}.
+\MP{
+	not an appropriate recap.
+	rewrite summarising the paper
+}
+
 In future work, it would be interesting to investigate whether it is possible to provide {\em secure compiler combinators}, similarly to how parser combinators work.
 %To this end, it may be necessary to extend existing frameworks for multi-language semantics.
 It is also interesting to extend our case-study and verify all results of it in Coq.
 This way, it is possible to obtain an executable, secure compiler.
-However, the formalisation effort for backtranslation proofs is known to be enormous, so another research avenue may be to find better ways to (semi-)automate standard secure compilation proofs.
+However, the formalisation effort for backtranslation proofs is known to be enormous\MP{cit + details}, so another research avenue may be to find better ways to (semi-)automate standard secure compilation proofs.
+\MPin{
+	not particularly informative FW. i'd rather not have it as such
+}
 
 %% The acknowledgments section is defined using the "acks" environment
 %% (and NOT an unnumbered section). This ensures the proper
 %% identification of the section in the article metadata, and the
 %% consistent spelling of the heading.
+
 % \begin{acks}
 %   We would like to thank the anonymous reviewers for their feedback.
+% 	This work was partially supported by a gift from
+		% the Italian Ministry of Education through funding for the Rita Levi Montalcini grant (call of 2019).
 % \end{acks}
 
+\newpage
 %%
 %% The next two lines define the bibliography style to be used, and
 %% the bibliography file.

@@ -1140,9 +1140,13 @@ In spirit of this, language $\Lscct$ allows violating \gls{cct} by emitting even
   \begin{aligned}
   \mi{(Types)}~&\type\bnfdef\natt
   &
-  \mi{(Functions)}~&\function\bnfdef\ \lfunction{g}{x}{e}
+  \mi{(Functions)}~&\function\bnfdef\ \lfunction{\textit{foo}}{x}{e}
   &
-    \mi{(Libraries)}~&\library\bnfdef\ \hole{\cdot} \mid \function,\library \\
+  \mi{(Libraries)}~&\library\bnfdef\ \hole{\cdot} \mid \function,\library
+  \end{aligned}\\
+  \begin{aligned}
+  \mi{(Component~Names)}~&\commlib\bnfdef\ \hole{\cdot} \mid \text{foo},\commlib
+  &
   \mi{(Programs)}~&\prog{\library_{\ctx}}{\library_{\comp}}
   \end{aligned}
 \end{gather*}
@@ -1152,6 +1156,7 @@ Variables are referred to as $x,y,z,a,b,c,\ldots$ while functions may be referre
 All languages share the type $\natt$ representing natural numbers.
 Functions are constrained to take one argument and can only call other functions listed in libraries, which are just lists of functions.
 A program $\prog{\library_{\ctx}}{\library_{\comp}}$ is indexed by two libraries that represent all context- and component-level functions, respectively.
+Lists of component-level names are referred to as $\commlib$.
 
 \begin{gather*}
   \begin{aligned}
@@ -1179,10 +1184,12 @@ A program $\prog{\library_{\ctx}}{\library_{\comp}}$ is indexed by two libraries
     \mi{(Memory~States)}~&\memstate\bnfdef\tup{H^{\ctx}}{H^{\comp};\Delta}
     &
     \mi{(States)}~&\statevar\bnfdef\tup{\cfstate}{\sandboxtag,\memstate}
+    &
+    \mi{(Runtime~Terms)}~&\runtimetermvar\bnfdef\rtt{\statevar}{\expr}
   \end{aligned}
 \end{gather*}
 
-States $\statevar$ are tuples containing a control flow state $\cfstate$, control tags $\sandboxtag$, and a memory state $\memstate$.
+States $\statevar$ are tuples\footnote{Throughout the paper, the subsitution notation is also used to update entries in states $\statevar$.} containing a control flow state $\cfstate$, control tags $\sandboxtag$, and a memory state $\memstate$.
 A control flow state $\cfstate$ entails a library, which provides definitions for functions when calling, as well as a stack of continuations $\ectxstack$.
 Elements of the stack $\ectxstack$ are pairs of evaluation contexts and the name of a function associated to that evaluation context.
 Memory states $\memstate$ are tuples of two separate heaps $H$ and a store $\Delta$, which contains pointer metadata, such as the concrete memory location $\loc$, a control tag $\sandboxtag$ indicating which heap the pointer points into, a poison tag $\poison$, as well as bounds information $n$.
@@ -1190,17 +1197,77 @@ The bounds information is a mere proof artifact that has no semantic significanc
 For details see the accompanying tech report~\MK{cit}.
 Memory states $\memstate$ have two separate heaps, essentially modelling a sandbox, to prevent contexts from performing pointer arithmetic and reading from or writing to the data owned by a component.
 While this prevents the effects of out of bounds accesses across the context and component boundary, the goal of the design of the languages of this paper is to be able to express security violations.
-To this end, the poison tag $\poison$ indicates whether a pointer has been freed ($\poisoned$) or is still allocated ($\poisonless$), so that uses of pointers can happen even after their deallocation without the semantics getting stuck.
+To this end, the poison tag $\poison$ indicates whether a pointer has been freed $\poisoned$ or is still allocated $\poisonless$, so that uses of pointers can happen even after their deallocation without the semantics getting stuck.
+Runtime terms are simply expressions $\expr$ paired with the operational state $\statevar$.
 
 \begin{gather*}
   \begin{aligned}
-  \mi{(Pre\text{-}Events)}~\event[_{b}]&\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr \mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
-  \mi{(Events)}~\event&\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag} \\
+  \mi{(Pre\text{-}Events)}~\event[_{b}]&\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr \mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \cdots \\
+  \mi{(Events)}~\event&\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag,\securitytag} \\
   \end{aligned}
 \end{gather*}
 
-The possible events that are emitted during execution are similar to the ones of the specification trace model (\Cref{subsec:propdefs}).
-The key difference is that, as standard in secure compilation work~\cite{patrignani2021rsc,abate2019jour,korashy2021capableptrs}, the traces have a call and return event that signals context switches, which are referred to as {\em interaction events}.
+All languages use the same trace model.
+In this trace model, events are either the empty event \emptyevent, the program crash event $\lightning$, or a tuple consisting of a control tag $\sandboxtag$ and a security tag $\securitytag$.
+The former indicates wether the component \comp or the context \ctx is to blame for emitting this event, the latter indicates the secrecy level of values of the emitted event, i.e., either $\lock$ or $\unlock$.
+As for pre-events, the memory-related ones are allocation ($\ev{Alloc}\ \loc\ \valueexpr$), deallocation ($\ev{Dealloc}\ \loc$), reading from ($\ev{Get}\ \loc\ \valueexpr$) and writing to memory ($\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']$).
+
+\begin{center}
+  \judgbox{\pstepto{\runtimetermvar}{\runtimetermvar[']}{\event}}{,,$\runtimetermvar$ does one primitive step to $\runtimetermvar[']$ emitting event $\event$.''}
+  %
+  \typerule{$e-\text{get}-\in$}{
+    \sandboxtag=\statevar.\sandboxtag &
+    \statevar.\store(x)=\tup{\loc}{\sandboxtag,\poison,m} \\
+    \loc+n\in\operatorname{dom}\statevar.\heap[^{\sandboxtag}](\loc+n)
+  }{
+    \pstepto{\rtt{\statevar}{\lget{x}{n}}}{\rtt{\statevar}{\heap[^{\sandboxtag}](\loc+n)}}{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}
+  }{e-get-in}
+  %
+  \typerule{$e-\text{set}-\notin$}{
+    \sandboxtag=\statevar.\sandboxtag &
+    \statevar.\store(x)=\tup{\loc}{\sandboxtag,\poison,m} \\
+    \loc+n\notin\operatorname{dom}\statevar.\heap[^{\sandboxtag}]
+  }{
+    \pstepto{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}{\rtt{\statevar}{\valueexpr}}{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag}}
+  }{e-set-notin}
+  %
+  \typerule{$e-\text{new}$}{
+    \fresh{\statevar}{z} &
+    \fresh{\statevar}{\loc} &
+    \heap[^{\sandboxtag}_1]=\growh{\statevar.\heap[^{\sandboxtag}]}{n} &
+    \store[_1]=\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store
+  }{
+    \pstepto{\rtt{\statevar}{\lnew{x}{n}{\expr}}}{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}{\tup{\ev{Alloc}\ \loc\ n}{\sandboxtag}}
+  }{e-new}
+  %
+  \typerule{$e-\text{dealloc}$}{
+    \statevar.\store(x) = \tup{\loc}{\statevar.\sandboxtag,\poison,n} &
+    \store[_1]=\seth{\statevar.\store}{x}{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}
+  }{
+    \pstepto{\rtt{\statevar}{\ldelete{x}}}{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}{\tup{\ev{Dealloc}\ \loc}{\sandboxtag}}
+  }{e-dealloc}
+  %
+  \typerule{$e-\text{abort}$}{
+  }{
+    \pstepto{\rtt{\statevar}{\labort}}{\lightning}{\lightning}
+  }{e-abort}
+\end{center}
+
+\Cref{tr:e-dealloc,tr:e-get-in,tr:e-set-notin} demonstrate the use of the poison tag $\poison$ as metadata for pointers instead of removing them from the store $\Delta$.
+Take deallocation as an example, the premise does not care at all about the actual state of the poison tag $\poison$ and just overwrites it, marking the location as freed $\poisoned$.
+Besides that, the poison tag does not have any semantic meaning, at least in general.
+For language $\Ltms$, this tag is really just some semantic metadata that programmers have no access to.
+But, for the other languages, e.g., $\Ltrg$, the poison tag is used to check pointer validity.
+The \Cref{tr:e-new} allocates enough space on the respective heap, either $H^{\ctx}$ or $H^{\comp}$ depending on the execution context, i.e., the value of $\Omega.\sandboxtag$, and adds the appropriate metadata associated to the pointer in $\Delta$.
+Reading from and writing to memory have to cases: Either the heap is large enough or not and, depending on that, either the actual value stored at that location is read from or written to, or some garbage data is returned.
+However, note that the execution does not get stuck in such cases, performs a step, and emits an appropriate event.
+Also note that wether a pointer is poisoned or not is not reflected on the trace.
+
+\begin{align*}
+  \mi{(Pre\text{-}Events)}~\event[_{b}]&\bnfdef \cdots \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
+\end{align*}
+
+A key difference in comparison with the specification trace model (\Cref{subsec:propdefs}) is that, as standard in secure compilation work~\cite{patrignani2021rsc,abate2019jour,korashy2021capableptrs}, the traces have a call and return event that signals context switches, which are referred to as {\em interaction events}.
 The reason for these interaction events is technical: They are a proof artifact for reconstructing a source context from a potentially malicious target context, where during that translation, the insertion of some wrapper code right before context switching may be necessary to make the proof succeed.
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
 Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
@@ -1226,9 +1293,13 @@ In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
 \end{center}
 
 The environmental semantics is mostly straightforward.
-In \Cref{tr:e-ret-notsame,tr:e-call-notsame} the judgement $\commlib\vdash\text{foo}:\Omega.\sandboxtag$ checks whether $\text{foo}$ is a component-level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
+In \Cref{tr:e-ret-notsame,tr:e-call-notsame}, the judgement $\Omega.\commlib\vdash\text{foo}:\Omega.\sandboxtag$ checks whether $\text{foo}$ is a component-level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
 Additional rules that are left out ensure that, e.g., when calling the $\text{main}$ function, the event $\ev{Start}$ is emitted, which is a design choice this paper does for convenience when reasoning about call-chains.
+Note that the $\ev{End}\ \valueexpr$ event is not emitted if the program crashes.
 
+\MKin{%
+  should I add a rule for top level exec or keep it like this?
+}
 The top-level execution $\progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\runtimetermvar}{\trace}$ constructs an initial state $\Omega$ by linking $\library_{\ctx}$ and $\library_{\ctx}$ and then starts execution by calling the $\text{main}$ function.
 The trace $\trace$ emitted during that execution serves as abstraction of the behavior of the program enabling the use of \Cref{def:propsat,def:proprsat}.
 

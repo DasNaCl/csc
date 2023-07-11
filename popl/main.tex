@@ -1379,45 +1379,45 @@ The proof now needs to relate the two execution with each other.
 \Cref{fig:proofdiag:rtp} visualises this situation\MP{imprec}.
 \begin{figure}[!ht]
   \begin{center}
-    \begin{tikzpicture}[state/.style={minimum height=0.6cm}]
+    \begin{tikzpicture}[state/.style={minimum height=1.5cm}]
       % relative horizontal/vertical distance between states
       \pgfmathsetmacro{\hdist}{0.95}
       \pgfmathsetmacro{\vdist}{1.35}
       \pgfmathsetmacro{\halfvdist}{0.725}
 
       % row of src states
-      \node[state] (srcempty) {$\src{\emptyset}$};
+      \node[state] (srcempty) {$\rtt{\src{\emptyset}}{\src{\lcall{main}{0}}}$};
       \foreach \s [remember=\s as \cur (initially empty)] in {1,w_1,p,w_2,2} {
-        \node[state,right=\hdist of src\cur] (src\s) {$\src{\Omega_{\s}}$};
+        \node[state,right=\hdist of src\cur] (src\s) {$\rtt{\src{\Omega_{\s}}}{\src{\expr[_{\s}]}}$};
       }
       % row of trg states
-      \node[state,below=\vdist of srcempty] (trgempty) {$\trg{\emptyset}$};
+      \node[state,below=\vdist of srcempty] (trgempty) {$\rtt{\trg{\emptyset}}{\trg{\lcall{main}{0}}}$};
       \foreach \s in {1,w_1,p,w_2,2} {
-        \node[state,below=\vdist of src\s] (trg\s) {$\trg{\Omega_{\s}}$};
+        \node[state,below=\vdist of src\s] (trg\s) {$\rtt{\trg{\Omega_{\s}}}{\trg{\expr[_{\s}]}}$};
       }
       %% illustrations
         % backtrans wrapper 1
-        \draw[thick,loosely dotted,Peach!50,rounded corners] (src1.north east) -- (srcw\string_1.north east)
+        \draw[ultra thick,loosely dotted,Peach!50,rounded corners] (src1.north east) -- (srcw\string_1.north east)
           -- (trgw\string_1.south east) -- (trg1.south west) -- (src1.north west) -- cycle;
         % backtrans wrapper 2
-        \draw[thick,loosely dotted,Peach!50,rounded corners] (srcp.north east) -- (srcw\string_2.north east)
+        \draw[ultra thick,loosely dotted,Peach!50,rounded corners] (srcp.north east) -- (srcw\string_2.north east)
           -- (trgw\string_2.south east) -- (trgp.south west) -- (srcp.north west) -- cycle;
         % compiler correctness
-        \draw[thick,loosely dashed,Emerald!50,rounded corners] ($(srcw\string_1.north east)+(0,0.05)$) -- ($(srcp.north east)+(0,0.05)$)
+        \draw[ultra thick,loosely dashed,Emerald!50,rounded corners] ($(srcw\string_1.north east)+(0,0.05)$) -- ($(srcp.north east)+(0,0.05)$)
           -- ($(trgw\string_2.north east)+(0.05,0)$) -- ($(trgw\string_2.south east)+(0.05,-0.05)$)
           -- ($(trg1.south west)+(-0.05,-0.05)$) -- ($(trg1.north west)+(-0.05,0)$) -- ($(srcw\string_1.north west)+(0,0.05)$) -- cycle;
       % state relations
-      \path (srcempty) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_\emptyset$} (trgempty)
-        (src1) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trg1)
-        (srcp) edge[draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgp)
-        (src2) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_2}$} (trg2)
-        (srcw\string_1) edge[draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trgw\string_1)
-        (srcw\string_2) edge[draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (trgw\string_2)
+      \path (srcempty) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_\emptyset$} (trgempty)
+        (src1) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trg1)
+        (srcp) edge[very thick,draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgp)
+        (src2) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_2}$} (trg2)
+        (srcw\string_1) edge[very thick,draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trgw\string_1)
+        (srcw\string_2) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (trgw\string_2)
         % diagonals
-        (srcw\string_1) edge[draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trg1)
-        (src1) edge[draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trgw\string_1)
-        (srcp) edge[draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgw\string_2)
-        (trgp) edge[draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (srcw\string_2)
+        (srcw\string_1) edge[thick,draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trg1)
+        (src1) edge[thick,draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trgw\string_1)
+        (srcp) edge[thick,draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgw\string_2)
+        (trgp) edge[thick,draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (srcw\string_2)
         ;
       %\drawpolygon src1,srcw\string_1,trgw\string_1,trg1;
       %\drawpolygon srcp,srcw\string_2,trgw\string_2,trgp;
@@ -1425,16 +1425,16 @@ The proof now needs to relate the two execution with each other.
       %\path[->,draw] (wrapper) -- (srcw\string_1);
       %\path[->,draw] (wrapper) -- (srcp);
       % steps
-      \path[color=\stlccol] (srcempty) edge[draw=none] node {\ $\xrightarrow{\trace[_1]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src1)
+      \path[very thick,color=\stlccol] (srcempty) edge[draw=none] node {\ $\xrightarrow{\trace[_1]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src1)
         (src1) edge[draw=none] node {\ $\xrightarrow{\trace[_c]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_1)
         (srcw\string_1) edge[draw=none] node {\ $\xrightarrow{\trace[_p]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (srcp)
         (srcp) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\trace[_r]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_2)
         (srcw\string_2) edge[draw=none] node {\ $\xrightarrow{\trace[_2]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src2)
         ;
-      \path[color=\ulccol] (trgempty) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
+      \path[very thick,color=\ulccol] (trgempty) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
         (trg1) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgw\string_1)
         (trgw\string_1) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgp)
-        (trgp) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgw\string_2)
+        (trgp) edge[very thick,draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgw\string_2)
         (trgw\string_2) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_2]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg2)
         ;
       % legend
@@ -1442,19 +1442,19 @@ The proof now needs to relate the two execution with each other.
         ${\src{\trace[_c]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Call\ ?\ foo\ \valueexpr})}$\\%
         ${\src{\trace[_r]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Ret\ !\ foo\ \valueexpr})}$
         };
-      \draw[thick,loosely dotted,Peach!50,rounded corners] ($(legend.north east)+(0.5,-0.4)$) -- ($(legend.north east)+(1,-0.4)$);
+      \draw[ultra thick,loosely dotted,Peach!50,rounded corners] ($(legend.north east)+(0.5,-0.4)$) -- ($(legend.north east)+(1,-0.4)$);
       \node at ($(legend.north east)+(1.5,-0.4)$) (legendwrapper) {};
       \node[right of=legendwrapper] {\tiny Backtranslation Wrapper};
-      \draw[thick,loosely dashed,Emerald!50,rounded corners] ($(legend.south east)+(0.5,0.4)$) -- ($(legend.south east)+(1,0.4)$);
+      \draw[ultra thick,loosely dashed,Emerald!50,rounded corners] ($(legend.south east)+(0.5,0.4)$) -- ($(legend.south east)+(1,0.4)$);
       \node at ($(legend.south east)+(1.5,0.4)$) (legendcorrectness) {};
       \node[right of=legendcorrectness] {\tiny Compiler Correctness};
     \end{tikzpicture}
-    \caption{Proof diagram for \Cref{thm:cca:rtp:tms} depicting the general structure of robust preservation proofs.}\label{fig:proofdiag:rtp}
+    \caption{Proof diagram for \Cref{thm:cca:rtp:tms} depicting the general structure of robust preservation proofs. %
+      Vertical lines indicate cross language relations, while horizontal ones are execution steps. %
+      Nodes in the graph represent runtime states.
+    }\label{fig:proofdiag:rtp}
   \end{center}
 \end{figure}
-\MPin{
-	thicker lines and dots needed, not visible otherwise
-}
 
 At the bottom, there is the target-level execution between operational states $\trg{\emptyset},\trg{\Omega_{1}}$, and so on.
 The execution starts in the context $\trg{\library_{\ctx}}$ and is split by transitivity of $\trg{\estepto{}{}{}}$ into parts before, in, and after the component $\cc{\Ltms}{\trg{L}}(\src{p})$ executes\footnote{For sake of simplicity, this paper considers only one context-switch from context to component and back again. Recursive calls between context and component functions are disregarded.}.

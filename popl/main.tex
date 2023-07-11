@@ -1467,69 +1467,88 @@ Finally, since both execution traces are similar in the sense that their project
   $$
 \end{center}
 
-The compiler $\cc{\trg{L}}{\Lms}$ only inserts bounds-checks to enforce \gls{sms} whenever reading from or writing to memory.
+The compiler $\cc{\trg{L}}{\Lms}$ only inserts bounds-checks whenever reading from or writing to memory in order to enforce \gls{sms}.
+For passing pointers, it has to pass them with their size information as well.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
-Again, linking this back to the \texttt{strncpy} example (\Cref{ex:strncpy:sms}) corresponds to the insertion of bounds check right in front of the accesses to \texttt{y[i]} and \texttt{x[i]}.
-In turn, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution.
-\MPin{
-	show the result of the compilation as listing, and then describe the trace a bit more in detail ?
-}
+\begin{example}[Instrumented \texttt{strncpy}]
+    Consider again \texttt{strncpy}, but this time with an instrumented version of \texttt{strncpy}:
+    \begin{lstlisting}[language=c,basicstyle=\ttfamily\small, morekeywords={size_t}]
+  void strncpy(size_t n, size_t dst_size, char *dst,
+                        size_t src_size, char *src) {
+    for(size_t i = 0; i < src_size && src[i] != '\0' && i < n; ++i) {
+      if(i < src_size && i < dst_size) {
+        dst[i] = src[i];
+      }
+    }
+  }
+    \end{lstlisting}
+    When calling this in similar fashion to \Cref{ex:strncpy:sms}, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution.
+  \MKin{
+    this is kind of problematic for several reasons. (1) we don't pass pointers (2) fns signatures should not change
+  }
+\end{example}
 
 \begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}
   $\rtp{\ccb}{\smssafe}$ % \Coqed
 \end{theorem}
 
-\Cref{thm:ccab:rtp:ms}\MP{states ... } follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtp}.
+%\Cref{thm:ccab:rtp:ms}\MP{states ... } follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtp}.
 
 \begin{theorem}[Compiler $\cca\circ\ccb$ is secure with respect to \gls{ms}]\label{thm:ccab:rtp:ms}
   $\rtp{\cca\circ\ccb}{\mssafe}$ % \Coqed
 \end{theorem}
+\begin{proof}
+  Consequence of \Thmref{thm:cca:rtp:tms} and \Thmref{thm:ccb:rtp:sms} using \Thmref{thm:rtp}.
+  \MKin{%
+    \textbackslash Thmref or \textbackslash Cref?
+  }
+\end{proof}
 
 \subsection{Optimising Compilers}\label{subsec:cs:opts}
 
-\begin{center}
-  $$
-  \begin{array}{rcl}
+\begin{gather*}
+  \begin{align*}
     \ccdce(\irl{\lifz{true}{\expr[_{1}]}{\expr[_{2}]}}) & = & \ccdce(\irl{\expr[_{1}]}) \\
-    \ccdce(\irl{\lifz{false}{\expr[_{1}]}{\expr[_{2}]}}) & = & \ccdce(\irl{\expr[_{2}]}) \\
-  \end{array}
-  $$
-\end{center}
-
-\begin{center}
-  $$
-  \begin{array}{rcll}
-    \cccf(\irl{\llet{x}{n}{\expr}}) & = & \cccf(\irl{\expr\subst{n}{x}}) &\\
-    \cccf(\irl{\lbinop{n_{1}}{n_{2}}}) & = & \irl{n_{3}} & \text{where }\irl{n_{3}}\text{ is }\lbinop{\irl{n_{1}}}{\irl{n_{2}}}\\
-  \end{array}
-  $$
-\end{center}
-\MPin{
-	substitution are a runtime semantics thing.
-	what you want is a compiler with 2 arguments, where in one you keep track of the static substitions to perform,
-	and 2 cases on how to handle variables: if they're in the second arg, then substitute, otherwise don't
-  %
-  \MKin{
-  MK: No? I get how they are used as part of the runtime semantics, but a compiler can just as well make use of a substitution function that models the runtime semantics. I see how these two are different. However, I think it's easier in this case to be a bit inprecise, since adding another argument to the compiler breaks our compositionality framework (unless it's hidden with a monad...) so, IMO, we should view substitution here as a meta-level, but still language-dependent, function that the compiler has access to. If we don't do this, we essentially re-encode the definition of subst into the compiler
-  }
-}
+    \ccdce(\irl{\lifz{false}{\expr[_{1}]}{\expr[_{2}]}}) & = & \ccdce(\irl{\expr[_{2}]})
+  \end{align*}\\[0.25cm]
+  \begin{align*}
+    \cccf(\irl{\llet{x}{n}{\expr}}) & = \cccf(\partialeval{\irl{\expr}}{\irl{x}}{\irl{n}}) &\\
+    \cccf(\irl{\lbinop{n_{1}}{n_{2}}}) & = \irl{n_{3}} & \text{where }\irl{n_{3}}\text{ is }\lbinop{\irl{n_{1}}}{\irl{n_{2}}}
+  \end{align*}\\[0.125cm]
+  \begin{align*}
+    \partialeval{\irl{x}}{\irl{x}}{\irl{n}} & = \irl{n} &\\
+    \partialeval{\irl{y}}{\irl{x}}{\irl{n}} & = \irl{y} &\text{where }\irl{x}\not=\irl{y}\\
+    \partialeval{\left(\irl{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}\right)}{\irl{x}}{\irl{n}} & = \llet[\irl]{\irl{x}}{\left(\partialeval{\irl{\expr[_{1}]}}{\irl{x}}{\irl{n}}\right)}{\irl{\expr[_{2}]}} &\\
+    \partialeval{\left(\irl{\llet{y}{\expr[_{1}]}{\expr[_{2}]}}\right)}{\irl{x}}{\irl{n}} & = \llet[\irl]{\irl{y}}{\left(\partialeval{\irl{\expr[_{1}]}}{\irl{x}}{\irl{n}}\right)}{\left(\partialeval{\irl{\expr[_{2}]}}{\irl{x}}{\irl{n}}\right)} &\text{where }\irl{x}\not=\irl{y}\\
+    \partialeval{\left(\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}\right)}{\irl{x}}{\irl{n}} & = \lbinop[\irl]{\left(\partialeval{\irl{\expr[_{1}]}}{\irl{x}}{\irl{n}}\right)}{\left(\partialeval{\irl{\expr[_{2}]}}{\irl{x}}{\irl{n}}\right)}
+  \end{align*}
+\end{gather*}
 
 The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls{dce} and \gls{cf}, respectively.
-Both are secure with respect to \gls{ms}, the proof of which is relatively simple, because \gls{dce} and \gls{cf} do not change the way memory accesses happen.
+The \gls{dce} pass applies a naive rewrite rule on conditionals.
+For \gls{cf}, the pass uses an auxiliary function \texttt{mix} that models the substitution operation.
+Both passes are secure with respect to \gls{ms}.
+The proof for either is relatively simple, because both \gls{dce} and \gls{cf} do not change the way memory accesses happen.
 Moreover, since the input and output languages to these compilers are the same, attacker contexts do not have more power in the target language than in the source.
 
 \begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls{ms}]\label{thm:ccdce:rtp:ms}
-  $\rtp{\ccdce}{\mssafe}$ \Coqed
+  $\rtp{\ccdce}{\mssafe}$ %\Coqed
 \end{theorem}
 \begin{theorem}[Compiler $\cccf$ is secure with respect to \gls{ms}]\label{thm:cccf:rtp:ms}
-  $\rtp{\cccf}{\mssafe}$ \Coqed
+  $\rtp{\cccf}{\mssafe}$ %\Coqe
 \end{theorem}
 
-With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swappable} that the two passes can be interchanged arbitrarily:
+%With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swappable} that the two passes can be interchanged arbitrarily:
 
 \begin{theorem}[Compilers $\cccf\circ\ccdce$ and $\cccf\circ\ccdce$ are secure with respect to \gls{ms}]\label{thm:cccfccdce:rtp:ms}
-  $\rtp{\cccf\circ\ccdce}{\mssafe}$ and $\rtp{\ccdce\circ\cccf}{\mssafe}$ % \Coqed
+  $\rtp{\cccf\circ\ccdce}{\mssafe}$ and $\rtp{\ccdce\circ\cccf}{\mssafe}$. % \Coqed
 \end{theorem}
+\begin{proof}
+  Consequence of \Thmref{thm:cccf:rtp:ms} and \Thmref{thm:ccdce:rtp:ms} using \Thmref{corr:swappable}.
+  \MKin{%
+    \textbackslash Thmref or \textbackslash Cref?
+  }
+\end{proof}
 
 \subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
 

@@ -210,6 +210,10 @@
 %% The abstract is a short summary of the work to be presented in the
 %% article.
 \begin{abstract}
+\MPpost{
+	this abstract fails in setting up the robustness argument.
+	it'll be a good exercise for you to take inspiration from this, but then write something as concise but with a more direct focus on robust properties
+}
 % context
 To ensure that secure applications do not leak their secrets, they are required to uphold several security properties such as spatial and temporal memory safety as well as criptographic constant time.
 % need
@@ -297,7 +301,12 @@ From an engineering perspective, this is the desirable approach to building secu
 % Unfortunately, it is unclear if and how robust compilation supports compositionality, and compilation passes are typically developed as a standalone module to be plugged into a compilation pipeline and composed with other passes.
 % Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
 % Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct} as suggested before and as showcased in \Cref{ex:strncpy}.
-
+\MPpost{
+	this intro does a poor job at introducing the robust compilation argument.
+	perhaps it'd be best to start from robust properties, which motivates the use of robust compilers?
+	idk
+	as for the abstract, this is a good starting point for you to make a better intro
+}
 
 \gls{ms} is a security property obtained by composing \gls{sms}, which ensures array accesses are all within bounds, and \gls{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms}\MP{more cits}.
 \gls{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing}.
@@ -310,7 +319,7 @@ Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated 
 % Even under these assumptions, there is a 
 This function is subject to a subtle \gls{sms} vulnerability: The bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}: otherwise 
 % If \texttt{n} is at least as large as the length of the array \texttt{src}, 
-the memory location past the last element will leak.
+the memory location past the last element will be leaked to an attacker.
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={size_t}]
 void strncpy(size_t n, char *dst, char *src) {
   for(size_t i = 0; src[i] != '\0' && i < n; ++i) {
@@ -321,7 +330,7 @@ void strncpy(size_t n, char *dst, char *src) {
 
 To prevent this vulnerability, one can use a compilation pass that enforces \gls{sms}, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}.
 
-Unfortunately, fixing \gls{sms} is not enough to make \texttt{strncpy} secure, because of timing attacks.
+Because of timing attacks, fixing \gls{sms} is not enough to make \texttt{strncpy} secure.
 In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, making program execution time proportional to the length of the array pointed by \texttt{src}.
 % Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
 Also in this case there exist compiler passes that can rewrite such programs into \gls{cct} ones~\cite{cauligi2019fact}.
@@ -332,14 +341,14 @@ This would, in turn, triggering a series of reads from uninitialised memory, whi
 % An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 
 Robust compilers~\cite{abate2019jour} are a form of secure compilers that preserve security properties even in the presence of arbitrary attackers interacting with compiled code.
-Thus, robust compilers can be used to prevent the vulnerability resulting from uninitialised memory, e.g., by targeting capability-based languages such as CHERI~\cite{woodruff2014CHERI}, Arm Morello~\cite{arm-morello}, or MSWasm~\cite{michael2023mswasm}, where pointers are always initialised.
+Thus, robust compilers can be used to prevent the vulnerability resulting from uninitialised memory, e.g., by targeting capability-based languages such as CHERI~\cite{woodruff2014CHERI}, Arm Morello~\cite{arm-morello}, or MSWasm~\cite{michael2023mswasm}, where the compiler relies on capabilities to checks that pointers are always initialised.
 \end{example}
 
 % To ensure these compiler-preserved properties still hold even in the presence of arbitrary attackers interacting with compiled code, one can use secure compilers in the form of robust compilers~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}.
 
 Unfortunately, given secure compiler passes that each preserve a possibly-different security property, there is no way to tell what kind of security property will the composition of those secure compilers preserve.
 % Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
-Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct}, that is developed independently of optimisation passes.
+Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct}, that is developed independently of other passes such as optimisation ones.
 
 
 
@@ -350,13 +359,13 @@ The paper then defines several secure compiler passes, where each is either pres
 Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results that provides end-to-end preservation of \gls{msscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes.
 % Crucially, this end-to-end security preservation is obtained by composing the security property preserved by each individual pass, as dictated by the framework of this paper.
-This result showcases how the framework allows the kind of formal security reasoning that compiler writers already want (and do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
+This result showcases how the framework allows the kind of formal security reasoning that compiler writers already want (and already do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
 
 In summary, this paper makes the following contributions:
 \begin{itemize}
   \item %
         %\Cref{sec:compprop} presents a formal framework to reason about compositions of security properties and demonstrate its usage with concrete examples:
-        This paper formalises security properties (\Cref{sec:compprop}) that are of interest for real-world compiler writers (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}), namely \gls{tms}, \gls{sms} and \gls{cct}.
+        This paper formalises security properties (\Cref{sec:compprop}) that are of interest for real-world compiler writers, namely \gls{tms}, \gls{sms} and \gls{cct} (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}).
         % 
         Starting from ways to formalise those properties individually, this paper shows how to compose their formalisation.
         % 
@@ -368,7 +377,7 @@ In summary, this paper makes the following contributions:
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
         This paper takes the secure compilation framework of~\citep{abate2019jour} and extends it to reason about the security of all different known forms of compiler composition (\Cref{sec:compcomp}).
         %Concretely, it investigates upper and lower compositions, as well as the sequential composition.
-        For this, this paper studies sequential compiler composition as well as compilers with multiple inputs or multiple outputs, as typically done in existing compilation chains.
+        For this, this paper studies sequential compiler composition as well as compilers with multiple input languages or multiple output ones, as used in existing compilation chains.
         %
         This paper proves that starting from two compilers that preserve two (possibly distinct) properties, their composition preserves the intersection of those properties.
         % For example, a compiler that is secure with respect to \gls{tms} can be composed with a compiler that is secure with respect to \gls{sms}, resulting in a compiler that is secure with respect to \gls{ms}.
@@ -397,19 +406,19 @@ and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:con
 \section{Background: Security Properties and Secure Compilers\pages{1}}\label{sec:background}
 
 To introduce the security argument of this paper, this section first presents the concepts of (security) properties, of their satisfaction, and of their robust satisfaction (i.e., satisfaction in the presence of an active attacker; \Cref{subsec:bg:tprop}).
-Then, borrowing from existing work~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, the section introduces secure compilers as compilers that preserve robust property satisfaction (\Cref{subsec:bg:rtp}).
+Then, borrowing from existing work~\cite{abate2019jour,abate2021extacc}, the section introduces secure compilers as compilers that preserve robust property satisfaction (\Cref{subsec:bg:rtp}).
 
 \subsection{Properties and (Robust) Satisfaction}\label{subsec:bg:tprop}
 
 This paper employs the security model where programs are written in a language whose semantics emits events $\event$.
-Events include security-relevant actions (e.g., reading from and writing to memory) and the unobservable event $\emptyevent$.
+Events include security-relevant actions (e.g., reading from and writing to memory, as detailed in \Cref{sec:compprop}) and the unobservable event $\emptyevent$.
 As programs execute, their emitted events are concatenated in traces $\trace$, which serve as the description of the behaviour of a program.%
 \footnote{
 Throughout the paper, sequences are indicated with an overbar (i.e., $\trace$), empty sequences with $\hole{\cdot}$, and concatenation of sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
 Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
 }
 
-Properties $\pi$ are sets of traces of admissible program behaviours, ascribing what said property considers valid~\cite{clarkson2008hyper}.
+Properties $\pi$ are sets of traces of admissible program behaviours, ascribing what said property considers valid.
 The set of all properties can be partitioned into different {\em classes} ($\class$), i.e., safety, liveness, and neither safety nor liveness~\cite{clarkson2008hyper}.
 A class is simply a set of properties and for the class of safety properties, it is decidable whether a trace satisfies a safety property with just a finite trace prefix.
 As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$.
@@ -428,7 +437,10 @@ With this, property satisfaction is defined as follows:
 
 Property satisfaction is defined on whole programs, i.e., programs without missing definitions.
 Thus, from a security perspective, this considers only a passive attacker model, where the attacker observes the execution and, e.g., retrieves secrets from that.
-To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,patrignani2021rsc,maffeis2008code-carrying,gordon2003authenticity,fournet2007authorization,bengtson2011refine,backes2014uniontyps}, the concept of satisfaction can be extended with {\em robustness}.
+To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,maffeis2008code-carrying,gordon2003authenticity,fournet2007authorization,bengtson2011refine,backes2014uniontyps}, the concept of satisfaction can be extended with {\em robustness}.
+\MPpost{
+	citations here should include mswasm, swasey's stuff and michel's and move
+}
 Robust satisfaction considers partial programs $\progvar$, i.e., components with missing imports, which cannot run until said imports are fulfilled.
 To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
 As typically done in works that consider the execution of partial programs~\cite{abate2019jour,devriese2018parametricity,patrignani2021rsc,korashy2021capableptrs,strydonck2019lincap,devriese2017modular,bowman2015noninterference,ahmed2011equivcps,patterson2017linkingtyps},
@@ -445,7 +457,7 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 \begin{example}[Double Free in Bluetooth Subsystem]
   Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
   The vulnerability arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
-  Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether the pointer has been freed already:
+  Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether the pointer\MP{what pointer?} has been freed already:
   Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
 \end{example}
 
@@ -485,7 +497,7 @@ Because of this, this paper writes $\rtp{\cc{\src{L}}{\trg{L}}}{\pi}$, even thou
   Even though the pointer $\trg{x}$ is checked for validity, the context $\trg{foo((int*)y, 1)}$ is able to provoke a read out of bounds.
   Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context can now call the component again, casting this buffer to an $\trg{int*}$ prior to that call.
   The pointer is valid for one $\trg{char}$-sized memory cell, as expected, but the actual read operation now returns $\trg{sizeof(int)}$ many bytes instead of just $\trg{sizeof(char)}$ many.
-  Thus, even if $\src{foo}$ may have been robust with respect to the \gls{sms}, its compiled counterpart is not and therefore the compiler fails to attain \Thmref{def:rtp}.
+  Thus, even if $\src{foo}$ may have been robust with respect to the \gls{sms}, its compiled counterpart is not and therefore the compiler fails to attain \Cref{def:rtp}.
 \end{example}
 
 
@@ -596,6 +608,9 @@ Since \gls{ms} and \gls{scct} are just sets of traces that, intuitively, contain
 
 Monitors enforce safety properties by accepting or rejecting traces, i.e., if it rejects a trace, the trace does not satisfy the property the monitor checks.
 Since reasoning on monitors is easier than directly on just traces, this section presents a monitor for each of the previously shown safety properties (\Cref{subsec:propdefs}).
+\MPpost{
+	this is fine, but it'd be nice to provide more insights on why it's easier
+}
 To lessen the burden when proving that a monitor accepts the trace of a program execution, each monitor uses a custom trace model that contains only the relevant information related to the property the monitor checks.
 To go from specification traces $\trace$ to monitor-level traces $\abstrace$, each property $\pi$ has an associated event agreement relation $\traceagree[]{\pi}{\event}{\absevent}$.
 \Cref{fig:stuttereq} shows how the event agreement is lifted to traces.
@@ -776,6 +791,7 @@ int greet() {  // allocates 12 chars containing a greeting message
   Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), observe that it does not deallocate its arguments.
   Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls{tms}, since the location $\loc[_{x}]$ is still allocated.
   However, having returned from \texttt{strncpy}, the \texttt{greet} function continues and deallocates $\loc[_{y}]$ whose subsequent use in the \texttt{printf} call is a use-after-free bug.
+
   The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
   It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls{sms}.
 \end{example}
@@ -874,6 +890,12 @@ The trace agreement is entirely straightforward and similar to the one for \gls{
   All uses up to the last are accepted by the monitor, but the last event does not satisfy the premise $2<2$ in \Cref{tr:sms-use}.
   Therefore, the whole program (\texttt{strncpy} linked with this kind of context) is not \gls{sms}.
 \end{example}
+\MPpost{
+	in general, i think embedding the traces in the text does not make them readable.
+	in the exorcising paper i think i put them in align env, or in a way to make them stand out.
+	i don't think we have the time to do this change uniformly now,
+	but at some point we should
+}
 
 \subsubsection{Combining \glsfirst{tms} and \glsfirst{sms} Monitors to obtain \glsfirst{ms}}\label{subsubsec:ms}
 
@@ -955,6 +977,9 @@ Accordingly, the event agreement simply disregards all events that involved publ
 
 \begin{example}[Data-independent timing mode]
   Consider an excerpt from a component that reads from non-confidential memory \texttt{x} and writes the result to confidential memory \texttt{y}.
+  \MPin{
+  can't we call strncpy but with src == low and dest == high?
+  }
   The trace of just this part may look like $\ev{Use}\ \loc_{x}\ 1729;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 1729;\comp;\lock$.
   In terms of the abstract monitor trace, this is just $\absev{Any}$.
   Running this on the monitor would result in getting stuck, since there is no matching rule to step in the presence of $\absev{Any}$ event. % pun intended
@@ -998,6 +1023,9 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 \end{theorem}
 
 Since the composition of secure compilers is again a secure compiler, the theorem generalises to a whole chain of $n$ secure compilers.
+\MPin{
+	what do the sentences below mean in this paragraph?
+}
 It is worth pointing out that \gls{ms} (\Cref{subsubsec:ms}) is an example of a practically relevant intersection of classes, namely, \gls{tms} and \gls{sms} (\Cref{subsubsec:tms,subsubsec:sms}).
 However, the properties need to be lifted~\cite{clarkson2008hyper} to sets of properties by applying the powerset operation.
 
@@ -1103,10 +1131,11 @@ Given a program $\src{p}$, its compiled counterpart is obtained by \rul{plugging
 %                                                                          \end{cases}$
 \end{definition}
 
-Consider two compilers both accepting $\src{LLVM IR}$~\cite{lattner2004llvm} and one of them emits $\trg{x86\_64}$, while the other emits $\trg{ARMv8}$.
+Consider two compilers both accepting $\src{LLVM IR}$~\cite{lattner2004llvm} and one of them emits $\trg{x86\_64}$, while the other emits $\obj{ARMv8}$.
 It is intuitive that they are in some sense composed in the LLVM framework, but the decision of when to use one over the other is inherently {\em internal} to the formalisation effort of this kind of composition.
 For example, the user of this compiler provides an explicit flag that instructs to emit $\trg{x86\_64}$ or the framework itself detects the target platform via heuristics, such as supported instructions.
-The following theorem demonstrates what happens if the involved compilres are secure:
+
+The following theorem demonstrates what happens if the involved compilers are secure:
 Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\src{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Lower Composition of Secure Compilers]\label{thm:lrtp}
@@ -1127,7 +1156,7 @@ Language $\Ltrg$ is untyped and does not provide any guarantees with regards to 
 $\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability (\Cref{subsec:lms}).
 All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls{cct} to hold.
 
-This paper considers \gls{cct} as an architecture-dependent property writing \gls{cct} should not be one of the programmer's concerns~\cite{cauligi2019fact}.
+This paper considers \gls{cct} as an architecture-dependent property\MPin{can we justify this}, so writing \gls{cct} should not be one of the programmer's concerns~\cite{cauligi2019fact}.
 Such consideration is backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
 In spirit of this, language $\Lscct$ allows violating \gls{cct} by emitting events on, e.g., branching and division, that contain secrets (\Cref{subsec:lscct}), but provides a way to read and write to a {\em model--specific register} that enables a ``\gls{cct}-mode''.
 
@@ -1190,15 +1219,14 @@ Lists of component-level names are referred to as $\commlib$.
   \end{aligned}
 \end{gather*}
 
-States $\statevar$ are tuples\footnote{Throughout the paper, the subsitution notation is also used to update entries in states $\statevar$.} containing a control flow state $\cfstate$, control tags $\sandboxtag$, and a memory state $\memstate$.
-A control flow state $\cfstate$ entails a library, which provides definitions for functions when calling, as well as a stack of continuations $\ectxstack$.
+States $\statevar$ are tuples\footnote{Throughout the paper, the substitution notation is also used to update entries in states $\statevar$.} containing a control flow state $\cfstate$, control tags $\sandboxtag$, and a memory state $\memstate$.
+A control flow state $\cfstate$ entails a library, which provides definitions for functions calls, as well as a stack of continuations $\ectxstack$.
 Elements of the stack $\ectxstack$ are pairs of evaluation contexts and the name of a function associated to that evaluation context.
 Memory states $\memstate$ are tuples of two separate heaps $H$ and a store $\Delta$, which contains pointer metadata, such as the concrete memory location $\loc$, a control tag $\sandboxtag$ indicating which heap the pointer points into, a poison tag $\poison$, as well as bounds information $n$.
-The bounds information is a mere proof artifact that has no semantic significance.
-For details see the accompanying tech report~\MK{cit}.
-Memory states $\memstate$ have two separate heaps, essentially modelling a sandbox, to prevent contexts from performing pointer arithmetic and reading from or writing to the data owned by a component.
-While this prevents the effects of out of bounds accesses across the context and component boundary, the goal of the design of the languages of this paper is to be able to express security violations.
-To this end, the poison tag $\poison$ indicates whether a pointer has been freed $\poisoned$ or is still allocated $\poisonless$, so that uses of pointers can happen even after their deallocation without the semantics getting stuck.
+The bounds information is a mere proof artefact that has no semantic significance.
+The two separate heaps essentially model a sandbox, to prevent contexts from performing pointer arithmetic and reading from or writing to the data owned by a component.
+While this prevents the effects of out-of-bounds accesses across the context and component boundary, the goal of the design of the languages of this paper is to be able to express security violations.
+To this end, the poison tag $\poison$ indicates whether a pointer has been freed $\poisoned$ or is still allocated $\poisonless$, so that pointers can be used even after their deallocation without the semantics getting stuck.
 Runtime terms are simply expressions $\expr$ paired with the operational state $\statevar$.
 
 \begin{gather*}
@@ -1208,10 +1236,13 @@ Runtime terms are simply expressions $\expr$ paired with the operational state $
   \end{aligned}
 \end{gather*}
 
-All languages use the same trace model.
-In this trace model, events are either the empty event \emptyevent, the program crash event $\lightning$, or a tuple consisting of a control tag $\sandboxtag$ and a security tag $\securitytag$.
+All languages use the same trace model, where events are either the empty event \emptyevent, the program crash event $\lightning$, or a tuple consisting of a control tag $\sandboxtag$ and a security tag $\securitytag$.
 The former indicates whether the component \comp or the context \ctx is to blame for emitting this event, the latter indicates the secrecy level of values of the emitted event, i.e., either $\lock$ or $\unlock$.
 As for pre-events, the memory-related ones are allocation ($\ev{Alloc}\ \loc\ \valueexpr$), deallocation ($\ev{Dealloc}\ \loc$), reading from ($\ev{Get}\ \loc\ \valueexpr$) and writing to memory ($\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']$).
+
+\MPpost{
+	this is a bit abrupt
+}
 
 \begin{center}
   \judgbox{\pstepto{\runtimetermvar}{\runtimetermvar[']}{\event}}{,,$\runtimetermvar$ does one primitive step to $\runtimetermvar[']$ emitting event $\event$.''}
@@ -1254,14 +1285,14 @@ As for pre-events, the memory-related ones are allocation ($\ev{Alloc}\ \loc\ \v
   }{e-abort}
 \end{center}
 
-\Cref{tr:e-dealloc,tr:e-get-in,tr:e-set-notin} demonstrate the use of the poison tag $\poison$ as metadata for pointers instead of removing them from the store $\Delta$.
-Take deallocation as an example, the premise does not care at all about the actual state of the poison tag $\poison$ and just overwrites it, marking the location as freed $\poisoned$.
-Besides that, the poison tag does not have any semantic meaning, at least in general.
+To demonstrate the use of the poison tag $\poison$ as metadata for pointers instead of removing them from the store $\Delta$, consider \Cref{tr:e-dealloc,tr:e-get-in,tr:e-set-notin} .
+In \Cref{tr:e-dealloc}, the premise does not care at all about the actual state of the poison tag $\poison$ and just overwrites it, marking the location as freed $\poisoned$.
+Besides that, the poison tag does not have any semantic meaning.
 For language $\Ltms$, this tag is really just some semantic metadata that programmers have no access to.
 But, for the other languages, e.g., $\Ltrg$, the poison tag is used to check pointer validity.
-The \Cref{tr:e-new} allocates enough space on the respective heap, either $H^{\ctx}$ or $H^{\comp}$ depending on the execution context, i.e., the value of $\Omega.\sandboxtag$, and adds the appropriate metadata associated to the pointer in $\Delta$.
-Reading from and writing to memory have to cases: Either the heap is large enough or not and, depending on that, either the actual value stored at that location is read from or written to, or some garbage data is returned.
-However, note that the execution does not get stuck in such cases, performs a step, and emits an appropriate event.
+\Cref{tr:e-new} allocates enough space on the respective heap, either $H^{\ctx}$ or $H^{\comp}$ depending on the execution context, i.e., the value of $\Omega.\sandboxtag$, and adds the appropriate metadata associated to the pointer in $\Delta$.
+Reading from \Cref{tr:e-get-in} and writing to memory \Cref{tr:e-set-notin} have two cases: Either the heap is large enough or not and, depending on that, either the actual value stored at that location is read from or written to, or some garbage data is returned.
+However, note that the execution does not get stuck in such cases, it performs a step, and emits an appropriate event.
 Also note that whether a pointer is poisoned or not is not reflected on the trace.
 
 \begin{center}
@@ -1275,7 +1306,7 @@ The reason for these interaction events is technical: They are a proof artifact 
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
 Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
 For calls without this context switch, the environmental semantics attaches the $\nocomm$ tag.
-In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
+In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.\MP{i don't think this is used?}
 
 \begin{center}
   \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime-term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
@@ -1300,9 +1331,10 @@ In \Cref{tr:e-ret-notsame,tr:e-call-notsame}, the judgement $\Omega.\commlib\vda
 Additional rules that are left out ensure that, e.g., when calling the $\text{main}$ function, the event $\ev{Start}$ is emitted, which is a design choice this paper does for convenience when reasoning about call-chains.
 Note that the $\ev{End}\ \valueexpr$ event is not emitted if the program crashes.
 
-\MKin{%
-  should I add a rule for top level exec or keep it like this?
-}
+% \MKin{%
+%   should I add a rule for top level exec or keep it like this?
+% 	MP: like this is fine
+% }
 The top-level execution $\progstepto{\prog{\library_{\ctx}}{\library_{\comp}}}{\runtimetermvar}{\trace}$ constructs an initial state $\Omega$ by linking $\library_{\ctx}$ and $\library_{\ctx}$ and then starts execution by calling the $\text{main}$ function.
 The trace $\trace$ emitted during that execution serves as abstraction of the behavior of the program enabling the use of \Cref{def:propsat,def:proprsat}.
 
@@ -1371,25 +1403,31 @@ If the array bound to $\trg{x}$ was allocated, i.e., has been poisoned ($\trg{\p
   }{e-has-nat-yes}
 \end{center}
 
-Typechecks $\lhast{\expr}{\type}$ match on $\trg{\expr}$ and evaluate to $\trg{0}$ if the term is of type $\trg{\type}$ and $\trg{1}$ otherwise.
+Dynamic typechecks $\trg{\lhast{\expr}{\type}}$ match on $\trg{\expr}$ and evaluate to $\trg{0}$ if the term is of type $\trg{\type}$ and $\trg{1}$ otherwise.
 
 %
 The projection $\msfilterL{\trg{\trace}}$ is entirely similar to $\msfilterLtms{\src{\trace}}$.
+\MPin{
+	entirely similar? no. equal
+}
+
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
 To enhance readablity, this paper uses $\Lms$, despite it being exactly equal to $\Ltrg$ (\Cref{subsec:lsms}).
 The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL{\trg{\trace}}$.
 
+
 \subsection{$\Lscct$: A Memory-Unsafe Language with a Data Independent Timing Mode}\label{subsec:lscct}
 
-\begin{center}
-  \begin{align*}
+\begin{gather*}
+  \begin{aligned}
     \mi{(Expressions)}~\obj{\expr}&\bnfdef \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots \mid \obj{\lwrdoit{\expr}} \mid \obj{\lrddoit{x}{\expr}}
-  \end{align*} \\
-  \begin{align*}
+  \end{aligned} 
+  \\
+  \begin{aligned}
     \mi{(States)}~\obj{\statevar}&\bnfdef \obj{\tup{\cfstate}{\sandboxtag,n,\memstate}}
-  \end{align*}
-\end{center}
+  \end{aligned}
+\end{gather*}
 
 $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to write to a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
 To this end, states are extended with the value of the register, which is initially set to be not active.
@@ -1408,6 +1446,7 @@ Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj
 To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends pre-events with $\obj{\widehat{Get}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$.
 These indicate reads from and writes to memory without leaking secret information involved in the access.
 Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
+\MPin{rules are not explained}
 
 \begin{center}
   \typerule{$e-\obj{\oplus}-\text{noleak}$}{
@@ -1469,6 +1508,11 @@ This allows flexibility: The trace can be checked to satisfy different propertie
   Consider again the context presented in \Cref{ex:strncpy:cpp11}, where everything is marked with a security tag of high $\lock$.
   The following table shows parts of the execution trace, read from top to bottom, in the left column with and in the right column without data independent timing.
   The left side of the table, i.e., the two columns on the left, describe the execution trace of the program, while the right side of the table, i.e., the two columns on the right, describe the respective projections $\scctfilterLscct{\obj{\trace}}$ to the specification trace model.
+  \MPin{
+  very nice.
+  final bit, perhaps highlight those events taht are mentioned in the text, so they are easily recognisable?
+  like yellow BG for the events, gray BG for the locks 
+  }
 
   $${\footnotesize
   \begin{array}{ccccccc}
@@ -1807,6 +1851,7 @@ Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\ccc
 	Since TMS + SMS = MS, ?? is MS.
 	?? gets optimised by the optimisation passes and its optimisation is ???, which is still MS.
 	Finally, \Thmref{thm:ccab:rtp:ms} ensures that ??? gets compiled into ????, which is CCT assuming that the original program was CCT to begin with.
+	\MPin{please fill in the macros here}
   % \MKin{%
   %   \textbackslash Thmref or \textbackslash Cref?
   % }
@@ -1876,6 +1921,14 @@ This paper abstracts over concrete mitigation strategies and simply assumes that
 This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, which translates common non-constant time code patterns to be constant-time, and the data (object) independent timing execution mode of modern processors.
 
 \section{Conclusion\pages{$\sfrac{1}{2}$}}\label{sec:concl}
+This paper tackled the problem of understanding what kind of security properties does a secure compiler preserve, when said compiler is the combination of smaller compiler passes that preserve possibly different security properties.
+% 
+For this, this paper first formalised security properties of interest and their composition.
+% 
+Then, it proved that composing secure compilers that preserve certain properties results in a secure compiler that preserves the composition of the properties.
+% 
+Finally, this paper defines a multi-pass compiler and proves that it preserves \gls{msscct}.
+Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
 
 
 % This paper does a first step towards practical secure compilation chains by introducing a theoretical framework demonstrating that secure compilers compose.

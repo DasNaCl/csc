@@ -612,7 +612,7 @@ To this end, monitor satisfaction is defined as follows.
   \bul{$\monsafe{\trace}{\pi}$} $\isdef$ $\exists \abstrace\ \monitor$, \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
 \end{definition}
 
-\subsubsection{Monitor for \glsfirst{tms}}
+\subsubsection{Monitor for \glsfirst{tms}}\label{subsubsec:tms}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{allocated}:L\times\sandboxtag,\text{freed}:L\times\sandboxtag\right\} \hspace{0.33cm}%
@@ -757,7 +757,7 @@ int main() {  // allocates 12 chars containing a greeting message
   It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls{sms}.
 \end{example}
 
-\subsubsection{Monitor for \glsfirst{sms}}
+\subsubsection{Monitor for \glsfirst{sms}}\label{subsubsec:sms}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\smsmonitor:=\ L\times\sandboxtag\times\mb{N}\hspace{0.33cm}&
@@ -956,24 +956,27 @@ This section presents the key meta-theoretic results of this paper concerning se
 \subsection{Secure Sequential Composition}\label{sec:sequential}
 
 The main result is that secure compilers in the robust compilation framework~\cite{abate2019jour} compose {\em sequentially}.
-This is not intuitive in the sense that there are a number of examples in the security domain where sequential composition does not work~\cite{canetti2006univcomp,mccullough2012compo,fabian2022automatic}.%
-\MP{?canetti?} %% protocols under certain security notions are not secure when composed
-The sequential composition of compilers $\cc{\src{L}}{\trg{L}}$ and $\cc{\trg{L}}{\obj{L}}$ is defined as follows: given an $\src{L}$ program $\src{p}$, its compiled $\obj{L}$ counterpart is obtained by plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$.
-Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
-\MPin{
-	section 3.1 never defined the $\cap$ operator on properties, nor on classes.
-	it uses the 'and'.
-	rectify
-}
+This is not intuitive in the sense that in the security domain, composition does not work without additional generalizations~\cite{canetti2006univcomp,mccullough2012compo,fabian2022automatic}.
+The \bul{sequential composition of compilers $\cc{\src{L}}{\trg{L}}$ and $\cc{\trg{L}}{\obj{L}}$} is defined as follows:
+Given an $\src{L}$ program $\src{p}$ and compilers $\cc{\src{L}}{\trg{L}},\cc{\trg{L}}{\obj{L}}$, \rul{its compiled $\obj{L}$ counterpart is obtained by plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$}.
+\begin{definition}
+  \bul{$\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$} $\isdef$ Given $\src{p}$, yield \rul{$\cc{\trg{L}}{\obj{L}}\left(\cc{\src{L}}{\trg{L}}(\src{p})\right)$}
+\end{definition}
+
+Consider the compilation chain for $\src{TypeScript}$.
+First, $\src{TypeScript}$ programs are translated to $\trg{JavaScript}$ which, e.g., V8~\cite{googlev8} eventually compiles in parts to $\irl{Ignition BC}$.
+The following theorem establishes what happens if all these compilation steps were robustly secure with respect to \gls{ms}:
+The resulting $\irl{Ignition BC}$ code would be \gls{ms} regardless of the context the binary runs in.
+
+Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtp}
   If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\trg{L}}{\obj{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
 \end{theorem}
 
 Since the composition of secure compilers is again a secure compiler, the theorem generalises to a whole chain of $n$ secure compilers.
-Pretending that the following compilers are secure, consider the compilation chain for $\src{TypeScript}$.
-First, $\src{TypeScript}$ programs are translated to $\trg{JavaScript}$ which, e.g., V8~\cite{googlev8} eventually compiles in parts to $\irl{Ignition BC}$.
-Were all these compilation steps robustly secure with respect to \gls{ms}, the resulting $\irl{Ignition BC}$ code would be \gls{ms} regardless of the context the binary runs in.
+It is worth pointing out that \gls{ms} (\Cref{subsubsec:ms}) is an example of a practically relevant intersection of classes, namely, \gls{tms} and \gls{sms} (\Cref{subsubsec:tms,subsubsec:sms}).
+However, the properties need to be lifted~\cite{clarkson2008hyper} to sets of properties by applying the powerset operation.
 
 \subsubsection{Securing Optimisations}
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
@@ -989,20 +992,20 @@ The order in which \gls{cf} and \gls{dce} are performed influences the final res
 \begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}
-      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left] (progunopt) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
+      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left] (progunopt) {\begin{lstlisting}[language=ml,basicstyle=\small\ttfamily]
 let a = true in
 if a then
   print "a"
 else
   print "b"
 \end{lstlisting}};
-      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progunopt] (progoptcf) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
+      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progunopt] (progoptcf) {\begin{lstlisting}[language=ml,basicstyle=\small\ttfamily]
 if true then
   print "a"
 else
   print "b"
 \end{lstlisting}};
-      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progoptcf] (progoptcfdce) {\begin{lstlisting}[language=ml,basicstyle=\scriptsize\ttfamily]
+      \node[minimum width=3cm,minimum height=2.5cm,draw=black,very thick,align=left,right=1.0 of progoptcf] (progoptcfdce) {\begin{lstlisting}[language=ml,basicstyle=\small\ttfamily]
 print "a"
 \end{lstlisting}};% the following is a hack to get my syntax highlighting to work again \end{lstlisting}
       % edges
@@ -1027,30 +1030,57 @@ So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{
 
 \subsection{Secure Upper and Lower Composition}\label{sec:other-compos}
 Besides sequential composition, there are two other compositions, namely an {\em upper}, i.e., a compiler that takes multiple inputs and yields one output, and a {\em lower} composition, i.e., a compiler that takes one input and yields multiple outputs.
+\bul{Define the upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$} as follows:
+Given a program \texttt{p}, its compiled counterpart is obtained by \rul{plugging \texttt{p} into $\cc{\src{L}}{\trg{L}}$ if $\texttt{p}\in\src{L}$} or by \oul{plugging \texttt{p} into $\cc{\obj{L}}{\trg{L}}$ if $\texttt{p}\in\obj{L}$}.
+\begin{definition}[Upper Composition]
+  \bul{$\cc{\src{L}+\obj{L}}{\trg{L}}$} $\isdef$ Given \texttt{p}, yield
+  $\left\{\mbox{\begin{tabular}{c}
+    {\rul{if $\texttt{p}\in\src{L}$, then $\cc{\src{L}}{\trg{L}}(\texttt{p})$}} \\
+    \mbox{\oul{if $\texttt{p}\in\obj{L}$, then $\cc{\obj{L}}{\trg{L}}(\texttt{p})$}} \\
+  \end{tabular}}\right.$
+%
+%
+%  $\begin{cases}
+%                                                                            \rul{\cc{\src{L}}{\trg{L}}(\texttt{p}) & \text{if }\texttt{p}\in\src{L}} \\
+%                                                                            \cc{\obj{L}}{\trg{L}}(\texttt{p}) & \text{if }\texttt{p}\in\obj{L}
+%                                                                          \end{cases}$
+\end{definition}
+
 Examples of this are present in industry:
 Consider the Java Virtual Machine bytecode $\trg{JVM BC}$, which is a popular target for programming language designers due to its high performance and relevance in industry.
 Compilers for several programming languages have it as their target language, some popular instances are $\src{Java}$ and $\obj{Kotlin}$.
 Technically speaking, they both compile to class files and $\obj{Kotlin}$ objects are considered to be the same as $\src{Java}$ objects at that point.
 Both languages can be used at the same time in one project~\cite{androidstudio}.
 A compiler that accepts both $\src{Java}$ and $\obj{Kotlin}$ code translating to the same target language or intermediate representation performs a kind of {\em upper} composition.
-The definition of upper composition is as follows: given a program $\mathtt{p}$, its compiled $\trg{L}$ counterpart is obtained by plugging $\mathtt{p}$ into $\cc{\src{L}}{\trg{L}}$ if $\mathtt{p}\in\src{L}$ or by plugging $\mathtt{p}$ into $\cc{\obj{L}}{\trg{L}}$ if $\mathtt{p}\in\obj{L}$, written as $\cc{\src{L}+\obj{L}}{\trg{L}}$.
-\MP{
-	put into def env
-}
-Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\obj{L}}{\trg{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
+Now, the following theorem tells us what happens if these are secure:
+Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\obj{L}}{\trg{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Upper Composition of Secure Compilers]\label{thm:urtp}
   If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\obj{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}+\obj{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
 \end{theorem}
 
 Dually, the {\em lower} composition is concerned about compilers that accept the same source but yield different target languages. %and the same theoretical results apply.
+\bul{Define the lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$} as follows:
+Given a program $\src{p}$, its compiled counterpart is obtained by \rul{plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}$} or by \oul{plugging \texttt{p} into $\cc{\src{L}}{\obj{L}}$}, respectively, \pul{based on the internal decision}.
+\begin{definition}[Lower Composition]
+  \bul{$\cc{\src{L}}{\trg{L}+\obj{L}}$} $\isdef$ Given $L$ and $\src{p}$, yield
+  $\left\{\mbox{\begin{tabular}{c}
+    {\pul{if $L=\trg{L}$, then} \rul{$\cc{\src{L}}{\trg{L}}(\src{p})$}} \\
+    \mbox{\pul{if $L=\obj{L}$, then} \oul{$\cc{\src{L}}{\obj{L}}(\src{p})$}} \\
+  \end{tabular}}\right.$
+%
+%
+%  $\begin{cases}
+%                                                                            \rul{\cc{\src{L}}{\trg{L}}(\texttt{p}) & \text{if }\texttt{p}\in\src{L}} \\
+%                                                                            \cc{\obj{L}}{\trg{L}}(\texttt{p}) & \text{if }\texttt{p}\in\obj{L}
+%                                                                          \end{cases}$
+\end{definition}
+
 Consider two compilers both accepting $\src{LLVM IR}$~\cite{lattner2004llvm} and one of them emits $\trg{x86\_64}$, while the other emits $\trg{ARMv8}$.
 It is intuitive that they are in some sense composed in the LLVM framework, but the decision of when to use one over the other is inherently {\em internal} to the formalisation effort of this kind of composition.
 For example, the user of this compiler provides an explicit flag that instructs to emit $\trg{x86\_64}$ or the framework itself detects the target platform via heuristics, such as supported instructions.
-The %proposed
-definition of lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ is as follows: given a program $\src{p}$, its compiled $\trg{L}$ or $\obj{L}$ program is obtained by performing an internal decision and threading $\src{p}$ into $\cc{\src{L}}{\trg{L}}$ or into $\cc{\src{L}}{\obj{L}}$ depending on that decision.
-\MP{into def}
-Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\src{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
+The following theorem demonstrates what happens if the involved compilres are secure:
+Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\src{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Lower Composition of Secure Compilers]\label{thm:lrtp}
   If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\obj{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}+\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. %\Coqed

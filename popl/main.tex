@@ -1209,7 +1209,7 @@ Runtime terms are simply expressions $\expr$ paired with the operational state $
 
 All languages use the same trace model.
 In this trace model, events are either the empty event \emptyevent, the program crash event $\lightning$, or a tuple consisting of a control tag $\sandboxtag$ and a security tag $\securitytag$.
-The former indicates wether the component \comp or the context \ctx is to blame for emitting this event, the latter indicates the secrecy level of values of the emitted event, i.e., either $\lock$ or $\unlock$.
+The former indicates whether the component \comp or the context \ctx is to blame for emitting this event, the latter indicates the secrecy level of values of the emitted event, i.e., either $\lock$ or $\unlock$.
 As for pre-events, the memory-related ones are allocation ($\ev{Alloc}\ \loc\ \valueexpr$), deallocation ($\ev{Dealloc}\ \loc$), reading from ($\ev{Get}\ \loc\ \valueexpr$) and writing to memory ($\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']$).
 
 \begin{center}
@@ -1261,12 +1261,12 @@ But, for the other languages, e.g., $\Ltrg$, the poison tag is used to check poi
 The \Cref{tr:e-new} allocates enough space on the respective heap, either $H^{\ctx}$ or $H^{\comp}$ depending on the execution context, i.e., the value of $\Omega.\sandboxtag$, and adds the appropriate metadata associated to the pointer in $\Delta$.
 Reading from and writing to memory have to cases: Either the heap is large enough or not and, depending on that, either the actual value stored at that location is read from or written to, or some garbage data is returned.
 However, note that the execution does not get stuck in such cases, performs a step, and emits an appropriate event.
-Also note that wether a pointer is poisoned or not is not reflected on the trace.
+Also note that whether a pointer is poisoned or not is not reflected on the trace.
 
 \begin{center}
-  \begin{aligned}
+  \begin{align*}
     \mi{(Pre\text{-}Events)}~\event[_{b}]&\bnfdef \cdots \mid \ev{Call}\ \comm\ g\ \valueexpr \mid \ev{Ret}\ \comm\ \valueexpr \mid \ev{Start} \mid \ev{End}\ \valueexpr \\
-  \end{aligned}
+  \end{align*}
 \end{center}
 
 A key difference in comparison with the specification trace model (\Cref{subsec:propdefs}) is that, as standard in secure compilation work~\cite{patrignani2021rsc,abate2019jour,korashy2021capableptrs}, the traces have a call and return event that signals context switches, which are referred to as {\em interaction events}.
@@ -1318,7 +1318,7 @@ Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a loca
   \typerule{$\Ltms$-filter-context}{
     \src{\event[_b]}\not=\src{\lightning}
   }{
-    \msfilterLtms{\src{\tup{\event[_b]}{\ctx}} = \emptyevent}
+    \msfilterLtms{\src{\tup{\event[_b]}{\ctx,\securitytag}} = \emptyevent}
   }{ltms-filter-context}
   %
   \typerule{$\Ltms$-filter-abort}{
@@ -1349,9 +1349,9 @@ But, it also filters any action that a context does as well as the interaction e
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
 \begin{center}
-  \begin{aligned}
+  \begin{align*}
     \mi{(Expressions)}~\trg{\expr}&\bnfdef \cdots \mid \trg{\lispoisoned{x}} \mid \trg{\lhast{\expr}{\type}} \\
-  \end{aligned}
+  \end{align*}
 \end{center}
 
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks $\trg{\lhast{\expr}{\type}}$ and a way to inspect poison tags $\trg{\lispoisoned{x}}$ in the metadata of pointers.
@@ -1379,23 +1379,90 @@ The projection $\msfilterL{\trg{\trace}}$ is entirely similar to $\msfilterLtms{
 To enhance readablity, this paper uses $\Lms$, despite it being exactly equal to $\Ltrg$ (\Cref{subsec:lsms}).
 The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL{\trg{\trace}}$.
 
-\subsection{$\Lscct$: A Language with a Data Independent Timing Mode}\label{subsec:lscct}
+\subsection{$\Lscct$: A Memory-Unsafe Language with a Data Independent Timing Mode}\label{subsec:lscct}
 
-While the previous languages (\Cref{subsec:ltms,subsec:lsms,subsec:lms}) are not concerned with \gls{cct}, $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a register flag for a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
-For the other languages seen earlier, this mode is intuitively always-on.
-\MP{spell out the formal changes in an align* environmtn} % this necessitates that we present $\Omega$ also in the shared lang defs
-To modify the mode, $\Lscct$ extends expressions with the term $\obj{\lwrdoit{\expr}}$ that writes the value of $\obj{\expr}$ into the register and with a term $\obj{\lrddoit{x}{\expr}}$ that reads the value of the register into $\obj{x}$.
-If the register is turned on, no secrets can appear on traces.
-If the register is turned off, secrets may appear on traces as well as new events $\obj{Branch\ n}$ and $\obj{Binop\ n}$, which the semantics emits for conditionals and certain binary operations, e.g., division.
-To prevent leakage of secrets but still enable reasoning about memory safety, pre-events are extended with $\obj{\widehat{{Get}}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$, which indicate reads from and writes to memory without leaking secret information involved in the access, which is taken care of by the projection to specification events.
-\Cref{ex:lscct} illustrates these changes.
-\MPin{formalisation additions in algin* env}
+\begin{center}
+  \begin{align*}
+    \mi{(Expressions)}~\obj{\expr}&\bnfdef \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots \mid \obj{\lwrdoit{\expr}} \mid \obj{\lrddoit{x}{\expr}}
+  \end{align*} \\
+  \begin{align*}
+    \mi{(States)}~\obj{\statevar}&\bnfdef \obj{\tup{\cfstate}{\sandboxtag,n,\memstate}}
+  \end{align*}
+\end{center}
 
-The projection to the specification trace model is mostly straightforward.
-But for events containing the pre-events $\obj{\widehat{Get}}$ and $\obj{\widehat{Set}}$, the projection always translates the security-tag $\obj{\sigma}$ to $\unlock$, regardless of its actual value.
+$\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to write to a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
+To this end, states are extended with the value of the register, which is initially set to be not active.
+If the register is marked active, the intuition is that no secrets can appear on specification traces.
+If the register is marked inactive, secrets may appear on traces.
+For the other languages seen earlier, the mode is intuitively always-on, i.e., the mode of execution always uses data independent timing.
+The language also adds user-annotations to values and variables to know their secrecy $\obj{\securitytag}$, which is either high $\obj{\lock}$ or low $\obj{\unlock}$.
+Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
+
+\begin{center}
+  \begin{align*}
+    \mi{(Pre\text{-}Events)}~\obj{\event[_{b}]}&\bnfdef \cdots \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr[']} \mid \obj{Branch\ n} \mid \obj{Binop\ n}
+  \end{align*}
+\end{center}
+
+To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends pre-events with $\obj{\widehat{Get}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$.
+These indicate reads from and writes to memory without leaking secret information involved in the access.
+Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
+
+\begin{center}
+  \typerule{$e-\obj{\oplus}-\text{noleak}$}{
+    \obj{m}\not=\obj{0} &
+    \obj{n_3}=\obj{n_1}\oplus\obj{n_2} \\
+    \obj{\securitytag['']}\le\obj{\securitytag} &
+    \obj{\securitytag['']}\le\obj{\securitytag[']}
+  }{
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lbinop{n_1^{\securitytag}}{n_2^{\securitytag[']}}}}}{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{n_3^{\securitytag['']}}}}{\obj{\emptyevent}}
+  }{e-binop-noleak}
+  %
+  \typerule{$e-\obj{wrdoit}$}{
+  }{
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lwrdoit{n^{\securitytag}}}}}{\rtt{\obj{\cfstate;\sandboxtag;n;\memstate}}{\obj{n^{\securitytag}}}}{\obj{\emptyevent}}
+  }{e-wrdoit}
+  %
+  \typerule{$e-\obj{ifz}-\obj{true}-\text{leak}$}{
+  }{
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;0;\memstate}}{\obj{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\rtt{\obj{\cfstate;\sandboxtag;0;\memstate}}{\obj{\expr[_2]}}}{\obj{\ev{Branch}\ 0;\sandboxtag;\securitytag}}
+  }{e-ifz-true-leak}
+\end{center}
+
+The evaluation steps are amended to propagate the securitytags $\obj{\securitytag}$.
+When the data independent timing mode is active, pre-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
+To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
+
+\begin{center}
+  \judgbox{\scctfilterLscct{\obj{\event}}=\event}{,,Project an $\Lscct$ event $\obj{\event}$ to a specification event $\event$.''}
+  \typerule{$\Lscct$-filter-context}{
+    \obj{\event[_b]}\not=\obj{\lightning}
+  }{
+    \scctfilterLscct{\obj{\tup{\event[_b]}{\ctx,\securitytag}} = \emptyevent}
+  }{lscct-filter-context}
+  %
+  \typerule{$\Lscct$-filter-$\widehat{\text{get}}$}{
+    \locmapsto{\obj{\loc}}{\loc} &
+    \obj{n}=n
+  }{
+    \scctfilterLscct{\obj{\tup{\widehat{Get}\ \loc\ n}{\comp,\securitytag}}} = \tup{\ev{Get}\ \loc\ n}{\comp,\unlock}
+  }{lscct-filter-get-hat}
+  %
+  \typerule{$\Lscct$-filter-$\text{get}$}{
+    \locmapsto{\obj{\loc}}{\loc} &
+    \obj{n}=n
+  }{
+    \scctfilterLscct{\obj{\tup{Get\ \loc\ n}{\comp,\securitytag}}} = \tup{\ev{Get}\ \loc\ n}{\comp,\securitytag}
+  }{lscct-filter-get}
+\end{center}
+
+The projection to the specification trace model is mostly straightforward and similar to the others, e.g., \Cref{subsec:cs:tms}.
+However, for events containing the pre-events $\obj{\widehat{Get}}$ and $\obj{\widehat{Set}}$, the projection always translates the security-tag $\obj{\sigma}$ to $\unlock$, regardless of its actual value, as seen in \Cref{tr:lscct-filter-get-hat}.
 The pre-events themselves still translate to just $\ev{Get}$ and $\ev{Set}$, respectively.
-With this technical setup, the information wether\MP{spelling} a read or write happened on a secret value is not hidden by the semantics, e.g., by emitting $\obj{\emptyevent}$, but when projecting to specification events.
+With this technical setup, the information whether a read or write happened on a secret value is not hidden by the semantics, e.g., by emitting $\obj{\emptyevent}$, but when projecting to specification events.
 This allows flexibility: The trace can be checked to satisfy different properties, such as, in this case, \gls{tms}, \gls{sms}, \gls{scct}, and their combined versions.
+\Cref{ex:lscct} illustrates the differences of $\Lscct$ compared to the other languages.
+
 
 \begin{example}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
   Consider the following $\Lscct$ program and the execution trace $\obj{\trace}$ juxtaposed with it.

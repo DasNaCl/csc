@@ -1549,16 +1549,25 @@ The final result is that the whole compilation chain robustly preserves \gls{mss
 
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
-\MPin{some text should introduce the compiler defs}
 
-  \begin{align*}
-%    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\ [0.33cm]
-    \cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}}) = \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{%
+This subsection defines a secure compiler from $\Ltms$ to $\Ltrg$.
+To this end, the compiler needs to ensure that when execution switches from context to component, the type signatures are respected.
+It can do so by inserting dynamic typechecks prior to entering the body of a function belonging to the component.
+
+\begin{gather*}
+  \begin{aligned}
+    \cca(\src{x}) & = \trg{x} \\
+    \cca(\src{n}) & = \trg{n} \\
+    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & =  \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\
+    \cca(\src{\lget{x}{\expr}}) & = \lget[\trg]{\trg{x}}{\left[\cca(\src{\expr})\right]} \\
+    \cca(\src{\ldelete{x}}) & = \ldelete[\trg]{\left[\cca(\src{x})\right]} \\
+%    \cca(\src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = \lset[\trg]{\left[\cca(\src{x})\right]}{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr_{2}})\right]} \\
+    \cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}}) & = \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{%
                                                                                                 \left[\cca(\src{\expr})\right] %
                                                                                                  }{\labort[\trg]}}
-  \end{align*}
+  \end{aligned}
+\end{gather*}
 
-The first compiler only inserts a dynamic typecheck to respect the well-typedness of function bodies.
 Since $\trg{L}$ has no static typechecks, it could happen that a bogus context $\trg{\library_{\ctx}}$ invokes a callable object accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
 By inserting the check, the compiler ensures that execution does not proceed in such cases.
 The compiler does not insert other checks and proceeds as the identity function (which in this paper amounts to a simple re-colouring of $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions).
@@ -1704,7 +1713,7 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
     Consider again \texttt{strncpy}, but this time with an instrumented version of \texttt{strncpy}:
     \begin{lstlisting}[language=c,basicstyle=\ttfamily\small, morekeywords={size_t}]
   void strncpy(size_t n, size_t dst_size, char *dst,
-                        size_t src_size, char *src) {
+                         size_t src_size, char *src) {
     for(size_t i = 0; i < src_size && src[i] != '\0' && i < n; ++i) {
       if(i < src_size && i < dst_size) {
         dst[i] = src[i];
@@ -1770,7 +1779,8 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
 \begin{center}
   $$
   \begin{array}{rcl}
-    \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = & \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{1};}\ccscct(\irl{\expr})}
+    \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = & \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{1};}\ccscct(\irl{\expr})} \\
+    \ccscct(\irl{\lcall{g}{\expr}}) & = & \lcall[\obj]{\obj{g}}{\ccscct(\expr)\obj{; wrdoit{1}}}
   \end{array}
   $$
 \end{center}

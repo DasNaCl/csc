@@ -545,8 +545,8 @@ Note, however, that this definition says nothing about memory-safety issues intr
 \subsubsection{Strict Cryptographic Constant Time}
 
 \gls{cct} is a hypersafety property~\cite{barthe2018sec} and, thus, difficult to check with monitors.
-This is because, intuitively, hypersafety properties can relate multiple execution traces with eachother, but monitors work on a single execution. not as easy to check with just monitors.
-To remedy this, this section defines the property \gls{scct}, a stricter variant of \gls{cct} that enforces the policy that no secret should appear on a trace (inspired by earlier work~\cite{almeida2017jasmin}).
+This is because, intuitively, hypersafety properties can relate multiple execution traces with eachother, but monitors work on a single execution.
+To sidestep this issue, this section defines the property \gls{scct}, a stricter variant of \gls{cct} that enforces the policy that no secret appears on a trace (inspired by earlier work~\cite{almeida2017jasmin}).
 
 \begin{definition}[\glsfirst{scct}]\label{def:trace:scctdef}
   $
@@ -750,7 +750,7 @@ int main() {  // allocates 12 chars containing a greeting message
   \end{lstlisting}
   Up to the body of \texttt{printf}, the program execution yields the specification trace $\ev{Alloc}\ \loc[_{x}]\ 12;\comp;\unlock\cdot\ev{Alloc}\ \loc[_{y}]\ 12;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 12;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{y}];\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 6;\comp;\unlock$.
   Relating this trace to abstract monitor events yields $\abstrace=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
-  Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), it is easy to see that it does not deallocate its arguments.
+  Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), observe that it does not deallocate its arguments.
   Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls{tms}, since the location $\loc[_{x}]$ is still allocated.
   However, having returned from \texttt{strncpy}, the \texttt{main} function continues and deallocates $\loc[_{y}]$ whose subsequent use in the \texttt{printf} call is a use-after-free bug.
   The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
@@ -1485,7 +1485,7 @@ In turn, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted du
 }
 
 The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls{dce} and \gls{cf}, respectively.
-Both are secure with respect to \gls{ms}, the proof of which is relatively easy, because \gls{dce} and \gls{cf} do not change the way memory accesses happen.
+Both are secure with respect to \gls{ms}, the proof of which is relatively simple, because \gls{dce} and \gls{cf} do not change the way memory accesses happen.
 Moreover, since the input and output languages to these compilers are the same, attacker contexts do not have more power in the target language than in the source.
 
 \begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls{ms}]\label{thm:ccdce:rtp:ms}

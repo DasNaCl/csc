@@ -756,7 +756,7 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
   If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
 \end{lemma}
 
-\begin{example}[A program not satisfying \gls{tms}]
+\begin{example}[A program not satisfying \gls{tms}]\label{ex:strncpy:cpp11}
   Consider the following \texttt{C++11} library that calls \texttt{strncpy} (\Cref{ex:strncpy}) and prints the result to the standard output stream.
 
   \begin{lstlisting}[language=c++,basicstyle=\small\ttfamily,mathescape,commentstyle=\color{gray}]
@@ -770,12 +770,12 @@ int greet() {  // allocates 12 chars containing a greeting message
   printf("%cOPL\n", to[6]);
 }
   \end{lstlisting}
-  Up to the body of \texttt{printf}, the program execution yields the specification trace $\ev{Alloc}\ \loc[_{x}]\ 12;\comp;\unlock\cdot\ev{Alloc}\ \loc[_{y}]\ 12;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 12;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{y}];\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 6;\comp;\unlock$.
-  Relating this trace to abstract monitor events yields $\abstrace=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
+  Up to the body of \texttt{printf}, the program execution yields the specification trace $\ev{Alloc}\ \loc[_{x}]\ 12;\comp;\unlock\cdot\ev{Alloc}\ \loc[_{y}]\ 12;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 12;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{y}];\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 6;\comp;\unlock$.
+  Relating this trace to abstract monitor events yields $\abstrace=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
   Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), observe that it does not deallocate its arguments.
   Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls{tms}, since the location $\loc[_{x}]$ is still allocated.
   However, having returned from \texttt{strncpy}, the \texttt{greet} function continues and deallocates $\loc[_{y}]$ whose subsequent use in the \texttt{printf} call is a use-after-free bug.
-  The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
+  The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
   It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls{sms}.
 \end{example}
 
@@ -1465,26 +1465,32 @@ This allows flexibility: The trace can be checked to satisfy different propertie
 
 
 \begin{example}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
-  Consider the following $\Lscct$ program and the execution trace $\obj{\trace}$ juxtaposed with it.
+  Consider again the context presented in \Cref{ex:strncpy:cpp11}, where everything is marked with a security tag of high $\lock$.
+  The following table shows parts of the execution trace, read from top to bottom, in the left column with and in the right column without data independent timing.
+  The left side of the table, i.e., the two columns on the left, describe the execution trace of the program, while the right side of the table, i.e., the two columns on the right, describe the respective projections $\scctfilterLscct{\obj{\trace}}$ to the specification trace model.
 
-  $$
-  \begin{array}{lcc}
-  \obj{\lwrdoit{0};} & \mid & \obj{\emptyevent}\\
-  \obj{\llet{x_{\lock}}{\lnew{5}{4}}{}} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 4;\sandboxtag;\unlock} \\
-  \obj{\lset{x}{2}{\lifz{0_{\lock}}{1}{3}};} & \mid & \obj{\ev{Branch}\ 0;\sandboxtag;\lock\cdot\ev{Set}\ \loc_{x}\ 2\ 1;\sandboxtag;\lock} \\
-  \obj{\lwrdoit{1};} & \mid & \obj{\emptyevent}\\
-  \obj{\llet{y_{\lock}}{\lnew{5}{4}}{}} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 4;\sandboxtag;\unlock}\\
-  \obj{\lset{y_{\lock}}{2}{\lifz{0_{\lock}}{1}{3}};} & \mid & \obj{\emptyevent\cdot\widehat{Set}\ \loc_{y}\ 2;\sandboxtag;\lock}\\
-  \end{array}
+  $${\footnotesize
+  \begin{array}{ccccccc}
+        & \Lscct &        &   &      & Spec & \\
+    Active & \mid & Inactive & \mid & Active & \mid & Inactive \\\hline
+    \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock\\
+    \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\unlock & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
+    \obj{\emptyevent} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
+    \obj{\widehat{\ev{Set}}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} & \mid & \obj{\ev{Set}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\unlock & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\lock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 1;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 1;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\unlock & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\lock\\
+    \obj{\emptyevent} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
+    \vdots & \mid & \vdots & \mid & \vdots & \mid & \vdots \\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 12;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 12;\comp;\lock} & \mid &  \ev{Use}\ \loc_{x}\ 12;\comp;\unlock & \mid & \ev{Use}\ \loc_{x}\ 12;\comp;\lock\\
+    \obj{\emptyevent} & \mid & \obj{\ev{Branch}\ 1;\comp;\lock} & \mid &  \emptyevent & \mid & \ev{Branch}\ 1;\comp;\lock\\
+    \obj{\ev{Dealloc}\ \loc_{y};\comp;\unlock} & \mid & \obj{\ev{Dealloc}\ \loc_{y};\comp;\lock} & \mid &  \ev{Dealloc}\ \loc_{y};\comp;\unlock & \mid & \ev{Dealloc}\ \loc_{y};\comp;\unlock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{y}\ 6;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{y}\ 6;\comp;\lock} & \mid &  \ev{Use}\ \loc_{y}\ 6;\comp;\unlock & \mid & \ev{Use}\ \loc_{y}\ 6;\comp;\lock\\
+  \end{array}}
   $$
 
   When the data independent timing mode is off, the execution yields events in similar fashion to before (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
-  But, if it is turned on, then the branching event does not fire anymore.
-  Moreover, writing to memory now yields the pre-event $\obj{\widehat{Set}}$, whose difference to $\obj{Set}$ becomes apparent when looking at the projection to the specification trace model.
-  \MPin{shouldn't we have 2 traces, one with the bit set, one without}
-  Projecting the above trace to the specification trace model yields the following trace (emitting empty events):
-  $\ev{Alloc}\ \loc_{x}\ 4;\sandboxtag;\unlock\cdot\ev{Branch\ 0}\cdot\ev{Set}\ \loc_{x}\ 2\ 1;\sandboxtag;\lock\cdot\ev{Alloc}\ \loc_{y}\ 4;\sandboxtag;\unlock\cdot\ev{Set}\ \loc_{y}\ 2;\sandboxtag;\unlock$.
-  Clearly, secrets are hidden ($\unlock$) after this projection for the section of the program where the data independent timing mode is turned on, while still containing the appropriate events to check for \gls{ms}.
+  But, if it is turned on, then the branching event does not fire anymore and both reading and writing to memory gets ultimately translated to a specification trace with no exposed secrets.
 \end{example}
 
 \section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
@@ -1809,10 +1815,7 @@ Since the case study of \Cref{sec:casestud:defs,sec:casestud:rtp} implements mea
 
 The robust preservation of properties as a compiler-level criterion has been analyzed extensively~\cite{abate2019jour,patrignani2021rsc,abate2021extacc,patrignani2019survey} and thus we build on that framework.
 No existing work is concerned with composing robustly safe compilers.
-\MPin{
-  perhaps say taht we believe this scales to different trace models too and differnet kinds of props, but the ocmposition of monitors becomes tricky
-  \MKin{conclusion?}
-}
+These works consider languages with different trace models and our technical setup can be adapted to that as long as security properties and their monitors are still defined on the same trace model.
 The work relating robust preservation with universal composability~\cite{patrignani2022universal} is closest to what this paper presents.
 The authors demonstrate a similar compositionalty theorem to what is presented here (\Cref{sec:compcomp}) but use it in the context of protocols.
 They do not demonstrate the scalability of the approach.

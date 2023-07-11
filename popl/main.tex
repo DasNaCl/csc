@@ -735,10 +735,10 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
 \end{lemma}
 
 \begin{example}[A program not satisfying \gls{tms}]
-  Consider the following \texttt{C++11} program that calls \texttt{strncpy} (\Cref{ex:strncpy}) and prints the result to the standard output stream.
+  Consider the following \texttt{C++11} library that calls \texttt{strncpy} (\Cref{ex:strncpy}) and prints the result to the standard output stream.
 
   \begin{lstlisting}[language=c++,basicstyle=\small\ttfamily,mathescape,commentstyle=\color{gray}]
-int main() {  // allocates 12 chars containing a greeting message
+int greet() {  // allocates 12 chars containing a greeting message
   char* greetings = new char[12] { "Hello POPL!" }; // <- address ${\color{gray}\loc_{x}}$
   char* to = new char[12];                          // <- address ${\color{gray}\loc_{y}}$
 
@@ -752,7 +752,7 @@ int main() {  // allocates 12 chars containing a greeting message
   Relating this trace to abstract monitor events yields $\abstrace=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
   Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), observe that it does not deallocate its arguments.
   Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls{tms}, since the location $\loc[_{x}]$ is still allocated.
-  However, having returned from \texttt{strncpy}, the \texttt{main} function continues and deallocates $\loc[_{y}]$ whose subsequent use in the \texttt{printf} call is a use-after-free bug.
+  However, having returned from \texttt{strncpy}, the \texttt{greet} function continues and deallocates $\loc[_{y}]$ whose subsequent use in the \texttt{printf} call is a use-after-free bug.
   The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
   It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls{sms}.
 \end{example}
@@ -1556,15 +1556,17 @@ Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\ccc
 \begin{theorem}[Compiler $\ccmsscct$ is secure with respect to \gls{scct}]\label{thm:ccall:rtp:msscct}
   $\rtp{\cc{\Ltms}{\Lscct}}{\mssafe\cap\scctsafe}$ \Coqed
 \end{theorem}
-\MPin{
-This you can write the proof of.
-Probably even in coq
-%
-	\MKin{ 
-	Should this appear here in the paper? It's basically identical to \Cref{thm:ccab:rtp:ms}
-
-	\MPin{yes it should}}
-}
+\begin{proof}
+  Consequence of \Thmref{thm:ccscct:rtp:scct}, \Thmref{thm:cccfccdce:rtp:ms}, and \Thmref{thm:ccab:rtp:ms} using \Thmref{thm:rtp}.
+  \MKin{%
+    \textbackslash Thmref or \textbackslash Cref?
+  }
+% Unfold the definition of $\rtp{\cc{\Ltms}{\Lscct}}{\mssafe\cap\scctsafe}$.
+% So, let $\pi\in\mssafe\cap\scctsafe$, $\src{\progvar}$ such that $\rsat{\src{\progvar}}{\pi}$ and let $\obj{\contextvar},\obj{\runtimetermvar}$ with $\progstepto{\prog[\obj]{\obj{\contextvar}}{\left(\cc{\Ltms}{\Lscct}(\src{\progvar})\right)}}{\obj{\runtimetermvar}}{\obj{\trace}}$.
+% What is left to show is $\scctfilterLscct[\emptyset]{\obj{\trace}}\in\pi$.
+% Let $\irl{\progvar}=\cc{\Ltms}{\Ltrg}\circ\cc{\Ltrg}{\Lms}\circ\cc[\gls{cf}]{\Lms}{\Lms}\circ\cc[\gls{dce}]{\Lms}{\Lms}(\src{\progvar})$ such that $\cc{\Lms}{\Lscct}(\irl{\progvar})=\cc{\Ltms}{\Lscct}(\src{\progvar})$.
+% Note that $\pi\in\scctsafe$, so apply \Thmref{thm:ccscct:rtp:scct}
+\end{proof}
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 
@@ -1603,7 +1605,7 @@ The instrumentation to ensure memory safety that this paper presents is inspired
 That work inserts bounds-checks in front of pointer-dereferences and, for this to work, inserts meta-data information on pointer creation.
 It also works in a more advanced setting with structured fields accesses and also introduces a table-lookup for pointers that are stored in memory.
 This paper only considers pointers to arrays of simple objects, i.e., there are no pointers to pointers or structures.
-Of course, there are a lot of other approaches to memory-safety in literature, specifically as compiler instrumentations~\cite{akritidis2009baggy,younan2010paricheck,jung2021pico,shankaranarayana2023tailcheck,dhumbumroong2020boundwarden,nam2019framer,zhou2023fatptrs}, hardware-extensions~\cite{kwon2013lowfat,saileshwar2022heapcheck,chen2023flexpointer,kim2023whistle}, or programming language extensions~\cite{elliott2018checkedc,li2022formalcheckedc,jim2002cyclone,elliott2015guilt,west2005cuckoo,weis2019fyr,benoit2019uniqueness}, to name a few.
+Of course, there are a lot of other approaches to memory-safety in literature, specifically as compiler instrumentations~\cite{akritidis2009baggy,younan2010paricheck,jung2021pico,shankaranarayana2023tailcheck,dhumbumroong2020boundwarden,nam2019framer,zhou2023fatptrs}, hardware-extensions~\cite{kwon2013lowfat,saileshwar2022heapcheck,chen2023flexpointer,kim2023whistle}, or programming language extensions~\cite{elliott2018checkedc,li2022formalcheckedc,necula2005ccured,jim2002cyclone,elliott2015guilt,west2005cuckoo,weis2019fyr,benoit2019uniqueness}, to name a few.
 What differentiates this work from them is that this work uses known, compiler-based approaches to ensure memory-safety as a means to investigate secure compiler compositions.
 This paper does not provide efficient memory-safety, but serves as a theoretical foundation for the secure compilation domain.
 

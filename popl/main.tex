@@ -211,34 +211,24 @@
 %% article.
 \begin{abstract}
 
+  \MKin{context}
   Memory safety necessitates secrecy, since breaking it can lead to an arbitrarily large attack space, i.e., from simply reading a secret up to alteration of control-flow in order to execute arbitrary code.
   However, secrecy cannot be achieved with just memory safety alone, since, e.g., private data could be leaked by differences in execution time for varying program inputs.
   This leakage is avoidable by ensuring that programs are cryptographic constant time, i.e., different inputs do not change execution time.
   Prior work has shown that strategies to ensure cryptographic constant time can be rendered useless, since a compiler may simply optimize them away.
+  \MKin{need}
   This is why secure compilation is an integral ingredient to achieve security, because a secure compiler guarantees (formally) that properties that hold in the source, also hold in the target. %% mention attacker? the text describes correctness
-
+  \MKin{task}
   Unfortunately, it is an open question whether secure compilers can be engineered in a modular way.
   Ideally, compiler engineers develop two different compilation passes, one that ensures memory safety and another one that is security preserving with respect to cryptographic constant time. %, because this style of engineering is well-established for its simplifying divide-and-conquer approach as well as enhanced reusability.
-
+  \MKin{object+findings}
   This paper answers that question positively: The composition of compilers that are secure with respect to some security-properties yields the intersection of these properties.
+  \MKin{object}
   This article discusses different variants of compositions of secure compilers and instantiates parts of these results in a case-study.
   To this end, it presents an optimizing, secure compilation chain that preserves both memory safety and cryptographic constant time.
-%  Memory safety is achieved by composing secure compilers for both temporal and spatial memory safety, where the compiler for spatial memory safety is an instrumentation that inserts bounds-checks in front of pointer dereferences.
-  %The compiler for cryptographic constant time exploits the use of a data (operand) timing independent mode and the employed optimisations of the compilation chain are constant folding and dead code elimination.
+  \MKin{conclusion}
   The compositionality results enable modular proofs for the presented, secure compiler. % that is secure with respect to both memory safety and cryptographic constant time.
   Some results of this work are implemented in the Coq proof assistant.
-
-
-% Secure compilers emit code that is hardened against adversarial target-level attacks, such as memory corruption or alteration of control-flow.
-% It is an open question whether secure compilers compose in a well-behaved manner.
-% This paper answers this question positively: The composition of compilers that are secure with respect to some security-properties yields the intersection of these properties.
-% This article discusses different variants of compositions of secure compilers and instantiates parts of these results in a case-study.
-% To this end, it presents an optimizing, secure compilation chain that preserves both memory safety and cryptographic constant time.
-% Memory safety is achieved by composing secure compilers for both temporal and spatial memory safety, where the compiler for spatial memory safety is an instrumentation that inserts bounds-checks in front of pointer dereferences.
-% The compiler for cryptographic constant time exploits the use of a data (operand) timing independent mode and the employed optimisations of the compilation chain are constant folding and dead code elimination.
-% The compositionality results enable modular proofs for the whole compilation chain that is secure with respect to both memory safety and cryptographic constant time.
-
-
 
 \begin{center}\small\it
 	{This paper uses syntax highlighting accessible to both colourblind and black \& white readers~\citep{patrignani2020use}.
@@ -276,14 +266,14 @@
 
 \section{Introduction\pages{4}}\label{sec:introduction}
 
-\gls{ms} is a security property that ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialized memory.
+\gls{ms} is a security property that ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialised memory.
 Programs that do not attain memory safety, can easily have their private data be leaked to attackers or be corrupted~\cite{lemay2021ccc}.
 Because of this, \gls{ms} is a requirement for programs to attain an even stronger security property, namely \gls{cct}.
 Programs that attain \gls{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones, since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
 Timing attacks have become more and more relevant recently, especially given the era of cloud-computing~\cite{aviram2010cloudtime,kumar2019cloudsecsurvey}, where programs share the same hardware but are supposed to run in a sandboxed environment that does not leak secrets.
 Unfortunately, several attacks within such a cloud environment have been demonstrated as viable strategies to extract secrets~\cite{mehmet2015getoff,flowers2022zeroday,atya2019catchme,venkatanathan2015placevul}.
 
-Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, some compilers may optimize these mitigations away~\cite{barthe2018sec}.
+Even though mitigations for such attacks exist~\cite{bond2017vale,almeida2017jasmin}, some compilers may optimise these mitigations away~\cite{barthe2018sec}.
 This is of course not what programmers expect and to ensure such mitigations persist in the compiled code, one can use a {\em secure} compilers.
 More generally, secure compilers should preserve security properties even when the program runs in a hostile context such as the cloud one, i.e., where it interacts with other possibly malicious programs.
 An example of such secure compilers are those that ascribe to the theory of robust compilation~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}, which takes this interaction between components and potentially malicious contexts into account.
@@ -314,7 +304,7 @@ Thus, the program execution time is proportional to the length of the array that
 Also in this case there exist compiler passes that can rewrite such programs~\cite{cauligi2019fact} so that they are no longer vulnerable to timing attacks.
 
 These fixes alone are not enough to make this program secure in a robust setting, i.e., a malicious context could trigger a violation of either \gls{ms} or \gls{cct}.
-Consider a program context that calls \texttt{strncpy} with an argument for \texttt{src} that points to uninitialized memory.
+Consider a program context that calls \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
 This leads to a series of reads from uninitialised memory, which is an immediate \gls{ms} issue that can have devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 With this, a secure compiler needs to ensure that no malicious target-level context can supply unitialised memory and thereby sidestep the guarantees of the source language.
@@ -369,7 +359,7 @@ In summary, this paper makes the following contributions:
         The formalisation of this case study showcases the power of the presented framework: Namely, the divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
-  \item The key contributions of this paper are formalized in the Coq proof assistant and the paper indicates this with \CoqSymbol.
+  \item The key contributions of this paper are formalised in the Coq proof assistant and the paper indicates this with \CoqSymbol.
 \end{itemize}
 
 This paper starts by introducing relevant notions of security properties and secure compilation (\Cref{sec:background}),
@@ -440,7 +430,7 @@ A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of 
 This translation is considered {\em correct} if it is semantics-preserving.
 That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
 Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey}\MP{cite kennedy and teh general SC dagstuhl and ACM papers too}, and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
-To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which the following definition summarizes.
+To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which the following definition summarises.
 
 For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} where \iul{$\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
 \MPin{
@@ -594,7 +584,7 @@ Monitors can be used to enforce safety properties and this section presents conc
 }
 To lessen the burden when proving\MP{proving what}, each monitor makes use\MP{uses} of a custom trace model that contains only the relevant information related to the property the monitor checks.
 To project specification traces $\trace$ onto these monitor-level traces $\abstrace$, each property has an associated event agreement relation $\traceagree[]{\pi}{\trace}{\abstrace}$.
-This relation projects the events\MP{whaddaya mean?}, while the stutter-equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasize the kind of event agreement.\MP{unclear sentence}
+This relation projects the events\MP{whaddaya mean?}, while the stutter-equivalence $\traceagree{\pi}{\trace}{\abstrace}$ remains the same for all properties $\pi$, yet is indexed by $\pi$ to emphasise the kind of event agreement.\MP{unclear sentence}
 With agreements, this section defines monitor satisfaction for traces and then it proves that monitor satisfaction implies property satisfaction.
 To this end, monitor satisfaction is defined as follows.
 \bul{A specification trace $\trace$ monitor-satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor\footnote{In this paper, for all monitors, the initial monitor state is denoted as $\emptyset$.} can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
@@ -705,7 +695,7 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
 \begin{example}[A program satisfying \gls{tms}]
   Consider the following program which, when run, yields the trace $\ev{Alloc}\ \loc[_{1}]\ 17;\comp;\unlock\cdot\ev{Use}\ \loc[_{1}]\ 5;\comp;\unlock\cdot\ev{Use}\ \loc[_{1}]\ 5;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{1}];\comp;\unlock$, where $\loc[_{1}]$ is some memory address determined by the semantics of the programming language.
   \begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={new,delete}]
-int main() {  // allocates 17 integers initialized to 2
+int main() {  // allocates 17 integers initialised to 2
   int* x = new[17](2);
 
   x[5] = 12;
@@ -935,7 +925,7 @@ Now, given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \
   If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\trg{L}}{\obj{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
 \end{theorem}
 
-Since the composition of secure compilers is again a secure compiler, the theorem generalizes to a whole chain of $n$ secure compilers.
+Since the composition of secure compilers is again a secure compiler, the theorem generalises to a whole chain of $n$ secure compilers.
 Pretending that the following compilers are secure, consider the compilation chain for $\src{TypeScript}$.
 First, $\src{TypeScript}$ programs are translated to $\trg{JavaScript}$ which, e.g., V8~\cite{googlev8} eventually compiles in parts to $\irl{Ignition BC}$.
 Were all these compilation steps robustly secure with respect to \gls{ms}, the resulting $\irl{Ignition BC}$ code would be \gls{ms} regardless of the context the binary runs in.
@@ -1289,7 +1279,7 @@ This paper uses the well-known trace-based backtranslation technique~\cite{abate
 It is shown for that obtained context $\src{\library_{\ctx}}$ that the whole program $\link{\src{\library_{\ctx}}}{\src{\library_{comp}}}$ is well-typed.\MP{passive}
 By \Cref{thm:wt:tms}, the fact that this program satisfies \gls{tms} is obtained and by typesafety, it is known that there must be some $\Ltms$ execution.\MP{passive passive passive, and imprecise}
 The proof now needs to relate the two execution with each other.
-\Cref{fig:proofdiag:rtp} visualizes this situation\MP{imprec}.
+\Cref{fig:proofdiag:rtp} visualises this situation\MP{imprec}.
 \begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}[state/.style={minimum height=0.6cm}]
@@ -1553,9 +1543,9 @@ Since identifiers in $\Lscct$ are annotated with a secrecy tag, this approach is
 For example, Vale~\cite{bond2017vale} uses Dafny to ensure constant-time assembly code, while Jasmin~\cite{almeida2017jasmin} makes use of the Coq proof assistant to reject non-constant-time programs.
 CT-Wasm~\cite{watt2019ctwasm} enforces constant-timeness by means of a type system.
 Different to the approach of this paper, these approaches necessitate that the programmer writes \gls{cct} code.
-An approach to allow programmers to write more high-level code is CryptOpt~\cite{kuepper2023cryptopt}, which generates efficient target-code by means of a randomized search.
+An approach to allow programmers to write more high-level code is CryptOpt~\cite{kuepper2023cryptopt}, which generates efficient target-code by means of a randomised search.
 This paper abstracts over concrete mitigation strategies and simply assumes that there is a flag to switch to a cryptographic-constant time execution mode.
-This can be realized by employing the FaCT~\cite{cauligi2019fact} compiler, which translates common non-constant time code patterns to be constant-time, and the data (object) independent timing execution mode of modern processors.
+This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, which translates common non-constant time code patterns to be constant-time, and the data (object) independent timing execution mode of modern processors.
 
 \section{Conclusion\pages{$\sfrac{1}{2}$}}\label{sec:concl}
 

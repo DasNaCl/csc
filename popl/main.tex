@@ -1742,21 +1742,26 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
     \ccdce(\irl{\lifz{false}{\expr[_{1}]}{\expr[_{2}]}}) & = & \ccdce(\irl{\expr[_{2}]})
   \end{align*}\\[0.25cm]
   \begin{align*}
-    \cccf(\irl{\llet{x}{n}{\expr}}) & = \cccf(\partialeval{\irl{\expr}}{\irl{x}}{\irl{n}}) &\\
-    \cccf(\irl{\lbinop{n_{1}}{n_{2}}}) & = \irl{n_{3}} & \text{where }\irl{n_{3}}\text{ is }\lbinop{\irl{n_{1}}}{\irl{n_{2}}}
+    \cccf(\irl{\expr}) & = \partialeval{\irl{\expr}}{\irl{\hole{\cdot}}} &\\
   \end{align*}\\[0.125cm]
   \begin{align*}
-    \partialeval{\irl{x}}{\irl{x}}{\irl{n}} & = \irl{n} &\\
-    \partialeval{\irl{y}}{\irl{x}}{\irl{n}} & = \irl{y} &\text{where }\irl{x}\not=\irl{y}\\
-    \partialeval{\left(\irl{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}\right)}{\irl{x}}{\irl{n}} & = \llet[\irl]{\irl{x}}{\left(\partialeval{\irl{\expr[_{1}]}}{\irl{x}}{\irl{n}}\right)}{\irl{\expr[_{2}]}} &\\
-    \partialeval{\left(\irl{\llet{y}{\expr[_{1}]}{\expr[_{2}]}}\right)}{\irl{x}}{\irl{n}} & = \llet[\irl]{\irl{y}}{\left(\partialeval{\irl{\expr[_{1}]}}{\irl{x}}{\irl{n}}\right)}{\left(\partialeval{\irl{\expr[_{2}]}}{\irl{x}}{\irl{n}}\right)} &\text{where }\irl{x}\not=\irl{y}\\
-    \partialeval{\left(\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}\right)}{\irl{x}}{\irl{n}} & = \lbinop[\irl]{\left(\partialeval{\irl{\expr[_{1}]}}{\irl{x}}{\irl{n}}\right)}{\left(\partialeval{\irl{\expr[_{2}]}}{\irl{x}}{\irl{n}}\right)}
+    \partialeval{\irl{x}}{\irl{\substlist}} & = \irl{n} & \text{if } \irl{\subst{n}{x}}\in\irl{\substlist} \\
+    \partialeval{\irl{x}}{\irl{\substlist}} & = \irl{x} & \text{if } \irl{\subst{n}{x}}\notin\irl{\substlist} \\
+    \partialeval{\irl{\lbinop{n}{m}}}{\irl{\substlist}} & = \irl{k} & \text{if } \lbinop{\irl{n}}{\irl{m}}=k \\
+%    \partialeval{\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}}{\irl{\substlist}} & = \lbinop[\irl]{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}} \\
+    \partialeval{\irl{\llet{x}{n}{\expr}}}{\irl{\substlist}} & = \partialeval{\irl{\expr}}{\irl{\subst{x}{n}},\irl{\substlist}} \\
+    \partialeval{\irl{\lget{x}{\expr}}}{\irl{\substlist}} & = \lget[\irl]{\irl{x}}{\partialeval{\irl{\expr}}{\irl{\substlist}}}
+  \end{align*}\\
+  \begin{align*}
+    \partialeval{\irl{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}}{\irl{\substlist}} & = \llet[\irl]{\irl{x}}{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}} \\
+    \partialeval{\irl{\lifz{\expr[_{1}]}{\expr[_{2}]}{\expr[_{3}]}}}{\irl{\substlist}} & = \lifz[\irl]{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{3}]}}{\irl{\substlist}}} \\
   \end{align*}
 \end{gather*}
 
 The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls{dce} and \gls{cf}, respectively.
 The \gls{dce} pass applies a naive rewrite rule on conditionals.
-For \gls{cf}, the pass uses an auxiliary function \texttt{mix} that models the substitution operation.
+For \gls{cf}, the pass uses an auxiliary function \texttt{mix} that does the actual work.
+It rewrites constant binary operations, e.g., $\irl{{17}+{29}-1}$ to $\irl{46-1}$, and replaces variables that are assigned to constants with their constant, e.g., $\irl{\llet{x}{7}{x}}$ to $\irl{7}$.
 Both passes are secure with respect to \gls{ms}.
 The proof for either is relatively simple, because both \gls{dce} and \gls{cf} do not change the way memory accesses happen.
 Moreover, since the input and output languages to these compilers are the same, attacker contexts do not have more power in the target language than in the source.
@@ -1780,7 +1785,7 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
   $$
   \begin{array}{rcl}
     \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = & \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{1};}\ccscct(\irl{\expr})} \\
-    \ccscct(\irl{\lcall{g}{\expr}}) & = & \lcall[\obj]{\obj{g}}{\ccscct(\expr)\obj{; wrdoit{1}}}
+    \ccscct(\irl{\lcall{g}{\expr}}) & = & \lcall[\obj]{\obj{g}}{\ccscct(\irl{\expr})\obj{; wrdoit{1}}}
   \end{array}
   $$
 \end{center}

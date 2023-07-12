@@ -1600,18 +1600,25 @@ Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$
 
 \subsubsection{Proving Robust Safety Property Preservation}
 
-The proof of \Cref{thm:cca:rtp:tms} serves as boilerplate for proofs of the other secure compilation theorems of this paper.
-Unfolding the statement gives the assumptions that for any $\pi\in\lceil\tmssafe\rceil$\footnote{$\lceil\cdot\rceil$ lifts the property to a hyperproperty by applying the powerset operation~\cite{clarkson2008hyper}.}, $\src{\trace}$, $\src{\runtimetermvar}$, and component $\src{\library_{comp}}$, $\rsat{\src{\library_{comp}}}{\pi}$ and $\progstepto{\prog[\trg]{\trg{\library_{\ctx}}}{\cca(\src{\library_{\comp}})}}{\trg{\runtimetermvar}}{\trg{\trace}}$, where $\trg{\library_{\ctx}}$ is arbitrary.
-The proof obligation is $\msfilterL{\trg{\trace}}\in\pi$, i.e., the specification trace associated to $\trg{\trace}$ should satisfy the property $\pi$.
-To show this, the trace $\trg{\trace}$ should be related with some $\Ltms$ trace $\src{\trace}$ and since there is a target execution associated to this trace, the task is to find an associated $\Ltms$ execution.
-The trace $\trg{\trace}$ is split into different parts, where each part contains the events that either the context or the component does, but not both.
+We illustrate the proof of \Cref{thm:cca:rtp:tms} since the other secure compilation proofs of this paper follow the same approach.
+Unfolding the theorem statement yields the following assumptions:  
+	for any $\pi\in\lceil\tmssafe\rceil$\footnote{$\lceil\cdot\rceil$ lifts the property to a hyperproperty by applying the powerset operation~\cite{clarkson2008hyper}.}, 
+	$\src{\trace}$, 
+	$\src{\runtimetermvar}$, 
+	and component $\src{\library_{comp}}$, 
+	we have that $\rsat{\src{\library_{comp}}}{\pi}$ and 
+	$\progstepto{\prog[\trg]{\trg{\library_{\ctx}}}{\cca(\src{\library_{\comp}})}}{\trg{\runtimetermvar}}{\trg{\trace}}$, where $\trg{\library_{\ctx}}$ is arbitrary.
+The proof obligation is $\msfilterL{\trg{\trace}}\in\pi$, i.e., the specification trace associated to $\trg{\trace}$ satisfies the property $\pi$.
+A way to show this, is relating trace $\trg{\trace}$ to some $\Ltms$ trace $\src{\trace}$ (which already satisfies the property as per the assumptions).
+The assumptions already contain a target execution associated to this trace, so the task is to find an associated $\Ltms$ execution that yields $\trg{\trace}$.
+The trace $\trg{\trace}$ is split into different parts, as commonly done in secure compilation works~\cite{}\MP{catalin's CCS and catalin+akram's paper},where each part contains the events that either the context or the component does, but not both.
 Because of this, all such trace segments are ,,well-bracketed'' in the sense that they start with either $\trg{\ev{Start}}$, $\trg{\ev{Call}\ \comptoctx\ foo\ \valueexpr}$, or $\trg{\ev{Ret}\ \comptoctx\ \valueexpr}$ and end with either $\trg{\ev{End}\ \valueexpr}$, $\trg{\ev{Ret}\ \ctxtocomp\ \valueexpr}$, or $\trg{\ev{Call}\ \ctxtocomp\ foo\ \valueexpr}$.
-In the following, the former is referred to as a context segment, since, for these, execution happens in $\trg{\library_{\ctx}}$, and the latter as a component segment, since, for these, execution happens in $\cca(\src{\library_{\comp}})$.
-\Cref{fig:proofdiag:rtp} visualises this split for a program execution with one call from context to component and how the target execution is related to a source execution.
+In the following, the former is referred to as a context segment, since these executions happen in $\trg{\library_{\ctx}}$, and the latter is referred to as a component segment, since these executions happen in $\cca(\src{\library_{\comp}})$.
+\Cref{fig:proofdiag:rtp} visualises this division for a program execution with one call from context to component and how the target execution is related to a source execution.
 In the figure, the green dashed lines encompass the component segments while the orange boxes contain the actual context switches from context to component or vice versa.
-For the proof, it is necessary to know when two states $\src{\Omega}$ and $\trg{\Omega}$ are related.
-Two cross-language relations make this precise: (i) $\multimap_{\delta}$ relates states that are involved in a context segment, allowing the target execution to perform internal calls, and (ii) $\approx_{\delta}$ relates states that are involved in a component segment, where both states need to agree exactly, i.e., the memory and the control flow states are required to contain the same information.
-The relations are indexed with $\delta$, which is simply an injective mapping from $\Ltms$ locations $\src{\loc}$ to $\Ltrg$ locations $\trg{\loc}$.
+From a technical perspective, as typically done in compilation proofs, the proof requires set up and maintain a relation between $\src{\Omega}$ and $\trg{\Omega}$ .
+Here, we use two cross-language relations make this precise: (i) $\multimap_{\delta}$ relates states that are involved in a context segment, allowing the target execution to perform internal calls, and (ii) $\approx_{\delta}$ relates states that are involved in a component segment, where both states need to agree exactly, i.e., the memory and the control flow states are required to contain the same information.
+The relations are indexed with $\delta$, which is injective mapping from $\Ltms$ locations $\src{\loc}$ to $\Ltrg$ locations $\trg{\loc}$.
 Note that the relations $\multimap_{\delta}$ and $\approx_{\delta}$ swap when context switching.
 
 \begin{figure}[!ht]
@@ -1698,18 +1705,20 @@ Note that the relations $\multimap_{\delta}$ and $\approx_{\delta}$ swap when co
   \end{center}
 \end{figure}
 
-So far, the paper explained how to relate an $\Ltms$ execution with the $\Ltrg$ execution at hand.
-However, it is not yet demonstrated how the corresponding $\Ltms$ execution is actually built.
-To do so, a trace-based backtranslation technique~\cite{abate2019jour} can be used to build a context $\src{\library_{\ctx}}$ that behaves similar to $\trg{\library_{\ctx}}$.
-Since $\Ltms$ is statically typed, the context $\src{\library_{\ctx}}$ obtained from the backtranslation needs to be well-typed when linked with $\src{\library_{\comp}}$.
-For context segments of the trace $\trg{\trace}$ it is also necessary to show that the execution behaves similarily, i.e., there is an $\Ltms$ trace segment $\src{\trace[']}$ that is related to the context segment, and that the states are related by $\multimap_{\delta}$.
-When passing control to the component, the relatedness of states and traces follows from compiler correctness.
-From all this, a source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$ can be obtained.
+So far, the paper explained how to relate an $\Ltms$ execution with a $\Ltrg$ execution.
+The next question is therefore how to build the corresponding $\Ltms$ execution.
+This is done using a standard secure compilation proof technique called trace-based backtranslation~\cite{abate2019jour,korashy2021capableptrs,patrignani2021rsc}, which can be used to build a context $\src{\library_{\ctx}}$ that behaves similar to $\trg{\library_{\ctx}}$.
+% Since $\Ltms$ is statically typed, the context $\src{\library_{\ctx}}$ obtained from the backtranslation needs to be well-typed when linked with $\src{\library_{\comp}}$.
+For context segments of the trace $\trg{\trace}$ it is also necessary to show that the execution behaves similarily, i.e., the context obtained from the backtranslation generates trace $\src{\trace}$.
+For component segments of the trace, the relatedness of states and traces follows from a compiler correctness argument.
+These two arguments yield the following source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$.
 
 The proof now works as follows.
-Rewrite the goal from $\msfilterL{\trg{\trace}}\in\pi$ to $\msfilterLtms{\src{\trace}}\in\pi$ after demonstrating that $\msfilterL{\trg{\trace}}=\msfilterLtms{\src{\trace}}$.
-Then, specialize the robust satisfaction assumption $\rsat{\src{\library_{\comp}}}{\pi}$ to use the context $\src{\library_{\ctx}}$, which was obtained from backtranslating the context segments of the target trace $\trg{\trace}$, and the source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$.
-This gives $\msfilterLtms{\src{\trace}}\in\pi$, which was to be demonstrated.
+Given that $\msfilterL{\trg{\trace}}=\msfilterLtms{\src{\trace}}$, the proof goal changes from $\msfilterL{\trg{\trace}}\in\pi$ to $\msfilterLtms{\src{\trace}}\in\pi$.
+Then, by specializing the robust satisfaction assumption $\rsat{\src{\library_{\comp}}}{\pi}$ to use the context $\src{\library_{\ctx}}$ obtained from the backtranslation which yields
+ % the context segments of the target trace $\trg{\trace}$, and the 
+the following source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$.
+This gives $\msfilterLtms{\src{\trace}}\in\pi$, which was the proof goal.
 
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 

@@ -219,13 +219,14 @@ To ensure that secure applications do not leak their secrets, they are required 
 % need
 Existing work shows how to enforce these properties individually, in an architecture-independent way, by using secure compiler passes that each focus on an individual property.
 % task
-Unfortunately, given two secure compiler passes that each preserve a possibly different security property, it is unclear what kind of security property the composition of those secure compiler passes preserve.
+Unfortunately, given two secure compiler passes that each preserve a possibly different security property, it is unclear what kind of security property is preserved by the composition of those secure compiler passes.
 %there is no way to tell what kind of security property will the composition of those secure compilers preserve.
 
 % object
 This paper is the first to study what security properties are preserved across the composition of different secure compiler passes.
 % findings
-Starting from a general theory of property composition for security-relevant properties (such as the aforementioned ones), this paper formalises a secure multi-pass compiler that preserves those security-relevant properties.
+Starting from a general theory of property composition for security-relevant properties (such as the aforementioned ones), this paper formalises a theory of composition of secure compilers.
+Then, it showcases this theory a secure multi-pass compiler that preserves the aforementioned security-relevant properties.
 % conclusion
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
 % 
@@ -312,8 +313,9 @@ From an engineering perspective, this is the desirable approach to building secu
 
 \gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
 \gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing}.
-Together, \gls*{sms}, \gls*{tms} and \gls*{scct}, a variant of \gls*{cct}, yield \gls*{msscct}, which is the gold standard of security properties for secure applications: programs attaining \gls*{msscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels.
-As discussed in \Cref{ex:strncpy}, these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the various architectural details where their code will run.
+Together, \gls*{sms}, \gls*{tms} and \gls*{scct}, an enforceable overapproximation of \gls*{cct}, yield \gls*{msscct}, which is the gold standard of security properties for secure applications.
+Programs attaining \gls*{msscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels.
+As discussed in \Cref{ex:strncpy}, these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
 
 \begin{example}[strncpy]\label{ex:strncpy}
 Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}.
@@ -343,7 +345,7 @@ This would, in turn, triggering a series of reads from uninitialised memory, whi
 % An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 
 Robust compilers~\cite{abate2019jour} are a form of secure compilers that preserve security properties even in the presence of arbitrary attackers interacting with compiled code.
-Thus, robust compilers can be used to prevent, e.g., vulnerabilities resulting from uninitialised memory, e.g., by targeting capability-based languages such as CHERI~\cite{woodruff2014CHERI}, Arm Morello~\cite{arm-morello}, or MSWasm~\cite{michael2023mswasm}, where the compiler relies on capabilities to check that pointers are always initialised.
+Thus, robust compilers can be used to prevent vulnerabilities resulting from uninitialised memory (as well as many other ones), e.g., by targeting capability-based languages such as CHERI~\cite{woodruff2014CHERI}, Arm Morello~\cite{arm-morello}, or MSWasm~\cite{michael2023mswasm}, where the compiler relies on capabilities to check that pointers are always initialised.
 \end{example}
 
 % To ensure these compiler-preserved properties still hold even in the presence of arbitrary attackers interacting with compiled code, one can use secure compilers in the form of robust compilers~\cite{abate2019jour,abate2021extacc,patrignani2021rsc}.
@@ -373,6 +375,13 @@ In summary, this paper makes the following contributions:
         % This paper then showcases the benefits of this composition by composing \gls*{tms} and \gls*{sms} into \gls*{ms}, and ultimately adding \gls*{cct} to the composition, yielding the the conjunction of \gls*{ms} and \gls*{cct}.
         % 
         The resulting security property is \gls*{msscct}, i.e., the gold standard of security properties for secure programs~\cite{lemay2021ccc}.
+
+        % \MPpast{
+        % 	some of the good things here: 
+        % 	our definitions are amenable to sec comp proofs, unlike existing definitions
+        % 	MS def is like mswasm MS def, 
+        % 	but CCT is new
+        % }
 
   \item %
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
@@ -443,7 +452,7 @@ Robust satisfaction considers partial programs $\progvar$, i.e., components with
 To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
 As typically done in works that consider the execution of partial programs~\cite{abate2019jour,devriese2018parametricity,patrignani2021rsc,korashy2021capableptrs,strydonck2019lincap,devriese2017modular,bowman2015noninterference,ahmed2011equivcps,patterson2017linkingtyps},
 this paper assumes that whole programs are the result of linking partial programs referred to as {\em context} ($\ctx$) and {\em component} ($\comp$).
-The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has.
+The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of whatever features the programming language has, and the component is what is security-relevant.
 %In this work, the semantics of the programming language is expected to differentiate between the component and the context.
 With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the resulting whole program must satisfy $\pi$}.
 
@@ -463,7 +472,7 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 
 A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
 This translation is considered {\em correct} if it is semantics-preserving.
-That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ in such a way that they are ,,compatible''.
+That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ of the compiled counterpart of $\src{p}$ in such a way that they are ,,compatible''.
 Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey,kennedy2006secure.net,abadi1999protect,ahmed2018dagstuhl} and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
 To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which the following definition summarises.
 
@@ -481,7 +490,7 @@ Note that a class of properties $\class$ can represent just one property $\pi$ b
 Because of this, this paper writes $\rtp{\cc{\src{L}}{\trg{L}}}{\pi}$, even though $\pi$ is a property and not a class.
 
 \begin{example}[Types]
-  Suppose $\src{L}$ is a statically typed language similar to \texttt{C} and $\trg{T}$ is dynamically typed, where both share the same syntax up to dynamic type checks.
+  Suppose $\src{L}$ is a statically-typed language similar to \texttt{C} and $\trg{T}$ is dynamically typed, where both share the same syntax up to dynamic type checks.
   Consider the following $\src{L}$ component and its compiled version below.
   \begin{center}
   $
@@ -793,6 +802,12 @@ int greet() {  // allocates 12 chars containing a greeting message
   The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
   It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls*{sms}.
 \end{example}
+
+% \MPpost{
+% 	i think the trace description of traces is more uindertandable,
+% 	teh monitor one is easier to work with
+% 	this is the justification for having both that we'll have to make in the future
+% }
 
 \subsubsection{Monitor for \glsfirst*{sms}}\label{subsubsec:sms}
 \begin{gather*}

@@ -286,10 +286,10 @@ From an engineering perspective, this is the desirable approach to building secu
 
 \section{Introduction\pages{4}}\label{sec:introduction}
 
-% \gls{ms} is a security property that ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialised memory.
+% \gls*{ms} is a security property that ensures that there are no out-of-bounds accesses as well as no reads or writes to uninitialised memory.
 % Programs that do not attain memory safety, can easily have their private data be leaked to attackers or be corrupted~\cite{lemay2021ccc}.
-% Because of this, \gls{ms} is a requirement for programs to attain an even stronger security property, namely \gls{cct}.
-% Programs that attain \gls{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones, since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
+% Because of this, \gls*{ms} is a requirement for programs to attain an even stronger security property, namely \gls*{cct}.
+% Programs that attain \gls*{cct} are secure with respect to timing attacks, and this is the gold standard for secure applications, including cryptographic ones, since timing attacks can expose secrets via a simple performance analysis~\cite{kocher1996timing}.
 % Timing attacks have become more and more relevant recently, especially given the era of cloud-computing~\cite{aviram2010cloudtime,kumar2019cloudsecsurvey}, where programs share the same hardware but are supposed to run in a sandboxed environment that does not leak secrets.
 % Unfortunately, several attacks within such a cloud environment have been demonstrated as viable strategies to extract secrets~\cite{mehmet2015getoff,flowers2022zeroday,atya2019catchme,venkatanathan2015placevul}.
 
@@ -300,7 +300,7 @@ From an engineering perspective, this is the desirable approach to building secu
 
 % Unfortunately, it is unclear if and how robust compilation supports compositionality, and compilation passes are typically developed as a standalone module to be plugged into a compilation pipeline and composed with other passes.
 % Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
-% Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct} as suggested before and as showcased in \Cref{ex:strncpy}.
+% Without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls*{ms} that is developed independently of another secure pass for \gls*{cct} as suggested before and as showcased in \Cref{ex:strncpy}.
 \MPpost{
 	this intro does a poor job at introducing the robust compilation argument.
 	perhaps it'd be best to start from robust properties, which motivates the use of robust compilers?
@@ -308,16 +308,16 @@ From an engineering perspective, this is the desirable approach to building secu
 	as for the abstract, this is a good starting point for you to make a better intro
 }
 
-\gls{ms} is a security property obtained by composing \gls{sms}, which ensures array accesses are all within bounds, and \gls{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
-\gls{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing}.
-Together, \gls{sms}, \gls{tms} and \gls{cct} yield \gls{msscct}, which is the gold standard of security properties for secure applications: programs attaining \gls{msscct} do not leak sensitive data neither through erroneous memory accesses, nor through timing side-channels.
+\gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
+\gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing}.
+Together, \gls*{sms}, \gls*{tms} and \gls*{cct} yield \gls*{msscct}, which is the gold standard of security properties for secure applications: programs attaining \gls*{msscct} do not leak sensitive data neither through erroneous memory accesses, nor through timing side-channels.
 As discussed in \Cref{ex:strncpy}, these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the various architectural details where their code will run.
 
 \begin{example}[strncpy]\label{ex:strncpy}
 Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}.
 % Assume that the length of the array pointed by \texttt{dst} is at least \texttt{n}, and \texttt{src} is terminated by \texttt{'\textbackslash 0'}.
 % Even under these assumptions, there is a 
-This function is subject to a subtle \gls{sms} vulnerability: The bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}: otherwise 
+This function is subject to a subtle \gls*{sms} vulnerability: The bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}: otherwise
 % If \texttt{n} is at least as large as the length of the array \texttt{src}, 
 the memory location past the last element will be leaked to an attacker.
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={size_t}]
@@ -328,16 +328,16 @@ void strncpy(size_t n, char *dst, char *src) {
 }
 \end{lstlisting}
 
-To prevent this vulnerability, one can use a compilation pass that enforces \gls{sms}, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}.
+To prevent this vulnerability, one can use a compilation pass that enforces \gls*{sms}, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}.
 
-Because of timing attacks, fixing \gls{sms} is not enough to make \texttt{strncpy} secure.
+Because of timing attacks, fixing \gls*{sms} is not enough to make \texttt{strncpy} secure.
 In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, making program execution time proportional to the length of the array pointed by \texttt{src}.
 % Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
-Also in this case there exist compiler passes that can rewrite such programs into \gls{cct} ones~\cite{cauligi2019fact}.
+Also in this case there exist compiler passes that can rewrite such programs into \gls*{cct} ones~\cite{cauligi2019fact}.
  % so that they are no longer vulnerable to timing attacks.
 
-Alas, code is not run in isolation, so a malicious attacker could supply code that intracts with \texttt{strncpy} and trigger a violation of either \gls{ms} or \gls{cct} by calling \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
-This would, in turn, triggering a series of reads from uninitialised memory, which is an immediate \gls{ms} violation with devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
+Alas, code is not run in isolation, so a malicious attacker could supply code that intracts with \texttt{strncpy} and trigger a violation of either \gls*{ms} or \gls*{cct} by calling \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
+This would, in turn, triggering a series of reads from uninitialised memory, which is an immediate \gls*{ms} violation with devastating real-world implications~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 % An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 
 Robust compilers~\cite{abate2019jour} are a form of secure compilers that preserve security properties even in the presence of arbitrary attackers interacting with compiled code.
@@ -348,15 +348,15 @@ Thus, robust compilers can be used to prevent the vulnerability resulting from u
 
 Unfortunately, given secure compiler passes that each preserve a possibly-different security property, there is no way to tell what kind of security property will the composition of those secure compilers preserve.
 % Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
-Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls{ms} that is developed independently of another secure pass for \gls{cct}, that is developed independently of other passes such as optimisation ones.
+Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls*{ms} that is developed independently of another secure pass for \gls*{cct}, that is developed independently of other passes such as optimisation ones.
 
 
 
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
-To this end, this paper first discusses how to compose security properties, such as \gls{tms} and \gls{sms} into \gls{ms}, and then adding \gls{cct} to the mix to obtain \gls{msscct}. 
+To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adding \gls*{cct} to the mix to obtain \gls*{msscct}.
 Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly-distinct) properties, their composition securely preserves the composition of those properties.
-The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls{tms}, \gls{sms}, \gls{cct}) or performing a security-preserving optimisation, (e.g., applying \gls{cf} or \gls{dce}).
-Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results that provides end-to-end preservation of \gls{msscct}.
+The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{cct}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
+Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results that provides end-to-end preservation of \gls*{msscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes.
 % Crucially, this end-to-end security preservation is obtained by composing the security property preserved by each individual pass, as dictated by the framework of this paper.
 This result showcases how the framework allows the kind of formal security reasoning that compiler writers already want (and already do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
@@ -365,13 +365,13 @@ In summary, this paper makes the following contributions:
 \begin{itemize}
   \item %
         %\Cref{sec:compprop} presents a formal framework to reason about compositions of security properties and demonstrate its usage with concrete examples:
-        This paper formalises security properties (\Cref{sec:compprop}) that are of interest for real-world compiler writers, namely \gls{tms}, \gls{sms} and \gls{cct} (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}).
+        This paper formalises security properties (\Cref{sec:compprop}) that are of interest for real-world compiler writers, namely \gls*{tms}, \gls*{sms} and \gls*{cct} (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}).
         % 
         Starting from ways to formalise those properties individually, this paper shows how to compose their formalisation.
         % 
-        % This paper then showcases the benefits of this composition by composing \gls{tms} and \gls{sms} into \gls{ms}, and ultimately adding \gls{cct} to the composition, yielding the the conjunction of \gls{ms} and \gls{cct}.
+        % This paper then showcases the benefits of this composition by composing \gls*{tms} and \gls*{sms} into \gls*{ms}, and ultimately adding \gls*{cct} to the composition, yielding the the conjunction of \gls*{ms} and \gls*{cct}.
         % 
-        The resulting security property is \gls{msscct}, i.e., the gold standard of security properties for secure programs~\cite{lemay2021ccc}.
+        The resulting security property is \gls*{msscct}, i.e., the gold standard of security properties for secure programs~\cite{lemay2021ccc}.
 
   \item %
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
@@ -380,7 +380,7 @@ In summary, this paper makes the following contributions:
         For this, this paper studies sequential compiler composition as well as compilers with multiple input languages or multiple output ones, as used in existing compilation chains.
         %
         This paper proves that starting from two compilers that preserve two (possibly distinct) properties, their composition preserves the intersection of those properties.
-        % For example, a compiler that is secure with respect to \gls{tms} can be composed with a compiler that is secure with respect to \gls{sms}, resulting in a compiler that is secure with respect to \gls{ms}.
+        % For example, a compiler that is secure with respect to \gls*{tms} can be composed with a compiler that is secure with respect to \gls*{sms}, resulting in a compiler that is secure with respect to \gls*{ms}.
         % 
         Finally, this paper proves that the order of composition of sequential compiler passes is irrelevant for the resulting security.
         % 
@@ -388,8 +388,8 @@ In summary, this paper makes the following contributions:
 
   \item %
         This paper presents a case-study showcasing the conjunction of the previous contributions (\Cref{sec:casestud:defs,sec:casestud:rtp}).
-        To this end, it presents a compilation chain consisting of several passes that ultimately preserves \gls{msscct} by means of composing the individual, secure passes concerning \gls{tms}, \gls{sms}, and \gls{cct}, respectively.
-        Furthermore, the chain includes two optimisation passes: One performs a simple \gls{dce} and the other \gls{cf}.
+        To this end, it presents a compilation chain consisting of several passes that ultimately preserves \gls*{msscct} by means of composing the individual, secure passes concerning \gls*{tms}, \gls*{sms}, and \gls*{cct}, respectively.
+        Furthermore, the chain includes two optimisation passes: One performs a simple \gls*{dce} and the other \gls*{cf}.
         The formalisation of this case study showcases the power of the presented framework: Namely, the divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
@@ -423,7 +423,7 @@ The set of all properties can be partitioned into different {\em classes} ($\cla
 A class is simply a set of properties and for the class of safety properties, it is decidable whether a trace satisfies a safety property with just a finite trace prefix.
 As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$.
 This program behaviour is insecure with respect to a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets,azevedo2018meaningsofms}, because it reads from a memory location that was freed already.
-The previous finite trace prefix is enough to decide that the trace does not satisfy \gls{tms} and there is no way to append events to this prefix which would result in the trace being admissible.
+The previous finite trace prefix is enough to decide that the trace does not satisfy \gls*{tms} and there is no way to append events to this prefix which would result in the trace being admissible.
 In the following, the execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ is written as $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
 With this, property satisfaction is defined as follows:
 \bul{whole programs $\wholeprogvar$ satisfy a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisifies $\pi$} (\Cref{def:propsat}).
@@ -497,7 +497,7 @@ Because of this, this paper writes $\rtp{\cc{\src{L}}{\trg{L}}}{\pi}$, even thou
   Even though the pointer $\trg{x}$ is checked for validity, the context $\trg{foo((int*)y, 1)}$ is able to provoke a read out of bounds.
   Suppose the component transferred control to the context and passed ownership of a $\trg{char}$ pointer $\trg{y}$ sized $\trg{1}$ cells, the context can now call the component again, casting this buffer to an $\trg{int*}$ prior to that call.
   The pointer is valid for one $\trg{char}$-sized memory cell, as expected, but the actual read operation now returns $\trg{sizeof(int)}$ many bytes instead of just $\trg{sizeof(char)}$ many.
-  Thus, even if $\src{foo}$ may have been robust with respect to the \gls{sms}, its compiled counterpart is not and therefore the compiler fails to attain \Cref{def:rtp}.
+  Thus, even if $\src{foo}$ may have been robust with respect to the \gls*{sms}, its compiled counterpart is not and therefore the compiler fails to attain \Cref{def:rtp}.
 \end{example}
 
 
@@ -505,7 +505,7 @@ Because of this, this paper writes $\rtp{\cc{\src{L}}{\trg{L}}}{\pi}$, even thou
 
 \section{Security Properties: Formalisation, Enforcement and Composition\pages{1.5}}\label{sec:compprop}
 
-This section introduces a trace model and uses it to define the key properties of interest for this paper: \gls{tms}, \gls{sms}, \gls{ms}, and \gls{scct} (\Cref{subsec:propdefs}).
+This section introduces a trace model and uses it to define the key properties of interest for this paper: \gls*{tms}, \gls*{sms}, \gls*{ms}, and \gls*{scct} (\Cref{subsec:propdefs}).
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) this paper presents later. 
 Lastly, for each of the key properties, this section introduces corresponding monitors (\Cref{subsec:monitors}) that check them.
 
@@ -521,15 +521,15 @@ Lastly, for each of the key properties, this section introduces corresponding mo
 \end{gather*}
 
 The specification trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or as tuples consisting of a pre-event, a control-tag, and a security-tag.
-The purpose of the model is to define key security properties of interest, such as \gls{ms} or a stricter variant of cryptographic constant time.
+The purpose of the model is to define key security properties of interest, such as \gls*{ms} or a stricter variant of cryptographic constant time.
 To this end, security-tags indicate whether an event contains sensitive information ($\lock$) or not ($\unlock$), while control-tags state whether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
-The latter is necessary to be able to ignore actions done by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls{tms}~\cite{nagarakatte2010cets}.
+The latter is necessary to be able to ignore actions done by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls*{tms}~\cite{nagarakatte2010cets}.
 %Even though this could be used for blame~\cite{patrignani2023blame}, this is not what this paper is concerned about.
 Lastly, pre-events describe the actual kind of event that happened.
 One such kind is the allocation event ($\ev{Alloc\ \loc\ n}$) that fires whenever a program claims $n$ cells of memory and stores them at address $\loc$.
 Dually, deallocation ($\ev{Dealloc\ \loc}$) announces that the object at location $\loc$ is freed.
-These two events alone are enough to provide a partial description of \gls{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
-To be able to express \gls{sms}, there is also an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
+These two events alone are enough to provide a partial description of \gls*{tms} by requiring that, e.g., there is only one deallocation event that carries a location $\loc$.
+To be able to express \gls*{sms}, there is also an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
 Finally, for cryptographic code, there is a general guideline that secrets must not be visible on a trace.
 Moreover, an instruction whose timing is data-dependent must not have a secret as an operand.
 Typical operations with data-dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture-dependent, but division is an operation that serves as a classic example for a data-dependent timing instruction, e.g., \cite[p.~755]{arm-refman}.}.
@@ -537,10 +537,10 @@ Both operations are also modelled in the specification trace model ($\ev{Branch\
 
 \subsubsection{Temporal Memory Safety}
 
-\gls{tms} is a safety property that describes that an unallocated object must not be used in any way.
+\gls*{tms} is a safety property that describes that an unallocated object must not be used in any way.
 Moreover, the property requires that all allocated objects must be deallocated at some point.
 
-\begin{definition}[\glsfirst{tms}]\label{def:trace:tmsdef}
+\begin{definition}[\glsfirst*{tms}]\label{def:trace:tmsdef}
   $$
   \tmssafe:=\left\{\trace \left| \begin{array}{rcl}
                               \ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
@@ -555,9 +555,9 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 
 \subsubsection{Spatial Memory Safety}
 
-\gls{sms} prohibits out-of-bounds accesses:
+\gls*{sms} prohibits out-of-bounds accesses:
 
-\begin{definition}[\glsfirst{sms}]\label{def:trace:smsdef}
+\begin{definition}[\glsfirst*{sms}]\label{def:trace:smsdef}
   $$
   \smssafe:=\left\{\trace \left|\begin{array}{rcl}
                                   \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}, \text{ then }m<n
@@ -567,12 +567,12 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 
 \subsubsection{Memory Safety}
 
-Full \gls{ms} (similar to earlier work~\cite{nagarakatte2009soft,nagarakatte2010cets,jim2002cyclone,necula2005ccured,michael2023mswasm}) is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
+Full \gls*{ms} (similar to earlier work~\cite{nagarakatte2009soft,nagarakatte2010cets,jim2002cyclone,necula2005ccured,michael2023mswasm}) is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
 %%% Catalin's paper doesn't apply, since their definition of MS relies on noninterference to guarantee data isolation.
 %%% our definition does not guarantee that (on purpose, we want to compose it with cct)
 Note, however, that this definition says nothing about memory-safety issues introduced by side-channels, such as speculation.
 
-\begin{definition}[\glsfirst{ms}]\label{def:trace:msdef}
+\begin{definition}[\glsfirst*{ms}]\label{def:trace:msdef}
   $$
   \mssafe:=\tmssafe \cap \smssafe
   $$
@@ -580,11 +580,11 @@ Note, however, that this definition says nothing about memory-safety issues intr
 
 \subsubsection{Strict Cryptographic Constant Time}
 
-\gls{cct} is a hypersafety property~\cite{barthe2018sec} and, thus, difficult to check with monitors.
+\gls*{cct} is a hypersafety property~\cite{barthe2018sec} and, thus, difficult to check with monitors.
 This is because, intuitively, hypersafety properties can relate multiple execution traces with eachother, but monitors work on a single execution.
-To sidestep this issue, this section defines the property \gls{scct}, a stricter variant of \gls{cct} that enforces the policy that no secret appears on a trace (inspired by earlier work~\cite{almeida2017jasmin}).
+To sidestep this issue, this section defines the property \gls*{scct}, a stricter variant of \gls*{cct} that enforces the policy that no secret appears on a trace (inspired by earlier work~\cite{almeida2017jasmin}).
 
-\begin{definition}[\glsfirst{scct}]\label{def:trace:scctdef}
+\begin{definition}[\glsfirst*{scct}]\label{def:trace:scctdef}
   $$
   \scctsafe:=\left\{\trace \left|\begin{array}{rcl}
                                    \trace=\hole{\cdot} & \text{ or } & \trace=\event[_{b}];\sandboxtag;\unlock\cdot\trace['] \wedge \trace[']\in\scctsafe
@@ -594,10 +594,10 @@ To sidestep this issue, this section defines the property \gls{scct}, a stricter
 
 \subsubsection{Memory Safe, Strict Cryptographic Constant Time}
 
-The combination of \gls{ms} and \gls{scct} is the intersection of these properties, \gls{msscct}.
-Since \gls{ms} and \gls{scct} are just sets of traces that, intuitively, contain all program behaviors that follow a security policy, the intersection of them contains all program behaviors that follow both security policies, i.e., it entails all program behaviours that are both \gls{ms} and \gls{scct}.
+The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
+Since \gls*{ms} and \gls*{scct} are just sets of traces that, intuitively, contain all program behaviors that follow a security policy, the intersection of them contains all program behaviors that follow both security policies, i.e., it entails all program behaviours that are both \gls*{ms} and \gls*{scct}.
 
-\begin{definition}[\glsfirst{ms} and \gls{scct}]\label{def:trace:msscctdef}
+\begin{definition}[\glsfirst*{ms} and \gls*{scct}]\label{def:trace:msscctdef}
   $$
   \msscctsafe:=\mssafe\cap\scctsafe
   $$
@@ -650,7 +650,7 @@ To this end, monitor satisfaction is defined as follows.
   \bul{$\monsafe{\trace}{\pi}$} $\isdef$ $\exists \abstrace\ \monitor$, \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
 \end{definition}
 
-\subsubsection{Monitor for \glsfirst{tms}}\label{subsubsec:tms}
+\subsubsection{Monitor for \glsfirst*{tms}}\label{subsubsec:tms}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{allocated}:L\times\sandboxtag,\text{freed}:L\times\sandboxtag\right\} \hspace{0.33cm}%
@@ -695,13 +695,13 @@ To this end, monitor satisfaction is defined as follows.
   }{tms-dealloc}
 \end{center}
 
-For \gls{tms}, the state of the monitor is a record with two sets keeping track of allocated and deallocated locations.
+For \gls*{tms}, the state of the monitor is a record with two sets keeping track of allocated and deallocated locations.
 %The monitor runs on a modified trace semantics with more abstract $\absev{Alloc\ }\loc$,$\absev{Dealloc\ }\loc$,$\absev{Use\ }\loc$, and $\absterm$ events, which represent {\em allocation}, {\em deallocation}, and {\em use} of a location $\loc$ as well as abnormal program termination.
 \Cref{tr:tms-use} simply requires that a location is (i) allocated and (ii) not freed.
 \Cref{tr:tms-alloc,tr:tms-dealloc} both require a location to not be freed already and extend the monitor state accordingly.
 This restriction effectively disallows reallocation to reassign the same location to an object.
 However, the definition can easily be adapted by, e.g., attaching a natural number serving as a counter.
-Contrary to other monitors in this paper, the multi-step relation of the \gls{tms} monitor is non-standard:
+Contrary to other monitors in this paper, the multi-step relation of the \gls*{tms} monitor is non-standard:
 \begin{center}
   \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}}{,,Monitor $\tmsmonitor$ multi-steps to $\tmsmonitor[']$ given trace $\abstrace$.''}$\;$\\
   %
@@ -728,7 +728,7 @@ Contrary to other monitors in this paper, the multi-step relation of the \gls{tm
 This rejects the behavior of programs that forget to free memory.
 
 \begin{center}
-  \judgbox{\tmstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{tms}.''}$\;$\\
+  \judgbox{\tmstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls*{tms}.''}$\;$\\
   %
   \typerule{tms-alloc-authentic}{
   }{
@@ -772,7 +772,7 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
   If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
 \end{lemma}
 
-\begin{example}[A program not satisfying \gls{tms}]\label{ex:strncpy:cpp11}
+\begin{example}[A program not satisfying \gls*{tms}]\label{ex:strncpy:cpp11}
   Consider the following \texttt{C++11} library that calls \texttt{strncpy} (\Cref{ex:strncpy}) and prints the result to the standard output stream.
 
   \begin{lstlisting}[language=c++,basicstyle=\small\ttfamily,mathescape,commentstyle=\color{gray}]
@@ -789,14 +789,14 @@ int greet() {  // allocates 12 chars containing a greeting message
   Up to the body of \texttt{printf}, the program execution yields the specification trace $\ev{Alloc}\ \loc[_{x}]\ 12;\comp;\unlock\cdot\ev{Alloc}\ \loc[_{y}]\ 12;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 12;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{y}];\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 6;\comp;\unlock$.
   Relating this trace to abstract monitor events yields $\abstrace=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
   Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), observe that it does not deallocate its arguments.
-  Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls{tms}, since the location $\loc[_{x}]$ is still allocated.
+  Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls*{tms}, since the location $\loc[_{x}]$ is still allocated.
   However, having returned from \texttt{strncpy}, the \texttt{greet} function continues and deallocates $\loc[_{y}]$ whose subsequent use in the \texttt{printf} call is a use-after-free bug.
 
   The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
-  It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls{sms}.
+  It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls*{sms}.
 \end{example}
 
-\subsubsection{Monitor for \glsfirst{sms}}\label{subsubsec:sms}
+\subsubsection{Monitor for \glsfirst*{sms}}\label{subsubsec:sms}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\smsmonitor:=\ L\times\sandboxtag\times\mb{N}\hspace{0.33cm}&
@@ -829,12 +829,12 @@ int greet() {  // allocates 12 chars containing a greeting message
     \monitorcheck[]{\smsmonitor}{\smsmonitor\cup\left\{(\loc;\sandboxtag;n)\right\}}{\absev{Alloc\ }\loc\ \sandboxtag\ n}
   }{sms-alloc}
 \end{center}
-The state of the monitor for \gls{sms} is a set containing tuples of locations, control-tags, and the allocation size.
-In comparison to the trace model of the \gls{tms} monitor, the trace model here is extended by sizing and positional information.
+The state of the monitor for \gls*{sms} is a set containing tuples of locations, control-tags, and the allocation size.
+In comparison to the trace model of the \gls*{tms} monitor, the trace model here is extended by sizing and positional information.
 \Cref{tr:sms-use} performs a bounds check and \Cref{tr:sms-alloc} adds bounds information to the state of the monitor.
-The trace agreement is entirely straightforward and similar to the one for \gls{tms}.
+The trace agreement is entirely straightforward and similar to the one for \gls*{tms}.
 % \begin{center}
-%   \judgbox{\smstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{sms}.''}$\;$\\
+%   \judgbox{\smstraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls*{sms}.''}$\;$\\
 %   %
 %   \typerule{sms-alloc-authentic}{
 %   }{
@@ -888,7 +888,7 @@ The trace agreement is entirely straightforward and similar to the one for \gls{
 
   After the allocation events, the state of the monitor is $\left\{(\loc_{x};\comp;2),(\loc_{y};\comp;2)\right\}$.
   All uses up to the last are accepted by the monitor, but the last event does not satisfy the premise $2<2$ in \Cref{tr:sms-use}.
-  Therefore, the whole program (\texttt{strncpy} linked with this kind of context) is not \gls{sms}.
+  Therefore, the whole program (\texttt{strncpy} linked with this kind of context) is not \gls*{sms}.
 \end{example}
 \MPpost{
 	in general, i think embedding the traces in the text does not make them readable.
@@ -897,7 +897,7 @@ The trace agreement is entirely straightforward and similar to the one for \gls{
 	but at some point we should
 }
 
-\subsubsection{Combining \glsfirst{tms} and \glsfirst{sms} Monitors to obtain \glsfirst{ms}}\label{subsubsec:ms}
+\subsubsection{Combining \glsfirst*{tms} and \glsfirst*{sms} Monitors to obtain \glsfirst*{ms}}\label{subsubsec:ms}
 
 \begin{center}
   \judgbox{\monitorcheck[]{\msmonitor}{\msmonitor[']}{\absevent}}{,,Monitor $\msmonitor$ does one step to $\msmonitor[']$ given event $\absevent$.''}$\;$\\
@@ -908,9 +908,9 @@ The trace agreement is entirely straightforward and similar to the one for \gls{
     \monitorcheck[]{(\tmsmonitor,\smsmonitor)}{(\tmsmonitor['],\smsmonitor['])}{(\absevent_{\tmssafe},\absevent_{\smssafe})}
   }{ms-step}
 \end{center}
-The combined monitor runs the one for \gls{tms} and the one for \gls{sms} in a lockstep. The trace agreement similarly just relates a specification event with an abstract \gls{tms}-event $\abstrace[_{\tmssafe}]$ and with an abstract \gls{sms}-event $\abstrace[_{\smssafe}]$.
+The combined monitor runs the one for \gls*{tms} and the one for \gls*{sms} in a lockstep. The trace agreement similarly just relates a specification event with an abstract \gls*{tms}-event $\abstrace[_{\tmssafe}]$ and with an abstract \gls*{sms}-event $\abstrace[_{\smssafe}]$.
 % \begin{center}
-%   \judgbox{\mstraceagree{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{ms}.''}$\;$\\
+%   \judgbox{\mstraceagree{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls*{ms}.''}$\;$\\
 %   %
 %   \typerule{ms-authentic}{
 %     \tmstraceagree[]{\event}{\absevent_{\tmssafe}} &
@@ -924,7 +924,7 @@ The combined monitor runs the one for \gls{tms} and the one for \gls{sms} in a l
   If $\monmssafe{\trace}$, then $\trace\in\mssafe$.\Coqed
 \end{lemma}
 
-\subsubsection{Monitor for \glsfirst{scct}}
+\subsubsection{Monitor for \glsfirst*{scct}}
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\scctmonitor&:=\ \emptyset \hspace{0.5cm}
@@ -944,10 +944,10 @@ The combined monitor runs the one for \gls{tms} and the one for \gls{sms} in a l
     \monitorcheck[]{\scctmonitor}{\scctmonitor}{\absterm}
   }{scct-abort}
 \end{center}
-The monitor state for the \gls{scct} monitor is completely empty, since it does not need to keep track of information.
+The monitor state for the \gls*{scct} monitor is completely empty, since it does not need to keep track of information.
 As soon as any event is hit, the execution gets stuck, since any event is considered confidental from the perspective of this monitor.
 \begin{center}
-  \judgbox{\sccttraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls{cct}.''}$\;$\\
+  \judgbox{\sccttraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls*{cct}.''}$\;$\\
   %
   \typerule{scct-low-authentic}{
   }{
@@ -987,10 +987,10 @@ Accordingly, the event agreement simply disregards all events that involved publ
   Because of this, the whole trace of the component equates to $\absev{\emptyevent}$ and the monitor can step without getting stuck.
 \end{example}
 
-\subsubsection{Combining \gls{ms} and \gls{scct} Monitors to obtain \gls{msscct}}
+\subsubsection{Combining \gls*{ms} and \gls*{scct} Monitors to obtain \gls*{msscct}}
 
-The combination of monitors for \gls{ms} and \gls{scct} yields one for \gls{msscct}.
-The construction is entirely similar to the one for \gls{ms} (\Cref{subsubsec:ms}).
+The combination of monitors for \gls*{ms} and \gls*{scct} yields one for \gls*{msscct}.
+The construction is entirely similar to the one for \gls*{ms} (\Cref{subsubsec:ms}).
 
 \begin{lemma}[Traces with Monitor Satisfaction are $\msscctsafe$]\label{lem:mon:msscctsafe}
   If $\monmsscctsafe{\trace}$, then $\trace\in\msscctsafe$. %\Coqed
@@ -1013,8 +1013,8 @@ Given an $\src{L}$ program $\src{p}$ and compilers $\cc{\src{L}}{\trg{L}},\cc{\t
 
 Consider the compilation chain for $\src{TypeScript}$.
 First, $\src{TypeScript}$ programs are translated to $\trg{JavaScript}$ which, e.g., V8~\cite{googlev8} eventually compiles in parts to $\irl{Ignition BC}$.
-The following theorem establishes what happens if all these compilation steps were robustly secure with respect to \gls{ms}:
-The resulting $\irl{Ignition BC}$ code would be \gls{ms} regardless of the context the binary runs in.
+The following theorem establishes what happens if all these compilation steps were robustly secure with respect to \gls*{ms}:
+The resulting $\irl{Ignition BC}$ code would be \gls*{ms} regardless of the context the binary runs in.
 
 Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
@@ -1026,7 +1026,7 @@ Since the composition of secure compilers is again a secure compiler, the theore
 \MPin{
 	what do the sentences below mean in this paragraph?
 }
-It is worth pointing out that \gls{ms} (\Cref{subsubsec:ms}) is an example of a practically relevant intersection of classes, namely, \gls{tms} and \gls{sms} (\Cref{subsubsec:tms,subsubsec:sms}).
+It is worth pointing out that \gls*{ms} (\Cref{subsubsec:ms}) is an example of a practically relevant intersection of classes, namely, \gls*{tms} and \gls*{sms} (\Cref{subsubsec:tms,subsubsec:sms}).
 However, the properties need to be lifted~\cite{clarkson2008hyper} to sets of properties by applying the powerset operation.
 
 \subsubsection{Securing Optimisations}
@@ -1038,8 +1038,8 @@ Both examples can be seen in practice, e.g. as in the work of~\cite{nagarakatte2
 % By manipulating the internal state of a \texttt{PassManager} object, the schedule of compiler optimisation passes can be hardcoded.
 % That way, an order of optimisations can be found by hand that yields the best results.
 % \MP{what's the point of the previous 3 sentences?(commented)}
-Consider the following two LLVM optimisation passes: \gls{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls{dce}, which removes dead code by rewriting conditional branches.
-The order in which \gls{cf} and \gls{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
+Consider the following two LLVM optimisation passes: \gls*{cf}, which rewrites constant expressions to the constant they evaluate to, and \gls*{dce}, which removes dead code by rewriting conditional branches.
+The order in which \gls*{cf} and \gls*{dce} are performed influences the final result of the compilation (see \Cref{fig:cfdceex}).
 \begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}
@@ -1060,13 +1060,13 @@ else
 print "a"
 \end{lstlisting}};% the following is a hack to get my syntax highlighting to work again \end{lstlisting}
       % edges
-      \draw[->,very thick] (progunopt) edge[loop left,left] node {\gls{dce}} (progunopt);
-      \draw[->,very thick] (progunopt) edge[sloped,above] node {\gls{cf}} (progoptcf);
-      \draw[->,very thick] (progoptcf) edge[sloped,above] node {\gls{dce}} (progoptcfdce);
+      \draw[->,very thick] (progunopt) edge[loop left,left] node {\gls*{dce}} (progunopt);
+      \draw[->,very thick] (progunopt) edge[sloped,above] node {\gls*{cf}} (progoptcf);
+      \draw[->,very thick] (progoptcf) edge[sloped,above] node {\gls*{dce}} (progoptcfdce);
     \end{tikzpicture}
   \end{center}
-  \caption{Example program where the level of optimisations differ for one pass of applying \gls{cf} and \gls{dce} in any order. %
-  Every edge is a compilation pass and the label on the edge states what the pass does, i.e., \gls{cf} or \gls{dce}. %
+  \caption{Example program where the level of optimisations differ for one pass of applying \gls*{cf} and \gls*{dce} in any order. %
+  Every edge is a compilation pass and the label on the edge states what the pass does, i.e., \gls*{cf} or \gls*{dce}. %
   The source code in the nodes is a glorified compiler intermediate representation and the code gets more optimised towards the right hand side of the figure.}\label{fig:cfdceex}
 \end{figure}
 This {\em phase ordering problem} is well--known in literature and a practical solution is to simply perform a fixpoint iteration of the optimisation pipeline~\cite{click1995combining}.
@@ -1149,16 +1149,16 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 
 This section defines programming languages that the secure compilers defined in the next section will use.
 To this end, this section defines the languages $\Ltms$, $\Ltrg$, $\Lms$, and $\Lscct$ which share many common elements (presented in \Cref{subsec:cs:defs}).
-$\Ltms$ is the only statically typed language and exhibits the property that all well-typed programs are \gls{tms} (\Cref{subsec:ltms}).
-However, not all $\Ltms$ programs are \gls{sms}.
+$\Ltms$ is the only statically typed language and exhibits the property that all well-typed programs are \gls*{tms} (\Cref{subsec:ltms}).
+However, not all $\Ltms$ programs are \gls*{sms}.
 That is, there are well-typed $\Ltms$ programs that perform an out-of-bounds access.
-Language $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls{ms} (\Cref{subsec:lsms}).
+Language $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls*{ms} (\Cref{subsec:lsms}).
 $\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability (\Cref{subsec:lms}).
-All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls{cct} to hold.
+All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls*{cct} to hold.
 
-This paper considers \gls{cct} as an architecture-dependent property\MPin{can we justify this}, so writing \gls{cct} should not be one of the programmer's concerns~\cite{cauligi2019fact}.
+This paper considers \gls*{cct} as an architecture-dependent property\MPin{can we justify this}, so writing \gls*{cct} should not be one of the programmer's concerns~\cite{cauligi2019fact}.
 Such consideration is backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
-In spirit of this, language $\Lscct$ allows violating \gls{cct} by emitting events on, e.g., branching and division, that contain secrets (\Cref{subsec:lscct}), but provides a way to read and write to a {\em model--specific register} that enables a ``\gls{cct}-mode''.
+In spirit of this, language $\Lscct$ allows violating \gls*{cct} by emitting events on, e.g., branching and division, that contain secrets (\Cref{subsec:lscct}), but provides a way to read and write to a {\em model--specific register} that enables a ``\gls*{cct}-mode''.
 
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 \begin{gather*}
@@ -1342,7 +1342,7 @@ The trace $\trace$ emitted during that execution serves as abstraction of the be
 
 $\src{L_{\tmssafe}}$ uses the same syntax as presented earlier (\Cref{sec:casestud:defs}) without extensions to the term level.
 But, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
-The type system of $\src{L_{\tmssafe}}$ exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls{tms} (\Cref{thm:wt:tms}).
+The type system of $\src{L_{\tmssafe}}$ exhibits the property that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
 The proof of this theorem relies on a projection $\msfilterLtms{\src{\event}}=\event$ from $\src{L_{\tmssafe}}$ events to specification events $\event$, because the properties defined earlier (\Cref{subsec:propdefs}) are defined in the specification trace model.
 Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a location $\loc$ of the specification trace model.
 
@@ -1373,9 +1373,9 @@ Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a loca
 \end{center}
 
 Most rules of the projection $\msfilterLtms{\src{\event}}$ are left out since, for the most part, it does the expected, e.g., $\msfilterLtms{\src{\ev{Dealloc}\ \loc;\comp;\securitytag}}=\ev{Dealloc}\ \delta(\loc);\comp;\securitytag$.
-But, it also filters any action that a context does as well as the interaction events, since these are irrelevant for component-level \gls{tms}.
+But, it also filters any action that a context does as well as the interaction events, since these are irrelevant for component-level \gls*{tms}.
 
-\begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls{tms}]\label{thm:wt:tms}
+\begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls*{tms}]\label{thm:wt:tms}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
 \end{theorem}
 
@@ -1500,7 +1500,7 @@ The projection to the specification trace model is mostly straightforward and si
 However, for events containing the pre-events $\obj{\widehat{Get}}$ and $\obj{\widehat{Set}}$, the projection always translates the security-tag $\obj{\sigma}$ to $\unlock$, regardless of its actual value, as seen in \Cref{tr:lscct-filter-get-hat}.
 The pre-events themselves still translate to just $\ev{Get}$ and $\ev{Set}$, respectively.
 With this technical setup, the information whether a read or write happened on a secret value is not hidden by the semantics, e.g., by emitting $\obj{\emptyevent}$, but when projecting to specification events.
-This allows flexibility: The trace can be checked to satisfy different properties, such as, in this case, \gls{tms}, \gls{sms}, \gls{scct}, and their combined versions.
+This allows flexibility: The trace can be checked to satisfy different properties, such as, in this case, \gls*{tms}, \gls*{sms}, \gls*{scct}, and their combined versions.
 \Cref{ex:lscct} illustrates the differences of $\Lscct$ compared to the other languages.
 
 
@@ -1551,13 +1551,13 @@ This section defines several secure compilers, each of which robustly preserves 
       \node[right=3.0 of M] (E) {$\irl{L_{\mssafe}}$};
       \node[right=1.5 of E] (O) {$\obj{L_{\scctsafe}}$};
 
-      \draw[->] (S) to[sloped] node[align=center,font=\scriptsize] (tmsedge) {\gls{tms}\\ \Cref{thm:cca:rtp:tms}} (T);
-      \draw[->] (T) to[sloped] node[align=center,font=\scriptsize] {\gls{sms}\\ \Cref{thm:ccb:rtp:sms}} (M);
-      \draw[->] (M) to[sloped] node[align=center,font=\scriptsize] {\gls{dce}\\ \Cref{thm:ccdce:rtp:ms}} (D0);
-      \draw[->] (M) to[sloped] node[align=center,font=\scriptsize] {\gls{cf}\\ \Cref{thm:cccf:rtp:ms}} (C0);
-      \draw[->] (D0) to[sloped] node[align=center,font=\scriptsize] {\gls{cf}\\ \Cref{thm:cccf:rtp:ms}} (E);
-      \draw[->] (C0) to[sloped] node[align=center,font=\scriptsize] {\gls{dce}\\ \Cref{thm:ccdce:rtp:ms}} (E);
-      \draw[->] (E) to[sloped,above] node[align=center,font=\scriptsize] {\gls{scct}\\ \Cref{thm:ccscct:rtp:scct}} (O);
+      \draw[->] (S) to[sloped] node[align=center,font=\scriptsize] (tmsedge) {\gls*{tms}\\ \Cref{thm:cca:rtp:tms}} (T);
+      \draw[->] (T) to[sloped] node[align=center,font=\scriptsize] {\gls*{sms}\\ \Cref{thm:ccb:rtp:sms}} (M);
+      \draw[->] (M) to[sloped] node[align=center,font=\scriptsize] {\gls*{dce}\\ \Cref{thm:ccdce:rtp:ms}} (D0);
+      \draw[->] (M) to[sloped] node[align=center,font=\scriptsize] {\gls*{cf}\\ \Cref{thm:cccf:rtp:ms}} (C0);
+      \draw[->] (D0) to[sloped] node[align=center,font=\scriptsize] {\gls*{cf}\\ \Cref{thm:cccf:rtp:ms}} (E);
+      \draw[->] (C0) to[sloped] node[align=center,font=\scriptsize] {\gls*{dce}\\ \Cref{thm:ccdce:rtp:ms}} (E);
+      \draw[->] (E) to[sloped,above] node[align=center,font=\scriptsize] {\gls*{scct}\\ \Cref{thm:ccscct:rtp:scct}} (O);
 
       % Sections
       \node[above=1.0 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
@@ -1565,9 +1565,9 @@ This section defines several secure compilers, each of which robustly preserves 
       \node[right=1.75 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
       \node[right=1.75 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
 
-      \draw[thick,dotted,->] (S) to[bend right=33,sloped] node[align=center,font=\scriptsize] {\gls{ms}\\ \Cref{thm:ccab:rtp:ms}} (M);
-      \draw[thick,dotted,->] (M) to[bend right=0,sloped] node[align=center,font=\scriptsize] {\gls{ms}\\ \Cref{thm:cccfccdce:rtp:ms}} (E);
-      \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped] node[align=center,font=\scriptsize] {\gls{ms}+\gls{scct}\\ \Cref{thm:ccall:rtp:msscct}} (O);
+      \draw[thick,dotted,->] (S) to[bend right=33,sloped] node[align=center,font=\scriptsize] {\gls*{ms}\\ \Cref{thm:ccab:rtp:ms}} (M);
+      \draw[thick,dotted,->] (M) to[bend right=0,sloped] node[align=center,font=\scriptsize] {\gls*{ms}\\ \Cref{thm:cccfccdce:rtp:ms}} (E);
+      \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped] node[align=center,font=\scriptsize] {\gls*{ms}+\gls*{scct}\\ \Cref{thm:ccall:rtp:msscct}} (O);
 
       \draw[dashed] ($(sectms)-(0.8,0)$) -- ($(sectms)-(0.8,1.25)$);
       \draw[dashed] ($(sectms)-(-0.9,0)$) -- ($(sectms)-(-0.9,1.25)$);
@@ -1576,20 +1576,20 @@ This section defines several secure compilers, each of which robustly preserves 
       \draw[dashed] ($(secscct)-(-1.1,0)$) -- ($(secscct)-(-1.1,1.25)$);
     \end{tikzpicture}
   \end{center}
-  \caption{Visualisation of the optimising compilation pipeline that attains a combination of \gls{ms} and \gls{cct}. %
+  \caption{Visualisation of the optimising compilation pipeline that attains a combination of \gls*{ms} and \gls*{cct}. %
     Vertices in the graph are the programming languages from earlier sections (\Cref{sec:casestud:defs}). %
     All edges are secure compilers, but dotted edges use the presented framework (\Cref{sec:compcomp}) and strikethrough edges classic proof techniques. %
     The dashed lines partition the graph into the sections where the respective theorems are presented.
   }\label{fig:pipeline}
 \end{figure}
-The section demonstrates the power of the framework (\Cref{sec:compprop,sec:compcomp}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls{msscct}.
-The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls{tms} (\Cref{thm:cca:rtp:tms}).
-From here, an instrumentation from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls{sms} (\Cref{thm:ccb:rtp:sms}).
-Since these properties compose into \gls{ms}, composing these passes yields a compiler that robustly preserves \gls{ms} (\Cref{thm:ccab:rtp:ms}).
-At this stage, the section presents two optimising translations, namely \gls{cf} and \gls{dce}, each of which robustly preserves \gls{ms} (\Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms}).
+The section demonstrates the power of the framework (\Cref{sec:compprop,sec:compcomp}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls*{msscct}.
+The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls*{tms} (\Cref{thm:cca:rtp:tms}).
+From here, an instrumentation from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls*{sms} (\Cref{thm:ccb:rtp:sms}).
+Since these properties compose into \gls*{ms}, composing these passes yields a compiler that robustly preserves \gls*{ms} (\Cref{thm:ccab:rtp:ms}).
+At this stage, the section presents two optimising translations, namely \gls*{cf} and \gls*{dce}, each of which robustly preserves \gls*{ms} (\Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms}).
 These translations can be freely ordered in the compilation chain without compromising memory safety (\Cref{thm:cccfccdce:rtp:ms}).
-The last step of the chain ensures that code stays \gls{scct} (\Cref{thm:ccscct:rtp:scct}) when lowered from $\Lms$ to $\Lscct$.
-The final result is that the whole compilation chain robustly preserves \gls{msscct} (\Cref{thm:ccall:rtp:msscct}).
+The last step of the chain ensures that code stays \gls*{scct} (\Cref{thm:ccscct:rtp:scct}) when lowered from $\Lms$ to $\Lscct$.
+The final result is that the whole compilation chain robustly preserves \gls*{msscct} (\Cref{thm:ccall:rtp:msscct}).
 
 
 
@@ -1619,7 +1619,7 @@ The compiler does not insert other checks and proceeds as the identity function 
 
 Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$, the compiler would in this case ensure that the arguments that are evaluated in the compiled \texttt{strncpy} are valid.
 
-\begin{theorem}[Compiler $\cca$ is secure with respect to \gls{tms}]\label{thm:cca:rtp:tms}
+\begin{theorem}[Compiler $\cca$ is secure with respect to \gls*{tms}]\label{thm:cca:rtp:tms}
   $\rtp{\cca}{\tmssafe}$ % \Coqed
 \end{theorem}
 
@@ -1749,11 +1749,11 @@ This gives $\msfilterLtms{\src{\trace}}\in\pi$, which was to be demonstrated.
   $$
 \end{center}
 
-The compiler $\cc{\trg{L}}{\Lms}$ only inserts bounds-checks whenever reading from or writing to memory in order to enforce \gls{sms}.
+The compiler $\cc{\trg{L}}{\Lms}$ only inserts bounds-checks whenever reading from or writing to memory in order to enforce \gls*{sms}.
 For passing pointers, it has to pass them with their size information as well.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
 \begin{example}[Instrumented \texttt{strncpy}]
-  Consider again \texttt{strncpy}, but instrumented for \gls{sms}:
+  Consider again \texttt{strncpy}, but instrumented for \gls*{sms}:
     \begin{lstlisting}[language=c,basicstyle=\ttfamily\small, morekeywords={size_t}]
   void strncpy(size_t n, size_t dst_size, char *dst,
                          size_t src_size, char *src) {
@@ -1767,13 +1767,13 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
     When calling this in similar fashion to \Cref{ex:strncpy:sms}, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution, since the bounds check prevents the condition \texttt{src[i] != '\textbackslash 0'} from executing.
 \end{example}
 
-\begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}
+\begin{theorem}[Compiler $\ccb$ is secure with respect to \gls*{sms}]\label{thm:ccb:rtp:sms}
   $\rtp{\ccb}{\smssafe}$ % \Coqed
 \end{theorem}
 
-\Cref{thm:ccab:rtp:ms} states that the composition of $\cca$ and $\ccb$ is secure with respect to \gls{ms} and follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtp}.
+\Cref{thm:ccab:rtp:ms} states that the composition of $\cca$ and $\ccb$ is secure with respect to \gls*{ms} and follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtp}.
 
-\begin{theorem}[Compiler $\cca\circ\ccb$ is secure with respect to \gls{ms}]\label{thm:ccab:rtp:ms}
+\begin{theorem}[Compiler $\cca\circ\ccb$ is secure with respect to \gls*{ms}]\label{thm:ccab:rtp:ms}
   $\rtp{\cca\circ\ccb}{\mssafe}$ % \Coqed
 \end{theorem}
 
@@ -1804,24 +1804,24 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
   \end{align*}
 \end{gather*}
 
-The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls{dce} and \gls{cf}, respectively.
-The \gls{dce} pass applies a naive rewrite rule on conditionals.
-For \gls{cf}, the pass uses an auxiliary function \texttt{mix} that does the actual work.
+The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls*{dce} and \gls*{cf}, respectively.
+The \gls*{dce} pass applies a naive rewrite rule on conditionals.
+For \gls*{cf}, the pass uses an auxiliary function \texttt{mix} that does the actual work.
 It rewrites constant binary operations, e.g., $\irl{{17}+{29}-1}$ to $\irl{46-1}$, and replaces variables that are assigned to constants with their constant, e.g., $\irl{\llet{x}{7}{x}}$ to $\irl{7}$.
-Both passes are secure with respect to \gls{ms}.
-The proof for either is relatively simple, because both \gls{dce} and \gls{cf} do not change the way memory accesses happen.
+Both passes are secure with respect to \gls*{ms}.
+The proof for either is relatively simple, because both \gls*{dce} and \gls*{cf} do not change the way memory accesses happen.
 Moreover, since the input and output languages to these compilers are the same, attacker contexts do not have more power in the target language than in the source.
 
-\begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls{ms}]\label{thm:ccdce:rtp:ms}
+\begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls*{ms}]\label{thm:ccdce:rtp:ms}
   $\rtp{\ccdce}{\mssafe}$ %\Coqed
 \end{theorem}
-\begin{theorem}[Compiler $\cccf$ is secure with respect to \gls{ms}]\label{thm:cccf:rtp:ms}
+\begin{theorem}[Compiler $\cccf$ is secure with respect to \gls*{ms}]\label{thm:cccf:rtp:ms}
   $\rtp{\cccf}{\mssafe}$ %\Coqe
 \end{theorem}
 
 With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swappable} that the two passes can be interchanged arbitrarily:
 
-\begin{theorem}[Compilers $\cccf\circ\ccdce$ and $\cccf\circ\ccdce$ are secure with respect to \gls{ms}]\label{thm:cccfccdce:rtp:ms}
+\begin{theorem}[Compilers $\cccf\circ\ccdce$ and $\cccf\circ\ccdce$ are secure with respect to \gls*{ms}]\label{thm:cccfccdce:rtp:ms}
   $\rtp{\cccf\circ\ccdce}{\mssafe}$ and $\rtp{\ccdce\circ\cccf}{\mssafe}$. % \Coqed
 \end{theorem}
 
@@ -1835,11 +1835,11 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
   \end{align*}
 \end{center}
 
-Given the fact that $\Lscct$ provides a \gls{cct}-mode that can be turned on or off, the compiler inserts wrapper code for function bodies to ensure that execution in the component always happen in this \gls{cct}-mode.
+Given the fact that $\Lscct$ provides a \gls*{cct}-mode that can be turned on or off, the compiler inserts wrapper code for function bodies to ensure that execution in the component always happen in this \gls*{cct}-mode.
 The context can overwrite the flag and exit the mode, but upon invoking a function that is part of the component, the flag would be set again.
-Because of this, the compiler is secure with respect to \gls{scct}, similarly proven as in \Cref{subsec:cs:tms}.
+Because of this, the compiler is secure with respect to \gls*{scct}, similarly proven as in \Cref{subsec:cs:tms}.
 
-\begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls{scct}]\label{thm:ccscct:rtp:scct}
+\begin{theorem}[Compiler $\ccscct$ is secure with respect to \gls*{scct}]\label{thm:ccscct:rtp:scct}
   $\rtp{\ccscct}{\scctsafe}$ % \Coqed
 \end{theorem}
 
@@ -1847,7 +1847,7 @@ Because of this, the compiler is secure with respect to \gls{scct}, similarly pr
 
 Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, and $\ccscct$, then the following theorem holds.
 
-\begin{theorem}[Compiler $\ccmsscct$ is secure with respect to \gls{scct}]\label{thm:ccall:rtp:msscct}
+\begin{theorem}[Compiler $\ccmsscct$ is secure with respect to \gls*{scct}]\label{thm:ccall:rtp:msscct}
   $\rtp{\cc{\Ltms}{\Lscct}}{\mssafe\cap\scctsafe}$ \Coqed
 \end{theorem}
 \begin{proof}
@@ -1863,14 +1863,14 @@ Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\ccc
 % Unfold the definition of $\rtp{\cc{\Ltms}{\Lscct}}{\mssafe\cap\scctsafe}$.
 % So, let $\pi\in\mssafe\cap\scctsafe$, $\src{\progvar}$ such that $\rsat{\src{\progvar}}{\pi}$ and let $\obj{\contextvar},\obj{\runtimetermvar}$ with $\progstepto{\prog[\obj]{\obj{\contextvar}}{\left(\cc{\Ltms}{\Lscct}(\src{\progvar})\right)}}{\obj{\runtimetermvar}}{\obj{\trace}}$.
 % What is left to show is $\scctfilterLscct[\emptyset]{\obj{\trace}}\in\pi$.
-% Let $\irl{\progvar}=\cc{\Ltms}{\Ltrg}\circ\cc{\Ltrg}{\Lms}\circ\cc[\gls{cf}]{\Lms}{\Lms}\circ\cc[\gls{dce}]{\Lms}{\Lms}(\src{\progvar})$ such that $\cc{\Lms}{\Lscct}(\irl{\progvar})=\cc{\Ltms}{\Lscct}(\src{\progvar})$.
+% Let $\irl{\progvar}=\cc{\Ltms}{\Ltrg}\circ\cc{\Ltrg}{\Lms}\circ\cc[\gls*{cf}]{\Lms}{\Lms}\circ\cc[\gls*{dce}]{\Lms}{\Lms}(\src{\progvar})$ such that $\cc{\Lms}{\Lscct}(\irl{\progvar})=\cc{\Ltms}{\Lscct}(\src{\progvar})$.
 % Note that $\pi\in\scctsafe$, so apply \Thmref{thm:ccscct:rtp:scct}
 \end{proof}
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 
 This section discusses work on robust compilation (\Cref{subsec:relw:seccomprtp}) and on other secure compilation criteria (\Cref{subsec:relw:seccompcrit}).
-Since the case study of \Cref{sec:casestud:defs,sec:casestud:rtp} implements measures for preserving \gls{ms} and \gls{cct}, this section then presents relevant related work as well (\Cref{subsec:relw:msmechs,subsec:relw:cctmechs}).
+Since the case study of \Cref{sec:casestud:defs,sec:casestud:rtp} implements measures for preserving \gls*{ms} and \gls*{cct}, this section then presents relevant related work as well (\Cref{subsec:relw:msmechs,subsec:relw:cctmechs}).
 
 \subsection{Secure Compilation as Robust Preservation}\label{subsec:relw:seccomprtp}
 
@@ -1920,7 +1920,7 @@ The approach to preserving cryptographic constant time in this paper is high-lev
 Since identifiers in $\Lscct$ are annotated with a secrecy tag, this approach is similar to others with information flow control.
 For example, Vale~\cite{bond2017vale} uses Dafny to ensure constant-time assembly code, while Jasmin~\cite{almeida2017jasmin} makes use of the Coq proof assistant to reject non-constant-time programs.
 CT-Wasm~\cite{watt2019ctwasm} enforces constant-timeness by means of a type system.
-Different to the approach of this paper, these approaches necessitate that the programmer writes \gls{cct} code.
+Different to the approach of this paper, these approaches necessitate that the programmer writes \gls*{cct} code.
 An approach to allow programmers to write more high-level code is CryptOpt~\cite{kuepper2023cryptopt}, which generates efficient target-code by means of a randomised search.
 This paper abstracts over concrete mitigation strategies and simply assumes that there is a flag to switch to a cryptographic-constant time execution mode.
 This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, which translates common non-constant time code patterns to be constant-time, and the data (object) independent timing execution mode of modern processors.
@@ -1932,12 +1932,12 @@ For this, this paper first formalised security properties of interest and their 
 % 
 Then, it proved that composing secure compilers that preserve certain properties results in a secure compiler that preserves the composition of the properties.
 % 
-Finally, this paper defines a multi-pass compiler and proves that it preserves \gls{msscct}.
+Finally, this paper defines a multi-pass compiler and proves that it preserves \gls*{msscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
 
 
 % This paper does a first step towards practical secure compilation chains by introducing a theoretical framework demonstrating that secure compilers compose.
-% The paper exercises this framework on a case-study that consists of an optimising compilation chain that is secure with respect to \gls{msscct}.
+% The paper exercises this framework on a case-study that consists of an optimising compilation chain that is secure with respect to \gls*{msscct}.
 % \MP{
 % 	not an appropriate recap.
 % 	rewrite summarising the paper

@@ -1020,11 +1020,6 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 \end{theorem}
 
 Since the composition of secure compilers is again a secure compiler, the theorem generalises to a whole chain of $n$ secure compilers.
-\MPin{
-	what do the sentences below mean in this paragraph?
-}
-It is worth pointing out that \gls*{ms} (\Cref{subsubsec:ms}) is an example of a practically relevant intersection of classes, namely, \gls*{tms} and \gls*{sms} (\Cref{subsubsec:tms,subsubsec:sms}).
-However, the properties need to be lifted~\cite{clarkson2008hyper} to sets of properties by applying the powerset operation.
 
 \subsubsection{Securing Optimisations}
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
@@ -1236,10 +1231,7 @@ Runtime terms are simply expressions $\expr$ paired with the operational state $
 All languages use the same trace model, where events are either the empty event \emptyevent, the program crash event $\lightning$, or a tuple consisting of a control tag $\sandboxtag$ and a security tag $\securitytag$.
 The former indicates whether the component \comp or the context \ctx is to blame for emitting this event, the latter indicates the secrecy level of values of the emitted event, i.e., either $\lock$ or $\unlock$.
 As for pre-events, the memory-related ones are allocation ($\ev{Alloc}\ \loc\ \valueexpr$), deallocation ($\ev{Dealloc}\ \loc$), reading from ($\ev{Get}\ \loc\ \valueexpr$) and writing to memory ($\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']$).
-
-\MPpost{
-	this is a bit abrupt
-}
+The following is an excerpt of the operational semantics handling some of the memory operations.
 
 \begin{center}
   \judgbox{\pstepto{\runtimetermvar}{\runtimetermvar[']}{\event}}{,,$\runtimetermvar$ does one primitive step to $\runtimetermvar[']$ emitting event $\event$.''}
@@ -1303,7 +1295,7 @@ The reason for these interaction events is technical: They are a proof artifact 
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
 Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
 For calls without this context switch, the environmental semantics attaches the $\nocomm$ tag.
-In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.\MP{i don't think this is used?}
+In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
 
 \begin{center}
   \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime-term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
@@ -1403,11 +1395,7 @@ If the array bound to $\trg{x}$ was allocated, i.e., has been poisoned ($\trg{\p
 Dynamic typechecks $\trg{\lhast{\expr}{\type}}$ match on $\trg{\expr}$ and evaluate to $\trg{0}$ if the term is of type $\trg{\type}$ and $\trg{1}$ otherwise.
 
 %
-The projection $\msfilterL{\trg{\trace}}$ is entirely similar to $\msfilterLtms{\src{\trace}}$.
-\MPin{
-	entirely similar? no. equal
-}
-
+The projection $\msfilterL{\trg{\trace}}$ is equal to $\msfilterLtms{\src{\trace}}$.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
 To enhance readablity, this paper uses $\Lms$, despite it being exactly equal to $\Ltrg$ (\Cref{subsec:lsms}).
@@ -1443,7 +1431,7 @@ Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj
 To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends pre-events with $\obj{\widehat{Get}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$.
 These indicate reads from and writes to memory without leaking secret information involved in the access.
 Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
-\MPin{rules are not explained}
+The following rules demonstrate how this is handled semantically.
 
 \begin{center}
   \typerule{$e-\obj{\oplus}-\text{noleak}$}{
@@ -1466,9 +1454,9 @@ Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{
   }{e-ifz-true-leak}
 \end{center}
 
-The evaluation steps are amended to propagate the securitytags $\obj{\securitytag}$.
+The evaluation steps are amended to propagate the security-tag annotations $\obj{\securitytag}$.
 When the data independent timing mode is active, pre-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
-To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
+%To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
 
 \begin{center}
   \judgbox{\scctfilterLscct{\obj{\event}}=\event}{,,Project an $\Lscct$ event $\obj{\event}$ to a specification event $\event$.''}
@@ -1503,13 +1491,8 @@ This allows flexibility: The trace can be checked to satisfy different propertie
 
 \begin{example}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
   Consider again the context presented in \Cref{ex:strncpy:cpp11}, where everything is marked with a security tag of high $\lock$.
-  The following table shows parts of the execution trace, read from top to bottom, in the left column with and in the right column without data independent timing.
-  The left side of the table, i.e., the two columns on the left, describe the execution trace of the program, while the right side of the table, i.e., the two columns on the right, describe the respective projections $\scctfilterLscct{\obj{\trace}}$ to the specification trace model.
-  \MPin{
-  very nice.
-  final bit, perhaps highlight those events taht are mentioned in the text, so they are easily recognisable?
-  like yellow BG for the events, gray BG for the locks 
-  }
+  The following table shows parts of the execution trace, read from top to bottom, in the left column (\textit{Active}) with and in the right column (\textit{Inactive}) without data independent timing.
+  The left side of the table ($\Lscct$), i.e., the two columns on the left, describes the execution trace of the program, while the right side of the table ($Spec$), i.e., the two columns on the right, describes the respective projections $\scctfilterLscct{\obj{\trace}}$ to the specification trace model.
 
   $${\footnotesize
   \begin{array}{ccccccc}
@@ -1517,22 +1500,22 @@ This allows flexibility: The trace can be checked to satisfy different propertie
     Active & \mid & Inactive & \mid & Active & \mid & Inactive \\\hline
     \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock\\
     \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\unlock & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
-    \obj{\emptyevent} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
-    \obj{\widehat{\ev{Set}}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} & \mid & \obj{\ev{Set}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\unlock & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\lock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 1;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 1;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\unlock & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\lock\\
-    \obj{\emptyevent} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
+    \text{\colorbox{yellow}{$\obj{\emptyevent}$}} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
+    \obj{\widehat{\ev{Set}}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Set}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\lock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 1;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 1;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\lock\\
+    \text{\colorbox{yellow}{$\obj{\emptyevent}$}} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
     \vdots & \mid & \vdots & \mid & \vdots & \mid & \vdots \\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 12;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{x}\ 12;\comp;\lock} & \mid &  \ev{Use}\ \loc_{x}\ 12;\comp;\unlock & \mid & \ev{Use}\ \loc_{x}\ 12;\comp;\lock\\
-    \obj{\emptyevent} & \mid & \obj{\ev{Branch}\ 1;\comp;\lock} & \mid &  \emptyevent & \mid & \ev{Branch}\ 1;\comp;\lock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 12;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 12;\comp;\lock} & \mid &  \ev{Use}\ \loc_{x}\ 12;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 12;\comp;\lock\\
+    \text{\colorbox{yellow}{$\obj{\emptyevent}$}}& \mid & \obj{\ev{Branch}\ 1;\comp;\lock} & \mid &  \emptyevent & \mid & \ev{Branch}\ 1;\comp;\lock\\
     \obj{\ev{Dealloc}\ \loc_{y};\comp;\unlock} & \mid & \obj{\ev{Dealloc}\ \loc_{y};\comp;\lock} & \mid &  \ev{Dealloc}\ \loc_{y};\comp;\unlock & \mid & \ev{Dealloc}\ \loc_{y};\comp;\unlock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{y}\ 6;\comp;\lock} & \mid & \obj{\ev{Get}\ \loc_{y}\ 6;\comp;\lock} & \mid &  \ev{Use}\ \loc_{y}\ 6;\comp;\unlock & \mid & \ev{Use}\ \loc_{y}\ 6;\comp;\lock\\
+    \obj{\widehat{\ev{Get}}\ \loc_{y}\ 6;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{y}\ 6;\comp;\lock} & \mid &  \ev{Use}\ \loc_{y}\ 6;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 6;\comp;\lock\\
   \end{array}}
   $$
 
   When the data independent timing mode is off, the execution yields events in similar fashion to before (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
-  But, if it is turned on, then the branching event does not fire anymore and both reading and writing to memory gets ultimately translated to a specification trace with no exposed secrets.
+  But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory gets ultimately translated to a specification trace with \colorbox{lightgray}{no exposed secrets}.
 \end{example}
 
 \section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}

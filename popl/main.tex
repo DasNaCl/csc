@@ -608,9 +608,9 @@ Since \gls*{ms} and \gls*{scct} are just sets of traces that, intuitively, conta
 
 Monitors enforce safety properties by accepting or rejecting traces, i.e., if it rejects a trace, the trace does not satisfy the property the monitor checks.
 Since reasoning on monitors is easier than directly on just traces, this section presents a monitor for each of the previously shown safety properties (\Cref{subsec:propdefs}).
-\MPpost{
-	this is fine, but it'd be nice to provide more insights on why it's easier
-}
+%\MPpost{
+%	this is fine, but it'd be nice to provide more insights on why it's easier
+%}
 To lessen the burden when proving that a monitor accepts the trace of a program execution, each monitor uses a custom trace model that contains only the relevant information related to the property the monitor checks.
 To go from specification traces $\trace$ to monitor-level traces $\abstrace$, each property $\pi$ has an associated event agreement relation $\traceagree[]{\pi}{\event}{\absevent}$.
 \Cref{fig:stuttereq} shows how the event agreement is lifted to traces.
@@ -890,12 +890,6 @@ The trace agreement is entirely straightforward and similar to the one for \gls*
   All uses up to the last are accepted by the monitor, but the last event does not satisfy the premise $2<2$ in \Cref{tr:sms-use}.
   Therefore, the whole program (\texttt{strncpy} linked with this kind of context) is not \gls*{sms}.
 \end{example}
-\MPpost{
-	in general, i think embedding the traces in the text does not make them readable.
-	in the exorcising paper i think i put them in align env, or in a way to make them stand out.
-	i don't think we have the time to do this change uniformly now,
-	but at some point we should
-}
 
 \subsubsection{Combining \glsfirst*{tms} and \glsfirst*{sms} Monitors to obtain \glsfirst*{ms}}\label{subsubsec:ms}
 
@@ -1148,8 +1142,9 @@ Language $\Ltrg$ is untyped and does not provide any guarantees with regards to 
 $\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability (\Cref{subsec:lms}).
 All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls*{cct} to hold.
 
-This paper considers \gls*{cct} as an architecture-dependent property\MPin{can we justify this}, so writing \gls*{cct} should not be one of the programmer's concerns~\cite{cauligi2019fact}.
-Such consideration is backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
+% This paper considers \gls*{cct} as an architecture-dependent property\MPin{can we justify this}, so
+Writing code attaining \gls*{cct} should not be of the programmer's concerns~\cite{cauligi2019fact}.
+Such consideration is also backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
 In spirit of this, language $\Lscct$ allows violating \gls*{cct} by emitting events on, e.g., branching and division, that contain secrets (\Cref{subsec:lscct}), but provides a way to read and write to a {\em model--specific register} that enables a ``\gls*{cct}-mode''.
 
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
@@ -1605,6 +1600,20 @@ Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$
 
 \subsubsection{Proving Robust Safety Property Preservation}
 
+The proof of \Cref{thm:cca:rtp:tms} serves as boilerplate for proofs of the other secure compilation theorems of this paper.
+Unfolding the statement gives the assumptions that for any $\pi\in\lceil\tmssafe\rceil$\footnote{$\lceil\cdot\rceil$ lifts the property to a hyperproperty by applying the powerset operation~\cite{clarkson2008hyper}.}, $\src{\trace}$, $\src{\runtimetermvar}$, and component $\src{\library_{comp}}$, $\rsat{\src{\library_{comp}}}{\pi}$ and $\progstepto{\prog[\trg]{\trg{\library_{\ctx}}}{\cca(\src{\library_{\comp}})}}{\trg{\runtimetermvar}}{\trg{\trace}}$, where $\trg{\library_{\ctx}}$ is arbitrary.
+The proof obligation is $\msfilterL{\trg{\trace}}\in\pi$, i.e., the specification trace associated to $\trg{\trace}$ should satisfy the property $\pi$.
+To show this, the trace $\trg{\trace}$ should be related with some $\Ltms$ trace $\src{\trace}$ and since there is a target execution associated to this trace, the task is to find an associated $\Ltms$ execution.
+The trace $\trg{\trace}$ is split into different parts, where each part contains the events that either the context or the component does, but not both.
+Because of this, all such trace segments are ,,well-bracketed'' in the sense that they start with either $\trg{\ev{Start}}$, $\trg{\ev{Call}\ \comptoctx\ foo\ \valueexpr}$, or $\trg{\ev{Ret}\ \comptoctx\ \valueexpr}$ and end with either $\trg{\ev{End}\ \valueexpr}$, $\trg{\ev{Ret}\ \ctxtocomp\ \valueexpr}$, or $\trg{\ev{Call}\ \ctxtocomp\ foo\ \valueexpr}$.
+In the following, the former is referred to as a context segment, since, for these, execution happens in $\trg{\library_{\ctx}}$, and the latter as a component segment, since, for these, execution happens in $\cca(\src{\library_{\comp}})$.
+\Cref{fig:proofdiag:rtp} visualises this split for a program execution with one call from context to component and how the target execution is related to a source execution.
+In the figure, the green dashed lines encompass the component segments while the orange boxes contain the actual context switches from context to component or vice versa.
+For the proof, it is necessary to know when two states $\src{\Omega}$ and $\trg{\Omega}$ are related.
+Two cross-language relations make this precise: (i) $\multimap_{\delta}$ relates states that are involved in a context segment, allowing the target execution to perform internal calls, and (ii) $\approx_{\delta}$ relates states that are involved in a component segment, where both states need to agree exactly, i.e., the memory and the control flow states are required to contain the same information.
+The relations are indexed with $\delta$, which is simply an injective mapping from $\Ltms$ locations $\src{\loc}$ to $\Ltrg$ locations $\trg{\loc}$.
+Note that the relations $\multimap_{\delta}$ and $\approx_{\delta}$ swap when context switching.
+
 \begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}[state/.style={minimum height=1.5cm}]
@@ -1688,21 +1697,6 @@ Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$
     }\label{fig:proofdiag:rtp}
   \end{center}
 \end{figure}
-
-
-The proof of \Cref{thm:cca:rtp:tms} serves as boilerplate for proofs of the other secure compilation theorems of this paper.
-Unfolding the statement gives the assumptions that for any $\pi\in\lceil\tmssafe\rceil$\footnote{$\lceil\cdot\rceil$ lifts the property to a hyperproperty by applying the powerset operation~\cite{clarkson2008hyper}.}, $\src{\trace}$, $\src{\runtimetermvar}$, and component $\src{\library_{comp}}$, $\rsat{\src{\library_{comp}}}{\pi}$ and $\progstepto{\prog[\trg]{\trg{\library_{\ctx}}}{\cca(\src{\library_{\comp}})}}{\trg{\runtimetermvar}}{\trg{\trace}}$, where $\trg{\library_{\ctx}}$ is arbitrary.
-The proof obligation is $\msfilterL{\trg{\trace}}\in\pi$, i.e., the specification trace associated to $\trg{\trace}$ should satisfy the property $\pi$.
-To show this, the trace $\trg{\trace}$ should be related with some $\Ltms$ trace $\src{\trace}$ and since there is a target execution associated to this trace, the task is to find an associated $\Ltms$ execution.
-The trace $\trg{\trace}$ is split into different parts, where each part contains the events that either the context or the component does, but not both.
-Because of this, all such trace segments are ,,well-bracketed'' in the sense that they start with either $\trg{\ev{Start}}$, $\trg{\ev{Call}\ \comptoctx\ foo\ \valueexpr}$, or $\trg{\ev{Ret}\ \comptoctx\ \valueexpr}$ and end with either $\trg{\ev{End}\ \valueexpr}$, $\trg{\ev{Ret}\ \ctxtocomp\ \valueexpr}$, or $\trg{\ev{Call}\ \ctxtocomp\ foo\ \valueexpr}$.
-In the following, the former is referred to as a context segment, since, for these, execution happens in $\trg{\library_{\ctx}}$, and the latter as a component segment, since, for these, execution happens in $\cca(\src{\library_{\comp}})$.
-\Cref{fig:proofdiag:rtp} visualises this split for a program execution with one call from context to component and how the target execution is related to a source execution.
-In the figure, the green dashed lines encompass the component segments while the orange boxes contain the actual context switches from context to component or vice versa.
-For the proof, it is necessary to know when two states $\src{\Omega}$ and $\trg{\Omega}$ are related.
-Two cross-language relations make this precise: (i) $\multimap_{\delta}$ relates states that are involved in a context segment, allowing the target execution to perform internal calls, and (ii) $\approx_{\delta}$ relates states that are involved in a component segment, where both states need to agree exactly, i.e., the memory and the control flow states are required to contain the same information.
-The relations are indexed with $\delta$, which is simply an injective mapping from $\Ltms$ locations $\src{\loc}$ to $\Ltrg$ locations $\trg{\loc}$.
-Note that the relations $\multimap_{\delta}$ and $\approx_{\delta}$ swap when context switching.
 
 So far, the paper explained how to relate an $\Ltms$ execution with the $\Ltrg$ execution at hand.
 However, it is not yet demonstrated how the corresponding $\Ltms$ execution is actually built.

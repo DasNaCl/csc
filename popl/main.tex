@@ -457,8 +457,8 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 \begin{example}[Double Free in Bluetooth Subsystem]
   Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
   The vulnerability arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
-  Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether the pointer\MP{what pointer?} has been freed already:
-  Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that results the whole program to violate that property.
+  Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether a pointer has been freed already:
+  Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that leads to a violation of that property when linked with \texttt{hci\_dev\_do\_open}.
 \end{example}
 
 \subsection{Secure Compilers}\label{subsec:bg:rtp}
@@ -976,14 +976,11 @@ Accordingly, the event agreement simply disregards all events that involved publ
 \end{lemma}
 
 \begin{example}[Data-independent timing mode]
-  Consider an excerpt from a component that reads from non-confidential memory \texttt{x} and writes the result to confidential memory \texttt{y}.
-  \MPin{
-  can't we call strncpy but with src == low and dest == high?
-  }
-  The trace of just this part may look like $\ev{Use}\ \loc_{x}\ 1729;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 1729;\comp;\lock$.
+  Consider the call \texttt{strncpy(1,x,y)} to the \texttt{strncpy} function (\Cref{ex:strncpy}) with low ($\unlock$) security for \texttt{x} and high security ($\lock$) for \texttt{y}.
+  The trace of just the copying part inside of \texttt{strncpy} looks like $\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
   In terms of the abstract monitor trace, this is just $\absev{Any}$.
   Running this on the monitor would result in getting stuck, since there is no matching rule to step in the presence of $\absev{Any}$ event. % pun intended
-  By means of additional features to ensure cryptographic constant time even in the presence of memory reads and loads, such as a flag to enable a data independent timing mode, which is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors, the original trace can contain $\ev{Use}\ \loc_{y}\ 1729;\comp;\unlock$ instead of $\ev{Use}\ \loc_{y}\ 1729;\comp;\lock$.
+  By means of additional features to ensure cryptographic constant time even in the presence of memory reads and loads, such as a flag to enable a data independent timing mode, which is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors, the original trace now does $\ev{Use}\ \loc_{y}\ 0;\comp;\unlock$ instead of $\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
   Because of this, the whole trace of the component equates to $\absev{\emptyevent}$ and the monitor can step without getting stuck.
 \end{example}
 

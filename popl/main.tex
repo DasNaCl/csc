@@ -1625,20 +1625,6 @@ Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$
 
 \subsubsection{Proving Robust Safety Property Preservation}
 
-The proof of \Cref{thm:cca:rtp:tms} uses standard techniques in secure compilation literature that are also used for the following theorems of this section.
-\MP{so what?}
-
-When proving robust safety property preservation for the concrete property \gls{tms}, a target-level execution of a compiled $\Ltms$ component $\src{\library_{\comp}}$ linked with an arbitrary context $\trg{\library_{\ctx}}$ is assumed, where the execution yields a trace $\trg{\trace}$.
-\MP{passive + not justified}
-The proof goal is to show that $\trg{\trace}$ satisfies \gls{tms}.
-\MP{no, the goal is to BT}
-To get this satisfaction, one way of doing so is to use the other assumption in the proof context: $\rsat{\src{\library_{\comp}}}{\tmssafe}$.
-However, this requires a source-level execution for some concrete $\src{\library_{\ctx}}$ that yields a trace $\src{\trace}$ similar to $\trg{\trace}$.
-This paper uses the well-known trace-based backtranslation technique~\cite{abate2019jour} to construct such a context $\src{\library_{\ctx}}$.
-It is shown for that obtained context $\src{\library_{\ctx}}$ that the whole program $\link{\src{\library_{\ctx}}}{\src{\library_{comp}}}$ is well-typed.\MP{passive}
-By \Cref{thm:wt:tms}, the fact that this program satisfies \gls{tms} is obtained and by typesafety, it is known that there must be some $\Ltms$ execution.\MP{passive passive passive, and imprecise}
-The proof now needs to relate the two execution with each other.
-\Cref{fig:proofdiag:rtp} visualises this situation\MP{imprec}.
 \begin{figure}[!ht]
   \begin{center}
     \begin{tikzpicture}[state/.style={minimum height=1.5cm}]
@@ -1700,10 +1686,11 @@ The proof now needs to relate the two execution with each other.
         (trgw\string_2) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_2]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg2)
         ;
       % legend
-      \node[align=left,below right=0.3 and 0.3 of trgempty,font=\tiny] (legend) {%
-        ${\src{\trace[_c]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Call\ ?\ foo\ \valueexpr})}$\\%
-        ${\src{\trace[_r]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Ret\ !\ foo\ \valueexpr})}$
-        };
+%     \node[align=left,below right=0.3 and 0.3 of trgempty,font=\tiny] (legend) {%
+%       ${\src{\trace[_c]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Call\ ?\ foo\ \valueexpr})}$\\%
+%       ${\src{\trace[_r]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Ret\ !\ foo\ \valueexpr})}$
+%       };
+      \node[below=0.5 of trgempty,draw=none] (legend) {};
       \draw[ultra thick,loosely dotted,Peach!50,rounded corners] ($(legend.north east)+(0.5,-0.4)$) -- ($(legend.north east)+(1,-0.4)$);
       \node at ($(legend.north east)+(1.5,-0.4)$) (legendwrapper) {};
       \node[right of=legendwrapper] {\tiny Backtranslation Wrapper};
@@ -1712,32 +1699,43 @@ The proof now needs to relate the two execution with each other.
       \node[right of=legendcorrectness] {\tiny Compiler Correctness};
     \end{tikzpicture}
     \caption{Proof diagram for \Cref{thm:cca:rtp:tms} depicting the general structure of robust preservation proofs. %
+      Nodes in the graph represent runtime states. %
       Vertical lines indicate cross language relations, while horizontal ones are execution steps. %
-      Nodes in the graph represent runtime states.
+      The green dashed trapezoid encompasses the component segment, while the orange dotted rectangles entail the context switches. %
+      $\Ltrg$ traces are omitted for readability. %
+      $\Ltms$ trace segments $\src{\trace[_{c}]}$ and $\src{\trace[_{r}]}$ describe the events that happen at the boundaries, i.e., during a context switch.
+      $\src{\trace_{p}}$ is the behavior of the component and the traces $\src{\trace[_{1}]}$ and $\src{\trace[_{2}]}$ describe the context.
     }\label{fig:proofdiag:rtp}
   \end{center}
 \end{figure}
 
-At the bottom, there is the target-level execution between operational states $\trg{\emptyset},\trg{\Omega_{1}}$, and so on.
-The execution starts in the context $\trg{\library_{\ctx}}$ and is split by transitivity of $\trg{\estepto{}{}{}}$ into parts before, in, and after the component $\cc{\Ltms}{\trg{L}}(\src{p})$ executes\footnote{For sake of simplicity, this paper considers only one context-switch from context to component and back again. Recursive calls between context and component functions are disregarded.}.
-Initially, the empty operational states $\src{\emptyset}$ and $\trg{\emptyset}$ need to agree by means of a cross-language state relation $\multimap_{\emptyset}$.
-This relation is indexed by a function $\delta$ that maps $\trg{L}$-level locations $\trg{\loc}$ to $\Ltms$-level locations.
-The operational state of the executions up to the component $\src{p}$ need to agree via $\multimap_{\delta}$, both contexts need to behave in a similar way such that the traces also agree with each other.
-However, the relation allows $\trg{\library_{\ctx}}$ to perform internal actions that may change the operational state but are not visible on the trace, such as internal function calls, that does not $\src{\library_{\ctx}}$ need to reflect.
-Before and after the compiler wrapper code, the operational states must agree via another cross-language relation $\approx_{\delta_{w_{}}}$, which disallows these mismatches with respect to internal function calls.
-Intuitively, the behavior of the components should be tight: the source-level execution must be preserved by the compiler in the target-level execution.
-Dually, when the component is done, the relations take turns again and the states must be related with $\multimap_{\delta_{w_{2}}}$
-Finally, since both execution traces are similar in the sense that their projections $\msfilterLtms{\src{\trace}}$ and $\msfilterL{\trg{\trace}}$ yield specification traces that satisfy \Cref{def:monsat}, the claim follows \Cref{lem:mon:tmssafe}.
 
-\MPin{
-	why can we use a BT?
-	it's because the def in section 2.2 is eq to anotehr one, because the props are Safety, we use the RSC equivalent def.
-	all these intuitions are missing.
-	they are technical, so we only keep them here.
+The proof of \Cref{thm:cca:rtp:tms} serves as boilerplate for proofs of the other secure compilation theorems of this paper.
+Unfolding the statement gives the assumptions that for any $\pi\in\lceil\tmssafe\rceil$\footnote{$\lceil\cdot\rceil$ lifts the property to a hyperproperty by applying the powerset operation~\cite{clarkson2008hyper}.}, $\src{\trace}$, $\src{\runtimetermvar}$, and component $\src{\library_{comp}}$, $\rsat{\src{\library_{comp}}}{\pi}$ and $\progstepto{\prog[\trg]{\trg{\library_{\ctx}}}{\cca(\src{\library_{\comp}})}}{\trg{\runtimetermvar}}{\trg{\trace}}$, where $\trg{\library_{\ctx}}$ is arbitrary.
+The proof obligation is $\msfilterL{\trg{\trace}}\in\pi$, i.e., the specification trace associated to $\trg{\trace}$ should satisfy the property $\pi$.
+To show this, the trace $\trg{\trace}$ should be related with some $\Ltms$ trace $\src{\trace}$ and since there is a target execution associated to this trace, the task is to find an associated $\Ltms$ execution.
+The trace $\trg{\trace}$ is split into different parts, where each part contains the events that either the context or the component does, but not both.
+Because of this, all such trace segments are ,,well-bracketed'' in the sense that they start with either $\trg{\ev{Start}}$, $\trg{\ev{Call}\ \comptoctx\ foo\ \valueexpr}$, or $\trg{\ev{Ret}\ \comptoctx\ \valueexpr}$ and end with either $\trg{\ev{End}\ \valueexpr}$, $\trg{\ev{Ret}\ \ctxtocomp\ \valueexpr}$, or $\trg{\ev{Call}\ \ctxtocomp\ foo\ \valueexpr}$.
+In the following, the former is referred to as a context segment, since, for these, execution happens in $\trg{\library_{\ctx}}$, and the latter as a component segment, since, for these, execution happens in $\cca(\src{\library_{\comp}})$.
+\Cref{fig:proofdiag:rtp} visualises this split for a program execution with one call from context to component and how the target execution is related to a source execution.
+In the figure, the green dashed lines encompass the component segments while the orange boxes contain the actual context switches from context to component or vice versa.
+For the proof, it is necessary to know when two states $\src{\Omega}$ and $\trg{\Omega}$ are related.
+Two cross-language relations make this precise: (i) $\multimap_{\delta}$ relates states that are involved in a context segment, allowing the target execution to perform internal calls, and (ii) $\approx_{\delta}$ relates states that are involved in a component segment, where both states need to agree exactly, i.e., the memory and the control flow states are required to contain the same information.
+The relations are indexed with $\delta$, which is simply an injective mapping from $\Ltms$ locations $\src{\loc}$ to $\Ltrg$ locations $\trg{\loc}$.
+Note that the relations $\multimap_{\delta}$ and $\approx_{\delta}$ swap when context switching.
 
-  MK: but, we don't actually rewrite it to RSC when doing the proof! The compilers are not robustly preserving with respect to an arbitrary safety property, but, e.g., just for \gls{tms}!
-}
+So far, the paper explained how to relate an $\Ltms$ execution with the $\Ltrg$ execution at hand.
+However, it is not yet demonstrated how the corresponding $\Ltms$ execution is actually built.
+To do so, a trace-based backtranslation technique~\cite{abate2019jour} can be used to build a context $\src{\library_{\ctx}}$ that behaves similar to $\trg{\library_{\ctx}}$.
+Since $\Ltms$ is statically typed, the context $\src{\library_{\ctx}}$ obtained from the backtranslation needs to be well-typed when linked with $\src{\library_{\comp}}$.
+For context segments of the trace $\trg{\trace}$ it is also necessary to show that the execution behaves similarily, i.e., there is an $\Ltms$ trace segment $\src{\trace[']}$ that is related to the context segment, and that the states are related by $\multimap_{\delta}$.
+When passing control to the component, the relatedness of states and traces follows from compiler correctness.
+From all this, a source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$ can be obtained.
 
+The proof now works as follows.
+Rewrite the goal from $\msfilterL{\trg{\trace}}\in\pi$ to $\msfilterLtms{\src{\trace}}\in\pi$ after demonstrating that $\msfilterL{\trg{\trace}}=\msfilterLtms{\src{\trace}}$.
+Then, specialize the robust satisfaction assumption $\rsat{\src{\library_{\comp}}}{\pi}$ to use the context $\src{\library_{\ctx}}$, which was obtained from backtranslating the context segments of the target trace $\trg{\trace}$, and the source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$.
+This gives $\msfilterLtms{\src{\trace}}\in\pi$, which was to be demonstrated.
 
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 
@@ -1755,7 +1753,7 @@ The compiler $\cc{\trg{L}}{\Lms}$ only inserts bounds-checks whenever reading fr
 For passing pointers, it has to pass them with their size information as well.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
 \begin{example}[Instrumented \texttt{strncpy}]
-    Consider again \texttt{strncpy}, but this time with an instrumented version of \texttt{strncpy}:
+  Consider again \texttt{strncpy}, but instrumented for \gls{sms}:
     \begin{lstlisting}[language=c,basicstyle=\ttfamily\small, morekeywords={size_t}]
   void strncpy(size_t n, size_t dst_size, char *dst,
                          size_t src_size, char *src) {
@@ -1766,7 +1764,7 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
     }
   }
     \end{lstlisting}
-    When calling this in similar fashion to \Cref{ex:strncpy:sms}, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution.
+    When calling this in similar fashion to \Cref{ex:strncpy:sms}, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution, since the bounds check prevents the condition \texttt{src[i] != '\textbackslash 0'} from executing.
 \end{example}
 
 \begin{theorem}[Compiler $\ccb$ is secure with respect to \gls{sms}]\label{thm:ccb:rtp:sms}

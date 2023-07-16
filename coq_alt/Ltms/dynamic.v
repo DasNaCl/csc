@@ -677,8 +677,14 @@ Fixpoint evalctx_of_expr (e : expr) : option (evalctx * expr) :=
     end
   | Xdel e =>
     match e  with
-    | Xval(v) =>
-      Some(Khole, Xdel (Xval v))
+    | Xval(Vpack (LConst ℓ0 γ0) (Vpair Vcap (Vptr ℓ1 γ1))) =>
+      if ℓ0 == ℓ1 then
+        if γ0 == γ1 then
+          Some(Khole, Xdel (Xval(Vpack (LConst ℓ0 γ1) (Vpair Vcap (Vptr ℓ1 γ1)))))
+        else
+          None
+      else
+        None
     | _ => let* (K, e') := evalctx_of_expr e in
           Some(Kdel K, e')
     end
@@ -1046,11 +1052,12 @@ Proof.
     induction K; cbn; try easy; rewrite IHK;
     try now (remember (insert K (Xset (Xval Vcap) (Xval (Vptr ℓ v2)) (Xval n) (Xval v))) as e';
              induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
-  - grab_value e0_1; admit.
+  - admit.
   - grab_value e0_1; destruct e0_2; inv H.
     induction K; cbn; try easy; rewrite IHK;
     try now (remember (insert K (Xnew γ (Xval n) (Xval v))) as e';
              induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
+  - destruct e0.
 Admitted.
 
 Lemma easy_ectx e0 :

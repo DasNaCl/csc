@@ -41,10 +41,10 @@ Inductive expr : Type :=
 | Xval (v : value) : expr
 | Xvar (x : vart) : expr
 | Xbinop (symb : binopsymb) (lhs rhs : expr) : expr
-| Xget (x : vart) (e0 e1 : expr) : expr
-| Xset (x : vart) (e0 e1 e2 : expr) : expr
+| Xget (x : vart) (e : expr) : expr
+| Xset (x : vart) (e0 e1 : expr) : expr
 | Xlet (x : vart) (e0 e1 : expr) : expr
-| Xnew (x : vart) (e__object e__count e : expr) : expr (* the γ here is a hack for preservation *)
+| Xnew (x : vart) (e__object e__count e : expr) : expr
 | Xdel (x : vart) : expr
 | Xpair (e1 e2 : expr) : expr
 | Xunpair (x1 x2 : vart) (e1 e2 : expr) : expr
@@ -57,8 +57,8 @@ Inductive expr : Type :=
 Definition exprmap (h : expr -> expr) (e : expr) :=
   match e with
   | Xbinop b lhs rhs => Xbinop b (h lhs) (h rhs)
-  | Xget x e1 e2 => Xget x (h e1) (h e2)
-  | Xset x e1 e2 e3 => Xset x (h e1) (h e2) (h e3)
+  | Xget x e1 => Xget x (h e1)
+  | Xset x e1 e2 => Xset x (h e1) (h e2)
   | Xlet x e0 e1 => Xlet x (h e0) (h e1)
   | Xnew x e1 e2 e3 => Xnew x (h e1) (h e2) (h e3)
   | Xpair e1 e2 => Xpair (h e1) (h e2)
@@ -74,11 +74,9 @@ Inductive evalctx : Type :=
 | Khole : evalctx
 | KbinopL (b : binopsymb) (K : evalctx) (e : expr) : evalctx
 | KbinopR (b : binopsymb) (v : value) (K : evalctx) : evalctx
-| KgetL (x : vart) (K : evalctx) (e1 : expr) : evalctx
-| KgetR (x : vart) (v0 : value) (K : evalctx) : evalctx
-| KsetL (x : vart) (v : value) (K : evalctx) (e0 e1 : expr) : evalctx
-| KsetM (x : vart) (v0 v1 : value) (K : evalctx) (e : expr) : evalctx
-| KsetR (x : vart) (v0 v1 v2 : value) (K : evalctx) : evalctx
+| Kget (x : vart) (K : evalctx) : evalctx
+| KsetL (x : vart) (K : evalctx) (e : expr) : evalctx
+| KsetR (x : vart) (v : value) (K : evalctx) : evalctx
 | Klet (x : vart) (K : evalctx) (e : expr) : evalctx
 | KnewL (x : vart) (K : evalctx) (e0 e1 : expr) : evalctx
 | KnewM (x : vart) (v : value) (K : evalctx) (e : expr) : evalctx

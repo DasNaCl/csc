@@ -79,8 +79,7 @@ Inductive evalctx : Type :=
 | KsetR (x : vart) (v : value) (K : evalctx) : evalctx
 | Klet (x : vart) (K : evalctx) (e : expr) : evalctx
 | KnewL (x : vart) (K : evalctx) (e0 e1 : expr) : evalctx
-| KnewM (x : vart) (v : value) (K : evalctx) (e : expr) : evalctx
-| KnewR (x : vart) (v0 v1 : value) (K : evalctx) : evalctx
+| KnewR (x : vart) (v : value) (K : evalctx) (e : expr) : evalctx
 | KpairL (K : evalctx) (e : expr) : evalctx
 | KpairR (v : value) (K : evalctx) : evalctx
 | Kunpair (x1 x2 : vart) (K : evalctx) (e : expr) : evalctx

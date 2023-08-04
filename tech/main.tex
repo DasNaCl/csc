@@ -70,6 +70,549 @@
 
 \maketitle
 
+\appendix
+
+\section{General Trace Model}\label{ap:def:gtm}
+
+\begin{gather*}
+  \begin{aligned}
+  \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock\hspace{0.5cm}
+  \mi{(Control\ Tag)}~\sandboxtag\bnfdef \ctx\mid\comp\hspace{0.5cm}
+  \mi{(Event)}~\event\bnfdef\ \emptyevent \mid \lightning \mid \event[_{b}];\sandboxtag;\sigma \\
+  \mi{(Pre\text{-}event)}&~\event[_{b}]\bnfdef\ \ev{Alloc\ \loc\ n} \mid \ev{Dealloc\ \loc} \mid \ev{Use\ \loc\ n} \mid \ev{Branch\ n} \mid \ev{Binop\ n} \\
+  \end{aligned}
+\end{gather*}
+
+Throughout the paper, sequences are indicated with an overbar (i.e., $\trace$), empty sequences with $\hole{\cdot}$, and concatenation of sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
+Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
+
+\begin{definition}\label{ap:def:property}
+  A property $\pi$ is a set of traces $\trace$.
+\end{definition}
+\begin{definition}\label{ap:def:propclass}
+  A class $\class$ is a set of properties $\pi$.
+\end{definition}
+\begin{definition}\label{ap:def:lifting:properties}
+  The lifting $\lift{\pi}$ of property $\pi$ is its powerset.
+\end{definition}
+
+\section{Properties and Monitors}\label{ap:sec:propmon}
+
+In the following, $\traceagree[]{\pi}{\event}{\absevent}$ and the structure of $\abstrace$ are left abstract.
+These are monitor-specific definitions, which are defined in \Cref{ap:subsec:tms,ap:subsec:sms,ap:subsec:ms,ap:subsec:scct,ap:subsec:msscct}.
+
+\begin{figure}[!ht]
+  \judgbox{\traceagree{\pi}{\trace}{\abstrace}}{,,Specification-level trace $\trace$ agrees with monitor-level trace $\abstrace$ with respect to property $\pi$.''}
+  %
+  \typerule{traceagree-empty}{}{
+    \traceagree{\pi}{\hole{\cdot}}{\hole{\cdot}}
+  }{traceagree-empty}
+  %
+  \typerule{traceagree-ign-L}{
+    \traceagree{\pi}{\trace}{\abstrace}
+  }{
+    \traceagree{\pi}{\emptyevent\cdot\trace}{\abstrace}
+  }{traceagree-ign-L}
+  %
+  \typerule{traceagree-ign-R}{
+    \traceagree{\pi}{\trace}{\abstrace}
+  }{
+    \traceagree{\pi}{\trace}{\absev{\emptyevent}\cdot\abstrace}
+  }{traceagree-ign-R}
+  %
+  \typerule{traceagree-cons}{
+    \traceagree[]{\pi}{\event}{\absevent} &
+    \traceagree{\pi}{\trace}{\abstrace}
+  }{
+    \traceagree{\pi}{\event\cdot\trace}{\absevent\cdot\abstrace}
+  }{traceagree-cons}
+  \caption{Trace-Agreement relation that equates specification-level traces with monitor-level traces.}\label{fig:stuttereq}
+\end{figure}
+
+\bul{A specification trace $\trace$ monitor-satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
+
+\begin{definition}[Monitor Satisfaction]\label{def:monsat}
+  \bul{$\monsafe{\trace}{\pi}$} $\isdef$ $\exists \abstrace\ \monitor$, \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
+\end{definition}
+
+\subsection{Temporal Memory Safety}\label{ap:subsec:tms}
+
+\begin{definition}[\glsfirst*{tms}]\label{ap:def:trace:tmsdef}
+  \begin{displaymath}
+  \tmssafe:=\left\{\trace \left| \begin{array}{rcl}
+                              \ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
+                              \ev{Use\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
+                              \text{if }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\text{ in }\trace&\text{then}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'}\text{ in }\trace \\
+                              \text{at most one }\ev{Dealloc\ \loc;\sandboxtag;\securitytag}&\text{in}&\trace \\
+                              \text{at most one }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\text{in}&\trace \\
+                            \end{array}\right.\right\}
+  \end{displaymath}
+\end{definition}
+Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\event[_{1}]$ is in $\trace$ and if $\event[_{2}]$ is in $\trace$, then $\event[_{1}]$ appears before $\event[_{2}]$.
+
+$$\;$$
+\hrule
+$$\;$$
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{allocated}:L\times\sandboxtag,\text{freed}:L\times\sandboxtag\right\} \\
+    \mi{(Initial\ Abstract\ Store)}~\emptytmsmon:=&\ \left\{\text{allocated}:\emptyset,\text{freed}:\emptyset\right\}\\
+    \mi{(Abstract\ Events)}~\tmsevent\bnfdef&\ \absev{\emptyevent} \mid \absev{Alloc\ }\loc\ \sandboxtag \mid \absev{Dealloc\ }\loc\ \sandboxtag \mid \absev{Use\ }\loc\ \sandboxtag \mid \absterm\\
+  \end{aligned}
+\end{gather*}
+\begin{center}
+  \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\tmsevent}}{,,Monitor $\tmsmonitor$ does one step to $\tmsmonitor[']$ given event $\tmsevent$.''}$\;$\\
+  %
+  \typerule{tms-uninteresting}{
+  }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{\emptyevent}}
+  }{ap:tms-uninteresting}
+  %
+  \typerule{tms-abort}{
+  }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absterm}
+  }{ap:tms-abort}
+  %
+  \typerule{tms-use}{
+    (\loc;\sandboxtag)\in\tmsmonitor.\text{allocated} &
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed}
+  }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{Use\ }\loc\ \sandboxtag}
+  }{ap:tms-use}
+  %
+  \typerule{tms-alloc}{
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{allocated} &
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed} \\
+    \tmsmonitor[']=\left\{\text{allocated}: \tmsmonitor.\text{allocated}\cup\left\{(\loc;\sandboxtag)\right\},\text{freed}: \tmsmonitor.\text{freed}\right\}
+  }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Alloc\ }\loc\ \sandboxtag}
+  }{ap:tms-alloc}
+  %
+  \typerule{tms-dealloc}{
+    (\loc;\sandboxtag)\in\tmsmonitor.\text{allocated} &
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed} \\
+    \tmsmonitor[']=\left\{\text{allocated}: \tmsmonitor.\text{allocated}\setminus\left\{(\loc;\sandboxtag)\right\},\text{freed}: \tmsmonitor.\text{freed}\cup\left\{(\loc;\sandboxtag)\right\}\right\}
+  }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Dealloc\ }\loc\ \sandboxtag}
+  }{ap:tms-dealloc}
+\end{center}
+\begin{center}
+  \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\tmstrace}}{,,Monitor $\tmsmonitor$ multi-steps to $\tmsmonitor[']$ given trace $\tmstrace$.''}$\;$\\
+  %
+  \typerule{tms-refl}{
+    \tmsmonitor.\text{allocated}=\emptyset
+  }{
+    \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}}
+  }{ap:tms-refl}
+  %
+  \typerule{tms-ign-trans}{
+    \monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\tmstrace}
+  }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{\emptyevent}\cdot\tmstrace}
+  }{ap:tms-ign-trans}
+  %
+  \typerule{tms-trans}{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\tmsevent} &
+    \monitorcheck{\tmsmonitor[']}{\tmsmonitor['']}{\tmstrace}
+  }{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor['']}{\tmsevent\cdot\tmstrace}
+  }{ap:tms-trans}
+\end{center}
+\begin{center}
+  \judgbox{\tmstraceagree[]{\event}{\tmsevent}}{,,Abstract event $\tmsevent$ is equivalent to $\event$ with respect to \gls*{tms}.''}$\;$\\
+  %
+  \typerule{tms-alloc-authentic}{
+  }{
+    \tmstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc\ \sandboxtag}
+  }{ap:tms-alloc-authentic}
+  %
+  \typerule{tms-dealloc-authentic}{
+  }{
+    \tmstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
+  }{ap:tms-dealloc-authentic}
+  %
+  \typerule{tms-use-authentic}{
+  }{
+    \tmstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc}
+  }{ap:tms-use-authentic}
+  %
+  \typerule{tms-branch-authentic}{
+  }{
+    \tmstraceagree[]{\ev{Branch\ }n}{\absev{\emptyevent}}
+  }{ap:tms-branch-authentic}
+  %
+  \typerule{tms-binop-authentic}{
+  }{
+    \tmstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
+  }{ap:tms-binop-authentic}
+  %
+  \typerule{tms-empty-authentic}{
+  }{
+    \tmstraceagree[]{\emptyevent}{\absev{\emptyevent}}
+  }{ap:tms-empty-authentic}
+  %
+  \typerule{tms-abort-authentic}{
+  }{
+    \tmstraceagree[]{\lightning}{\absterm}
+  }{ap:tms-abort-authentic}
+\end{center}
+
+\begin{lemma}[Traces with Monitor Satisfaction are $\tmssafe$]\label{ap:lem:mon:tmssafe}
+  If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\subsection{Spatial Memory Safety}\label{ap:subsec:sms}
+
+\begin{definition}[\glsfirst*{sms}]\label{ap:def:trace:smsdef}
+  \begin{displaymath}
+  \smssafe:=\left\{\trace \left|\begin{array}{rcl}
+                                  \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}, \text{ then }m<n
+                                \end{array}\right.\right\}
+  \end{displaymath}
+\end{definition}
+$$\;$$
+\hrule
+$$\;$$
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Abstract\ Store)}~\smsmonitor:=&\ L\times\sandboxtag\times\mb{N}\mid\emptysmsmon\\
+    \mi{(Abstract\ Events)}~\smsevent\bnfdef&\ \absev{\varepsilon} \mid \absev{Alloc\ }\loc\ \sandboxtag\ n \mid \absev{Use\ }\loc\ \sandboxtag\ n \\
+  \end{aligned}
+\end{gather*}
+\begin{center}
+  \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\smsevent}}{,,Monitor $\smsmonitor$ does one step to $\smsmonitor[']$ given event $\smsevent$.''}$\;$\\
+  %
+  \typerule{sms-uninteresting}{
+  }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{\emptyevent}}
+  }{ap:sms-uninteresting}
+  %
+  \typerule{sms-abort}{
+  }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absterm}
+  }{ap:sms-abort}
+  %
+  \typerule{sms-use}{
+    (\loc;\sandboxtag;m)\in\smsmonitor &
+    n<m
+  }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{Use\ }\loc\ \sandboxtag\ n}
+  }{ap:sms-use}
+  %
+  \typerule{sms-alloc}{
+    (\loc;\sandboxtag;m)\notin\smsmonitor
+  }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor\cup\left\{(\loc;\sandboxtag;n)\right\}}{\absev{Alloc\ }\loc\ \sandboxtag\ n}
+  }{ap:sms-alloc}
+\end{center}
+\begin{center}
+  \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\smstrace}}{,,Monitor $\smsmonitor$ multi-steps to $\smsmonitor[']$ given trace $\smstrace$.''}$\;$\\
+  %
+  \typerule{sms-refl}{
+  }{
+    \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
+  }{ap:sms-refl}
+  %
+  \typerule{sms-ign-trans}{
+    \monitorcheck{\smsmonitor}{\smsmonitor[']}{\smstrace}
+  }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absev{\emptyevent}\cdot\smstrace}
+  }{ap:sms-ign-trans}
+  %
+  \typerule{sms-trans}{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\smsevent} &
+    \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\smstrace}
+  }{
+    \monitorcheck[]{\smsmonitor}{\smsmonitor['']}{\smsevent\cdot\smstrace}
+  }{ap:sms-trans}
+\end{center}
+\begin{center}
+  \judgbox{\smstraceagree[]{\event}{\smsevent}}{,,Abstract event $\smsevent$ is equivalent to $\event$ with respect to \gls*{sms}.''}$\;$\\
+  %
+  \typerule{sms-alloc-authentic}{
+  }{
+    \smstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc\ n}
+  }{ap:sms-alloc-authentic}
+  %
+  \typerule{sms-dealloc-authentic}{
+  }{
+    \smstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
+  }{ap:sms-dealloc-authentic}
+  %
+  \typerule{sms-use-authentic}{
+  }{
+    \smstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc\ n}
+  }{ap:sms-use-authentic}
+  %
+  \typerule{sms-branch-authentic}{
+  }{
+    \smstraceagree[]{\ev{Branch\ }n}{\absev{\emptyevent}}
+  }{ap:sms-branch-authentic}
+  %
+  \typerule{sms-binop-authentic}{
+  }{
+    \smstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
+  }{ap:sms-binop-authentic}
+  %
+  \typerule{sms-empty-authentic}{
+  }{
+    \smstraceagree[]{\emptyevent}{\absev{\emptyevent}}
+  }{ap:sms-empty-authentic}
+  %
+  \typerule{sms-abort-authentic}{
+  }{
+    \smstraceagree[]{\lightning}{\absterm}
+  }{ap:sms-abort-authentic}
+\end{center}
+\begin{lemma}[Traces with Monitor Satisfaction are $\smssafe$]\label{ap:lem:mon:smssafe}
+  If $\monsmssafe{\trace}$, then $\trace\in\smssafe$.\Coqed
+\end{lemma}
+\begin{proof}
+  First, generalize \Cref{ap:def:trace:smsdef} as follows:
+  \begin{displaymath}
+    \gsmssafe:=\left\{\trace \left|\begin{array}{rcl}
+                                    \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}\\
+                                    \text{or }(\ev{Use\ \loc\ m;\sandboxtag;\securitytag}\text{ in }\trace\text{ and }(\loc,\sandboxtag,n)\in\smsmonitor),\\
+                                    \text{ then }m<n
+                                  \end{array}\right.\right\}
+  \end{displaymath}
+  Then, show ,,If $\mongsmssafe{\trace}$, then $\trace\in\gsmssafe$.'' by inducing on the monitor steps.
+
+  Now specialize this generalization to $\smsmonitor=\emptyset$ and the claim follows as a corollary.
+\end{proof}
+
+\subsection{Memory Safety}\label{ap:subsec:ms}
+
+\begin{definition}[\glsfirst*{ms}]\label{ap:def:trace:msdef}
+  \begin{displaymath}
+    \mssafe:=\tmssafe \cap \smssafe
+  \end{displaymath}
+\end{definition}
+$$\;$$
+\hrule
+$$\;$$
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Abstract\ Store)}~\msmonitor:=&\ \tmsmonitor\times\smsmonitor\\
+    \mi{(Initial\ Abstract\ Store)}~\emptymsmon:=&\ (\emptytmsmon, \emptysmsmon) \\
+    \mi{(Abstract\ Events)}~\msevent:=&\ \tmsevent\times\smsevent \mid \absev{\emptyevent}\\
+  \end{aligned}
+\end{gather*}
+\begin{center}
+  \judgbox{\monitorcheck[]{\msmonitor}{\msmonitor[']}{\msevent}}{,,Monitor $\msmonitor$ does one step to $\msmonitor[']$ given event $\msevent$.''}$\;$\\
+  %
+  \typerule{ms-step}{
+    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\tmsevent} &
+    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\smsevent}
+  }{
+    \monitorcheck[]{(\tmsmonitor,\smsmonitor)}{(\tmsmonitor['],\smsmonitor['])}{(\tmsevent,\smsevent)}
+  }{ap:ms-step}
+\end{center}
+\begin{center}
+  \judgbox{\monitorcheck{\msmonitor}{\msmonitor[']}{\mstrace}}{,,Monitor $\msmonitor$ multi-steps to $\msmonitor[']$ given trace $\mstrace$.''}$\;$\\
+  %
+  \typerule{ms-refl}{
+    \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}} &
+    \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
+  }{
+    \monitorcheck{(\tmsmonitor,\smsmonitor)}{(\tmsmonitor,\smsmonitor)}{\hole{\cdot}}
+  }{ap:ms-refl}
+  %
+  \typerule{ms-ign-trans}{
+    \monitorcheck{\msmonitor}{\msmonitor[']}{\mstrace}
+  }{
+    \monitorcheck[]{\msmonitor}{\msmonitor[']}{\absev{\emptyevent}\cdot\mstrace}
+  }{ap:ms-ign-trans}
+  %
+  \typerule{ms-trans}{
+    \monitorcheck[]{\msmonitor}{\msmonitor[']}{\msevent} &
+    \monitorcheck{\msmonitor[']}{\msmonitor['']}{\mstrace}
+  }{
+    \monitorcheck[]{\msmonitor}{\msmonitor['']}{\msevent\cdot\mstrace}
+  }{ap:ms-trans}
+\end{center}
+\begin{center}
+  \judgbox{\mstraceagree[]{\event}{\msevent}}{,,Abstract event $\msevent$ is equivalent to $\event$ with respect to \gls*{ms}.''}$\;$\\
+  %
+  \typerule{ms-some-authentic}{
+    \tmstraceagree[]{\event}{\tmsevent} &
+    \smstraceagree[]{\event}{\smsevent}
+  }{
+    \mstraceagree[]{\event}{(\tmsevent,\smsevent)}
+  }{ap:ms-some-authentic}
+  %
+  \typerule{ms-none-authentic}{
+    \tmstraceagree[]{\event}{\absev{\emptyevent}} &
+    \smstraceagree[]{\event}{\absev{\emptyevent}}
+  }{
+    \mstraceagree[]{\event}{\absev{\emptyevent}}
+  }{ap:ms-none-authentic}
+\end{center}
+
+\begin{lemma}[Traces with Monitor Satisfaction are $\mssafe$]\label{ap:lem:mon:mssafe}
+  If $\monmssafe{\trace}$, then $\trace\in\mssafe$.\Coqed
+\end{lemma}
+\begin{proof}
+  Corollary of \Cref{ap:lem:mon:tmssafe,ap:lem:mon:smssafe}.
+\end{proof}
+
+\subsection{Strict Cryptographic Constant Time}\label{ap:subsec:scct}
+
+\begin{definition}[\glsfirst*{scct}]\label{ap:def:trace:scctdef}
+  \begin{displaymath}
+    \scctsafe:=\left\{\trace \left|\begin{array}{rcl}
+                                     \trace=\hole{\cdot} & \text{ or } & \trace=\event[_{b}];\sandboxtag;\unlock\cdot\trace['] \wedge \trace[']\in\scctsafe
+                                   \end{array}\right.\right\}
+  \end{displaymath}
+\end{definition}
+$$\;$$
+\hrule
+$$\;$$
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Abstract\ Store)}~\scctmonitor:=&\ \emptyscctmon\\
+    \mi{(Abstract\ Events)}~\scctevent:=&\ \absev{\emptyevent} \mid \absev{\lightning} \mid \absev{Any} \\
+  \end{aligned}
+\end{gather*}
+\begin{center}
+  \judgbox{\monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\scctevent}}{,,Monitor $\scctmonitor$ does one step to $\scctmonitor[']$ given event $\scctevent$.''}$\;$\\
+  %
+  \typerule{scct-none}{
+  }{
+    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absev{\emptyevent}}
+  }{ap:scct-none}
+  %
+  \typerule{scct-abort}{
+  }{
+    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absev{\lightning}}
+  }{ap:scct-abort}
+\end{center}
+\begin{center}
+  \judgbox{\monitorcheck{\scctmonitor}{\scctmonitor[']}{\sccttrace}}{,,Monitor $\scctmonitor$ multi-steps to $\scctmonitor[']$ given trace $\sccttrace$.''}$\;$\\
+  %
+  \typerule{scct-refl}{
+  }{
+    \monitorcheck{\scctmonitor}{\scctmonitor}{\hole{\cdot}}
+  }{ap:scct-refl}
+  %
+  \typerule{scct-ign-trans}{
+    \monitorcheck{\scctmonitor}{\scctmonitor[']}{\sccttrace}
+  }{
+    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absev{\emptyevent}\cdot\sccttrace}
+  }{ap:scct-ign-trans}
+  %
+  \typerule{scct-trans}{
+    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\scctevent} &
+    \monitorcheck{\scctmonitor[']}{\scctmonitor['']}{\sccttrace}
+  }{
+    \monitorcheck[]{\scctmonitor}{\scctmonitor['']}{\scctevent\cdot\sccttrace}
+  }{ap:scct-trans}
+\end{center}
+\begin{center}
+  \judgbox{\sccttraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls*{cct}.''}$\;$\\
+  %
+  \typerule{scct-low-authentic}{
+  }{
+    \sccttraceagree[]{\event[_b];\sandboxtag;\unlock}{\absev{\emptyevent}}
+  }{ap:scct-low-authentic}
+  %
+  \typerule{scct-high-authentic}{
+  }{
+    \sccttraceagree[]{\event[_b];\sandboxtag;\lock}{\absev{Any}}
+  }{ap:scct-high-authentic}
+  %
+  \typerule{scct-empty-authentic}{
+  }{
+    \sccttraceagree[]{\emptyevent}{\absev{\emptyevent}}
+  }{ap:scct-empty-authentic}
+  %
+  \typerule{scct-abort-authentic}{
+  }{
+    \sccttraceagree[]{\lightning}{\absterm}
+  }{ap:scct-abort-authentic}
+\end{center}
+\begin{lemma}[Monitor Traces are $\scctsafe$]\label{lem:mon:scctsafe}
+  If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
+\subsection{Memory Safety and Strict Cryptographic Constant Time}\label{ap:subsec:msscct}
+\begin{definition}[\glsfirst*{msscct}]\label{ap:def:trace:msscctdef}
+  \begin{displaymath}
+    \msscctsafe:=\mssafe\cap\scctsafe
+  \end{displaymath}
+\end{definition}
+$$\;$$
+\hrule
+$$\;$$
+
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Abstract\ Store)}~\msscctmonitor:=&\ \msmonitor\times\scctmonitor\\
+    \mi{(Initial\ Abstract\ Store)}~\emptymsscctmon:=&\ (\emptymsscctmon, \emptyscctmon) \\
+    \mi{(Abstract\ Events)}~\msscctevent:=&\ \msscctevent\times\scctevent \mid \absev{\emptyevent}\\
+  \end{aligned}
+\end{gather*}
+\begin{center}
+  \judgbox{\monitorcheck[]{\msscctmonitor}{\msscctmonitor[']}{\msscctevent}}{,,Monitor $\msscctmonitor$ does one step to $\msscctmonitor[']$ given event $\msscctevent$.''}$\;$\\
+  %
+  \typerule{msscct-step}{
+    \monitorcheck[]{\msmonitor}{\msmonitor[']}{\msevent} &
+    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\scctevent}
+  }{
+    \monitorcheck[]{(\msmonitor,\scctmonitor)}{(\msmonitor['],\scctmonitor['])}{(\msevent,\scctevent)}
+  }{ap:msscct-step}
+\end{center}
+\begin{center}
+  \judgbox{\monitorcheck{\msscctmonitor}{\msscctmonitor[']}{\mssccttrace}}{,,Monitor $\msscctmonitor$ multi-steps to $\msscctmonitor[']$ given trace $\mssccttrace$.''}$\;$\\
+  %
+  \typerule{msscct-refl}{
+    \monitorcheck{\msmonitor}{\msmonitor}{\hole{\cdot}} &
+    \monitorcheck{\scctmonitor}{\scctmonitor}{\hole{\cdot}}
+  }{
+    \monitorcheck{(\msmonitor,\scctmonitor)}{(\msmonitor,\scctmonitor)}{\hole{\cdot}}
+  }{ap:msscct-refl}
+  %
+  \typerule{msscct-ign-trans}{
+    \monitorcheck{\msscctmonitor}{\msscctmonitor[']}{\mssccttrace}
+  }{
+    \monitorcheck[]{\msscctmonitor}{\msscctmonitor[']}{\absev{\emptyevent}\cdot\mssccttrace}
+  }{ap:msscct-ign-trans}
+  %
+  \typerule{msscct-trans}{
+    \monitorcheck[]{\msscctmonitor}{\msscctmonitor[']}{\msscctevent} &
+    \monitorcheck{\msscctmonitor[']}{\msscctmonitor['']}{\mssccttrace}
+  }{
+    \monitorcheck[]{\msscctmonitor}{\msscctmonitor['']}{\msscctevent\cdot\mssccttrace}
+  }{ap:msscct-trans}
+\end{center}
+\begin{center}
+  \judgbox{\mssccttraceagree[]{\event}{\msscctevent}}{,,Abstract event $\msscctevent$ is equivalent to $\event$ with respect to \gls*{ms}.''}$\;$\\
+  %
+  \typerule{msscct-some-authentic}{
+    \mstraceagree[]{\event}{\msevent} &
+    \sccttraceagree[]{\event}{\scctevent}
+  }{
+    \mssccttraceagree[]{\event}{(\msevent,\scctevent)}
+  }{ap:msscct-some-authentic}
+  %
+  \typerule{msscct-none-authentic}{
+    \mstraceagree[]{\event}{\absev{\emptyevent}} &
+    \sccttraceagree[]{\event}{\absev{\emptyevent}}
+  }{
+    \mssccttraceagree[]{\event}{\absev{\emptyevent}}
+  }{ap:msscct-none-authentic}
+\end{center}
+
+\begin{lemma}[Traces with Monitor Satisfaction are $\msscctsafe$]\label{ap:lem:mon:msscctsafe}
+  If $\monmsscctsafe{\trace}$, then $\trace\in\msscctsafe$.\Coqed
+\end{lemma}
+\begin{incompleteproof}
+\end{incompleteproof}
+
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{main}
 

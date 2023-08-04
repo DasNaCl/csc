@@ -1,4 +1,4 @@
-Set Implicit Arguments.
+(* Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
 Require Import CSC.Util.Sets CSC.Shared.Props CSC.Util.Convenience CSC.Util.HasEquality.
 
@@ -44,7 +44,7 @@ Ltac crush_intf τ :=
   let x := fresh "x" in
   destruct (option_dec (intf τ)) as [Hx | Hx];
   try (rewrite Hx in *; congruence);
-  try (apply not_eq_None_Some in Hx as [x Hx]; eapply intf_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in *)
+  try (apply not_eq_None_Some in Hx as [x Hx]; eapply intf_refl in Hx as Hx'; rewrite <- Hx' in Hx; clear Hx'; rewrite Hx in * )
 .
 Lemma int_equiv_intf_none τ :
   (~ int τ) <-> intf τ = None
@@ -1550,4 +1550,4 @@ Proof.
   eapply link_check_is_init_check in Ha; deex; eauto.
   eapply steps_tms_via_monitor; eauto.
   repeat constructor.
-Qed.
+Qed. *)

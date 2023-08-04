@@ -4,6 +4,8 @@ Require Import Strings.String Coq.Program.Equality Lia.
 Require Import CSC.Util.Convenience CSC.Util.Sets CSC.Shared.Props CSC.Shared.Trace.
 Require Import CSC.Shared.Sema CSC.Util.HasEquality CSC.Util.NoDupInv.
 
+Local Set Warnings "-deprecated-notation".
+
 (** * This file defines the various monitors from the paper. *)
 
 (** General structure of monitors. This time as module for namespacing. *)
@@ -644,7 +646,7 @@ Proof.
   intros H__SMS; unfold sms in *; intros.
     assert (PreEv (Alloc l0 m) t0 σ0 <> PreEv (Use l n) t σ) by congruence.
     destruct (eq_dec (PreEv (Use l0 n0) t' σ') (PreEv (Use l n) t σ)); subst.
-    - unfold before in H1; deex; destruct H1 as [H1a [H1b H1c]]. unfold_before. inv H. inv H__before0; try congruence.
+    - unfold before in H1; deex; destruct H1. unfold_before. inv H. inv H__before0; try congruence.
       lia.
     - erewrite <- eat_front_before in H; eauto.
 Qed.

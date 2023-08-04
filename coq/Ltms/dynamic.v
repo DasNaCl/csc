@@ -898,6 +898,31 @@ Ltac crush_insert :=
 Inductive is_val : expr -> Prop :=
 | Cval : forall (e : expr) (v : value), e = Xval v -> is_val e
 .
+Lemma not_is_val e :
+  ~ is_val e ->
+  forall v, e <> Xval v
+.
+Proof.
+  destruct e; intros; try easy;
+  exfalso; apply H; now econstructor.
+Qed.
+Lemma spurious_is_val v :
+  ~ is_val (Xval v) ->
+  False
+.
+Proof. intros H; apply H; now econstructor. Qed.
+
+Global Hint Resolve spurious_is_val : core.
+
+Lemma getrid_of_matchval { A : Type } (P : A -> Prop) (e : expr) (a : value -> A) (b : expr -> A) :
+  ~ is_val e ->
+  P(b e) ->
+  P(match e with
+    | Xval v => a v
+    | _ => b e
+    end)
+.
+Proof. Admitted.
 (** A runtime expression is classified as value if the associated state is also freed completely. *)
 Inductive rtexpr_is_val : rtexpr -> Prop :=
 | CRTval : forall (Ω : state) (e : expr) (v : value),
@@ -914,14 +939,73 @@ Proof.
   1: destruct v; left; eauto using Cval.
   all: right; intros H; inv H; inv H0.
 Qed.
+
+Ltac grab_value' e :=
+  let H' := fresh "H'" in
+  destruct (expr_val_dec e) as [H' | H']; try congruence;
+  try match goal with
+  | [H'': is_val e |- _] => inv H''
+  end;
+  try match goal with
+  | [H'': context E [match ?v with | Vnat _ => _ | Vpair _ _ => _ end] |- _] => destruct v
+  end
+.
+Ltac grab_value'2 e1 e2 := (grab_value' e1; grab_value' e2).
+Ltac grab_value'3 e1 e2 e3 := (grab_value' e1; grab_value' e2; grab_value' e3).
+Ltac grab_value'4 e1 e2 e3 e4 := (grab_value' e1; grab_value' e2; grab_value' e3; grab_value' e4).
 (* unfortunately, this is a rather compute-intense lemma *)
 Lemma grab_ectx e K e0 :
   Some e0 = pestep_compatible e0 ->
   e = insert K e0 ->
   evalctx_of_expr e = Some(K, e0)
 .
-Proof.
+Proof. (*
   destruct e0; cbn; try congruence; intros.
+  - grab_value'2 e0_1 e0_2; clear H.
+  induction K; cbn; try easy; rewrite IHK;
+  match goal with 
+  | [ |- context E [insert ?K ?e] ] =>
+      let e' := fresh "e'" in 
+      remember (insert K e) as e';
+      induction K; try now (eauto; cbn in * ); now cbn in Heqe'; subst; easy
+  end.
+  induction K; cbn; try easy; rewrite IHK;
+  match goal with 
+  | [ |- context E [insert ?K ?e] ] =>
+      let e' := fresh "e'" in 
+      remember (insert K e) as e';
+      induction K; try now (eauto; cbn in * ); now cbn in Heqe'; subst; easy
+  end.
+  induction K; cbn; try easy;
+  match goal with
+  | [ |- ?e = Some ?b ] =>
+    change ((fun x => x = Some b) e)
+  end;
+  change ((fun x : option (evalctx * expr) =>
+   x = Some (Khole, Xbinop symb (Xval n) e0_2))
+    match e0_2 with
+    | Xval n2 => (fun n2' => Some (Khole, Xbinop symb (Xval n) (Xval n2'))) n2
+    | _ =>
+        (fun e0_2' => match evalctx_of_expr e0_2' with
+        | Some (K, e2') => Some (KbinopR symb n K, e2')
+        | None => None
+        end) e0_2
+    end);
+  eapply (getrid_of_matchval (fun x => x = Some _)); eauto.
+
+  eauto using getrid_of_matchval. rewrite IHK;
+  match goal with 
+  | [ |- context E [insert ?K ?e] ] =>
+      let e' := fresh "e'" in 
+      remember (insert K e) as e';
+      induction K; try now (eauto; cbn in * ); now cbn in Heqe'; subst; easy
+  end.
+  remember (insert K ())
+  induction K; cbn; try easy;
+  try now (remember (insert K (Xbinop symb (Xval n) (Xval n0))) as e';
+           induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
+
+
   - grab_value2 e0_1 e0_2; inv H.
     induction K; cbn; try easy; rewrite IHK;
     try now (remember (insert K (Xbinop symb (Xval n) (Xval n0))) as e';
@@ -974,8 +1058,9 @@ Proof.
   - rewrite H0; clear H H0; induction K; cbn; try easy; rewrite IHK;
     try now (remember (insert K (Xabort)) as e';
     induction K; try now (eauto; cbn in IHK); now cbn in Heqe'; subst).
-Qed.
-
+        *)
+Admitted.
+(*
 Lemma easy_ectx e0 :
   Some e0 = pestep_compatible e0 ->
   evalctx_of_expr e0 = Some(Khole, e0).
@@ -992,6 +1077,118 @@ Proof.
   grab_value e0.
   grab_value e0_1.
 Qed.
+Lemma easy_ectx' e0 e0' :
+  evalctx_of_expr e0 = Some(Khole, e0') ->
+  e0 = e0'.
+Proof.
+  revert e0'; induction e0; cbn; intros; try easy.
+  - grab_value e0_1; grab_value e0_2; try easy;
+      match goal with
+      | [|- Xbinop symb ?e' ?e = e0'] =>
+          crush_option (evalctx_of_expr e);
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0; try easy;
+      match goal with
+      | [|- Xget x ?e' = e0'] =>
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0_1; grab_value e0_2; try easy;
+      match goal with
+      | [|- Xset x ?e' ?e = e0'] =>
+          crush_option (evalctx_of_expr e);
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0_1; grab_value e0_2; try easy;
+      match goal with
+      | [|- Xlet x ?e' ?e = e0'] =>
+          crush_option (evalctx_of_expr e);
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0_1; grab_value e0_2; try easy;
+      match goal with
+      | [|- Xnew x ?e' ?e ?e1 = e0'] =>
+          crush_option (evalctx_of_expr e);
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - now inv H. 
+  - grab_value e0_1; grab_value e0_2; try easy;
+      match goal with
+      | [|- Xpair ?e' ?e = e0'] =>
+          crush_option (evalctx_of_expr e);
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0_1; grab_value e0_2; try easy;
+      match goal with
+      | [|- Xunpair x1 x2 ?e' ?e = e0'] =>
+          crush_option (evalctx_of_expr e);
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0; try easy;
+      match goal with
+      | [|- Xreturn ?e' = e0'] =>
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0; try easy;
+      match goal with
+      | [|- Xcall foo ?e' = e0'] =>
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - grab_value e0_1; try easy;
+      match goal with
+      | [|- Xifz ?e' _ _ = e0'] =>
+          crush_option (evalctx_of_expr e'); try easy;
+          try match goal with
+          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
+          end
+      end.
+  - now inv H.
+Qed.
 
 Lemma injective_ectx e0 K e e' :
   Some e0 = pestep_compatible e0 ->
@@ -999,10 +1196,13 @@ Lemma injective_ectx e0 K e e' :
   evalctx_of_expr e' = Some(K, e0) ->
   e = e'.
 Proof.
-  revert K e e'; induction e0; intros.
-  - inv H.
-  - inv H.
-  - inv H; grab_value2 e0_1 e0_2; clear H3.
+  revert e0 e' K; induction e; intros.
+  - inv H0.
+  - inv H0.
+  - cbn in H0. destruct e1; inv H0. grab_value e1.
+    + grab_value e2; try now (inv H0; apply easy_ectx' in H1 as H1'; now rewrite H1').
+      crush_option (evalctx_of_expr (Xbinop symb0 e2_1 e2_2)).
+      destruct x; inv H0. 
 Admitted.
 
 Lemma ungrab_ectx e K e0 :
@@ -1011,21 +1211,17 @@ Lemma ungrab_ectx e K e0 :
   e = insert K e0.
 Proof.
   intros H H1; remember (insert K e0) as e1;
-  eapply grab_ectx in Heqe1 as H2; eauto;
-  eapply injective_ectx; eauto.
+  eapply grab_ectx in Heqe1 as H2; eauto using injective_ectx.
 Qed.
 Lemma pstep_compatible_some e e' :
   pstep_compatible e = Some e' -> e = e'.
 Proof.
   revert e'; induction e; intros; cbn in H; try congruence.
   - (* binop *) grab_value2 e1 e2.
-  - (* get *) grab_value3 e1 e2 e3.
-  - (* set *) grab_value4 e1 e2 e3 e4.
+  - (* get *) grab_value e.
+  - (* set *) grab_value2 e1 e2.
   - (* let *) grab_value e1.
   - (* new *) grab_value2 e1 e2.
-  - (* del *) grab_value e.
-  - (* unpack *) grab_value e1.
-  - (* pack *) grab_value2 e1 e2.
   - (* pair *) grab_value2 e1 e2.
   - (* unpair *) grab_value e1.
   - (* ifz *) grab_value e1.
@@ -1036,13 +1232,10 @@ Lemma pestep_compatible_some e e' :
 Proof.
   revert e'; induction e; intros; cbn in H; try congruence.
   - (* binop *) grab_value2 e1 e2.
-  - (* get *) grab_value3 e1 e2 e3.
-  - (* set *) grab_value4 e1 e2 e3 e4.
+  - (* get *) grab_value e.
+  - (* set *) grab_value2 e1 e2.
   - (* let *) grab_value e1.
   - (* new *) grab_value2 e1 e2.
-  - (* del *) grab_value e.
-  - (* unpack *) grab_value e1.
-  - (* pack *) grab_value2 e1 e2.
   - (* pair *) grab_value2 e1 e2.
   - (* unpair *) grab_value e1.
   - (* return *) grab_value e.
@@ -1193,3 +1386,4 @@ Qed.
 
 (** Top-level programs *)
 Inductive prog : Type := Cprog (Ξ__ctx Ξ__comp : symbols) : prog.
+*)

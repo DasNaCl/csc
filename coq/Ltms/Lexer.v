@@ -63,11 +63,26 @@ Fixpoint lex_string_cpt n s :=
       | "013" => lex_string_cpt n s' (* \r *)
       | "(" => option_map (Buf_cons (LPAREN tt)) (lex_string_cpt n s')
       | ")" => option_map (Buf_cons (RPAREN tt)) (lex_string_cpt n s')
+      | "," => option_map (Buf_cons (COMMA tt)) (lex_string_cpt n s')
       | "+" => option_map (Buf_cons (ADD tt)) (lex_string_cpt n s')
       | "-" => option_map (Buf_cons (SUB tt)) (lex_string_cpt n s')
       | "*" => option_map (Buf_cons (MUL tt)) (lex_string_cpt n s')
       | "/" => option_map (Buf_cons (DIV tt)) (lex_string_cpt n s')
-      | "<" => option_map (Buf_cons (LESS tt)) (lex_string_cpt n s')
+      | "=" => option_map (Buf_cons (EQUAL tt)) (lex_string_cpt n s')
+      | "<" =>
+        let maybearrow := substring 0 1 s in
+        let s := ntail 1 s in
+        match s with
+        | EmptyString => option_map (Buf_cons (LANGLE tt)) (lex_string_cpt n s')
+        | String c s' =>
+          match c with
+          | "-" => option_map (Buf_cons (SUB tt)) (lex_string_cpt n s')
+          | _ => option_map (Buf_cons (LANGLE tt)) (lex_string_cpt n s)
+          end
+        end
+      | "[" => option_map (Buf_cons (LBRACKET tt)) (lex_string_cpt n s')
+      | "]" => option_map (Buf_cons (RBRACKET tt)) (lex_string_cpt n s')
+      | ">" => option_map (Buf_cons (RANGLE tt)) (lex_string_cpt n s')
       | _ =>
         if is_digit c then
           let (m,s) := readnum 0 s in
@@ -76,7 +91,32 @@ Fixpoint lex_string_cpt n s :=
           let k := identsize s in
           let id := substring 0 k s in
           let s := ntail k s in
-          option_map (Buf_cons (ID id)) (lex_string_cpt n s)
+          if String.eqb id "get" then
+            option_map (Buf_cons (GET tt)) (lex_string_cpt n s)
+          else if String.eqb id "set" then
+            option_map (Buf_cons (SET tt)) (lex_string_cpt n s)
+          else if String.eqb id "in" then
+            option_map (Buf_cons (IN tt)) (lex_string_cpt n s)
+          else if String.eqb id "let" then
+            option_map (Buf_cons (LET tt)) (lex_string_cpt n s)
+          else if String.eqb id "new" then
+            option_map (Buf_cons (NEW tt)) (lex_string_cpt n s)
+          else if String.eqb id "delete" then
+            option_map (Buf_cons (DELETE tt)) (lex_string_cpt n s)
+          else if String.eqb id "call" then
+            option_map (Buf_cons (CALL tt)) (lex_string_cpt n s)
+          else if String.eqb id "return" then
+            option_map (Buf_cons (RETURN tt)) (lex_string_cpt n s)
+          else if String.eqb id "ifz" then
+            option_map (Buf_cons (IFZ tt)) (lex_string_cpt n s)
+          else if String.eqb id "then" then
+            option_map (Buf_cons (THEN tt)) (lex_string_cpt n s)
+          else if String.eqb id "else" then
+            option_map (Buf_cons (ELSE tt)) (lex_string_cpt n s)
+          else if String.eqb id "abort" then
+            option_map (Buf_cons (ABORT tt)) (lex_string_cpt n s)
+          else
+            option_map (Buf_cons (ID id)) (lex_string_cpt n s)
         else None
       end
     end

@@ -8,7 +8,7 @@ export COQDOCFLAGS
 %: Makefile.coq phony
 	+make -f Makefile.coq $@
 
-all: Makefile.coq
+all: Makefile.coq Ltms/Parser.v
 	+make -f Makefile.coq all
 
 Ltms/Parser.v: Ltms/Parser.vy

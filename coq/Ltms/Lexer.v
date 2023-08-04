@@ -82,5 +82,5 @@ Fixpoint lex_string_cpt n s :=
     end
   end.
 
-Definition lex_string s := lex_string_cpt (length s) s.
+Definition lex_string s := lex_string_cpt ((length s)+1) s.
 

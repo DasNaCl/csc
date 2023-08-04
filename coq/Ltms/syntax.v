@@ -53,6 +53,16 @@ Inductive expr : Type :=
 | Xifz (c e0 e1 : expr) : expr
 | Xabort : expr
 .
+Fixpoint string_of_expr e := 
+  match e with
+  | Xval(Vnat n) => string_of_nat n
+  | Xvar x => x
+  | Xbinop symb e1 e2 => "(" ++ (string_of_expr e1)
+      ++ " " ++ (string_of_symb symb) ++ " "
+      ++ (string_of_expr e2) ++ ")"
+  | _ => ""
+  end%string
+.
 (** The following is a helper function to easily define functions over the syntax of S, e.g. substitution. *)
 Definition exprmap (h : expr -> expr) (e : expr) :=
   match e with

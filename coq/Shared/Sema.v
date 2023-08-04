@@ -34,6 +34,15 @@ Instance binopsymb__Instance : HasEquality binopsymb := {
   eq := binopsymb_eqb ;
   eqb_eq := binopsymb_eqb_eq ;
 }.
+Definition string_of_symb s :=
+  match s with
+  | Badd => "+"
+  | Bsub => "-"
+  | Bmul => "*"
+  | Bdiv => "/"
+  | Bless => "<"
+  end%string
+.
 
 (** Poison used to mark locations in our operational state. *)
 Inductive poison : Type :=

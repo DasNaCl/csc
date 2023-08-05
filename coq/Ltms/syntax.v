@@ -53,14 +53,30 @@ Inductive expr : Type :=
 | Xifz (c e0 e1 : expr) : expr
 | Xabort : expr
 .
+Fixpoint string_of_value v := 
+  match v with
+  | Vnat n => string_of_nat n
+  | Vpair v1 v2 => "<" ++ (string_of_value v1) ++ ", " ++ (string_of_value v2) ++ ">"
+  end%string
+.
 Fixpoint string_of_expr e := 
   match e with
-  | Xval(Vnat n) => string_of_nat n
+  | Xval v => string_of_value v
   | Xvar x => x
   | Xbinop symb e1 e2 => "(" ++ (string_of_expr e1)
       ++ " " ++ (string_of_symb symb) ++ " "
       ++ (string_of_expr e2) ++ ")"
-  | _ => ""
+  | Xget x e => x ++ "[" ++ (string_of_expr e) ++ "]"
+  | Xset x e1 e2 => x ++ "[" ++ (string_of_expr e1) ++ "] <- " ++ (string_of_expr e2)
+  | Xlet x e1 e2 => "let " ++ x ++ " = " ++ (string_of_expr e1) ++ " in " ++ (string_of_expr e2)
+  | Xnew x e1 e2 e3 => "let " ++ x ++ " = new " ++ (string_of_expr e1) ++ "[" ++ (string_of_expr e2) ++ "] in " ++ (string_of_expr e3)
+  | Xdel x => "delete " ++ x
+  | Xpair e1 e2 => "<" ++ (string_of_expr e1) ++ ", " ++ (string_of_expr e2) ++ ">"
+  | Xunpair x1 x2 e1 e2 => "let <" ++ x1 ++ ", " ++ x2 ++ "> = " ++ (string_of_expr e1) ++ " in " ++ (string_of_expr e2)
+  | Xreturn e => "return " ++ (string_of_expr e)
+  | Xcall foo e => "call " ++ foo ++ " " ++ (string_of_expr e)
+  | Xifz e1 e2 e3 => "ifz " ++ (string_of_expr e1) ++ " then " ++ (string_of_expr e2) ++ " else " ++ (string_of_expr e3)
+  | Xabort => "abort"
   end%string
 .
 (** The following is a helper function to easily define functions over the syntax of S, e.g. substitution. *)

@@ -72,7 +72,7 @@
 
 \appendix
 
-\section{General Trace Model}\label{ap:def:gtm}
+\section{General Trace Model}\label{ap:sec:gtm}
 
 \begin{gather*}
   \begin{aligned}
@@ -618,6 +618,7 @@ $$\;$$
 \subsection{$\Ltms$: Statically Typed, Temporal Memory Safe, Strict Cryptographic Constant Time}
 
 $\Ltms$ trivially satisfies \gls*{scct}, because all variables/values are private ($\lock$) by default.
+This is ,,enforced'' when projecting $\src{\Ltms}$ events to the general trace model presented in \Cref{ap:sec:gtm}.
 
 \begin{gather*}
   \begin{aligned}
@@ -676,11 +677,11 @@ Throughout the paper, the substitution notation is also used to update entries i
     \mi{(Pre\text{-}Events)}~\src{\event[_{b}]}&\bnfdef \src{\ev{Alloc}\ \loc\ \valueexpr} \mid \src{\ev{Dealloc}\ \loc} \mid \src{\ev{Get}\ \loc\ \valueexpr} \mid \src{\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']} \mid \src{\ev{Call}\ \comm\ g\ \valueexpr} \mid \src{\ev{Ret}\ \comm\ \valueexpr} \mid \src{\ev{Start}} \mid \src{\ev{End}\ \valueexpr}\\
   \end{aligned}\\
   \begin{aligned}
-    \mi{(Events)}~\src{\event}&\bnfdef \src{\emptyevent} \mid \src{\lightning} \mid \src{\tup{\event[_{b}]}{\sandboxtag,\securitytag}} \\
+    \mi{(Events)}~\src{\event}&\bnfdef \src{\emptyevent} \mid \src{\lightning} \mid \src{\tup{\event[_{b}]}{\sandboxtag}} \\
   \end{aligned}
 \end{gather*}
 \begin{center}
-  \judgbox{\pstepto{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}}}{,,$\runtimetermvar$ does one primitive step to $\runtimetermvar[']$ emitting event $\event$.''}
+  \judgbox{\pstepto{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}}}{,,$\src{\runtimetermvar}$ does one primitive step to $\src{\runtimetermvar[']}$ emitting event $\src{\event}$.''}
   %
   \typerule{$\src{\Ltms}-e-\text{binop}$}{
     \src{\lbinop{\expr[_1]}{\expr[_2]}}=\src{\expr[_3]}
@@ -693,7 +694,7 @@ Throughout the paper, the substitution notation is also used to update entries i
     \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
     \src{\loc}+\src{n}\in\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}](\loc+n)}
   }{
-    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{\statevar.\heap[^{\sandboxtag}](\loc+n)}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag,\unlock}}}
+    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{\statevar.\heap[^{\sandboxtag}](\loc+n)}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}}
   }{ap:ltms-e-get-in}
   %
   \typerule{$\src{\Ltms}-e-\text{get}-\notin$}{
@@ -701,7 +702,7 @@ Throughout the paper, the substitution notation is also used to update entries i
     \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
     \src{\loc}+\src{n}\notin\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}](\loc+n)}
   }{
-    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{1729}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag,\unlock}}}
+    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{1729}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}}
   }{ap:ltms-e-get-notin}
   %
   \typerule{$\src{\Ltms}-e-\text{set}-\in$}{
@@ -710,7 +711,7 @@ Throughout the paper, the substitution notation is also used to update entries i
     \src{\loc}+\src{n}\in\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}]} &
     \src{\heap[']}=\seth{\src{\statevar.\heap[^{\sandboxtag}]}}{\src{\loc}+\src{n}}{\src{\valueexpr}}
   }{
-    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[']}}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag,\unlock}}}
+    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[']}}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag}}}
   }{ap:ltms-e-set-in}
   %
   \typerule{$\src{\Ltms}-e-\text{set}-\notin$}{
@@ -718,29 +719,124 @@ Throughout the paper, the substitution notation is also used to update entries i
     \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
     \src{\loc}+\src{n}\notin\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}]}
   }{
-    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag,\unlock}}}
+    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag}}}
   }{ap:ltms-e-set-notin}
   %
   \typerule{$\src{\Ltms}-e-\text{new}$}{
     \fresh{\src{\statevar}}{\src{z}} &
     \fresh{\src{\statevar}}{\src{\loc}} &
-    \src{\heap[^{\sandboxtag}_1]}=\growh{\src{\statevar.\heap[^{\sandboxtag}]}}{\src{n}} &
+    \src{\heap[^{\sandboxtag}_1]}=\growh{\src{\statevar.\heap[^{\sandboxtag}]}}{\src{n}}{\src{\valueexpr}} &
     \src{\store[_1]}=\src{\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store}
   }{
-    \pstepto{\src{\rtt{\statevar}{\lnew{x}{n}{\expr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}}{\src{\tup{\ev{Alloc}\ \loc\ n}{\sandboxtag}}}
+    \pstepto{\src{\rtt{\statevar}{\lnew{x}{\valueexpr}{n}{\expr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}}{\src{\tup{\ev{Alloc}\ \loc\ n}{\statevar.\sandboxtag}}}
   }{ap:ltms-e-new}
   %
   \typerule{$\src{\Ltms}-e-\text{dealloc}$}{
     \src{\statevar.\store(x)} = \src{\tup{\loc}{\statevar.\sandboxtag,\poison,n}} &
     \src{\store[_1]}=\seth{\src{\statevar.\store}}{\src{x}}{\src{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}}
   }{
-    \pstepto{\src{\rtt{\statevar}{\ldelete{x}}}}{\src{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}}{\src{\tup{\ev{Dealloc}\ \loc}{\sandboxtag}}}
+    \pstepto{\src{\rtt{\statevar}{\ldelete{x}}}}{\src{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}}{\src{\tup{\ev{Dealloc}\ \loc}{\statevar.\sandboxtag}}}
   }{ap:ltms-e-dealloc}
+  %
+  \typerule{$\src{\Ltms}-e-\text{let}$}{
+  }{
+    \pstepto{\src{\rtt{\statevar}{\llet{x}{\valueexpr}{\expr}}}}{\src{\rtt{\statevar}{\expr\subst{x}{\valueexpr}}}}{\src{\emptyevent}}
+  }{ap:ltms-e-let}
+  %
+  \typerule{$\src{\Ltms}-e-\text{ifz}-yes$}{
+  }{
+    \pstepto{\src{\rtt{\statevar}{\lifz{0}{\expr[_1]}{\expr[_2]}}}}{\src{\rtt{\statevar}{\expr[_1]}}}{\src{\emptyevent}}
+  }{ap:ltms-e-ifz-yes}
+  %
+  \typerule{$\src{\Ltms}-e-\text{ifz}-no$}{
+    \src{n}\not=\src{0}
+  }{
+    \pstepto{\src{\rtt{\statevar}{\lifz{n}{\expr[_1]}{\expr[_2]}}}}{\src{\rtt{\statevar}{\expr[_2]}}}{\src{\emptyevent}}
+  }{ap:ltms-e-ifz-no}
+  %
+  \typerule{$\src{\Ltms}-e-\text{proj}-a$}{
+  }{
+    \pstepto{\src{\rtt{\statevar}{\lproja{\lpair{\valueexpr[_1]}{\valueexpr[_2]}}}}}{\src{\rtt{\statevar}{\valueexpr[_1]}}}{\src{\emptyevent}}
+  }{ap:ltms-e-proj-a}
+  %
+  \typerule{$\src{\Ltms}-e-\text{proj}-b$}{
+  }{
+    \pstepto{\src{\rtt{\statevar}{\lprojb{\lpair{\valueexpr[_1]}{\valueexpr[_2]}}}}}{\src{\rtt{\statevar}{\valueexpr[_2]}}}{\src{\emptyevent}}
+  }{ap:ltms-e-proj-a}
   %
   \typerule{$\src{\Ltms}-e-\text{abort}$}{
   }{
     \pstepto{\src{\rtt{\statevar}{\labort}}}{\src{\lightning}}{\src{\lightning}}
   }{ap:ltms-e-abort}
+\end{center}
+\begin{center}
+  \judgbox{\src{\commlib}\vdash\src{foo}:\src{\sandboxtag}\dashv\src{\comm},\src{\sandboxtag'}}{,,Determine communication tag $\src{\comm}$ and control tag $\src{\sandboxtag'}$ by checking the current control $\src{\sandboxtag}$,\\the called function $\src{foo}$, and list of component names $\src{\commlib}$.''}
+  %
+  \typerule{$\src{\Ltms}-\text{switch}-\ctx-\text{to}-\comp$}{
+    \src{foo}\in\src{\commlib}
+  }{
+    \src{\commlib}\vdash\src{foo}:\src{\ctx}\dashv\src{\ctxtocomp},\src{\comp}
+  }{ap:ltms-switch-ctx-to-comp}
+  %
+  \typerule{$\src{\Ltms}-\text{switch}-\comp-\text{to}-\ctx$}{
+    \src{foo}\notin\src{\commlib}
+  }{
+    \src{\commlib}\vdash\src{foo}:\src{\comp}\dashv\src{\comptoctx},\src{\ctx}
+  }{ap:ltms-switch-comp-to-ctx}
+  %
+  \typerule{$\src{\Ltms}-\text{noswitch}-\ctx$}{
+    \src{foo}\notin\src{\commlib}
+  }{
+    \src{\commlib}\vdash\src{foo}:\src{\ctx}\dashv\src{\nocomm},\src{\ctx}
+  }{ap:ltms-noswitch-ctx}
+  %
+  \typerule{$\src{\Ltms}-\text{noswitch}-\comp$}{
+    \src{foo}\in\src{\commlib}
+  }{
+    \src{\commlib}\vdash\src{foo}:\src{\comp}\dashv\src{\nocomm},\src{\comp}
+  }{ap:ltms-noswitch-comp}
+\end{center}
+\begin{center}
+  \judgbox{\estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}}}{,,$\src{\runtimetermvar}$ does one contextual step to $\src{\runtimetermvar[']}$ emitting event $\src{\event}$.''}
+  %
+  \typerule{$\src{\Ltms}-e-\text{ectx}$}{
+    \pstepto{\src{\rtt{\statevar}{\expr}}}{\src{\rtt{\statevar[']}{\expr[']}}}{\src{\event}}
+  }{
+    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\expr}}}}{\src{\rtt{\statevar[']}{\ectx\hole{\expr[']}}}}{\src{\event}}
+  }{ap:ltms-e-ectx}
+  %
+  \typerule{$\src{\Ltms}-e-\text{stuck}$}{
+    \pstepto{\src{\rtt{\statevar}{\expr}}}{\src{\lightning}}{\src{\lightning}}
+  }{
+    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\expr}}}}{\src{\lightning}}{\src{\lightning}}
+  }{ap:ltms-e-stuck}
+  %
+  \typerule{$\src{\Ltms}-e-\text{start}$}{
+    \src{\lfunction{\text{main}}{x}{e}} \in \src{\statevar.\library} &
+    \src{\statevar.\ectxstack}=\src{\hole{\cdot}}
+  }{
+    \estepto[]{\src{\rtt{\statevar}{\lcall{\text{main}}{0}}}}{\src{\rtt{\statevar\subst{\ctx}{\sandboxtag}\subst{\tup{\hole{\cdot}}{\text{main}},\hole{\cdot}}{\ectxstack}}{\expr\subst{0}{x}}}}{\src{\tup{\ev{Start}}{\comp}}}
+  }{ap:ltms-e-start}
+  %
+  \typerule{$\src{\Ltms}-e-\text{ret}$}{
+    \src{\statevar.\ectxstack}=\src{\tup{\ectx}{\text{foo}}},\src{\ectxstack[']} &
+    \src{\commlib}\vdash\src{\text{foo}}:\src{\statevar.\sandboxtag}\dashv\src{\comm}
+  }{
+    \estepto[]{\src{\rtt{\statevar}{\ectx[']\hole{\lreturn{\valueexpr}}}}}{\src{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\ectxstack[']}{\ectxstack}}{\ectx\hole{\valueexpr}}}}{\src{\tup{\ev{Ret}\ \comm\ \valueexpr}{\statevar.\sandboxtag}}}
+  }{ap:ltms-e-ret}
+  %
+  \typerule{$\src{\Ltms}-e-\text{call}$}{
+    \src{\lfunction{\text{foo}}{x}{e}} \in \src{\statevar.\library} &
+    \src{\commlib}\vdash\src{\text{foo}}:\src{\statevar.\sandboxtag}\dashv\src{\comm}
+  }{
+    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\lcall{\text{foo}}{\valueexpr}}}}}{\src{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\tup{\ectx}{\text{foo}},\statevar.\ectxstack}{\ectxstack}}{\expr\subst{\valueexpr}{x}}}}{\src{\tup{\ev{Call}\ \comm\ \text{foo}\ \valueexpr}{\statevar.\sandboxtag}}}
+  }{ap:ltms-e-call}
+  %
+  \typerule{$\src{\Ltms}-e-\text{end}$}{
+    \src{\statevar.\ectxstack}=\src{(\hole{\cdot},main),\hole{\cdot}}
+  }{
+    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\lreturn{\valueexpr}}}}}{\src{\rtt{\statevar\subst{\comp}{\sandboxtag}\subst{\tup{\hole{\cdot}}{\text{main}},\hole{\cdot}}{\ectxstack}}{\valueexpr}}}{\src{\tup{\ev{End}\ \valueexpr}{\ctx}}}
+  }{ap:ltms-e-end}
 \end{center}
 
 \bibliographystyle{ACM-Reference-Format}

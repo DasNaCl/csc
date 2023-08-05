@@ -613,6 +613,118 @@ $$\;$$
 \begin{incompleteproof}
 \end{incompleteproof}
 
+\section{Programming Languages}\label{ap:sec:proglangs}
+
+\subsection{$\Ltms$: Statically Typed, Temporal Memory Safe, Strict Cryptographic Constant Time}
+
+$\Ltms$ trivially satisfies \gls*{scct}, because all variables/values are private ($\lock$) by default.
+
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Expressions)}~&\src{\expr}\bnfdef\ \src{x} \mid \src{\valueexpr} \mid \src{\lbinop{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lget{x}{\expr}} \mid \src{\llet{x}{\lnew{\expr[_{1}]}{\expr[_{2}]}}{\expr[_{3}]}} \mid \src{\ldelete{x}} \mid \src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}} \\
+                       & \mid \src{\lpair{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lproja{\expr}} \mid \src{\lprojb{\expr}} \mid \src{\llet{x}{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lreturn{\expr}} \mid \src{\lcall{g}{\expr}} \mid \src{\lifz{\expr}{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\labort}
+  \end{aligned}
+  \\
+  \begin{aligned}
+  \mi{(Types)}~&\src{\type}\bnfdef\src{\natt} \mid \src{\type[_{1}]} \times \src{\type[_{2}]}
+  &
+  \mi{(Functions)}~&\src{\function}\bnfdef\ \src{\lfunction{\textit{foo}}{x}{e}}
+  &
+\mi{(Libraries)}~&\src{\library}\bnfdef\ \src{\hole{\cdot}} \mid \src{\function},\src{\library}
+  \end{aligned}\\
+  \begin{aligned}
+  \mi{(Component~Names)}~&\src{\commlib}\bnfdef\ \src{\hole{\cdot}} \mid \src{\text{foo}},\src{\commlib}
+  &
+  \mi{(Programs)}~&\src{\prog{\library_{\ctx}}{\library_{\comp}}}
+  \end{aligned}
+\end{gather*}
+
+Variables are referred to as $x,y,z,a,b,c,\ldots$ while functions may be referred to as multi-character words, such as $\texttt{foo}$, as well as short-forms like $f,g,h$.
+
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Control~Tags)}~&\src{\sandboxtag}\bnfdef\src{\ctx} \mid \src{comp}
+    &
+    \mi{(Communication~Tags)}~&\src{\comm}\bnfdef\ \src{\ctxtocomp} \mid\ \src{\comptoctx} \mid \src{\nocomm}
+    &
+    \mi{(Poison~Tags)}~&\src{\poison}\bnfdef \src{\poisoned} \mid \src{\poisonless}
+  \end{aligned}\\
+  \begin{aligned}
+    \mi{(Continuation~Stacks)}~&\src{\ectxstack}\bnfdef\src{\hole{\cdot}} \mid \src{\tup{K}{g}},\src{\ectxstack}
+    &
+    \mi{(Control~Flow~States)}~&\src{\cfstate}\bnfdef\src{\tup{\library}{\ectxstack}}
+  	\\
+    \mi{(Locations)}~&\src{\loc}\in\nat
+    &
+    \mi{(Substitutions)}~&\src{\substvar}\bnfdef \src{\hole{\cdot}} \mid \src{\subst{\valueexpr}{x}},\src{\gamma}
+  	\\
+    \mi{(Stores)}~&\src{\Delta}\bnfdef\src{\hole{\cdot}} \mid \src{x\mapsto\tup{\loc}{\sandboxtag,\poison,n}},\src{\Delta}
+    &
+    \mi{(Heaps)}~&\src{H}\bnfdef\src{\hole{\cdot}} | \src{\valueexpr},\src{H}
+  \end{aligned}\\
+  \begin{aligned}
+    \mi{(Memory~States)}~&\src{\memstate}\bnfdef\src{\tup{H^{\ctx}}{H^{\comp};\Delta}}
+    &
+    \mi{(States)}~&\src{\statevar}\bnfdef\src{\tup{\cfstate}{\sandboxtag,\memstate}}
+    &
+    \mi{(Runtime~Terms)}~&\src{\runtimetermvar}\bnfdef\src{\rtt{\statevar}{\expr}} \mid \src{\lightning}
+  \end{aligned}
+\end{gather*}
+Throughout the paper, the substitution notation is also used to update entries in states $\statevar$.
+\begin{gather*}
+  \begin{aligned}
+    \mi{(Pre\text{-}Events)}~\src{\event[_{b}]}&\bnfdef \src{\ev{Alloc}\ \loc\ \valueexpr} \mid \src{\ev{Dealloc}\ \loc} \mid \src{\ev{Get}\ \loc\ \valueexpr} \mid \src{\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']} \mid \src{\ev{Call}\ \comm\ g\ \valueexpr} \mid \src{\ev{Ret}\ \comm\ \valueexpr} \mid \src{\ev{Start}} \mid \src{\ev{End}\ \valueexpr}\\
+  \end{aligned}\\
+  \begin{aligned}
+    \mi{(Events)}~\src{\event}&\bnfdef \src{\emptyevent} \mid \src{\lightning} \mid \src{\tup{\event[_{b}]}{\sandboxtag,\securitytag}} \\
+  \end{aligned}
+\end{gather*}
+\begin{center}
+  \judgbox{\pstepto{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}}}{,,$\runtimetermvar$ does one primitive step to $\runtimetermvar[']$ emitting event $\event$.''}
+  %
+  \typerule{$\src{\Ltms}$-e-binop}{
+  }{
+    \pstepto{}{}{\emptyevent}
+  }{ap:ltms-e-binop}
+  %
+  \typerule{$e-\text{get}-\in$}{
+    \sandboxtag=\statevar.\sandboxtag &
+    \statevar.\store(x)=\tup{\loc}{\sandboxtag,\poison,m} \\
+    \loc+n\in\operatorname{dom}\statevar.\heap[^{\sandboxtag}](\loc+n)
+  }{
+    \pstepto{\rtt{\statevar}{\lget{x}{n}}}{\rtt{\statevar}{\heap[^{\sandboxtag}](\loc+n)}}{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}
+  }{e-get-in}
+  %
+  \typerule{$e-\text{set}-\notin$}{
+    \sandboxtag=\statevar.\sandboxtag &
+    \statevar.\store(x)=\tup{\loc}{\sandboxtag,\poison,m} \\
+    \loc+n\notin\operatorname{dom}\statevar.\heap[^{\sandboxtag}]
+  }{
+    \pstepto{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}{\rtt{\statevar}{\valueexpr}}{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag}}
+  }{e-set-notin}
+  %
+  \typerule{$e-\text{new}$}{
+    \fresh{\statevar}{z} &
+    \fresh{\statevar}{\loc} &
+    \heap[^{\sandboxtag}_1]=\growh{\statevar.\heap[^{\sandboxtag}]}{n} &
+    \store[_1]=\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store
+  }{
+    \pstepto{\rtt{\statevar}{\lnew{x}{n}{\expr}}}{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}{\tup{\ev{Alloc}\ \loc\ n}{\sandboxtag}}
+  }{e-new}
+  %
+  \typerule{$e-\text{dealloc}$}{
+    \statevar.\store(x) = \tup{\loc}{\statevar.\sandboxtag,\poison,n} &
+    \store[_1]=\seth{\statevar.\store}{x}{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}
+  }{
+    \pstepto{\rtt{\statevar}{\ldelete{x}}}{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}{\tup{\ev{Dealloc}\ \loc}{\sandboxtag}}
+  }{e-dealloc}
+  %
+  \typerule{$e-\text{abort}$}{
+  }{
+    \pstepto{\rtt{\statevar}{\labort}}{\lightning}{\lightning}
+  }{e-abort}
+\end{center}
+
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{main}
 

@@ -914,15 +914,17 @@ Proof. intros H; apply H; now econstructor. Qed.
 
 Global Hint Resolve spurious_is_val : core.
 
-Lemma getrid_of_matchval { A : Type } (P : A -> Prop) (e : expr) (a : value -> A) (b : expr -> A) :
+Lemma getrid_of_matchval { A : Type } (e : expr) :
   ~ is_val e ->
-  P(b e) ->
-  P(match e with
-    | Xval v => a v
-    | _ => b e
-    end)
+  forall (a : value -> A) (b : expr -> A),
+  match e with
+  | Xval v => a v
+  | _ => b e
+  end = b e
 .
-Proof. Admitted.
+Proof.
+  destruct e; try congruence; intros; exfalso; apply H; econstructor; easy.
+Qed.
 (** A runtime expression is classified as value if the associated state is also freed completely. *)
 Inductive rtexpr_is_val : rtexpr -> Prop :=
 | CRTval : forall (Ω : state) (e : expr) (v : value),
@@ -976,11 +978,13 @@ Proof. (*
       remember (insert K e) as e';
       induction K; try now (eauto; cbn in * ); now cbn in Heqe'; subst; easy
   end.
-  induction K; cbn; try easy;
+  induction K; cbn; try easy.
   match goal with
   | [ |- ?e = Some ?b ] =>
     change ((fun x => x = Some b) e)
-  end;
+  end.
+  specialize (@getrid_of_matchval (option (evalctx * expr)) e0_2 H'); intros.
+  erewrite H.
   change ((fun x : option (evalctx * expr) =>
    x = Some (Khole, Xbinop symb (Xval n) e0_2))
     match e0_2 with

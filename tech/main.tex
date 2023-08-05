@@ -682,47 +682,65 @@ Throughout the paper, the substitution notation is also used to update entries i
 \begin{center}
   \judgbox{\pstepto{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}}}{,,$\runtimetermvar$ does one primitive step to $\runtimetermvar[']$ emitting event $\event$.''}
   %
-  \typerule{$\src{\Ltms}$-e-binop}{
+  \typerule{$\src{\Ltms}-e-\text{binop}$}{
+    \src{\lbinop{\expr[_1]}{\expr[_2]}}=\src{\expr[_3]}
   }{
-    \pstepto{}{}{\emptyevent}
+    \pstepto{\src{\rtt{\statevar}{\lbinop{\expr[_1]}{\expr[_2]}}}}{\src{\rtt{\statevar}{\expr[_3]}}}{\src{\emptyevent}}
   }{ap:ltms-e-binop}
   %
-  \typerule{$e-\text{get}-\in$}{
-    \sandboxtag=\statevar.\sandboxtag &
-    \statevar.\store(x)=\tup{\loc}{\sandboxtag,\poison,m} \\
-    \loc+n\in\operatorname{dom}\statevar.\heap[^{\sandboxtag}](\loc+n)
+  \typerule{$\src{\Ltms}-e-\text{get}-\in$}{
+    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
+    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
+    \src{\loc}+\src{n}\in\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}](\loc+n)}
   }{
-    \pstepto{\rtt{\statevar}{\lget{x}{n}}}{\rtt{\statevar}{\heap[^{\sandboxtag}](\loc+n)}}{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}
-  }{e-get-in}
+    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{\statevar.\heap[^{\sandboxtag}](\loc+n)}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag,\unlock}}}
+  }{ap:ltms-e-get-in}
   %
-  \typerule{$e-\text{set}-\notin$}{
-    \sandboxtag=\statevar.\sandboxtag &
-    \statevar.\store(x)=\tup{\loc}{\sandboxtag,\poison,m} \\
-    \loc+n\notin\operatorname{dom}\statevar.\heap[^{\sandboxtag}]
+  \typerule{$\src{\Ltms}-e-\text{get}-\notin$}{
+    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
+    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
+    \src{\loc}+\src{n}\notin\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}](\loc+n)}
   }{
-    \pstepto{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}{\rtt{\statevar}{\valueexpr}}{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag}}
-  }{e-set-notin}
+    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{1729}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag,\unlock}}}
+  }{ap:ltms-e-get-notin}
   %
-  \typerule{$e-\text{new}$}{
-    \fresh{\statevar}{z} &
-    \fresh{\statevar}{\loc} &
-    \heap[^{\sandboxtag}_1]=\growh{\statevar.\heap[^{\sandboxtag}]}{n} &
-    \store[_1]=\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store
+  \typerule{$\src{\Ltms}-e-\text{set}-\in$}{
+    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
+    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
+    \src{\loc}+\src{n}\in\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}]} &
+    \src{\heap[']}=\seth{\src{\statevar.\heap[^{\sandboxtag}]}}{\src{\loc}+\src{n}}{\src{\valueexpr}}
   }{
-    \pstepto{\rtt{\statevar}{\lnew{x}{n}{\expr}}}{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}{\tup{\ev{Alloc}\ \loc\ n}{\sandboxtag}}
-  }{e-new}
+    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[']}}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag,\unlock}}}
+  }{ap:ltms-e-set-in}
   %
-  \typerule{$e-\text{dealloc}$}{
-    \statevar.\store(x) = \tup{\loc}{\statevar.\sandboxtag,\poison,n} &
-    \store[_1]=\seth{\statevar.\store}{x}{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}
+  \typerule{$\src{\Ltms}-e-\text{set}-\notin$}{
+    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
+    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
+    \src{\loc}+\src{n}\notin\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}]}
   }{
-    \pstepto{\rtt{\statevar}{\ldelete{x}}}{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}{\tup{\ev{Dealloc}\ \loc}{\sandboxtag}}
-  }{e-dealloc}
+    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag,\unlock}}}
+  }{ap:ltms-e-set-notin}
   %
-  \typerule{$e-\text{abort}$}{
+  \typerule{$\src{\Ltms}-e-\text{new}$}{
+    \fresh{\src{\statevar}}{\src{z}} &
+    \fresh{\src{\statevar}}{\src{\loc}} &
+    \src{\heap[^{\sandboxtag}_1]}=\growh{\src{\statevar.\heap[^{\sandboxtag}]}}{\src{n}} &
+    \src{\store[_1]}=\src{\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store}
   }{
-    \pstepto{\rtt{\statevar}{\labort}}{\lightning}{\lightning}
-  }{e-abort}
+    \pstepto{\src{\rtt{\statevar}{\lnew{x}{n}{\expr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}}{\src{\tup{\ev{Alloc}\ \loc\ n}{\sandboxtag}}}
+  }{ap:ltms-e-new}
+  %
+  \typerule{$\src{\Ltms}-e-\text{dealloc}$}{
+    \src{\statevar.\store(x)} = \src{\tup{\loc}{\statevar.\sandboxtag,\poison,n}} &
+    \src{\store[_1]}=\seth{\src{\statevar.\store}}{\src{x}}{\src{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}}
+  }{
+    \pstepto{\src{\rtt{\statevar}{\ldelete{x}}}}{\src{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}}{\src{\tup{\ev{Dealloc}\ \loc}{\sandboxtag}}}
+  }{ap:ltms-e-dealloc}
+  %
+  \typerule{$\src{\Ltms}-e-\text{abort}$}{
+  }{
+    \pstepto{\src{\rtt{\statevar}{\labort}}}{\src{\lightning}}{\src{\lightning}}
+  }{ap:ltms-e-abort}
 \end{center}
 
 \bibliographystyle{ACM-Reference-Format}

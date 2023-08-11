@@ -768,6 +768,117 @@ Throughout the paper, the substitution notation is also used to update entries i
   \src{foo:\type[_1]\to\type[_2]},\src{\typenv} \equiv \typenvsplit{\src{foo:\type[_1]\to\type[_2]},\src{\Gamma_1}}{\src{foo:\type[_1]\to\type[_2]},\src{\Gamma_2}}
   }{ap:ltms-split-arrow}
 \end{center}
+\begin{align*}
+  \mi{(All~Types)}~\src{\type[_e]}\bnfdef \src{\type\to\bot} \mid \src{\type[_1]\to\type[_2]} \mid \src{\type}
+\end{align*}
+\begin{center}
+  \judgbox{\typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_e]}}}{,,Expression $\src{\expr}$ has type $\src{\type[_e]}$ under environment $\src{\typenv}$.''}
+  %
+  \typerule{$\src{\Ltms}-t-\text{var}$}{
+    \noownedptr{\src{\typenv[_1],\typenv[_2]}}
+  }{
+    \typecheck{\src{\typenv[_1],x:\type[_e],\typenv[_2]}}{\src{x}}{\src{\type[_e]}}
+  }{ap:ltms-t-var}
+  %
+  \typerule{$\src{\Ltms}-t-\src{\natt}$}{
+    \noownedptr{\src{\typenv}}
+  }{
+    \typecheck{\src{\typenv}}{\src{n}}{\src{\natt}}
+  }{ap:ltms-t-natt}
+  %
+  \typerule{$\src{\Ltms}-t-\text{binop}$}{
+    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\natt}} &
+    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\natt}}
+  }{
+    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lbinop{\expr[_1]}{\expr[_2]}}}{\src{\natt}}
+  }{ap:ltms-t-binop}
+  %
+  \typerule{$\src{\Ltms}-t-\text{pair}$}{
+    \typecheck{\src{\typenv[_2]}}{\src{\expr[_1]}}{\src{\type[_1]}} &
+    \typecheck{\src{\typenv[_1]}}{\src{\expr[_2]}}{\src{\type[_2]}}
+  }{
+    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lpair{\expr[_1]}{\expr[_2]}}}{\src{\type[_1]\times\type[_2]}}
+  }{ap:ltms-t-pair}
+  %
+  \typerule{$\src{\Ltms}-t-\text{proj}-a$}{
+    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_1]\times\type[_2]}} &
+    \noownedptr{\src{\type[_2]}}
+  }{
+    \typecheck{\src{\typenv}}{\src{\lproja{\expr}}}{\src{\type[_1]}}
+  }{ap:ltms-t-proj-a}
+  %
+  \typerule{$\src{\Ltms}-t-\text{proj}-b$}{
+    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_1]\times\type[_2]}} &
+    \noownedptr{\src{\type[_1]}}
+  }{
+    \typecheck{\src{\typenv}}{\src{\lprojb{\expr}}}{\src{\type[_2]}}
+  }{ap:ltms-t-proj-b}
+  %
+  \typerule{$\src{\Ltms}-t-\text{get}$}{
+    \typecheck{\src{\typenv[_2]}}{\src{x}}{\src{\wptr}} &
+    \typecheck{\src{\typenv[_1]}}{\src{\expr}}{\src{\natt}}
+  }{
+    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lget{x}{\expr}}}{\src{\natt}}
+  }{ap:ltms-t-get}
+  %
+  \typerule{$\src{\Ltms}-t-\text{set}$}{
+    \typecheck{\src{\typenv[_3]}}{\src{x}}{\src{\wptr}} &
+    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\natt}} &
+    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\natt}}
+  }{
+    \typecheck{\src{\typenvsplit{(\typenvsplit{\typenv[_1]}{\typenv[_2]})}{\typenv[_3]}}}{\src{\lset{x}{\expr[_1]}{\expr[_2]}}}{\src{\natt}}
+  }{ap:ltms-t-set}
+  %
+  \typerule{$\src{\Ltms}-t-\text{let}$}{
+    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\type}} &
+    \typecheck{\src{x:\type,\typenv[_2]}}{\src{\expr[_2]}}{\src{\type[_e]}}
+  }{
+    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\llet{x}{\expr[_1]}{\expr[_2]}}}{\src{\type[_e]}}
+  }{ap:ltms-t-let}
+  %
+  \typerule{$\src{\Ltms}-t-\text{new}$}{
+    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\nat}} &
+    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\nat}} &
+    \typecheck{\src{x:\ptr,\typenv[_3]}}{\src{\expr[_3]}}{\src{\type[_e]}}
+  }{
+    \typecheck{\src{\typenvsplit{(\typenvsplit{\typenv[_1]}{\typenv[_2]})}{\typenv[_3]}}}{\src{\lnew{x}{\expr[_1]}{\expr[_2]}{\expr[_3]}}}{\src{\type[_e]}}
+  }{ap:ltms-t-new}
+  %
+  \typerule{$\src{\Ltms}-t-\text{delete}$}{
+    \noownedptr{\src{\typenv[_1],\typenv[_2]}}
+  }{
+    \typecheck{\src{\typenv[_1],x:\ptr,\typenv[_2]}}{\src{\ldelete{x}}}{\src{\nat}}
+  }{ap:ltms-t-delete}
+  %
+  \typerule{$\src{\Ltms}-t-\text{call}$}{
+    \noownedptr{\src{\type[_1]}} &
+    \noownedptr{\src{\type[_2]}} \\
+    \typecheck{\src{\typenv}}{\src{foo}}{\src{\type[_1]\to\type[_2]}} &
+    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_1]}}
+  }{
+    \typecheck{\src{\typenv}}{\src{\lcall{foo}{\expr}}}{\src{\type[_2]}}
+  }{ap:ltms-t-call}
+  %
+  \typerule{$\src{\Ltms}-t-\text{return}$}{
+    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type}}
+  }{
+    \typecheck{\src{\typenv}}{\src{\lreturn{\expr}}}{\src{\type\to\bot}}
+  }{ap:ltms-t-return}
+  %
+  \typerule{$\src{\Ltms}-t-\text{ifz}$}{
+    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\natt}} &
+    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\type[_e]}} &
+    \typecheck{\src{\typenv[_2]}}{\src{\expr[_3]}}{\src{\type[_e]}}
+  }{
+    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}}{\src{\type[_e]}}
+  }{ap:ltms-t-ifz}
+  %
+  \typerule{$\src{\Ltms}-t-\text{abort}$}{
+    \noownedptr{\src{\typenv}}
+  }{
+    \typecheck{\src{\typenv}}{\src{\labort}}{\src{\type}}
+  }{ap:ltms-t-abort}
+\end{center}
 
 \begin{gather*}
   \begin{aligned}

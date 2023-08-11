@@ -622,13 +622,16 @@ This is ,,enforced'' when projecting $\src{\Ltms}$ events to the general trace m
 
 \begin{gather*}
   \begin{aligned}
-    \mi{(Expressions)}~&\src{\expr}\bnfdef\ \src{x} \mid \src{\valueexpr} \mid \src{\lbinop{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lget{x}{\expr}} \mid \src{\llet{x}{\lnew{\expr[_{1}]}{\expr[_{2}]}}{\expr[_{3}]}} \mid \src{\ldelete{x}} \mid \src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}} \\
+    \mi{(Expressions)}~&\src{\expr}\bnfdef\ \src{x} \mid \src{\valueexpr} \mid \src{\lbinop{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lget{x}{\expr}} \mid \src{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}{\expr[_{3}]}} \mid \src{\ldelete{x}} \mid \src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}} \\
                        & \mid \src{\lpair{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lproja{\expr}} \mid \src{\lprojb{\expr}} \mid \src{\llet{x}{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lreturn{\expr}} \mid \src{\lcall{g}{\expr}} \mid \src{\lifz{\expr}{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\labort}
   \end{aligned}
   \\
   \begin{aligned}
-  \mi{(Types)}~&\src{\type}\bnfdef\src{\natt} \mid \src{\type[_{1}]} \times \src{\type[_{2}]}
+  \mi{(Types)}~&\src{\type}\bnfdef\src{\natt} \mid \src{\ptr} \mid \src{\wptr} \mid \src{\type[_{1}] \times \type[_{2}]}
   &
+  \mi{(Type~Enviroments)}~&\src{\typenv}\bnfdef\src{\hole{\cdot}} \mid \src{x:\type,\typenv} \mid \src{x:\type[_1]\to\type[_2],\typenv}
+  \end{aligned}\\
+  \begin{aligned}
   \mi{(Functions)}~&\src{\function}\bnfdef\ \src{\lfunction{\textit{foo}}{x}{e}}
   &
 \mi{(Libraries)}~&\src{\library}\bnfdef\ \src{\hole{\cdot}} \mid \src{\function},\src{\library}
@@ -672,6 +675,100 @@ Variables are referred to as $x,y,z,a,b,c,\ldots$ while functions may be referre
   \end{aligned}
 \end{gather*}
 Throughout the paper, the substitution notation is also used to update entries in states $\statevar$.
+
+\begin{center}
+  \judgbox{\noownedptr{\src{\type}}}{,,Type $\src{\type}$ does not entail an owned pointer.''}
+  %
+  \typerule{$\src{\Ltms}-\text{noownedptr}-\src{\natt}$}{
+  }{
+    \noownedptr{\src{\natt}}
+  }{ap:ltms-noownedptr-natt}
+  %
+  \typerule{$\src{\Ltms}-\text{noownedptr}-\src{\wptr}$}{
+  }{
+    \noownedptr{\src{\wptr}}
+  }{ap:ltms-noownedptr-wptr}
+  %
+  \typerule{$\src{\Ltms}-\text{noownedptr}-\text{pair}$}{
+    \noownedptr{\src{\type[_1]}} &
+    \noownedptr{\src{\type[_2]}}
+  }{
+    \noownedptr{\src{\type[_1]\times\type[_2]}}
+  }{ap:ltms-noownedptr-pair}
+\end{center}
+\begin{center}
+  \judgbox{\noownedptr{\src{\typenv}}}{,,$\src{\typenv}$ does not contain any owned pointers.''}
+  %
+  \typerule{$\src{\Ltms}-\text{noownedptr}-\text{empty}$}{
+  }{
+    \noownedptr{\src{\hole{\cdot}}}
+  }{ap:ltms-noownedptr-empty}
+  %
+  \typerule{$\src{\Ltms}-\text{noownedptr}-\text{cons}$}{
+    \noownedptr{\src{\type}} &
+    \noownedptr{\src{\typenv}}
+  }{
+    \noownedptr{\src{x:\type,\typenv}}
+  }{ap:ltms-noownedptr-cons}
+\end{center}
+\begin{center}
+  \judgbox{\src{\typenv}\equiv\typenvsplit{\src{\typenv[']}}{\src{\typenv['']}}}{,,Split environment $\src{\typenv}$ into $\src{\typenv[']}$ and $\src{\typenv['']}$.''}
+  %
+  \typerule{$\src{\Ltms}-$split-empty}{
+  }{
+    \src{\hole{\cdot}} \equiv \typenvsplit{\src{\hole{\cdot}}}{\src{\hole{\cdot}}}
+  }{ap:ltms-split-empty}
+  %
+  \typerule{$\src{\Ltms}-$split-emptyL}{
+  }{
+    \src{\typenv} \equiv \typenvsplit{\src{\hole{\cdot}}}{\src{\typenv}}
+  }{ap:ltms-split-emptyL}
+  %
+  \typerule{$\src{\Ltms}-$split-emptyR}{
+  }{
+    \src{\typenv} \equiv \typenvsplit{\src{\typenv}}{\src{\hole{\cdot}}}
+  }{ap:ltms-split-emptyR}
+  %
+  \typerule{$\src{\Ltms}$-split-$\natt$}{
+    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
+  }{
+    \src{x:\natt},\src{\typenv} \equiv \typenvsplit{\src{x:\natt},\src{\typenv[_1]}}{\src{x:\natt},\src{\typenv[_2]}}
+  }{ap:ltms-split-natt}
+  %
+  \typerule{$\src{\Ltms}$-split-wptr}{
+    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
+  }{
+    \src{x:\wptr},\src{\typenv} \equiv \typenvsplit{\src{x:\wptr},\src{\typenv[_1]}}{\src{x:\wptr},\src{\typenv[_2]}}
+  }{ap:ltms-split-wptr}
+  %
+  \typerule{$\src{\Ltms}$-split-pair}{
+    \noownedptr{\src{\type[_1]\times\type[_2]}} &
+    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
+  }{
+    \src{x:\type[_1]\times\type[_2]},\src{\typenv} \equiv \typenvsplit{\src{x:\type[_1]},\src{\typenv[_1]}}{\src{x:\type[_2]},\src{\typenv[_2]}}
+  }{ap:ltms-split-pair}
+  %
+  \typerule{$\src{\Ltms}$-split-ptrL}{
+    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
+  }{
+    \src{x:\ptr},\src{\typenv} \equiv \typenvsplit{\src{x:\ptr},\src{\typenv[_1]}}{\src{\typenv[_2]}}
+  }{ap:ltms-split-ptrL}
+  %
+  \typerule{$\src{\Ltms}$-split-ptrR}{
+    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
+  }{
+    \src{x:\ptr},\src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{x:\ptr},\src{\typenv[_2]}}
+  }{ap:ltms-split-ptrR}
+  %
+  \typerule{$\src{\Ltms}$-split-arrow}{
+    \noownedptr{\src{\type[_1]}} &
+    \noownedptr{\src{\type[_2]}} &
+    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
+  }{
+  \src{foo:\type[_1]\to\type[_2]},\src{\typenv} \equiv \typenvsplit{\src{foo:\type[_1]\to\type[_2]},\src{\Gamma_1}}{\src{foo:\type[_1]\to\type[_2]},\src{\Gamma_2}}
+  }{ap:ltms-split-arrow}
+\end{center}
+
 \begin{gather*}
   \begin{aligned}
     \mi{(Pre\text{-}Events)}~\src{\event[_{b}]}&\bnfdef \src{\ev{Alloc}\ \loc\ \valueexpr} \mid \src{\ev{Dealloc}\ \loc} \mid \src{\ev{Get}\ \loc\ \valueexpr} \mid \src{\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']} \mid \src{\ev{Call}\ \comm\ g\ \valueexpr} \mid \src{\ev{Ret}\ \comm\ \valueexpr} \mid \src{\ev{Start}} \mid \src{\ev{End}\ \valueexpr}\\
@@ -762,7 +859,7 @@ Throughout the paper, the substitution notation is also used to update entries i
   \typerule{$\src{\Ltms}-e-\text{proj}-b$}{
   }{
     \pstepto{\src{\rtt{\statevar}{\lprojb{\lpair{\valueexpr[_1]}{\valueexpr[_2]}}}}}{\src{\rtt{\statevar}{\valueexpr[_2]}}}{\src{\emptyevent}}
-  }{ap:ltms-e-proj-a}
+  }{ap:ltms-e-proj-b}
   %
   \typerule{$\src{\Ltms}-e-\text{abort}$}{
   }{
@@ -837,6 +934,66 @@ Throughout the paper, the substitution notation is also used to update entries i
   }{
     \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\lreturn{\valueexpr}}}}}{\src{\rtt{\statevar\subst{\comp}{\sandboxtag}\subst{\tup{\hole{\cdot}}{\text{main}},\hole{\cdot}}{\ectxstack}}{\valueexpr}}}{\src{\tup{\ev{End}\ \valueexpr}{\ctx}}}
   }{ap:ltms-e-end}
+\end{center}
+\begin{center}
+  \judgbox{\estepton{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\trace}}}{,,$\src{\runtimetermvar}$ performs $n$ steps to $\src{\runtimetermvar[']}$ emitting trace $\src{\trace}$.''}
+  %
+  \typerule{$\src{\Ltms}-\text{estepn}-\text{refl}$}{
+  }{
+    \estepton[0]{\src{\runtimetermvar}}{\src{\runtimetermvar}}{\src{\hole{\cdot}}}
+  }{ap:ltms-estepn-refl}
+  %
+  \typerule{$\src{\Ltms}-\text{estepn}-\text{trans}-\text{important}$}{
+    \src{\event}\not=\src{\emptyevent} &
+    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}} &
+    \estepton[n]{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
+  }{
+    \estepton[n+1]{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\event\cdot\trace}}
+  }{ap:ltms-estepn-trans-important}
+  %
+  \typerule{$\src{\Ltms}-\text{estepn}-\text{trans}-\text{unimportant}$}{
+    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\emptyevent}} &
+    \estepton[n]{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
+  }{
+    \estepton[n+1]{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\trace}}
+  }{ap:ltms-estepn-trans-unimportant}
+\end{center}
+\begin{center}
+  \judgbox{\isfinal{\src{\runtimetermvar}}}{,,Runtime term $\src{\runtimetermvar}$ represents a final state.''}
+  %
+  \typerule{$\src{\Ltms}-\src{\lightning}-\text{is}-\text{final}$}{
+  }{
+    \isfinal{\src{\lightning}}
+  }{ap:ltms-stuck-is-final}
+  %
+  \typerule{$\src{\Ltms}-\src{\valueexpr}-\text{is}-\text{final}$}{
+  }{
+    \isfinal{\src{\rtt{\statevar}{\valueexpr}}}
+  }{ap:ltms-value-is-final}
+\end{center}
+\begin{center}
+  \judgbox{\estepto{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\trace}}}{,,$\src{\runtimetermvar}$ steps to final $\src{\runtimetermvar[']}$ emitting trace $\src{\trace}$.''}
+  %
+  \typerule{$\src{\Ltms}-\text{esteps}-\text{refl}$}{
+    \isfinal{\src{\runtimetermvar}}
+  }{
+    \estepto{\src{\runtimetermvar}}{\src{\runtimetermvar}}{\src{\hole{\cdot}}}
+  }{ap:ltms-esteps-refl}
+  %
+  \typerule{$\src{\Ltms}-\text{esteps}-\text{trans}-\text{important}$}{
+    \src{\event}\not=\src{\emptyevent} &
+    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}} &
+    \estepto{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
+  }{
+    \estepto{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\event\cdot\trace}}
+  }{ap:ltms-esteps-trans-important}
+  %
+  \typerule{$\src{\Ltms}-\text{esteps}-\text{trans}-\text{unimportant}$}{
+    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\emptyevent}} &
+    \estepto{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
+  }{
+    \estepto{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\trace}}
+  }{ap:ltms-esteps-trans-unimportant}
 \end{center}
 
 \bibliographystyle{ACM-Reference-Format}

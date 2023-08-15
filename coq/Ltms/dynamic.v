@@ -983,6 +983,20 @@ Lemma easy_ectx' e0 e0' :
   evalctx_of_expr e0 = Some(Khole, e0') ->
   e0 = e0'.
 Proof.
+  revert e0'; induction e0; intros; try now inv H.
+  - cbn in H. destruct (e_view e0_1).
+    + destruct (e_view e0_2).
+      * now inv H. 
+      * destruct e; try (now congruence);
+        match goal with
+        | [H: context E [evalctx_of_expr ?e] |- _] =>
+            destruct (evalctx_of_expr e) as [[]|]; inv H
+        end.
+    + destruct e; try (now congruence);
+      match goal with
+      | [H: context E [evalctx_of_expr ?e] |- _] =>
+          destruct (evalctx_of_expr e) as [[]|]; inv H
+      end.
 Admitted.
 
 Lemma injective_ectx e0 K e e' :

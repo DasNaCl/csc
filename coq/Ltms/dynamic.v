@@ -979,119 +979,11 @@ Lemma easy_ectx e0 :
 Proof.
   induction e0; cbn; try congruence; intros; grab_all_values.
 Qed.
-(*
 Lemma easy_ectx' e0 e0' :
   evalctx_of_expr e0 = Some(Khole, e0') ->
   e0 = e0'.
 Proof.
-  revert e0'; induction e0; cbn; intros; try easy.
-  - grab_value e0_1; grab_value e0_2; try easy;
-      match goal with
-      | [|- Xbinop symb ?e' ?e = e0'] =>
-          crush_option (evalctx_of_expr e);
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0; try easy;
-      match goal with
-      | [|- Xget x ?e' = e0'] =>
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0_1; grab_value e0_2; try easy;
-      match goal with
-      | [|- Xset x ?e' ?e = e0'] =>
-          crush_option (evalctx_of_expr e);
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0_1; grab_value e0_2; try easy;
-      match goal with
-      | [|- Xlet x ?e' ?e = e0'] =>
-          crush_option (evalctx_of_expr e);
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0_1; grab_value e0_2; try easy;
-      match goal with
-      | [|- Xnew x ?e' ?e ?e1 = e0'] =>
-          crush_option (evalctx_of_expr e);
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - now inv H. 
-  - grab_value e0_1; grab_value e0_2; try easy;
-      match goal with
-      | [|- Xpair ?e' ?e = e0'] =>
-          crush_option (evalctx_of_expr e);
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0_1; grab_value e0_2; try easy;
-      match goal with
-      | [|- Xunpair x1 x2 ?e' ?e = e0'] =>
-          crush_option (evalctx_of_expr e);
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0; try easy;
-      match goal with
-      | [|- Xreturn ?e' = e0'] =>
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0; try easy;
-      match goal with
-      | [|- Xcall foo ?e' = e0'] =>
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - grab_value e0_1; try easy;
-      match goal with
-      | [|- Xifz ?e' _ _ = e0'] =>
-          crush_option (evalctx_of_expr e'); try easy;
-          try match goal with
-          | [H': evalctx_of_expr e' = Some ?x, H0': _ = Some(Khole, e0') |- _] => destruct x; inv H0'
-          end
-      end.
-  - now inv H.
-Qed.
+Admitted.
 
 Lemma injective_ectx e0 K e e' :
   Some e0 = pestep_compatible e0 ->
@@ -1102,10 +994,6 @@ Proof.
   revert e0 e' K; induction e; intros.
   - inv H0.
   - inv H0.
-  - cbn in H0. destruct e1; inv H0. grab_value e1.
-    + grab_value e2; try now (inv H0; apply easy_ectx' in H1 as H1'; now rewrite H1').
-      crush_option (evalctx_of_expr (Xbinop symb0 e2_1 e2_2)).
-      destruct x; inv H0. 
 Admitted.
 
 Lemma ungrab_ectx e K e0 :
@@ -1289,4 +1177,3 @@ Qed.
 
 (** Top-level programs *)
 Inductive prog : Type := Cprog (Ξ__ctx Ξ__comp : symbols) : prog.
-*)

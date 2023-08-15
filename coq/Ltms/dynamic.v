@@ -979,7 +979,7 @@ Lemma easy_ectx e0 :
 Proof.
   induction e0; cbn; try congruence; intros; grab_all_values.
 Qed.
-Lemma easy_ectx' e0 e0' :
+Lemma invert_evalctx_of_expr_Khole e0 e0' :
   evalctx_of_expr e0 = Some(Khole, e0') ->
   e0 = e0'.
 Proof.
@@ -1005,9 +1005,26 @@ Lemma injective_ectx e0 K e e' :
   evalctx_of_expr e' = Some(K, e0) ->
   e = e'.
 Proof.
-  revert e0 e' K; induction e; intros.
+  revert e0 e' K; destruct e; intros.
   - inv H0.
   - inv H0.
+  - cbn in H0. destruct (e_view e1).
+    + destruct (e_view e2).
+      * inv H0; apply invert_evalctx_of_expr_Khole in H1; now subst. 
+      * destruct e; (try now cbn in H0); try (inv H0; apply invert_evalctx_of_expr_Khole in H1; now subst);
+        match goal with
+        | [H1: evalctx_of_expr ?e' = Some _, H: context E [evalctx_of_expr ?e] |- _] => 
+            destruct (evalctx_of_expr e) as [[]|]; inv H
+        end; rename e into K.
+        destruct e'; cbn in H1; try congruence.
+        destruct (e_view e'1).
+        -- destruct (e_view e'2).
+          ++ inv H1.
+          ++ destruct e; (try now congruence);
+            match goal with
+            | [H: context E [evalctx_of_expr ?e] |- _] => 
+                destruct (evalctx_of_expr e) as [[]|]; inv H
+            end.
 Admitted.
 
 Lemma ungrab_ectx e K e0 :

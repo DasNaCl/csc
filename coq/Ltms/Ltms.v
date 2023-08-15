@@ -10,7 +10,7 @@ Definition string2expr s :=
   | _ => None
   end.
 
-Fixpoint expr2string e := string_of_expr e.
+Definition expr2string e := string_of_expr e.
 
 Require Import ExtrOcamlBasic.
 Require Import ExtrOcamlString.

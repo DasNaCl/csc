@@ -136,7 +136,13 @@ Module TMSMonAux <: MonitorT.
     freed := List.app T__TMS.(freed) T__TMS'.(freed)
   |}.
   Lemma app_assoc (l m n : AbsState) : append (append l m) n = append l (append m n).
-  Proof. Admitted.
+  Proof.
+    unfold append.
+    simpl.
+    rewrite <- List.app_assoc.
+    rewrite <- List.app_assoc.
+    easy.
+  Qed.    
   Definition singleton (ℓ : loc) (σ : ControlTag) := {|
     alloced := List.cons (ℓ, σ) nil ;
     freed := nil

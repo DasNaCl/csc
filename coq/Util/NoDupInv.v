@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Lists.List RelationClasses.
 
-Require Import FCS.Util.HasEquality FCS.Util.Convenience.
+Require Import CSC.Util.HasEquality CSC.Util.Convenience.
 
 Section Util.
 
@@ -213,10 +213,14 @@ Definition mset { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B)
 .
 
 Lemma dom_append { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) :
-  dom (append m1 m2) = dom m1 ++ dom m2
-.
-Proof. Admitted.
-
+  dom (append m1 m2) = dom m1 ++ dom m2.
+Proof.
+  induction m1.
+  - easy.
+  - simpl.
+    rewrite IHm1.
+    reflexivity.
+Qed.
 Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :
   nodupinv (mapCons x v m2) ->
   splitat (mapCons x v m2) x = Some (mapNil _ _, x, v, m2).
@@ -524,7 +528,26 @@ Lemma msubset_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m' : 
   MSubset (m1 ◘ m2) m' <->
   MSubset m1 m' /\ MSubset m2 m'
 .
-Proof. Admitted.
+Proof. 
+  split.
+  - induction m1, m2.
+    + easy. 
+    + easy. 
+    + simpl.
+      split.
+      * rewrite append_nil in H0.
+        easy.
+      * easy.
+    + admit.
+  - induction m1, m2.
+    + easy.
+    + easy.
+    + simpl.
+      intros.
+      rewrite append_nil.
+      easy.
+    + admit.       
+Admitted.
 
 Lemma mget_min {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
   mget m x = Some v -> Min m x v
@@ -541,8 +564,7 @@ Lemma delete_subsets {A : Type} { H : HasEquality A } { B : Type } (m1 m2 : mapi
   MSubset m1 m2 ->
   MSubset (delete m1 x) (delete m2 x)
 .
-Proof. Admitted.
-
+Proof. Admitted.      
 Lemma cons_delete_nodupinv {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
   nodupinv m ->
   nodupinv (mapCons x v (delete m x))
@@ -612,9 +634,8 @@ Lemma nodupinv_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapi
   MSubset m m' ->
   nodupinv m
 .
-Proof.
-Admitted.
-
+Proof. Admitted.      
+      
 Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
   nodupinv m' ->
   mget m x = Some v ->
@@ -624,13 +645,39 @@ Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H
 Proof. intros Ha Hb Hc; specialize (Hc x v) as Hc'. apply mget_min in Hb. apply min_mget; eauto using nodupinv_subset. Qed.
 
 Lemma mget_splitat_same_el {A : Type} { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (a b : B) :
+  forall (m0 : mapind H B),
   Util.nodupinv m ->
   mget m x = Some a ->
-  splitat m x = Some (m1, x, b, m2) ->
+  splitat_aux m0 m x = Some (m1, x, b, m2) ->
   a = b
 .
-Proof. Admitted.
-
+Proof.
+  intros.
+  induction H0.
+  - easy.
+  - pose proof (@nodupmapCons A H B a0 b0 m) as G.
+    apply G in H0.
+    destruct (eq_dec a0 x).
+    + cbn in *; rewrite H4 in *; rewrite eq_refl in *; cbn in *.
+      inversion H1.
+      rewrite <- H6.
+      inversion H2.
+      simpl.
+      reflexivity.
+    + apply neqb_neq in H4.
+      cbn in H1.
+      rewrite H4 in *.
+      destruct m.
+      * easy.
+      * apply IHnodupinv.
+        ++ apply H1.
+        ++ rewrite <- H2.
+           cbn.
+           rewrite H4.
+           intuition.
+           admit.
+    + easy.
+Admitted.
 
 End Util.
 
@@ -857,7 +904,7 @@ Lemma swap_split { A : Type } { H : HasEquality A } (x y : A) (n : nat) (xs ys :
              nodupinv ys
 .
 Proof. Admitted.
-
+    
 End NoDupList.
 
 #[global]

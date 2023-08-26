@@ -62,7 +62,7 @@ Qed.
 #[global]
 Hint Resolve eq_refl eqb_dec eqb_equiv_neqb neqb_equiv_eqb neqb_neq eq_dec : core.
 
-Require Import FCS.Util.Convenience.
+Require Import CSC.Util.Convenience.
 
 Module BoolEqb.
 #[export]

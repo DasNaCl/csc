@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Lists.List RelationClasses.
 
-Require Import FCS.Util.HasEquality FCS.Util.Convenience.
+Require Import CSC.Util.HasEquality CSC.Util.Convenience.
 
 Section Util.
 

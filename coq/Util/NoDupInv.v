@@ -2,7 +2,7 @@ Set Implicit Arguments.
 
 Require Import Lists.List RelationClasses.
 
-Require Import CSC.Util.HasEquality CSC.Util.Convenience.
+Require Import FCS.Util.HasEquality FCS.Util.Convenience.
 
 Section Util.
 
@@ -85,6 +85,18 @@ Proof.
     apply not_eq_None_Some in Hx as [m'' Hx]. rewrite Hx. f_equal. f_equal. apply undup_refl in Hx; easy.
     apply IHm in H5. congruence.
 Qed.
+
+(** Takes out x *)
+Fixpoint delete {A : Type} {H : HasEquality A} { B : Type } (m : mapind H B) (x : A) : mapind H B :=
+  match m with
+  | mapNil _ _ => mapNil _ _
+  | mapCons a b m' =>
+    if a == x then
+      delete m' x
+    else
+      mapCons a b (delete m' x)
+  end
+.
 Definition push { A : Type } { H : HasEquality A } { B : Type } (a : A) (b : B) (m : mapind H B) : option (mapind H B) :=
   match undup (mapCons a b m) with
   | Some m' => Some m'
@@ -199,6 +211,11 @@ Definition mset { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B)
     end
   in doo m
 .
+
+Lemma dom_append { A : Type } {H : HasEquality A} {B : Type} (m1 m2 : mapind H B) :
+  dom (append m1 m2) = dom m1 ++ dom m2
+.
+Proof. Admitted.
 
 Lemma splitat_elim_cons { A : Type } {H : HasEquality A} {B : Type} (m2 : mapind H B) (x : A) (v : B) :
   nodupinv (mapCons x v m2) ->
@@ -343,14 +360,14 @@ Proof.
     easy.
 Qed.
 
-Lemma dom_split { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+Lemma dom_split { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
   nodupinv m ->
   In x (dom m) ->
   exists m1 m2 v, splitat m x = Some(m1, x, v, m2) /\ m = (m1 ◘ (mapCons x v m2))
 .
 Proof.
   intros H0 H1; apply dom_in_ex in H1 as H1'; deex.
-  subst; cbn. exists m1. exists m2. exists v0.
+  subst; cbn. exists m1. exists m2. exists v.
   apply dom_in_notin_split in H1 as [H2a H2b]; eauto.
   split; try now apply splitat_elim. easy.
 Qed.
@@ -445,7 +462,7 @@ Ltac crush_undup M :=
 Fixpoint Min { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :=
   match m with
   | mapNil _ _ => False
-  | mapCons a0 b0 m' => a = a0 /\ b = b0 \/ (a <> a0 /\ Min m' a b)
+  | mapCons a0 b0 m' => a = a0 /\ b = b0 \/ Min m' a b
   end
 .
 Lemma cons_Min { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :
@@ -490,7 +507,7 @@ Lemma Min_in { A : Type } { H : HasEquality A } { B : Type } (m : mapind H B) (x
 .
 Proof.
   induction m; cbn; intros; try easy.
-  destruct H0 as [[H0__a H0__b] | [H0__a H0__b]]; subst; fold (img m); fold (dom m).
+  destruct H0 as [[H0__a H0__b] | H0]; subst; fold (img m); fold (dom m).
   - split; now left.
   - split; right; apply IHm; auto.
 Qed.
@@ -500,35 +517,111 @@ Lemma cons_msubset { A : Type } { H : HasEquality A } { B : Type } (m m' : mapin
 Proof.
   intros H0 a b H1. symmetry in H0. apply push_ok in H0 as H0'.
   unfold "_ ↦ _ ◘ _" in H0.
-  crush_undup (mapCons x v m); inv H0. right; split; try easy.
-  destruct (eq_dec a x); subst; try easy.
-  inv H0'. apply Min_in in H1 as [H1__a H1__b]; contradiction.
+  crush_undup (mapCons x v m); inv H0. now right.
 Qed.
+
+Lemma msubset_split { A : Type } { H : HasEquality A } { B : Type } (m1 m2 m' : mapind H B) :
+  MSubset (m1 ◘ m2) m' <->
+  MSubset m1 m' /\ MSubset m2 m'
+.
+Proof. Admitted.
 
 Lemma mget_min {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
-  mget m x = Some v <-> Min m x v
+  mget m x = Some v -> Min m x v
 .
 Proof.
-  split.
-  - induction m; cbn; try easy.
-    fold (mget m x). intros H0.
-    destruct (eq_dec a x); subst.
-    + rewrite eq_refl in H0; inv H0; now left.
-    + apply neqb_neq in H1; rewrite H1 in H0. right; split; auto. apply neqb_neq in H1. intros H2.
-      subst; contradiction.
-  - induction m; cbn; intros; try easy. destruct (eq_dec a x); subst.
-    + rewrite eq_refl. destruct H0 as [[H0__a H0__b]|[H0__a H0__b]]; subst; easy.
-    + apply neqb_neq in H1 as H1'; rewrite H1'. fold (mget m x).
-      destruct H0 as [[H0__a H0__b]|[H0__a H0__b]]; subst; try easy; auto.
+  induction m; cbn; try easy.
+  fold (mget m x). intros H0.
+  destruct (eq_dec a x); subst.
+  - rewrite eq_refl in H0; inv H0; now left.
+  - apply neqb_neq in H1; rewrite H1 in H0. right; auto.
 Qed.
 
+Lemma delete_subsets {A : Type} { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (x : A) :
+  MSubset m1 m2 ->
+  MSubset (delete m1 x) (delete m2 x)
+.
+Proof. Admitted.
+
+Lemma cons_delete_nodupinv {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  nodupinv (mapCons x v (delete m x))
+.
+Proof. Admitted.
+
+Lemma delete_nodupinv {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
+  nodupinv m ->
+  nodupinv (delete m x)
+.
+Proof. Admitted.
+
+Lemma delete_delete {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
+  delete (delete m x) x = delete m x
+.
+Proof. Admitted.
+
+Lemma delete_middle {A : Type} { H : HasEquality A } { B : Type } (m1 m2 : mapind H B) (a : A) (b : B) :
+  delete (append m1 (mapCons a b m2)) a = append m1 m2
+.
+Proof. Admitted.
+
+Lemma delete_delete_sym {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x x0 : A) :
+  delete (delete m x) x0 = delete (delete m x0) x
+.
+Proof. Admitted.
+
+Lemma delete_min {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (a a0 : A) (b : B) :
+  Min (delete m a) a0 b ->
+  Min m a0 b
+.
+Proof. Admitted.
+
+Lemma delete_works {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) :
+  In x (dom (delete m x)) -> False
+.
+Proof. Admitted.
+Lemma delete_notin {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x y : A) :
+  x <> y ->
+  ~ In x (dom m) ->
+  ~ In x (dom (delete m y))
+.
+Proof. Admitted.
+
+Lemma delete_subset_identity {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (a : A) (b : B) :
+  MSubset m (mapCons a b (delete m a))
+.
+Proof. Admitted.
+
+Lemma min_mget {A : Type} { H : HasEquality A } { B : Type } (m : mapind H B) (x : A) (v : B) :
+  nodupinv m ->
+  Min m x v ->
+  mget m x = Some v
+.
+Proof.
+  induction m; try easy; intros.
+  inv H0. destruct (eq_dec a x).
+  - subst. destruct H1 as [[H1a H1b] | H1].
+    + subst. cbn. now rewrite eq_refl.
+    + apply Min_in in H1 as [H1a H1b]. contradiction.
+  - destruct H1 as [[H1a H1b] | H1]; try congruence.
+    apply neqb_neq in H0; cbn; rewrite H0; auto.
+Qed.
+
+Lemma nodupinv_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H B) :
+  nodupinv m' ->
+  MSubset m m' ->
+  nodupinv m
+.
+Proof.
+Admitted.
+
 Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H B) (x : A) (v : B) :
+  nodupinv m' ->
   mget m x = Some v ->
   MSubset m m' ->
   mget m' x = Some v
 .
-Proof. intros Ha Hb; specialize (Hb x v); apply mget_min in Ha; apply mget_min; auto. Qed.
-
+Proof. intros Ha Hb Hc; specialize (Hc x v) as Hc'. apply mget_min in Hb. apply min_mget; eauto using nodupinv_subset. Qed.
 
 Lemma mget_splitat_same_el {A : Type} { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (a b : B) :
   Util.nodupinv m ->

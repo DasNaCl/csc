@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Require Import Strings.String Lists.List.
 
-Require Import CSC.Util.Sets.
+Require Import FCS.Util.Sets.
 
 (** This file defines some convenience features, e.g., simple properties on booleans or the option monad. *)
 
@@ -157,6 +157,12 @@ Definition string_of_nat (n : nat) : string :=
       end
     end
   in string_of_nat_aux n n ""%string
+.
+Definition string_of_bool (b : bool) : string :=
+  match b with
+  | true => "true"
+  | false => "false"
+  end%string
 .
 
 Lemma in_cons_variant (A : Type) (a b : A) (l : list A) : In b (a :: l) <-> a = b \/ In b l.

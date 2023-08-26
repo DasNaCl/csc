@@ -48,10 +48,21 @@ Proof.
   - apply neqb_neq in H0; now right.
 Qed.
 
+Lemma eq_sym { A : Type } { H : HasEquality A } (a b : A) :
+  eq a b = eq b a.
+Proof.
+  destruct (eq_dec a b).
+  - subst; now rewrite eq_refl.
+  - apply neqb_neq in H0 as H0'; rewrite H0'.
+    destruct (eq_dec b a).
+    + subst; congruence.
+    + now apply neqb_neq in H1 as ->.
+Qed.
+
 #[global]
 Hint Resolve eq_refl eqb_dec eqb_equiv_neqb neqb_equiv_eqb neqb_neq eq_dec : core.
 
-Require Import CSC.Util.Convenience.
+Require Import FCS.Util.Convenience.
 
 Module BoolEqb.
 #[export]

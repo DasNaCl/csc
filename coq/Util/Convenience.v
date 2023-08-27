@@ -1,7 +1,7 @@
 Set Implicit Arguments.
 Require Import Strings.String Lists.List.
 
-Require Import FCS.Util.Sets.
+Require Import CSC.Util.Sets.
 
 (** This file defines some convenience features, e.g., simple properties on booleans or the option monad. *)
 

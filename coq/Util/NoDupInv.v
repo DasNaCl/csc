@@ -644,6 +644,31 @@ Lemma mget_subset {A : Type} { H : HasEquality A } { B : Type } (m m' : mapind H
 .
 Proof. intros Ha Hb Hc; specialize (Hc x v) as Hc'. apply mget_min in Hb. apply min_mget; eauto using nodupinv_subset. Qed.
 
+Lemma nodupinv_cons {A : Type} { H : HasEquality A} {B : Type} (x : A) (b : B) (m : mapind H B) :
+  Util.nodupinv (mapCons x b m) ->
+  Util.nodupinv m.
+Proof.
+  intros.
+  inversion H0.
+  apply H5.
+Qed.
+
+Lemma splitat_aux_cons {A : Type} {H : HasEquality A} {B : Type} (m m1 m2 : mapind H B) (x a : A) (y b : B) :
+  forall (m0 : mapind H B),
+    Util.nodupinv (mapCons a b m) ->
+    a <> x ->
+    splitat_aux m0 (mapCons a b m) x = Some (m1, x, y, m2) ->
+    splitat_aux m0 m x = Some (m1, x, y, m2).
+Proof.
+  intros.
+  induction m.
+  - unfold splitat_aux in *.
+    apply neqb_neq in H1.
+    rewrite H1 in H2.
+    easy.
+  - admit.
+Admitted.
+      
 Lemma mget_splitat_same_el {A : Type} { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (a b : B) :
   forall (m0 : mapind H B),
   Util.nodupinv m ->
@@ -659,25 +684,20 @@ Proof.
     apply G in H0.
     destruct (eq_dec a0 x).
     + cbn in *; rewrite H4 in *; rewrite eq_refl in *; cbn in *.
-      inversion H1.
-      rewrite <- H6.
-      inversion H2.
-      simpl.
-      reflexivity.
+      inversion H1; rewrite <- H6; inversion H2.
+      easy.
     + apply neqb_neq in H4.
       cbn in H1.
       rewrite H4 in *.
       destruct m.
       * easy.
-      * apply IHnodupinv.
-        ++ apply H1.
-        ++ rewrite <- H2.
-           cbn.
-           rewrite H4.
-           intuition.
-           admit.
+      * apply splitat_aux_cons in H2; try trivial.
+        -- apply IHnodupinv. 
+           ++ apply H1.
+           ++ apply H2.
+        -- apply neqb_neq in H4; trivial. 
     + easy.
-Admitted.
+Qed.
 
 End Util.
 

@@ -654,21 +654,23 @@ Proof.
 Qed.
 
 Lemma splitat_aux_cons {A : Type} {H : HasEquality A} {B : Type} (m m1 m2 : mapind H B) (x a : A) (y b : B) :
-  forall (m0 : mapind H B),
+  forall (m0 ma : mapind H B),
     Util.nodupinv (mapCons a b m) ->
     a <> x ->
     splitat_aux m0 (mapCons a b m) x = Some (m1, x, y, m2) ->
-    splitat_aux m0 m x = Some (m1, x, y, m2).
-Proof.
-  intros.
-  induction m.
-  - unfold splitat_aux in *.
-    apply neqb_neq in H1.
-    rewrite H1 in H2.
-    easy.
-  - admit.
-Admitted.
-      
+    splitat_aux m0 m x = Some (delete m1 a, x, y, m2).
+Proof. Admitted.
+
+Lemma nodupinv_cons_notin {A : Type} {H : HasEquality A} {B : Type} (m : mapind H B) (x : A) (y : B) :
+  Util.nodupinv (mapCons x y m) ->
+  ~ In x (dom m).
+Proof. Admitted.    
+
+Lemma dom_notin_delete {A : Type} {H : HasEquality A} {B : Type} (m : mapind H B) (a : A) :
+    ~ In a (dom m) -> 
+    delete m a = m.
+Proof. Admitted.
+  
 Lemma mget_splitat_same_el {A : Type} { H : HasEquality A } { B : Type } (m m1 m2 : mapind H B) (x : A) (a b : B) :
   forall (m0 : mapind H B),
   Util.nodupinv m ->
@@ -691,13 +693,15 @@ Proof.
       rewrite H4 in *.
       destruct m.
       * easy.
-      * apply splitat_aux_cons in H2; try trivial.
-        -- apply IHnodupinv. 
-           ++ apply H1.
-           ++ apply H2.
-        -- apply neqb_neq in H4; trivial. 
+      * apply splitat_aux_cons in H2; try easy.
+        -- apply IHnodupinv; try easy.
+           rewrite dom_notin_delete in H2.
+           ++ easy.
+           ++ admit.
+        -- rewrite neqb_neq in H4. 
+           easy.
     + easy.
-Qed.
+Admitted.
 
 End Util.
 

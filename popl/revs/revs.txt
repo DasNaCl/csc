@@ -1,0 +1,594 @@
+Review #67A
+===========================================================================
+
+Overall merit
+-------------
+B. Weak accept: I lean towards acceptance.
+
+Reviewer expertise
+------------------
+Y. Knowledgeable: I am knowledgeable about the topic of the paper (or at
+   least key aspects of it).
+
+Summary of the paper
+--------------------
+This paper composes compiler passes that preserve separate security properties. This way the proposed approach develops a multipass compiler that preserves a set of security properties. It performs a case study to develop a multi-pass compiler that preserves both memory safety and constant time properties.
+
+Assessment of the paper
+-----------------------
+I like the problem addressed in this paper. State-of-the art compiler optimizations are developed in modular fashion. Hence it is important that they compose correctly. However, guaranteeing functional correctness for compositionality may not guarantee correctness of security properties for compositional compilation. The approach provides a formal foundation for compositional secure compilation for multiple security properties. Upper language composition provides a framework for translating from multiple languages to one intermediate language. This facilitates multi-language secure compilation. The lower composition ensures secure code generation for multiple target architectures. I like this approach as it can be useful for real compiler development. 
+
+However, the approach does not study the optimizations of any real compiler and hence it is not clear if the approach would be applicable in state-of-the-art compiler development. 
+
+==========
+	MP: are dce and cf not real enough?
+==========
+
+Overall, the paper is a positive step towards compositional secure compilation.
+
+Detailed comments for authors
+-----------------------------
+It would be worthwhile to discuss whether your work would be applicable on the practical compiler development, particularly on the following issues. 
+
+Undefined behaviors play a key role in developing optimizations in the state-of-the-art compilers. I wonder if these behaviors would affect the compositionality properties. 
+It is possible that the individual components are compiled following different sequences of optimizations and linked later. 
+
+==========
+	MP: good point, idk. 
+		UB goes in the property definition -- see our esop/toplas paper
+		with the intersection of props that have UB, i don't think you're allowing for behaviour that eliminates UB
+==========
+
+You have chosen constant time cryptography and memory safety. It would be useful to discuss the motivation behind selecting these two security properties with their similarities and differences.
+
+==========
+	MP: i think we already explain: they're key security props
+==========
+
+Questions to be addressed by author response
+--------------------------------------------
+(1) Is it possible to model the optimizations in GCC or LLVM in your approach?
+
+==========
+	MP: which ones?
+==========
+
+(2) Is your approach applicable to or can be extended for in hyperproperty based security properties? 
+
+==========
+	MP: yes, classes are any set. but i think this point did not come across clearly.
+		we need to rephrase what classes are and why they are general enough
+==========
+
+(3) Do you handle dynamic languages with managed runtime? Particularly, managed runtime systems use garbage collection to deallocate memory. Does it impact your compositionality scheme?
+
+==========
+	MP: i think this is orthogonal
+==========
+
+
+Review #67B
+===========================================================================
+
+Overall merit
+-------------
+D. Strong reject: I will argue for rejection.
+
+Reviewer expertise
+------------------
+Y. Knowledgeable: I am knowledgeable about the topic of the paper (or at
+   least key aspects of it).
+
+Summary of the paper
+--------------------
+This paper studies the properties of composing compiler passes. It shows that robust compiler passes can be sequentially composed to ensure robust properties of the target program.
+
+Assessment of the paper
+-----------------------
+Strengths:
+
++ Composition of secure compilation is an interesting problem to investigate.
+
++ This work shows the sequential compositions behave as expected. 
+
++ The results can be applied to studying compiler optimization passes.
+
+Weaknesses:
+
+- The contribution of this work is incremental.
+
+==========
+	MP: not true
+==========
+
+- The sequential composition theorem made implicit assumptions that could make the theorem unsound.  
+
+While this work sets out to study an important problem: the compositional properties of secure compilation; the technical development is straightforward 
+
+==========
+	MP: not a reason for rejection, clearly goes against popl guidelines iirc
+==========
+
+and the case studies are simplistic. 
+
+==========
+	MP: again, a subjective view
+==========
+
+The contribution is incremental given existing work in secure compilation.
+
+Detailed comments for authors
+-----------------------------
+While the problem of what properties composed compilation passes satisfy is worth studying, this paper's investigation does not have the technical depth to contribute significantly to this field. The properties examined is a subset of the properties that secure compilation aims to preserve. 
+
+==========
+	MP: not true
+==========
+
+The composition is sequential composition only. 
+
+==========
+	MP: true?
+==========
+
+The case studies shown in the end are not surprising. It is unclear what are the challenges of establishing results presented in this paper. 
+
+==========
+	MP: the point is not much in terms of challenges, but rather in terms of how useful these results are.
+		this reviewer is the epitomy of the bad reviewers we get at S&P.
+==========
+
+In terms of sequential composition, it would be interesting to show the result of composing a compilation pass that violates a certain property pi and a later pass hardens the target to ensure that property. 
+
+==========
+	MP: ok this is interesting. 
+		violating properties is NOT how we reason about compiler passes, so this is beyond the scope of the whole secure compilation theory.
+		but.
+		the MS property allow traces that violate CT.
+		so, in a sense, we're already considering this case.
+
+		worth thinking about this, and most importantly, to reframe the results 
+==========
+
+Is the theorem proven in this paper strong enough to show that this composition can establish the property pi? Note that the order of these two passes are important; one ensures pi, the other violating pi. Based on the current theorem statement, it seems the set up made an implicit assumption that the second pass does not violate the properties the first pass aims to establish, but not vice versa.
+
+==========
+	MP: did we?
+==========
+
+It would be nice if clarifications can be made about how the current theorem handles this case. 
+
+While trace properties is an important class of properties to exam, there are many other properties that are of interests. This paper did not attempt to go beyond trace properties, which narrows the contributions of this work. 
+
+==========
+	MP: false. but this highlights the need to explain classes better.
+==========
+
+Similar to the above comment, another important form of composition not considered by this work is composing/linking components that are compiled  through different compilation pass. Especially when these components have shared state.   
+
+==========
+	MP: ?
+==========
+
+Sections 5 and 6 set up toy languages and compiler passes, which made the proofs straightforward. What are the challenges of establishing the theorems? Are there interesting proof techniques used?
+
+==========
+	MP: the techniques are known, yes. standard hard secure compilation stuff, but standard nonetheless.
+		this should not be grounds for rejection
+==========
+
+Definition 3.1, "at most one Alloc/Dealloc l;t;sigma" is imprecise. This could allow two Alloc/Deallocs of the same location, with different tag. If read strictly, it does not allow memory reuse, which is commonly done in low-level languages. 
+
+==========
+	MP: ?
+==========
+
+The Rule tms-trans seems to allow the same location to be allocated twice. Is this correct? 
+
+==========
+	MP: ?
+==========
+
+The monitor composition simply runs both monitors, which is not optimal. 
+
+==========
+	MP: we don't care about optimality, just do the correct thing
+==========
+
+Why is the monitor composition interesting? It is also unclear how the monitor connects tightly to later sections of the paper.
+
+==========
+	MP: this needs explanation
+==========
+
+The rules on page 14, the return values seem arbitrary for rules of operations with ill-defined behavior. For example, when setting a memory location that doesn't exist, why return the value of the expression to be written to memory? Similarly, why deletion return 0? Why deletion does not check for existing of the location, like the set rules? It may not handle double free properly. 
+
+==========
+	MP: ?
+==========
+
+
+Minor 
+Definition 2.1: p should be w
+
+The coloring of the paper is distracting. 
+
+==========
+	MP: well f-y too
+==========
+
+Figure 1, allowing $\varepsilon$ events to be arbitrarily inserted does not account for timing behavior. Is this intended? 
+
+Definition 3.6, the monitor semantics is not introduced at this point. 
+
+The names of the rules on and after page 14 have extra space.
+
+Questions to be addressed by author response
+--------------------------------------------
+- can the theorem be applied to the case where one pass violating a property and another pass re-establishes it?
+
+- What's challenging?
+
+==========
+	MP: try not to answer with 'your mom'
+==========
+
+
+Review #67C
+===========================================================================
+
+Overall merit
+-------------
+B. Weak accept: I lean towards acceptance.
+
+Reviewer expertise
+------------------
+Y. Knowledgeable: I am knowledgeable about the topic of the paper (or at
+   least key aspects of it).
+
+Summary of the paper
+--------------------
+This paper is concerned with establishing a formal framework that can talk about secure compilation properties, compilation passes, their composition, and how to ensure that the properties are preserved through composition. (The idea is to rule out "bad interactions" wherein compilation passes individually enforce some properties but end up not breaking upon composition.)
+
+The first contribution, as I understand it, is going from a notion of trace to a more operational notion of monitor that can state what it means to obey a particular property in a more operational style. The authors claims that monitors are more pleasant to work with, and show how to design monitors for various properties, along with suitable notions of events in each case. 
+
+==========
+	MP: so far so good
+==========
+
+Then, the authors tackle composition, and show that with the way their definitions are set up, the security properties of interest are preserved upon composition. Notably, the authors take great care to tackle the "upper" and "lower" composition which to the best of their knowledge was not done before. The next section is a case study of a series of toy languages with very simple secure compilation techniques (run-time type checks, and flipping a flag for constant-time resistance) going in steps from one to the other, and showing that the compilation schemes indeed do establish the properties one is after. The pièce de résistance is composing all of these steps together to get an end-to-end compiler that, of course, is secure.
+
+Assessment of the paper
+-----------------------
+Pros.
+- The paper establishes a general-purpose reasoning framework that unifies several secure compilation properties under one banner.
+- The work can serve as a foundation for future works that tackle more ambitious compilers that operate beyond just toy languages.
+- Big effort for presentation -- the paper was quite clear and pleasant to read.
+
+==========
+	MP: yay! congrats!
+==========
+
+- There is an ongoing Coq formalization, and some of the results from the paper are covered by formal proofs already, while the rest is a work in progress. The supplementary material has a README that helpfully contains pointers to the results from the paper.
+- The results presented in the paper are backed by a substantial typeset supplementary material.
+
+Cons.
+- The big results from 6 are not covered by the Coq proof. The Coq proof contains a large number of admits so I am under the impression that the results in Mon.v around line 1000 depend on the numerous admits that come before then. (Example: Lemma 3.9 directly calls SMSMon_is_gSMS which is admitted.)
+
+==========
+	MP: this is fine, easily justifiable
+==========
+
+- The work is very foundational, granted, but the examples are very small and are not realistic compilers, 
+
+==========
+	MP: not realistic compilers ... the mswasm compiler does just that. 
+		i think this can be argued.
+==========
+
+so the main contribution that remains (if the formal proof is not really finalized, and if the concrete compiler only deals with toy languages) is the formal framework to talk about these results.
+
+==========
+	MP: agreed.
+==========
+
+Overall, even though this feels like a work-in-progress (mostly owing to the state of the Coq proof), I liked the paper, and I feel like the clean presentation and unifying framework make it a contribution worth being accepted, hence my (weak) accept. I believe this will be useful for future works.
+
+Detailed comments for authors
+-----------------------------
+- 13: this theory [missing word] a secure
+- 40: capital letter after :
+- 58: say briefly how these work
+- 64: intracts
+- 165: I believe you wrote p instead of w
+- 200: your target is L, not T
+- 211: tms has not been introduced yet
+- 211: I think an important notion that you do not highlight is that the language of traces must be the same for the source and target
+- 230: is the entirety of 3 a contribution? as in: is your notion of monitor novel? 
+- 269: I was bugged by the matter of reusing addresses until you added a comment to that effect later on, I suggest addressing it early
+- 286: eachother
+- 305: they reject
+- 307: why is it easier to reason on monitors?
+- 326: where do you say what the colors mean?
+- 337: I was surprised to see the lightning bolt here, when it's not generated by this particular monitor -- maybe add a note as to why it's needed (it becomes clear only later on)
+- 370: I feel like the text does not match the rule -- it looks like the rule allows processing an empty trace only when all of the allocated addresses have been freed
+- 503: are you reversing the traditional order of the composition operator?
+- 512: you have a little bit of space left, so it would've been good to give an intuition of what exactly is difficult
+- 547: same thing, I'm left wondering whether this is a deep result at all
+- 623: what is the $t$ in $\mathbb N_t$?
+- 666: I think you need to make it clear that some rules are omitted (e-get-\not\in, and e-set-\in) -- it took me a while to figure out what's going on
+- 666: you have an extra (l + n) in the premise of e-get-\in
+- nit: per your syntactic conventions, it should be \Omega.H in the conclusion of e-get-\in
+- you say e-set-\not\in returns a garbage value, in this case... v? why is it garbage? why not unit? (assignments in C return the assigned value, so this seems perfectly non-garbage)
+- 658: several missing spaces
+- 767: I never understood how the addition of L_ms enhanced readability
+- 790: why not change the original get and set and add an additional argument to these events?
+- 805: do you mean INactive?
+- 805: text is confusing, because the rule that emits Binop n is not shown -- make it clear this is omitted; another nit: you have two styles for switching over whether the CPU mode is enabled; in one you use 0 in the conclusion of the rule, in the other, you use m \neq 0 in the premise; it would be clearer to use two constant on and off
+
+Questions to be addressed by author response
+--------------------------------------------
+- Clarify novelty of monitors and the trace projections
+- Clarify what was difficult in the proofs and explain where the subtleties are -- right now it seems like some of the results might not be stating anything very deep (I might be under this impression because your paper is very well written!)
+- Give a status report on the Coq proof; surely you must've made progress since the submission, where are you at now?
+- Discuss applicability to more involved compilers.
+
+
+
+Review #67D
+===========================================================================
+
+Overall merit
+-------------
+C. Weak reject: I lean towards rejection.
+
+Reviewer expertise
+------------------
+X. Expert: I am an expert on the topic of the paper (or at least key
+   aspects of it).
+
+Summary of the paper
+--------------------
+This paper studies the composition of robust safety properties and of 
+robustly safe compilers. 
+
+==========
+	MP: see? our examples focus on safety and our whole work is safety. we need to be more clear
+==========
+
+It establishes general, metatheoretic results about different forms of composition and demonstrates proof strategies using a  concrete case study. Some proofs are sketched out but the rest are formally verified in Coq, though the paper does not describe the Coq implementaion.
+​
+The general metatheoretic results include sequential, upper, and lower composition of properties and compilers that are compatible with the proposed  framework. To compose properties, one must establish a common trace language into which all potential properties can map. This means that "source" properties need only consider events (or aspects of events) that are relevant, 
+so long as those events can also be distinguished in the common "target."
+The paper uses monitors to relate abstract "source" traces to traces in the "target." Then for every "source" language, one relates its semantics to the abstract traces, which only mention aspects relevant to that language and its property of interest. Only the proof of composition itself needs to occur in the common "target." This demonstrates that security properties can be defined and established in a modular fashion.
+​
+The case study treats three individual properties: temporal memory safety (TMS) with garbage-freedom, spatial memory safety (SMS), and strict cryptographic constant time (sCCT). These properties are composed in two phases: first, TMS and SMS are composed to get memory safety (MS), and then
+MS and sCCT are composed. The compilation pipeline starts with a statically  typed language that ensures TMS, while SMS and sCCT are established dynamically via generated wrapper code. The pipeline also includes two standard optimization passes, constant folding and dead code elimination.
+
+Assessment of the paper
+-----------------------
++ Generally speaking, the paper tackles an important problem: composition of secure compilation passes that preserve different security properties. Composition of verified compiler passes is a notoriously difficult problem and, at least in the context of semantics-preserving compilation passes, much has been written about the challenges of composing verified compiler passes. Solutions frequently require some form of "homogenizing" of the langauges/IRs involved across all of the passes, which means that in the end those languages/IRs and passes aren't completely independent --- they must be lined up in certain ways otherwise we won't be able to compose them to get an end-to-end proof of a verified compiler. (But see below: while the paper tackles a difficult problem, the framework adopted by the paper imposes certain "homogenizing" requirements on the languages/properties, specifically on their trace models, but doesn't get into the ramifications of these requirements.)
+
++ The case study the paper presents does a good job demonstrating that security properties actually can be defined and established in a modular way.
+
++ The technical definitions and theorem  statements are presented clearly, with helpful annotations (and use of color) to connect formal statements to intuitive prose. The proof diagrams and sketches are rather dense but helpful nonetheless.
+
+- While the paper does formalize "a theory of composition of secure compilers", focusing exclusively on robust preservation of properties, it  does not include any discussion about the limitations of this approach. 
+
+==========
+	MP: true, we have limitations to discuss.
+==========
+
+Even though composition is a notoriously tricky concept in the broader security and cryptography literature, as well as in the verified compilation literature, the paper does not identify any challenges nor threats to future work. 
+
+==========
+	MP: ok
+==========
+
+More specifically, the framework in the paper requires that all security properties and their monitors be defined on the same trace model. The paper doesn't get into when it may not be possible to employ the same trace model (except to point out this requirement in one sentence in Sec 7.1). Related to that, I'm concerned that perhaps the case study used in the paper is selected to make composition work out easily: in particular, the languages selected are quite close with many shared definitions (see Sec 5.1). Later, in Sec 6.1, when the authors illustrate the proof of Theorem 6.1 which says that teh compiler is secure w.r.t. TMS (a proof that's representative of proofs for the properties), I suspect that the backtranslaton step would fail if the languages didn't all have the same trace model. But the authors don't discuss this. A further concern is that this work builds on the robust property preservation framework of Abate et al., Patrignani et al, etc. but that work did use languages with different trace models, whereas this paper does not. Clearly that seems like a decision driven by (required for) composition. It seems like a substantial limitation.  At the very least, the paper is not tackling this hard problem in a fully general way.
+
+==========
+	MP: i think the reviewer went on a tangent. composing passes with different trace models is straightforward, i think
+==========
+
+- The choice to focus on sCCT instead of CCT is troubling. Of course, CCT is a hypersafety property so the paper's strategy of using monitors for checking would not have worked. But switching to Strict CCT, which requires that no secret _ever_ appear in a trace, seems too restrictive and it feels like the choice was made just so we can use monitors for checking.
+
+==========
+	MP: we could have used monitors for CCT and overapproximate it.
+		but i share the rev's suspicion
+==========
+
+- The paper claims upper and lower composition as a contribution (and the lack thereof as a weakness of prior work, end of Sec 7.1). But the paper spends very little time motivating why these forms of composition are important or challenging. 
+
+==========
+	MP: good point
+==========
+​
+- There are some questionable decisions about which formalism to include and which to exclude. For a paper about secure compilation, there is not so much detail about the compilers (and the type systems) themselves. This seems especially concerning for the very first pass, from $L_{TMS}$ to $L$, 
+since the type system is not standard and dynamic enforcement is not necessarily straightforward.
+
+- Many of the examples would be clearer in code than in prose. 
+
+==========
+	MP: reasonable. need to think about this
+==========
+
+Also, much of the presented formalism is accompanied by qualifiers like, "as you would expect," or "is straightforward."  
+
+==========
+	MP: need to be more careful
+==========
+
+If a piece of formalism is indeed obvious, the authors should consider trading that space to treat the content that is _not_ straightforward.
+
+Detailed comments for authors
+-----------------------------
+- 162: It seems like $\overline{a}$ is existentially quantified ("$w$ yields *a* trace $\overline{a}$"), but I expected it to be universally quantified,   especially since *Example 2.3* mentions a race condition.  For clarity, please include the quantifier in the definition, and if it is exisentially quantified, please explain why.
+
+==========
+	MP: ?
+==========
+
+- 201: Qutotes around "compatible" rendered incorrectly.
+
+- 213: Why use the powerset class of $\pi$ instead of the singleton class $\{\pi\}$?
+
+==========
+	MP: ?
+==========
+
+- 221: Consider showing the code exercising the bug;
+  describing the code in prose makes it sound more complex than it is.
+
+==========
+	MP: ?
+==========
+
+- 261: Isn't requiring deallocation a liveness property?
+
+==========
+	MP: ?
+==========
+
+- 286: Please comment on the relative expressivity of sCCT compared to CCT.
+
+==========
+	MP: ?
+==========
+
+- 306: Why is it easier to reason about monitors?
+
+==========
+	MP: ?
+==========
+
+- 335: Should the type of allocated and freed be $\wp(L \times t)$?
+  The use of $\in, \notin$ on 345, 348, 353 suggest so.
+
+- 361: Here you address reuse, but for readers the question really arises back at 269 (*Def. 3.1*) and again at 348 (*tms-alloc*). It might be helpful to  move that comment earlier.
+
+==========
+	MP: careful. for ONE reviwer != for ALL revieers
+==========
+
+- 409: Should the type of $T_{SMS}$ be $\wp(L \times t \times \mathbb{N})$?
+  The use of $\in$ on 413 and the description in 416 suggest so.
+
+==========
+	MP: ?
+==========
+  
+- 424: As before, this example would be clearer if you showed the code.
+
+==========
+	MP: ?
+==========
+
+- 455: $\textbf{Any}$ is not really any event, just the private ones,
+  so a label like $\textbf{Leak}$ might be more suggestive.
+
+==========
+	MP: ?
+==========
+
+- 481: It's not the original trace that produces the unlock event; 
+  it would be the new one with the flag turned on.
+
+==========
+	MP: ?
+==========
+  
+- 492: Have the results in *Sec. 4* been proven over arbitrary trace models,
+  or only over the model described in *Sec. 3*?
+
+==========
+	MP: crucial!!
+==========
+  
+- 594: $\vdash \gamma^{L}_{L + L} : \mathbb{C}_{1} \cap \mathbb{C}_{2}$ doesn't typecheck.
+
+==========
+	MP: ?
+==========
+
+- 605: What precisely does it mean for the languages to assume CCT holds?
+
+==========
+	MP: ?
+==========
+
+- 606: I find the messaging in this paragraph to be a touch inconsistent.
+  It starts by saying that programmers shouldn't be thinking about CCT,
+  and they don't have to, thanks to timing-independent hardware.
+  But the paragraph finishes by emphasizing that 
+  $L_{scct}$ allows the programmer to *disable* CCT protections,
+  which disagrees with the previous suggestion.
+  I suspect that these are intended to be different types of programmers,
+  but perhaps that distinction should be made clear in a transition.
+
+==========
+	MP: need to phrase this clearly
+==========
+
+- 632: $(K; g)$ is undefined in the grammar; it is only defined implicitly in prose on 640.
+
+==========
+	MP: ?
+==========
+
+- 658: "compor" and "ctxis"
+
+- 688: "... have two cases": meaning, each has an *additional* case not shown in the figure, correct?
+
+- 703: After `Call ? foo v`, should we have `Return ! v` instead of `Return ? v`?
+
+- 719: The judgment is missing $\dashv c$.
+
+- 742: Parentheses aren't correct in $L_{tms}\text{-filter-context}$.
+
+- 759: "If the array bound to `x` was allocated ...": should this say "deallocated"?
+
+- 780: Is it really that the languages always have timing independence turned on, or is it that those languages don't even have a notion of timing independence? There is nothing in the semantics of the languages that mentions timing or secrecy. It is just one implementation (i.e., the compiler in *Sec. 6.4*) that establishes the assumption.
+
+==========
+	MP: 
+==========
+
+- 874: Is a "strikethrough edge" the same as a solid edge?
+
+- 904: This compilation strategy seems sensible for simple functions,
+  but since no details about $L_{tms}$ or its type system are given,
+  it is hard to assess whether it should hold in general.
+  Are there higher-order functions? 
+  How are capabilities (assuming the types really are inspired by L3) compiled
+  and checked dynamically?
+  Or is there a restriction on function types?
+
+==========
+	MP: very valid point
+==========
+  
+- 924: Qutotes around "well-bracketed" rendered incorrectly.
+
+- 1071: Why does `wrdoit 1` need to be set again after a function call returns?
+
+==========
+	MP: ?
+==========
+
+- 1113: While upper and lower compositions are claimed as a contribution,
+  their importance was not sufficiently motivated.
+  Why are these forms of composition important?
+  Do you suspect that they were provable in prior work but never studied,
+  or was there a fundamental limitation that your framework has lifted?
+
+Questions to be addressed by author response
+--------------------------------------------
+A number of specific questions have been posed in the preceding sections.
+More generally:
+​
+- What are the limitations of this approach?
+  How should one approach designing the common "target" trace language?
+  Does one need to know ahead of time which properties will be of interest?
+  
+- Are there any subtleties in either the type system or compilation of $L_{tms}$?

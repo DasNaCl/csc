@@ -6,18 +6,22 @@ We really appreciate the high-quality of the reviews and your insightful suggest
 We address the latter, for each reviewer, below.
 Prior to that, we want to address some general concerns that are shared amongst different reviews.
 
-- **Mechanisation and Incrementality of the Results** (rev C) [TODO: rev ? ? ?]
+- **Mechanisation and Incrementality of the Results** (reviewer B, C)
+
 The main results of our paper, which is presented in Section TODO, are about the compositionality of secure compilers. All these results have been Coq'd up at and they can be found in the supplementary material. Neither of these results do [TODO ] rely on Admits.
 While it is true that we use the theory (and the Coq formalisation) of Abate et. al. [TODO cite number], we do not believe this work can be considered incremental. After all, no existing work tackles the problem of identifying what security property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an interesting problem).
 The missing Coq proofs mainly involve the case-study, but we'd like to point out that the paper does not put forth this claim. 
 
-- **Limitations of the Composition Theory** [TODO: rev ? ? ?]
+- **Limitations of the Composition Theory** (reviewer A, D)
+
 The compositionality property of Theorem [TODO] is presented for arbitrary classes of properties, not just trace properties. Classes of properties are kept as general as possible and so the theory works for hypersafety, hyperproperties, relational hyperproperties, and so forth. 
 We will make this clearer in the presentation of the main results.
 An interesting point is that since hyperproperties enjoy closedness on intersections, intersecting classes of hyperproperties yields other hyperproperties. We will clarify this point further as well.
 
-- **Real-world Application of the Results** [TODO: rev ? ? ?]
+- **Real-world Application of the Results** (reviewer A, C)
+
 The optimisations chosen, namely Dead-Code Elimination (dce) and Constant Folding (cf), are traditional compiler optimisations. While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
+Individual secure compilation proofs for these more realistic passes will (naturally) get more involved.
 
 
 ## Reviewer A

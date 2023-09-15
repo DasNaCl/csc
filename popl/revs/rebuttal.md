@@ -6,25 +6,29 @@ We really appreciate the high quality of the reviews and your insightful suggest
 We address the latter, for each reviewer, below.
 Prior to that, we want to address some general concerns that are shared amongst different reviews.
 
-- **Mechanisation and Incrementality of the Results** (reviewer B, C)
+- **Mechanisation and Incrementality of the Results** (reviewers B, C)
 
 The main results of our paper, which are presented in Section 4, are about the compositionality of secure compilers.
 All these results have been Coq'd up and they can be found in the supplementary material.
 Neither of these results rely on Admits.
 While it is true that we use the theory of (Abate et. al. 2019. https://doi.org/10.48550/arXiv.2006.14969), we do not believe this work can be considered incremental.
-After all, no existing work tackles the problem of identifying what property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an interesting problem).
+After all, no existing work tackles the problem of identifying what property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an crucial problem).
 The missing Coq proofs mainly involve the case-study, but we'd like to point out that the paper does not put forth the claim that the case-study is fully formalised in Coq. 
 
-- **Limitations of the Composition Theory** (reviewer A, D)
+- **Limitations of the Composition Theory** (reviewers A, D)
 
 The compositionality properties stated in Theorems 4.2, 4.3, 4.5, and 4.7 are presented for arbitrary classes of properties, not just trace properties.
 Classes of properties are kept as general as possible and so the theory works for (hyper-)safety, general hyperproperties, relational hyperproperties, and so forth. 
+We rely on just safety properties in the case study because of the simplicity that comes with that specific class, but the main theory of Section 4 is **not** tied to just safety.
 We will make this clearer in the presentation of the main results.
 
 - **Real-world Application of the Results** (reviewer A, C)
 
-The optimisations chosen, namely Dead-Code Elimination (DCE) and Constant Folding (CF), are traditional compiler optimisations. While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
+The optimisations chosen, namely Dead-Code Elimination (DCE) and Constant Folding (CF), are traditional compiler optimisations. 
+[TODO the line that they exist in rw compilers worked imho]
+While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
 Individual secure compilation proofs for these more realistic passes will (naturally) get more involved, but this localized reasoning has no influence on the compositionality framework of this work.
+[TODO: We believe studying what class of security properties various optimisations preserve, but that is beyond the scope of this work]
 
 
 Reviewer A
@@ -35,6 +39,7 @@ Reviewer A
 
 The paper studies dead-code elimination (DCE) as well as constant folding (CF) in the setting of (formally) secure compilers.
 So far, the only practical compiler that involves formal methods is CompCert, but it is not proven secure.
+[TODO: nono, there's cakeml. tone this down. I'd say 'a great reference' in place of 'the only practical']
 Nevertheless, CompCert, as well as not-formally proven compilers, such as gcc or clang, perform DCE and CF.
 DCE and CF are foundational compiler optimisations that any optimising compiler makes use of.
 Therefore, we believe our approach is as applicable as formal methods when it comes to state-of-the-art compiler development, given that this work presents a tool to reduce the burden when applying formal methods to compilers.
@@ -44,11 +49,13 @@ Therefore, we believe our approach is as applicable as formal methods when it co
 
 We believe this is a very interesting point that is, however, a little outside the scope of the paper.
 For the framework presented in the paper, undefined behavior would be encoded in the property/-ies of interest and, therefore, be preserved in the intersection of property classes.
-We are planning to do a follow-up paper where we investigate more aggressive, realistic optimising compiler passes that (1) may exploit undefined behavior, (2) reorder code - and thereby reorder events on the trace, (3) memory layout reording, and so on.
+We are planning to do a follow-up paper where we investigate more aggressive, optimising compiler passes that (1) may exploit undefined behavior, (2) reorder code - and thereby reorder events on the trace, (3) perform memory layout reording, and so on.
+Now, it is still unclear how UB will affect the reasoning about the composition of these properties, but we believe this to be beyond the scope of the paper.
 
 > You have chosen constant time cryptography and memory safety. It would be useful to discuss the motivation behind selecting these two security properties with their similarities and differences.
 
 We believe that the paper addresses this in the introduction: They are key security properties for ensuring confidentiality.
+We will make this clearer.
 
 ### Questions
 
@@ -76,6 +83,7 @@ While we haven't done an analysis of something like this explicitly, our intuiti
 ### What will change
 
 - Add to future work section that we will look at more sophisticated optimisiation passes.
+[TODO: Rephrase intro for clarificatio ... essentially, take a good look above at the promises are re-list them here]
 
 Reviewer B
 ==========
@@ -85,13 +93,14 @@ Reviewer B
 > While this work sets out to study an important problem: the compositional properties of secure compilation; the technical development is straightforward and the case studies are simplistic.
 > The contribution is incremental given existing work in secure compilation.
 
-From our literature review, we were not able to identify work that discusses the composition of (formally) secure compilers.
+From our literature review, we were not able to identify work that discusses the composition of secure compilers.
 The compositionality of secure compilers has not been discussed before, and, as you said, it is an important problem to look at.
 
 > The properties examined is a subset of the properties that secure compilation aims to preserve. 
 
-Note that, while the universal quantification in the sequential composition theorem restricts properties to be part of a certain class (=set of properties), the class is arbitrarily fixed.
-For example, in the case-study, it is fixed to the class of memory safety properties which is later composed with the class of strictly cryptographic constant timeness.
+We do not believe this statement to be correct.
+The theory of Section 4 is general in the class of property that gets considered, and this includes hypersafety, hyperproperties and so forth. The use cases rely on safety properties because many interesting security properties are safety, and safety properties are easier to handle in secure compilation proofs (despite these proofs being rather convoluted already).
+Also, while the universal quantification in the sequential composition theorem restricts properties to be part of a certain class (=set of properties), the class is arbitrarily fixed.
 
 > The composition is sequential composition only. 
 
@@ -114,6 +123,8 @@ We are unsure how the presented compositionality framework seems to fail to hand
 
 Since the case-study serves as motivating example for the compositionality framework, we think it is important to discuss the framework in more detail instead of the formalisations of more-or-less standard programming languages.
 
+Concerning the challenges, complexity can be arbitrary here. Experts in secure compilation may find setting up the usual 2-3 cross-language relations (per compiler) and the backtranslation easier than non-experts. Fortunately we did not have to rely on novel proof techniques, and could rely on established secure compilation proof theory. There is quite some proof engineering work in order to maximise proof reuse though.
+
 > Definition 3.1, "at most one Alloc/Dealloc l;t;sigma" is imprecise. This could allow two Alloc/Deallocs of the same location, with different tag. If read strictly, it does not allow memory reuse, which is commonly done in low-level languages. 
 
 We believe the concrete formalisation of memory addresses is orthogonal to the goals of the paper/the case-study and merely an implementation detail.
@@ -129,7 +140,7 @@ The technical development can be extended to allow re-allocation of the same mem
 
 > The monitor composition simply runs both monitors, which is not optimal. 
 
-While optimality may be interesting, it is also orthogonal to the goal of the paper, which cares about doing the correct thing.
+While optimality may be interesting, it is also orthogonal to the goal of the paper, which cares about doing the correct thing. After all, we do not care about running the monitors in parallel (e.g., for efficient runtime monitornig) but just to validate that both properties hold.
 Subsequent work can optimise this, if necessary.
 
 > Why is the monitor composition interesting? It is also unclear how the monitor connects tightly to later sections of the paper.
@@ -146,8 +157,7 @@ One could instead add the data the pointer points to into Δ instead of describi
 
 > The coloring of the paper is distracting. 
 
-We want to note that past iterations of POPL already have several papers that make extensive use of color.
-Nevertheless, removing color is a minor change that should not influence the acceptance of the paper.
+We want to note that past iterations of POPL already have several papers that make extensive use of color to aide readers.
 
 > Figure 1, allowing $\varepsilon$ events to be arbitrarily inserted does not account for timing behavior. Is this intended? 
 
@@ -163,7 +173,7 @@ To not re-introduce this definition several times (for tms, sms, ms, scct, and s
 > can the theorem be applied to the case where one pass violating a property and another pass re-establishes it?
 
 Yes, see earlier discussion. In short, one has to be careful that the intersection does not become empty, but the theorem is nonetheless applicable and sound.
-It's been proven in Coq.
+Also, please not this has been proven in Coq.
 
 > What's challenging?
 
@@ -173,7 +183,7 @@ The catch is that building (formally verified) secure compilers is notoriously d
 ### What will change
 
 - Emphasise the role of classes and why the compositionality framework is general enough.
-- Undermine the relevance of the combined monitor and make it clearer how, why, and where it is needed.
+- Underline the relevance of the combined monitor and make it clearer how, why, and where it is needed.
 - Incomporate an example where a second secure compilation pass introduces violations to the property the first pass secured against.
 
 Reviewer C
@@ -200,13 +210,13 @@ We are not opposed to simply swapping this, or maybe just add a footnote detaill
 > - 512: you have a little bit of space left, so it would've been good to give an intuition of what exactly is difficult
 > - 547: same thing, I'm left wondering whether this is a deep result at all
 
-We agree that more discussion improves both presentations dramatically.
+We agree that more discussion improves both presentations.
 
 > - 623: what is the $t$ in $\mathbb N_t$?
 
 $\mathbb{N}_t$ is the "concrete" syntax of the type.
 We thought it may make sense to disambiguate the type of natural numbers from the set of natural numbers.
-However, looking at the submmission again, this appears to just add clutter to the presentation.
+However, looking at the submmission again, this appears to just add clutter to the presentation._
 
 > - 666: I think you need to make it clear that some rules are omitted (e-get-\not\in, and e-set-\in) -- it took me a while to figure out what's going on
 
@@ -245,6 +255,7 @@ Moreover, we were unable to identify existing work that proves that monitor sati
 > - Clarify what was difficult in the proofs and explain where the subtleties are -- right now it seems like some of the results might not be stating anything very deep (I might be under this impression because your paper is very well written!)
 
 The proofs for the compositionality framework are easy, even in Coq.
+[TODO: mmmm this may backfire. i'd add at least: however, we are given to understand that it is the relevance of the work that matters, not its technical complexity (which, we also provide in some of the contributions)]
 Proving a compiler secure (i.e. robustly preserving) is notoriously difficult, as seen by numerous works in the secure compilation area.
 So, in order to fulfill the assumptions one needs at least two formally secure compilers.
 The presented framework allows to incrementally build more and more complicated compilers by focussing on the security of just an individual compilation pass.
@@ -325,10 +336,11 @@ The most important aspect of our submission is the compositionality framework an
 In short, the equivalent hyperproperty/class of a property is its powerset.
 If the class is a singleton, the intersection will very likely be empty and the compositionality framework would be rather useless.
 For details, refer to Clarkson and Schneider, 2008. https://doi.org/10.1145/3554344
+[TODO: this is a bit vague for a ref here. point to a specific section perhaps?]
 
 > - 221: Consider showing the code exercising the bug;  describing the code in prose makes it sound more complex than it is.
 
-We show the code and explain it. Do you argue for omitting the explanation to enhance clarity?
+We [TODO: will?] show the code and explain it. Do you argue for omitting the explanation to enhance clarity?
 
 > - 261: Isn't requiring deallocation a liveness property?
 
@@ -353,9 +365,9 @@ We agree that changing the name from $\textbf{Any}$ to $\textbf{Leak}$ conveys t
 
 The results here work for arbitrary trace models, there is no connection to the case study or Section 3, i.e., this works for any kind of property and the quantification on classes is arbitrary.
 
-> - 594: $\vdash \gamma^{L}_{L + L} : \mathbb{C}_{1} \cap \mathbb{C}_{2}$ doesn't typecheck.
+> - 594: $\vdash \gamma^{L}_{L + L} : \mathbb{C}_{1} \cap \mathbb{C}_{2}$ doesn't typecheck._
 
-We do not see why this does not "typecheck".
+We do not see why this does not "typecheck", could you please elaborate?
 
 > - 605: What precisely does it mean for the languages to assume CCT holds?
 
@@ -413,7 +425,7 @@ L_tms is checked statically, anything else has (explicit, i.e., the programmer h
 
 > > Or is there a restriction on function types?
 
-Pointers cannot be passed. Otherwise, they would need to be mershalled to allow transfer from one sandbox to another. Moreover, the type system would indeed need an extension that tracks capabilities.
+Pointers cannot be passed. Otherwise, they would need to be marshalled to allow transfer from one sandbox to another. Moreover, the type system would indeed need an extension that tracks capabilities.
 
 We are aware that this is a very restrictive setting, but it nevertheless allows memory unsafe behavior that allows for an interesting case-study.
 
@@ -438,12 +450,15 @@ We have not seen this studied in prior work, so our framework does not lift an e
 > What are the limitations of this approach?
 
 Devising secure compilers is notoriously difficult and takes a lot of time.
+[TODO: this is not a limitation]
 Moreover, one has to be careful that the intersection of classes does not become empty, which can happen if the first compilation pass secures against property A, but the second pass introduces source-code instrumentations that violate A.
 We'll add more detailed discussion about this in the paper.
+[TODO: limitations may be that we don't discuss changes in the trace model]
 
 > How should one approach designing the common "target" trace language?
 
 In similar fashion to (Abate et. al., 2021. https://doi.org/10.1145/3554344)
+[TODO: sammler's work dimsum too, perhsps?]
 
 > Does one need to know ahead of time which properties will be of interest?
 
@@ -454,6 +469,7 @@ No, because it is not a roadblock to extend the models at a later point in time.
 > Are there any subtleties in either the type system or compilation of $L_{tms}$?
 
 No, we believe our work there is entirely standard and, because of this, did not bother to present the details in the paper, but keep them for the technical report.
+[TODO: standard == needs refereces? like amals' linear paper]
 
 
 ### What will change

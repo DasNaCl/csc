@@ -6,28 +6,21 @@ We really appreciate the high-quality of the reviews and your insightful suggest
 We address the latter, for each reviewer, below.
 Prior to that, we want to address some general concerns that are shared amongst different reviews.
 
-- [Mechanisation and Incrementality of the Results] [TODO: rev ? ? ?]
+- **Mechanisation and Incrementality of the Results** (rev C) [TODO: rev ? ? ?]
 The main results of our paper, which is presented in Section TODO, are about the compositionality of secure compilers. All these results have been Coq'd up at and they can be found in the supplementary material. Neither of these results do [TODO ] rely on Admits.
 While it is true that we use the theory (and the Coq formalisation) of Abate et. al. [TODO cite number], we do not believe this work can be considered incremental. After all, no existing work tackles the problem of identifying what security property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an interesting problem).
 The missing Coq proofs mainly involve the case-study, but we'd like to point out that the paper does not put forth this claim. 
 
-- [Limitations of the Composition Theory] [TODO: rev ? ? ?]
+- **Limitations of the Composition Theory** [TODO: rev ? ? ?]
 The compositionality property of Theorem [TODO] is presented for arbitrary classes of properties, not just trace properties. Classes of properties are kept as general as possible and so the theory works for hypersafety, hyperproperties, relational hyperproperties, and so forth. 
 We will make this clearer in the presentation of the main results.
 An interesting point is that since hyperproperties enjoy closedness on intersections, intersecting classes of hyperproperties yields other hyperproperties. We will clarify this point further as well.
 
-- [Real-world Application of the Results] [TODO: rev ? ? ?]
+- **Real-world Application of the Results** [TODO: rev ? ? ?]
 The optimisations chosen, namely Dead-Code Elimination (dce) and Constant Folding (cf), are traditional compiler optimisations. While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
 
 
 ## Reviewer A
-
-[TODO: this does not seem to address a specific point?]
-We think it is important to not get lost in theory and appreciate your critical thinking about whether our theoretical framework is applicable to practical compilers.
-This is a big concern for us as well.
-Unfortunately, developing a compiler with formal methods is a task that has a huge workload (see CompCert).
-While there is no existing "practical", formally secure compiler, we believe that our framework allows to incrementally build such a thing, because of the separation of concerns that one gets from the compositionality framework.
-
 ### General comments
 
 > However, the approach does not study the optimizations of any real compiler and hence it is not clear if the approach would be applicable in state-of-the-art compiler development. 
@@ -46,6 +39,7 @@ For the framework presented in the paper, undefined behavior would be encoded in
 We are planning to do a follow-up paper where we investigate more aggressive, realistic optimising compiler passes that (1) may exploit undefined behavior, (2) reorder code - and thereby reorder events on the trace, (3) memory layout reording, and so on.
 
 > You have chosen constant time cryptography and memory safety. It would be useful to discuss the motivation behind selecting these two security properties with their similarities and differences.
+
 We believe that the paper addresses this in the introduction: They are key security properties for ensuring confidentiality.
 
 ### Questions
@@ -54,20 +48,18 @@ We believe that the paper addresses this in the introduction: They are key secur
 
 Yes, we believe so, and this is the reason why in the paper we chose DCE and CF, which both GCC and LLVM do.
 We would appreciate further clarification about particular optimising transformations that you've had on your mind.
-While it is unlikely that we can extend the formalisation in the given time-frame to account for another optimisation, we do think this space warrants future work.
-[nope.
-rather, point out that some optimisations may break some props.
-that is not the scope of the work.
-we will look into that in the future.
-if you have suggestions for opts to look into, they're most welcome
-]
+
+Some optimisations may break security properties.
+For example, by relying on undefined behavior, a necessary security check may be removed by an optimising compiler.
+Even (a more sophisticated) DCE could lead to confidentiality violations when it removes code that would override secret memory. 
+The investigation of these pecularities is outside the scope of this work, whose main goal is to provide a tool for composing compilation passes.
 
 
 > (2) Is your approach applicable to or can be extended for in hyperproperty based security properties? 
 
 Yes, as mentioned in the general points above, classes are simply sets of properties.
 We verified that the proof of the sequential composition theorem also works for classes of sets of hyperproperties.
-We agree that the paper should be rephrased to improve the description of classes and why the formulation is general enough, i.e., why the sequential composition theorem supports any set (even liveness).
+We agree that the paper should be rephrased to improve the description of classes and why the formulation is general enough, i.e., why the sequential composition theorem supports any kind of property (even liveness).
 
 > (3) Do you handle dynamic languages with managed runtime? Particularly, managed runtime systems use garbage collection to deallocate memory. Does it impact your compositionality scheme?
 
@@ -78,8 +70,6 @@ While we haven't done an analysis of something like this explicitly, our intuiti
 - Add to future work section that we will look at more sophisticated optimisiation passes.
 
 ## Reviewer B
-
-While we do not agree with the reasoning for the decision to strongly reject our submission, we strongly appreciate parts of your criticism and will improve the paper as outlined below.
 
 ### General comments
 
@@ -143,7 +133,7 @@ We agree that this could be made more explicit in the paper.
 
 The purpose of the case-study is to allow memory-unsafe behavior, i.e., execution should not get stuck if there is some kind of, e.g., memory-safety violation.
 While we fail to see how the `e-dealloc` rule does not check for the existence of memory locations like the `e-set-*`/`e-get-*` rules, we do want to emphasize that `e-dealloc` does not need to change or check the heap(s) in any way, since it/they is/are modeled as one big arena.
-One could instead add the data the pointer points to into Δ instead of describing a two separate heaps. However, our formalisation models sandboxing more faithfully.
+One could instead add the data the pointer points to into Δ instead of describing two separate heaps. However, our formalisation models sandboxing more faithfully with this separation.
 
 > The coloring of the paper is distracting. 
 
@@ -179,21 +169,18 @@ The catch is that building (formally verified) secure compilers is notoriously d
 
 ## Reviewer C
 
-We are thankful for the thorough investigation of our work.
-In particular, we are delighted that you've taken a look at both our Coq formalisation and the technical report.
-
 ### General Comments
 
 > - The work is very foundational, granted, but the examples are very small and are not realistic compilers, so the main contribution that remains (if the formal proof is not really finalized, and if the concrete compiler only deals with toy languages) is the formal framework to talk about these results.
 
 We agree with this.
 While the programming languages in the case-study are quite restricted, we do have - at least on paper - a full proof that the compilers are secure.
-As of now, we are not aware of a practical implementation of a secure compiler that is formalized all the way (i.e., you can *run* the formalised version of the compiler), but MSWasm (Michael et al, 2023. ttps://doi.org/10.1145/3554344) comes close.
+As of now, we are not aware of a practical implementation of a secure compiler that is formalized all the way (i.e., you can *run* the formalised version of the compiler), but MSWasm (Michael et al, 2023. https://doi.org/10.1145/3554344) comes close.
 We anticipate that our compositionality framework allows for an easier, incremental development of more realistic compilers.
 
 > - 211: I think an important notion that you do not highlight is that the language of traces must be the same for the source and target
 
-This may seem like a restriction, but using standard techniques from the secure compilation literature, the theory can be lifted without much friction to account for different trace models.
+This may seem like a restriction, but using standard techniques from the secure compilation literature CITETHIS, the theory can be lifted without much friction to account for different trace models.
 
 > - 503: are you reversing the traditional order of the composition operator?
 
@@ -227,7 +214,7 @@ We should rephrase this paragraph and write that we want to make the fact explic
 
 > - 790: why not change the original get and set and add an additional argument to these events?
 
-That is another option. If the presentation is better with the additional argument instead of the hat, we'll gladly change it.
+That is another option. If the presentation is better with the additional argument instead of the hat $\widehat{\cdot}$, we'll gladly change it.
 
 > - 805: do you mean INactive?
 > - 805: text is confusing, because the rule that emits Binop n is not shown -- make it clear this is omitted; another nit: you have two styles for switching over whether the CPU mode is enabled; in one you use 0 in the conclusion of the rule, in the other, you use m \neq 0 in the premise; it would be clearer to use two constant on and off

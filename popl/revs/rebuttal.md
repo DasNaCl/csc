@@ -277,11 +277,11 @@ Without it, one would have to prove the whole compilation chain end-to-end, whil
 
 - Fixing the typos!
 - Add more discussion about the compositionality theorems.
-- Change $\mathbb{N}_t$ to $\mathbb{N}$
++ Change $\mathbb{N}_t$ to $\mathbb{N}$
 - Everywhere were we omit rules: State this explicitly.
 - Change descriptive text of e-set-\not\in to emphasise that no write happens. `v` is not really a "garbage" value, get rid of this confusing terminology. 
 - Rephrase paragraph about $L_{ms}$: the compiled code is instrumented to be memory-safe.
-- Change data independent timing mode state to either `on` or `off`.
++ Change data independent timing mode state to either `on` or `off`.
 - Add discussion on applicability of the framework.
 - Add hyperlinks to the Coq development of the respective proofs.
 
@@ -478,5 +478,5 @@ No, we believe our work there is entirely standard and, because of this, did not
 - Rewrite $\textbf{Any}$ to $\textbf{Leak}$.
 - Rephrase paragraph at 606.
 - Fix typos.
-- Change wording from "strikethrough edge" to "solid edge".
++ Change wording from "strikethrough edge" to "solid edge".
 - Add discussion about the unified trace model vs. multiple different trace models

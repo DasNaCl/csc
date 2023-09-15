@@ -226,7 +226,7 @@ Unfortunately, given two secure compiler passes that each preserve a possibly di
 This paper is the first to study what security properties are preserved across the composition of different secure compiler passes.
 % findings
 Starting from a general theory of property composition for security-relevant properties (such as the aforementioned ones), this paper formalises a theory of composition of secure compilers.
-Then, it showcases this theory a secure multi-pass compiler that preserves the aforementioned security-relevant properties.
+Then, it showcases this theory on a secure multi-pass compiler that preserves the aforementioned security-relevant properties.
 % conclusion
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
 % 
@@ -321,7 +321,7 @@ As discussed in \Cref{ex:strncpy}, these security properties can be enforced by 
 Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}.
 % Assume that the length of the array pointed by \texttt{dst} is at least \texttt{n}, and \texttt{src} is terminated by \texttt{'\textbackslash 0'}.
 % Even under these assumptions, there is a 
-This function is subject to a subtle \gls*{sms} vulnerability: The bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}: otherwise
+This function is subject to a subtle \gls*{sms} vulnerability: the bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}: otherwise
 % If \texttt{n} is at least as large as the length of the array \texttt{src}, 
 the memory location past the last element will be leaked to an attacker.
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={size_t}]
@@ -333,6 +333,7 @@ void strncpy(size_t n, char *dst, char *src) {
 \end{lstlisting}
 
 To prevent this vulnerability, one can use a compilation pass that enforces \gls*{sms}, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}.
+The most naive solution in this case is to insert bounds-checks in front of every access to memory.
 
 Because of timing attacks, fixing \gls*{sms} is not enough to make \texttt{strncpy} secure.
 In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, thus making program execution time proportional to the length of the array pointed by \texttt{src}.
@@ -340,7 +341,7 @@ In fact, the loop can terminate early, as soon as the string-terminating charact
 Also in this case there exist compiler passes that can rewrite such programs into \gls*{cct} ones~\cite{cauligi2019fact}.
  % so that they are no longer vulnerable to timing attacks.
 
-Alas, code is not run in isolation, so a malicious attacker could supply code that intracts with \texttt{strncpy} and trigger a violation of either \gls*{ms} or \gls*{cct} by calling \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
+Alas, code is not run in isolation, so a malicious attacker could supply code that interacts with \texttt{strncpy} and trigger a violation of either \gls*{ms} or \gls*{cct} by calling \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
 This would, in turn, triggering a series of reads from uninitialised memory, which is an immediate \gls*{ms} violation with devastating real-world consequences~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 % An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 
@@ -441,7 +442,7 @@ With this, property satisfaction is defined as follows:
 \begin{definition}[Property Satisfaction]\label{def:propsat}
   \bul{$\sat{\progvar}{\pi}$}
   $\isdef$
-  if \iul{$\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$},
+  if \iul{$\progstepto{\progvar}{\runtimetermvar}{\trace}$},
   then \oul{$\trace\in\pi$}.
 \end{definition}
 
@@ -472,7 +473,7 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
 
 A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
 This translation is considered {\em correct} if it is semantics-preserving.
-That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{T}$ of the compiled counterpart of $\src{p}$ in such a way that they are ,,compatible''.
+That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{L}$ of the compiled counterpart of $\src{p}$ in such a way that they are ''compatible''.
 Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey,kennedy2006secure.net,abadi1999protect,ahmed2018dagstuhl} and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
 To define when a compiler is secure, this paper uses the robust compilation framework~\cite{abate2019jour}, which the following definition summarises.
 
@@ -483,7 +484,7 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
   \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}
   %, iff 
   $\isdef$
-  \rul{$\forall \left(\pi\in\class\right) \left(\src{p}\in\Ltms\right),$} if \iul{$\rsat{\src{\progvar}}{\pi}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
+  \rul{$\forall \left(\pi\in\class\right) \left(\src{p}\in\src{L}\right),$} if \iul{$\rsat{\src{\progvar}}{\pi}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
 \end{definition}
 
 Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
@@ -588,7 +589,7 @@ Note, however, that this definition says nothing about memory-safety issues intr
 \subsubsection{Strict Cryptographic Constant Time}
 
 \gls*{cct} is a hypersafety property~\cite{barthe2018sec} and, thus, difficult to check with monitors.
-This is because, intuitively, hypersafety properties can relate multiple execution traces with eachother, but monitors work on a single execution.
+This is because, intuitively, hypersafety properties can relate multiple execution traces with each other, but monitors work on a single execution.
 To sidestep this issue, this section defines the property \gls*{scct}, a stricter variant of \gls*{cct} that enforces the policy that no secret appears on a trace (inspired by earlier work~\cite{almeida2017jasmin}).
 
 \begin{definition}[\glsfirst*{scct}]\label{def:trace:scctdef}
@@ -613,7 +614,7 @@ Since \gls*{ms} and \gls*{scct} are just sets of traces that, intuitively, conta
 %\section{Monitors and Trace Agreements\pages{1.5}}\label{subsec:monitors}
 \subsection{Monitors\pages{1.5}}\label{subsec:monitors}
 
-Monitors enforce safety properties by accepting or rejecting traces, i.e., if it rejects a trace, the trace does not satisfy the property the monitor checks.
+Monitors enforce safety properties by accepting or rejecting traces, i.e., if they reject a trace, the trace does not satisfy the property they check.
 Since reasoning on monitors is easier than directly on just traces, this section presents a monitor for each of the previously shown safety properties (\Cref{subsec:propdefs}).
 %\MPpost{
 %	this is fine, but it'd be nice to provide more insights on why it's easier
@@ -731,7 +732,7 @@ Contrary to other monitors in this paper, the multi-step relation of the \gls*{t
     \monitorcheck[]{\tmsmonitor}{\tmsmonitor['']}{\absevent\cdot\abstrace}
   }{tms-trans}
 \end{center}
-\Cref{tr:tms-ign-trans,tr:tms-trans} are the same for all monitors, but \Cref{tr:tms-refl} has, in this case, an additional premise that no more locations should be allocated.
+\Cref{tr:tms-ign-trans,tr:tms-trans} are the same for all monitors, but \Cref{tr:tms-refl} has, in this case, an additional premise that all locations should be deallocated.
 This rejects the behavior of programs that forget to free memory.
 
 \begin{center}
@@ -935,7 +936,7 @@ The combined monitor runs the one for \gls*{tms} and the one for \gls*{sms} in a
 \begin{gather*}
   \begin{aligned}
     \mi{(Abstract\ Store)}~\scctmonitor&:=\ \emptyset \hspace{0.5cm}
-    \mi{(Abstract\ Events)}~\absevent:=\ \absev{\varepsilon} \mid \absterm \mid \absev{Any} \\
+    \mi{(Abstract\ Events)}~\absevent:=\ \absev{\varepsilon} \mid \absterm \mid \absev{Leak} \\
   \end{aligned}
 \end{gather*}
 \begin{center}
@@ -963,7 +964,7 @@ As soon as any event is hit, the execution gets stuck, since any event is consid
   %
   \typerule{scct-high-authentic}{
   }{
-    \sccttraceagree[]{\event[_b];\sandboxtag;\lock}{\absev{Any}}
+    \sccttraceagree[]{\event[_b];\sandboxtag;\lock}{\absev{Leak}}
   }{scct-high-authentic}
   %
   \typerule{scct-empty-authentic}{
@@ -976,7 +977,7 @@ As soon as any event is hit, the execution gets stuck, since any event is consid
     \sccttraceagree[]{\lightning}{\absterm}
   }{scct-abort-authentic}
 \end{center}
-Accordingly, the event agreement simply disregards all events that involved public data ($\unlock$) while mapping any other event that does involve private data ($\lock$) to the abstract $\absev{Any}$ event.
+Accordingly, the event agreement simply disregards all events that involved public data ($\unlock$) while mapping any other event that does involve private data ($\lock$) to the abstract $\absev{Leak}$ event.
 
 \begin{lemma}[Monitor Traces are $\scctsafe$]\label{lem:mon:scctsafe}
   If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
@@ -985,8 +986,8 @@ Accordingly, the event agreement simply disregards all events that involved publ
 \begin{example}[Data-independent timing mode]
   Consider the call \texttt{strncpy(1,x,y)} to the \texttt{strncpy} function (\Cref{ex:strncpy}) with low ($\unlock$) security for \texttt{x} and high security ($\lock$) for \texttt{y}.
   The trace of just the copying part inside of \texttt{strncpy} looks like $\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
-  In terms of the abstract monitor trace, this is just $\absev{Any}$.
-  Running this on the monitor would result in getting stuck, since there is no matching rule to step in the presence of $\absev{Any}$ event. % pun intended
+  In terms of the abstract monitor trace, this is just $\absev{Leak}$.
+  Running this on the monitor would result in getting stuck, since there is no matching rule to step in the presence of $\absev{Leak}$ event. % pun intended
   By means of additional features to ensure cryptographic constant time even in the presence of memory reads and loads, such as a flag to enable a data independent timing mode, which is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors, the original trace now does $\ev{Use}\ \loc_{y}\ 0;\comp;\unlock$ instead of $\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
   Because of this, the whole trace of the component equates to $\absev{\emptyevent}$ and the monitor can step without getting stuck.
 \end{example}
@@ -1236,7 +1237,7 @@ Runtime terms are simply expressions $\expr$ paired with the operational state $
 \end{gather*}
 
 All languages use the same trace model, where events are either the empty event \emptyevent, the program crash event $\lightning$, or a tuple consisting of a control tag $\sandboxtag$ and a security tag $\securitytag$.
-The former indicates whether the component \comp or the context \ctx is to blame for emitting this event, the latter indicates the secrecy level of values of the emitted event, i.e., either $\lock$ or $\unlock$.
+The former indicates whether the component $\comp$ or the context $\ctx$ is to blame for emitting this event, the latter indicates the secrecy level of values of the emitted event, i.e., either $\lock$ or $\unlock$.
 As for pre-events, the memory-related ones are allocation ($\ev{Alloc}\ \loc\ \valueexpr$), deallocation ($\ev{Dealloc}\ \loc$), reading from ($\ev{Get}\ \loc\ \valueexpr$) and writing to memory ($\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']$).
 The following is an excerpt of the operational semantics handling some of the memory operations.
 
@@ -1246,9 +1247,9 @@ The following is an excerpt of the operational semantics handling some of the me
   \typerule{$e-\text{get}-\in$}{
     \sandboxtag=\statevar.\sandboxtag &
     \statevar.\store(x)=\tup{\loc}{\sandboxtag,\poison,m} \\
-    \loc+n\in\operatorname{dom}\statevar.\heap[^{\sandboxtag}](\loc+n)
+    \loc+n\in\operatorname{dom}\statevar.\heap[^{\sandboxtag}]
   }{
-    \pstepto{\rtt{\statevar}{\lget{x}{n}}}{\rtt{\statevar}{\heap[^{\sandboxtag}](\loc+n)}}{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}
+    \pstepto{\rtt{\statevar}{\lget{x}{n}}}{\rtt{\statevar}{\statevar.\heap[^{\sandboxtag}](\loc+n)}}{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}
   }{e-get-in}
   %
   \typerule{$e-\text{set}-\notin$}{
@@ -1300,8 +1301,8 @@ Also note that whether a pointer is poisoned or not is not reflected on the trac
 A key difference in comparison with the specification trace model (\Cref{subsec:propdefs}) is that, as standard in secure compilation work~\cite{patrignani2021rsc,abate2019jour,korashy2021capableptrs}, the traces have a call and return event that signals context switches, which are referred to as {\em interaction events}.
 The reason for these interaction events is technical: They are a proof artifact for reconstructing a source context from a potentially malicious target context, where during that translation, the insertion of some wrapper code right before context switching may be necessary to make the proof succeed.
 Hereby, a $\ev{Call\ \ctxtocomp\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from context- to component-level.
-Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \ctxtocomp\ \valueexpr}$ signal that program execution transitions from component- to context-level.
-For calls without this context switch, the environmental semantics attaches the $\nocomm$ tag.
+Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \comptoctx\ \valueexpr}$ signal that program execution transitions from component- to context-level.
+For calls without this context switch, the contextual semantics attaches the $\nocomm$ tag.
 In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
 
 \begin{center}
@@ -1322,8 +1323,8 @@ In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
   }{e-call-notsame}
 \end{center}
 
-The environmental semantics is mostly straightforward.
-In \Cref{tr:e-ret-notsame,tr:e-call-notsame}, the judgement $\Omega.\commlib\vdash\text{foo}:\Omega.\sandboxtag$ checks whether $\text{foo}$ is a component-level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
+The contextual semantics is mostly straightforward.
+In \Cref{tr:e-ret-notsame,tr:e-call-notsame}, the judgement $\Omega.\commlib\vdash\text{foo}:\Omega.\sandboxtag\dashv \comm$ checks whether $\text{foo}$ is a component-level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
 Additional rules that are left out ensure that, e.g., when calling the $\text{main}$ function, the event $\ev{Start}$ is emitted, which is a design choice this paper does for convenience when reasoning about call-chains.
 Note that the $\ev{End}\ \valueexpr$ event is not emitted if the program crashes.
 
@@ -1347,7 +1348,7 @@ Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a loca
   \typerule{$\Ltms$-filter-context}{
     \src{\event[_b]}\not=\src{\lightning}
   }{
-    \msfilterLtms{\src{\tup{\event[_b]}{\ctx,\securitytag}} = \emptyevent}
+    \msfilterLtms{\src{\tup{\event[_b]}{\ctx,\securitytag}}} = \emptyevent
   }{ltms-filter-context}
   %
   \typerule{$\Ltms$-filter-abort}{
@@ -1385,7 +1386,7 @@ But, it also filters any action that a context does as well as the interaction e
 
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks $\trg{\lhast{\expr}{\type}}$ and a way to inspect poison tags $\trg{\lispoisoned{x}}$ in the metadata of pointers.
 For valid pointers ($\trg{\poisonless}$) bound to variable $\trg{x}$, the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
-If the array bound to $\trg{x}$ was allocated, i.e., has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
+If the array bound to $\trg{x}$ was deallocated, i.e., has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
 
 \begin{center}
   \typerule{$e-\trg{\lhast{x}{\natt}}$}{
@@ -1413,11 +1414,13 @@ The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL
 
 \begin{gather*}
   \begin{aligned}
-    \mi{(Expressions)}~\obj{\expr}&\bnfdef \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots \mid \obj{\lwrdoit{\expr}} \mid \obj{\lrddoit{x}{\expr}}
+    \mi{(Expressions)}~\obj{\expr}&\bnfdef \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots \mid \obj{\lwrdoit{D}} \mid \obj{\lrddoit{x}{\expr}}
   \end{aligned} 
   \\
   \begin{aligned}
-    \mi{(States)}~\obj{\statevar}&\bnfdef \obj{\tup{\cfstate}{\sandboxtag,n,\memstate}}
+    \mi{(States)}~\obj{\statevar}&\bnfdef \obj{\tup{\cfstate}{\sandboxtag,D,\memstate}}
+     &
+    \mi{(DIT\ Flag)}~\obj{D}&\bnfdef \obj{ON} \mid \obj{OFF}
   \end{aligned}
 \end{gather*}
 
@@ -1450,10 +1453,10 @@ The following rules demonstrate how this is handled semantically.
     \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lbinop{n_1^{\securitytag}}{n_2^{\securitytag[']}}}}}{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{n_3^{\securitytag['']}}}}{\obj{\emptyevent}}
   }{e-binop-noleak}
   %
-  \typerule{$e-\obj{wrdoit}$}{
+  \typerule{$e-\obj{wrdoit}-\text{off}$}{
   }{
-    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lwrdoit{n^{\securitytag}}}}}{\rtt{\obj{\cfstate;\sandboxtag;n;\memstate}}{\obj{n^{\securitytag}}}}{\obj{\emptyevent}}
-  }{e-wrdoit}
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag;OFF;\memstate}}{\obj{0^{\securitytag}}}}{\obj{\emptyevent}}
+  }{e-wrdoit-off}
   %
   \typerule{$e-\obj{ifz}-\obj{true}-\text{leak}$}{
   }{
@@ -1462,7 +1465,7 @@ The following rules demonstrate how this is handled semantically.
 \end{center}
 
 The evaluation steps are amended to propagate the security-tag annotations $\obj{\securitytag}$.
-When the data independent timing mode is active, pre-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
+When the data independent timing mode is inactive, pre-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
 %To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
 
 \begin{center}
@@ -1565,7 +1568,7 @@ This section defines several secure compilers, each of which robustly preserves 
   \end{center}
   \caption{Visualisation of the optimising compilation pipeline that attains a combination of \gls*{ms} and \gls*{cct}. %
     Vertices in the graph are the programming languages from earlier sections (\Cref{sec:casestud:defs}). %
-    All edges are secure compilers, but dotted edges use the presented framework (\Cref{sec:compcomp}) and strikethrough edges classic proof techniques. %
+    All edges are secure compilers, but dotted edges use the presented framework (\Cref{sec:compcomp}) and solid edges classic proof techniques. %
     The dashed lines partition the graph into the sections where the respective theorems are presented.
   }\label{fig:pipeline}
 \end{figure}
@@ -1831,8 +1834,8 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
 
 \begin{center}
   \begin{align*}
-    \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{1};}\ccscct(\irl{\expr})} \\
-    \ccscct(\irl{\lcall{g}{\expr}}) & = \lcall[\obj]{\obj{g}}{\ccscct(\irl{\expr})\obj{; wrdoit{1}}} \\
+    \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{ON};}\ccscct(\irl{\expr})} \\
+    \ccscct(\irl{\lcall{g}{\expr}}) & = \lcall[\obj]{\obj{g}}{\ccscct(\irl{\expr})\obj{; \lwrdoit{ON}}} \\
     \ccscct(\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = \lbinop[\obj]{\ccscct{\irl{\expr[_{1}]}}}{\ccscct{\irl{\expr[_{2}]}}} \\
   \end{align*}
 \end{center}

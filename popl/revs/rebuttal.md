@@ -2,41 +2,42 @@
 # Author Response for Submission 67: Secure Composition of Robust and Optimising Compilers
 
 First of all, we would like to thank every reviewer for putting in their hard work.
-We really appreciate the high-quality of the reviews and your insightful suggestions and questions.
+We really appreciate the high quality of the reviews and your insightful suggestions and questions.
 We address the latter, for each reviewer, below.
 Prior to that, we want to address some general concerns that are shared amongst different reviews.
 
 - **Mechanisation and Incrementality of the Results** (reviewer B, C)
 
 The main results of our paper, which are presented in Section 4, are about the compositionality of secure compilers.
-All these results have been Coq'd up at and they can be found in the supplementary material.
+All these results have been Coq'd up and they can be found in the supplementary material.
 Neither of these results rely on Admits.
-While it is true that we use the theory of (Abate et. al. 2019), we do not believe this work can be considered incremental.
+While it is true that we use the theory of (Abate et. al. 2019. https://doi.org/10.48550/arXiv.2006.14969), we do not believe this work can be considered incremental.
 After all, no existing work tackles the problem of identifying what property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an interesting problem).
 The missing Coq proofs mainly involve the case-study, but we'd like to point out that the paper does not put forth the claim that the case-study is fully formalised in Coq. 
 
 - **Limitations of the Composition Theory** (reviewer A, D)
 
-The compositionality property of Theorems 4.2, 4.3, 4.5, and 4.7 is presented for arbitrary classes of properties, not just trace properties.
-Classes of properties are kept as general as possible and so the theory works for hypersafety, hyperproperties, relational hyperproperties, and so forth. 
+The compositionality properties stated in Theorems 4.2, 4.3, 4.5, and 4.7 are presented for arbitrary classes of properties, not just trace properties.
+Classes of properties are kept as general as possible and so the theory works for (hyper-)safety, general hyperproperties, relational hyperproperties, and so forth. 
 We will make this clearer in the presentation of the main results.
 
 - **Real-world Application of the Results** (reviewer A, C)
 
-The optimisations chosen, namely Dead-Code Elimination (dce) and Constant Folding (cf), are traditional compiler optimisations. While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
-Individual secure compilation proofs for these more realistic passes will (naturally) get more involved.
+The optimisations chosen, namely Dead-Code Elimination (DCE) and Constant Folding (CF), are traditional compiler optimisations. While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
+Individual secure compilation proofs for these more realistic passes will (naturally) get more involved, but this localized reasoning has no influence on the compositionality framework of this work.
 
 
-## Reviewer A
+Reviewer A
+==========
 ### General comments
 
 > However, the approach does not study the optimizations of any real compiler and hence it is not clear if the approach would be applicable in state-of-the-art compiler development. 
 
-The paper studies dead-code elimination (dce) as well as constant folding (cf) in the setting of (formally) secure compilers.
+The paper studies dead-code elimination (DCE) as well as constant folding (CF) in the setting of (formally) secure compilers.
 So far, the only practical compiler that involves formal methods is CompCert, but it is not proven secure.
-Nevertheless, CompCert, as well as not-formally proven compilers, such as gcc or clang, perform dce and cf.
-dce and cf are foundational compiler optimisations that any optimising compiler makes use of.
-Therefore, we believe our approach is as applicable as formal methods when it comes to state-of-the-art compiler development.
+Nevertheless, CompCert, as well as not-formally proven compilers, such as gcc or clang, perform DCE and CF.
+DCE and CF are foundational compiler optimisations that any optimising compiler makes use of.
+Therefore, we believe our approach is as applicable as formal methods when it comes to state-of-the-art compiler development, given that this work presents a tool to reduce the burden when applying formal methods to compilers.
 
 > Undefined behaviors play a key role in developing optimizations in the state-of-the-art compilers. I wonder if these behaviors would affect the compositionality properties. 
 > It is possible that the individual components are compiled following different sequences of optimizations and linked later. 
@@ -76,7 +77,8 @@ While we haven't done an analysis of something like this explicitly, our intuiti
 
 - Add to future work section that we will look at more sophisticated optimisiation passes.
 
-## Reviewer B
+Reviewer B
+==========
 
 ### General comments
 
@@ -174,7 +176,8 @@ The catch is that building (formally verified) secure compilers is notoriously d
 - Undermine the relevance of the combined monitor and make it clearer how, why, and where it is needed.
 - Incomporate an example where a second secure compilation pass introduces violations to the property the first pass secured against.
 
-## Reviewer C
+Reviewer C
+==========
 
 ### General Comments
 
@@ -275,7 +278,8 @@ Without it, one would have to prove the whole compilation chain end-to-end, whil
 
 
 
-## Reviewer D
+Reviewer D
+==========
 
 ### General Comments
 

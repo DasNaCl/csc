@@ -8,15 +8,18 @@ Prior to that, we want to address some general concerns that are shared amongst 
 
 - **Mechanisation and Incrementality of the Results** (reviewer B, C)
 
-The main results of our paper, which is presented in Section TODO, are about the compositionality of secure compilers. All these results have been Coq'd up at and they can be found in the supplementary material. Neither of these results do [TODO ] rely on Admits.
-While it is true that we use the theory (and the Coq formalisation) of Abate et. al. [TODO cite number], we do not believe this work can be considered incremental. After all, no existing work tackles the problem of identifying what security property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an interesting problem).
-The missing Coq proofs mainly involve the case-study, but we'd like to point out that the paper does not put forth this claim. 
+The main results of our paper, which are presented in Section 4, are about the compositionality of secure compilers.
+All these results have been Coq'd up at and they can be found in the supplementary material.
+Neither of these results rely on Admits.
+While it is true that we use the theory of (Abate et. al. 2019), we do not believe this work can be considered incremental.
+After all, no existing work tackles the problem of identifying what property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an interesting problem).
+The missing Coq proofs mainly involve the case-study, but we'd like to point out that the paper does not put forth the claim that the case-study is fully formalised in Coq. 
 
 - **Limitations of the Composition Theory** (reviewer A, D)
 
-The compositionality property of Theorem [TODO] is presented for arbitrary classes of properties, not just trace properties. Classes of properties are kept as general as possible and so the theory works for hypersafety, hyperproperties, relational hyperproperties, and so forth. 
+The compositionality property of Theorems 4.2, 4.3, 4.5, and 4.7 is presented for arbitrary classes of properties, not just trace properties.
+Classes of properties are kept as general as possible and so the theory works for hypersafety, hyperproperties, relational hyperproperties, and so forth. 
 We will make this clearer in the presentation of the main results.
-An interesting point is that since hyperproperties enjoy closedness on intersections, intersecting classes of hyperproperties yields other hyperproperties. We will clarify this point further as well.
 
 - **Real-world Application of the Results** (reviewer A, C)
 
@@ -98,7 +101,7 @@ This is something we don't get from just sequential composition and allows to bu
 We strongly agree that this is an interesting point and intend to improve our submission with regards to this.
 While, under the given time-frame, we cannot change the formalisation of the case-study, we will add a paragraph discussing this by two example compiler passes used in practice.
 Briefly, if the second compiler generates programs that always violate the property that the first ensures, then the preserved class of properties is actually empty, since the intersection is disjoint!
-So, the theorem as stated still works, i.e., it is *not* unsound, but it may trivialize, which should better be emphasized in the paper.
+So, the theorem as stated still works, i.e., it is *not* unsound, but it may trivialise, which should better be emphasised in the paper.
 
 > Similar to the above comment, another important form of composition not considered by this work is composing/linking components that are compiled  through different compilation pass. Especially when these components have shared state.   
 
@@ -125,7 +128,7 @@ The technical development can be extended to allow re-allocation of the same mem
 > The monitor composition simply runs both monitors, which is not optimal. 
 
 While optimality may be interesting, it is also orthogonal to the goal of the paper, which cares about doing the correct thing.
-Subsequent work can optimize this, if necessary.
+Subsequent work can optimise this, if necessary.
 
 > Why is the monitor composition interesting? It is also unclear how the monitor connects tightly to later sections of the paper.
 
@@ -136,7 +139,7 @@ We agree that this could be made more explicit in the paper.
 > The rules on page 14, the return values seem arbitrary for rules of operations with ill-defined behavior. For example, when setting a memory location that doesn't exist, why return the value of the expression to be written to memory? Similarly, why deletion return 0? Why deletion does not check for existing of the location, like the set rules? It may not handle double free properly. 
 
 The purpose of the case-study is to allow memory-unsafe behavior, i.e., execution should not get stuck if there is some kind of, e.g., memory-safety violation.
-While we fail to see how the `e-dealloc` rule does not check for the existence of memory locations like the `e-set-*`/`e-get-*` rules, we do want to emphasize that `e-dealloc` does not need to change or check the heap(s) in any way, since it/they is/are modeled as one big arena.
+While we fail to see how the `e-dealloc` rule does not check for the existence of memory locations like the `e-set-*`/`e-get-*` rules, we do want to emphasise that `e-dealloc` does not need to change or check the heap(s) in any way, since it/they is/are modeled as one big arena.
 One could instead add the data the pointer points to into Δ instead of describing two separate heaps. However, our formalisation models sandboxing more faithfully with this separation.
 
 > The coloring of the paper is distracting. 
@@ -146,7 +149,7 @@ Nevertheless, removing color is a minor change that should not influence the acc
 
 > Figure 1, allowing $\varepsilon$ events to be arbitrarily inserted does not account for timing behavior. Is this intended? 
 
-Yes, this is intended, since this precise timing is abstracted away by the data independent timing mode + techniques used in the FaCT paper (Cauligi et al., 2019. https://doi.org/10.1145/3314221.3314605).
+Yes, this is intended, since this precise timing is abstracted away by the data independent timing mode + techniques used in the FaCT paper (Cauligi et. al., 2019. https://doi.org/10.1145/3314221.3314605).
 
 > Definition 3.6, the monitor semantics is not introduced at this point. 
 
@@ -167,7 +170,7 @@ The catch is that building (formally verified) secure compilers is notoriously d
 
 ### What will change
 
-- Emphasize the role of classes and why the compositionality framework is general enough.
+- Emphasise the role of classes and why the compositionality framework is general enough.
 - Undermine the relevance of the combined monitor and make it clearer how, why, and where it is needed.
 - Incomporate an example where a second secure compilation pass introduces violations to the property the first pass secured against.
 
@@ -175,16 +178,16 @@ The catch is that building (formally verified) secure compilers is notoriously d
 
 ### General Comments
 
-> - The work is very foundational, granted, but the examples are very small and are not realistic compilers, so the main contribution that remains (if the formal proof is not really finalized, and if the concrete compiler only deals with toy languages) is the formal framework to talk about these results.
+> - The work is very foundational, granted, but the examples are very small and are not realistic compilers, so the main contribution that remains (if the formal proof is not really finalised, and if the concrete compiler only deals with toy languages) is the formal framework to talk about these results.
 
 We agree with this.
 While the programming languages in the case-study are quite restricted, we do have - at least on paper - a full proof that the compilers are secure.
-As of now, we are not aware of a practical implementation of a secure compiler that is formalized all the way (i.e., you can *run* the formalised version of the compiler), but MSWasm (Michael et al, 2023. https://doi.org/10.1145/3554344) comes close.
+As of now, we are not aware of a practical implementation of a secure compiler that is formalised all the way (i.e., you can *run* the formalised version of the compiler), but MSWasm (Michael et. al, 2023. https://doi.org/10.1145/3554344) comes close.
 We anticipate that our compositionality framework allows for an easier, incremental development of more realistic compilers.
 
 > - 211: I think an important notion that you do not highlight is that the language of traces must be the same for the source and target
 
-This may seem like a restriction, but using standard techniques from the secure compilation literature (Abate et al., 2021. https://doi.org/10.1145/3554344), the theory can be lifted without much friction to account for different trace models.
+This may seem like a restriction, but using standard techniques from the secure compilation literature (Abate et. al., 2021. https://doi.org/10.1145/3554344), the theory can be lifted without much friction to account for different trace models.
 
 > - 503: are you reversing the traditional order of the composition operator?
 
@@ -256,7 +259,7 @@ We think the submission may benefit from adding this discussion.
 Anyhow, our case-study shows that our framework scales to compilers with many passes as well as compilers with optimising passes, whose order may be swapped.
 The concrete complexity of any compilation pass involved in a composition is orthogonal to our work.
 Nevertheless, we strongly believe that secure, more complex/realistic compilers can be developed much faster with our framework.
-Without it, one would have to prove the whole compilation chain end-to-end, while our framework allows for modular, more localized reasoning.
+Without it, one would have to prove the whole compilation chain end-to-end, while our framework allows for modular, more localised reasoning.
 
 ### What will change
 
@@ -264,7 +267,7 @@ Without it, one would have to prove the whole compilation chain end-to-end, whil
 - Add more discussion about the compositionality theorems.
 - Change $\mathbb{N}_t$ to $\mathbb{N}$
 - Everywhere were we omit rules: State this explicitly.
-- Change descriptive text of e-set-\not\in to emphasize that no write happens. `v` is not really a "garbage" value, get rid of this confusing terminology. 
+- Change descriptive text of e-set-\not\in to emphasise that no write happens. `v` is not really a "garbage" value, get rid of this confusing terminology. 
 - Rephrase paragraph about $L_{ms}$: the compiled code is instrumented to be memory-safe.
 - Change data independent timing mode state to either `on` or `off`.
 - Add discussion on applicability of the framework.
@@ -280,14 +283,14 @@ Without it, one would have to prove the whole compilation chain end-to-end, whil
 
 While our examples are only looking at safety properties, the compositionality framework itself is general enough to cover arbitrary properties.
 
-> While the paper does formalize "a theory of composition of secure compilers", focusing exclusively on robust preservation of properties, it  does not include any discussion about the limitations of this approach. 
+> While the paper does formalise "a theory of composition of secure compilers", focusing exclusively on robust preservation of properties, it  does not include any discussion about the limitations of this approach. 
 
 This is most certainly true.
 In particular, it is interesting to discuss what happens if the second compilaton pass introduces vulnerabilities that the first pass fixes, as also pointed out by reviewer B.
 
 > More specifically, the framework in the paper requires that all security properties and their monitors be defined on the same trace model.
 
-We believe this has been thoroughly investigated in the secure compilation literature (Abate et al., 2021. https://doi.org/10.1145/3554344).
+We believe this has been thoroughly investigated in the secure compilation literature (Abate et. al., 2021. https://doi.org/10.1145/3554344).
 Allowing different trace models, one can apply the techniques presented in there to make our framework applicable.
 
 > in particular, the languages selected are quite close with many shared definitions (see Sec 5.1).
@@ -436,7 +439,7 @@ We'll add more detailed discussion about this in the paper.
 
 > How should one approach designing the common "target" trace language?
 
-In similar fashion to (Abate et al., 2021. https://doi.org/10.1145/3554344)
+In similar fashion to (Abate et. al., 2021. https://doi.org/10.1145/3554344)
 
 > Does one need to know ahead of time which properties will be of interest?
 

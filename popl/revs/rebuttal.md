@@ -180,7 +180,7 @@ We anticipate that our compositionality framework allows for an easier, incremen
 
 > - 211: I think an important notion that you do not highlight is that the language of traces must be the same for the source and target
 
-This may seem like a restriction, but using standard techniques from the secure compilation literature CITETHIS, the theory can be lifted without much friction to account for different trace models.
+This may seem like a restriction, but using standard techniques from the secure compilation literature (Abate et al., 2021. https://doi.org/10.1145/3554344), the theory can be lifted without much friction to account for different trace models.
 
 > - 503: are you reversing the traditional order of the composition operator?
 
@@ -230,7 +230,7 @@ The monitors use standard techniques to identify unsafe traces.
 In most existing work, monitors are used to define the property at hand and monitor satisfaction is exactly the same as trace satisfaction, in this case.
 In our work, while the techniques for monitors are not novel, the way they are used in order to do property composition and reason about this in the context of secure compilation is novel to that area of research.
 The way the projections of one trace model to another are set up enables definitions and satisfaction proofs of properties in a modular fashion.
-Moreover, we were unable to identify existing work that proves that monitor satisfaction implies trace satisfaction.
+Moreover, we were unable to identify existing work that proves that monitor satisfaction implies trace satisfaction, where the property is defined with just some condition instead of the monitor.
 
 > - Clarify what was difficult in the proofs and explain where the subtleties are -- right now it seems like some of the results might not be stating anything very deep (I might be under this impression because your paper is very well written!)
 
@@ -270,8 +270,6 @@ Without it, one would have to prove the whole compilation chain end-to-end, whil
 
 ## Reviewer D
 
-We are thankful for the thorough analysis of our work, which we will be able to improve because of your feedback.
-
 ### General Comments
 
 > This paper studies the composition of robust safety properties and of robustly safe compilers. 
@@ -281,11 +279,11 @@ While our examples are only looking at safety properties, the compositionality f
 > While the paper does formalize "a theory of composition of secure compilers", focusing exclusively on robust preservation of properties, it  does not include any discussion about the limitations of this approach. 
 
 This is most certainly true.
-In particular, it is interesting to discuss what happens if the second compilaton pass introduces vulnerabilities that the first pass fixes.
+In particular, it is interesting to discuss what happens if the second compilaton pass introduces vulnerabilities that the first pass fixes, as also pointed out by reviewer B.
 
 > More specifically, the framework in the paper requires that all security properties and their monitors be defined on the same trace model.
 
-We believe this has been thoroughly investigated in the secure compilation literature. (Abate et al., 2021. https://doi.org/10.1145/3554344)
+We believe this has been thoroughly investigated in the secure compilation literature (Abate et al., 2021. https://doi.org/10.1145/3554344).
 Allowing different trace models, one can apply the techniques presented in there to make our framework applicable.
 
 > in particular, the languages selected are quite close with many shared definitions (see Sec 5.1).
@@ -342,11 +340,11 @@ We agree that changing the name from $\textbf{Any}$ to $\textbf{Leak}$ conveys t
 > - 492: Have the results in *Sec. 4* been proven over arbitrary trace models,
 >   or only over the model described in *Sec. 3*?
 
-The results here are arbitrary, there is no connection to the case study or Section 3, i.e., this works for any kind of property and the quantification on classes is arbitrary.
+The results here work for arbitrary trace models, there is no connection to the case study or Section 3, i.e., this works for any kind of property and the quantification on classes is arbitrary.
 
 > - 594: $\vdash \gamma^{L}_{L + L} : \mathbb{C}_{1} \cap \mathbb{C}_{2}$ doesn't typecheck.
 
-We suspect that the notation is confusing, because after checking we still believe that this "typechecks".
+We do not see why this does not "typecheck".
 
 > - 605: What precisely does it mean for the languages to assume CCT holds?
 
@@ -388,18 +386,23 @@ Yes
 > but since no details about $L_{tms}$ or its type system are given,
 > it is hard to assess whether it should hold in general.
 
-The concrete details are uninteresting for the sake of the presentation here andthe interested reader can look them up in the technical report.
+The concrete details are uninteresting for the sake of the presentation here and the interested reader can look them up in the technical report.
 We are nevertheless going to address your questions here:
 > > Are there higher-order functions? 
+
 No
+
 > > How are capabilities (assuming the types really are inspired by L3) compiled
+
 No, the type system is more restrictive and this renders the proofs simpler. 
 
 > > and checked dynamically?
-L_tms is checked statically, anything else dynamically.
+
+L_tms is checked statically, anything else has (explicit, i.e., the programmer has to insert them) dynamic typechecks.
 
 > > Or is there a restriction on function types?
-Pointers cannot be passed. Otherwise, they would need to be mershalled to allow transfer from one sandbox to another.
+
+Pointers cannot be passed. Otherwise, they would need to be mershalled to allow transfer from one sandbox to another. Moreover, the type system would indeed need an extension that tracks capabilities.
 
 We are aware that this is a very restrictive setting, but it nevertheless allows memory unsafe behavior that allows for an interesting case-study.
 
@@ -407,40 +410,45 @@ We are aware that this is a very restrictive setting, but it nevertheless allows
 > - 1113: While upper and lower compositions are claimed as a contribution,
 > their importance was not sufficiently motivated.
 
-We strongly agree that they needs more explanation and discussion.
+We strongly agree that they need more explanation and discussion.
 
 > > Why are these forms of composition important?
+
 They allow modular extension of secure compilers to model compiler frameworks like LLVM.
 
 > > Do you suspect that they were provable in prior work but never studied,
 > > or was there a fundamental limitation that your framework has lifted?
-We have not seen this studied in prior work, so our framework does not lift an existing limitation, it rather presents a novel, albeit simple, approach.
+
+We have not seen this studied in prior work, so our framework does not lift an existing limitation, it rather presents a novel approach.
 
 
 ### Questions
 
 > What are the limitations of this approach?
+
 Devising secure compilers is notoriously difficult and takes a lot of time.
 Moreover, one has to be careful that the intersection of classes does not become empty, which can happen if the first compilation pass secures against property A, but the second pass introduces source-code instrumentations that violate A.
 We'll add more detailed discussion about this in the paper.
 
 > How should one approach designing the common "target" trace language?
+
 In similar fashion to (Abate et al., 2021. https://doi.org/10.1145/3554344)
 
 > Does one need to know ahead of time which properties will be of interest?
+
 Yes and no.
 Yes, because for the composition itself, you do need concrete instances of classes that apply to your setting, but this class could be arbitrarily large.
 No, because it is not a roadblock to extend the models at a later point in time.
 
 > Are there any subtleties in either the type system or compilation of $L_{tms}$?
 
-No, we believe our work here is entirely standard and, because of this, did not bother to present the details in the paper, but keep them for the technical report.
+No, we believe our work there is entirely standard and, because of this, did not bother to present the details in the paper, but keep them for the technical report.
 
 
 ### What will change
 
 - Add emphasis that the framework works for arbitrary properties.
-- Add discussion on limitations of the compositionality framework. Especially concerning the upper and lower composition.
+- Add discussion on limitations of the compositionality framework. Especially concerning the upper and lower composition. Highlight that one has to ensure that the intersections of classes do not become empty.
 - Get rid of "as you would expect", "... is straightforward", etc.
 - Add quantifiers to disambiguate definitions.
 - Add paragraph on how sCCT overapproximates CCT and what kinds of programs would not satisfy sCCT while satisfying CCT.

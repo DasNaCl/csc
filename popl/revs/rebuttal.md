@@ -1,17 +1,28 @@
 
 # Author Response for Submission 67: Secure Composition of Robust and Optimising Compilers
 
-First of all, we would like to sincerely thank every reviewer for putting in their hard work.
-We are pleased about the high-quality of the reviews and appreciate both your suggestions and questions, which we address for each reviewer below.
-Prior to that, we want to explain some general concerns applying to all reviews.
+First of all, we would like to thank every reviewer for putting in their hard work.
+We really appreciate the high-quality of the reviews and your insightful suggestions and questions.
+We address the latter, for each reviewer, below.
+Prior to that, we want to address some general concerns that are shared amongst different reviews.
 
-- The main results of our paper are about the compositionality of secure compilers, which we have Coq'd up at the time of submitting the paper. Missing Coq proofs mainly involve the case-study, but the paper does not claim to have Coq'd the language definitions, their properties, etc.
-- The compositionality scales to arbitrary properties, not just trace properties. Classes of properties are kept as general as possible and there is no restriction being made on the shape of a class without talking about a concrete one. This should also entail hyperproperties, since they are classes themselves and enjoy closedness on intersections, i.e., intersecting hyperproperties yields other hyperproperties.
-- The optimisations chosen, namely Dead-Code Elimination (dce) and Constant Folding (cf), are traditional compiler optimisations. While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
+- [Mechanisation and Incrementality of the Results] [TODO: rev ? ? ?]
+The main results of our paper, which is presented in Section TODO, are about the compositionality of secure compilers. All these results have been Coq'd up at and they can be found in the supplementary material. Neither of these results do [TODO ] rely on Admits.
+While it is true that we use the theory (and the Coq formalisation) of Abate et. al. [TODO cite number], we do not believe this work can be considered incremental. After all, no existing work tackles the problem of identifying what security property is preserved by the composition of secure compilers (despite the secure compilation community, and the reviewers as well, identify this as an interesting problem).
+The missing Coq proofs mainly involve the case-study, but we'd like to point out that the paper does not put forth this claim. 
+
+- [Limitations of the Composition Theory] [TODO: rev ? ? ?]
+The compositionality property of Theorem [TODO] is presented for arbitrary classes of properties, not just trace properties. Classes of properties are kept as general as possible and so the theory works for hypersafety, hyperproperties, relational hyperproperties, and so forth. 
+We will make this clearer in the presentation of the main results.
+An interesting point is that since hyperproperties enjoy closedness on intersections, intersecting classes of hyperproperties yields other hyperproperties. We will clarify this point further as well.
+
+- [Real-world Application of the Results] [TODO: rev ? ? ?]
+The optimisations chosen, namely Dead-Code Elimination (dce) and Constant Folding (cf), are traditional compiler optimisations. While they are simpler to define in comparison to other optimisations, we have no reason to believe that the compositionality framework breaks apart when scaling this to other passes.
 
 
 ## Reviewer A
 
+[TODO: this does not seem to address a specific point?]
 We think it is important to not get lost in theory and appreciate your critical thinking about whether our theoretical framework is applicable to practical compilers.
 This is a big concern for us as well.
 Unfortunately, developing a compiler with formal methods is a task that has a huge workload (see CompCert).
@@ -41,15 +52,22 @@ We believe that the paper addresses this in the introduction: They are key secur
 
 > (1) Is it possible to model the optimizations in GCC or LLVM in your approach?
 
-Yes, the paper does this for dce and cf, which both GCC and LLVM do.
+Yes, we believe so, and this is the reason why in the paper we chose DCE and CF, which both GCC and LLVM do.
 We would appreciate further clarification about particular optimising transformations that you've had on your mind.
 While it is unlikely that we can extend the formalisation in the given time-frame to account for another optimisation, we do think this space warrants future work.
+[nope.
+rather, point out that some optimisations may break some props.
+that is not the scope of the work.
+we will look into that in the future.
+if you have suggestions for opts to look into, they're most welcome
+]
+
 
 > (2) Is your approach applicable to or can be extended for in hyperproperty based security properties? 
 
-Yes, classes are simply sets of properties.
+Yes, as mentioned in the general points above, classes are simply sets of properties.
 We verified that the proof of the sequential composition theorem also works for classes of sets of hyperproperties.
-We agree that the paper should be rephrased to improve the description of classes and why the formulation is general enough, i.e., why the sequential composition theorem supports any set whatsoever (even liveness).
+We agree that the paper should be rephrased to improve the description of classes and why the formulation is general enough, i.e., why the sequential composition theorem supports any set (even liveness).
 
 > (3) Do you handle dynamic languages with managed runtime? Particularly, managed runtime systems use garbage collection to deallocate memory. Does it impact your compositionality scheme?
 

@@ -1003,21 +1003,27 @@ In spirit of this, language $\Lscct$ allows violating \gls*{cct} by emitting eve
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 \begin{gather*}
   \begin{aligned}
-    \mi{(Expressions)}~&\expr\bnfdef\ x \mid \valueexpr \mid \lbinop{\expr[_{1}]}{\expr[_{2}]} \mid \lget{x}{\expr} \mid \llet{x}{\lnew{\expr[_{1}]}{\expr[_{2}]}}{\expr[_{3}]} \mid \ldelete{x} \mid \lset{x}{\expr[_{1}]}{\expr[_{2}]} \\
-                       & \mid \lpair{\expr[_{1}]}{\expr[_{2}]} \mid \lproja{\expr} \mid \lprojb{\expr} \mid \llet{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lreturn{\expr} \mid \lcall{g}{\expr} \mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \mid \labort
+    \mi{(Expressions)}~&\expr\bnfdef\ x \mid \valueexpr \mid \lbinop{\expr[_{1}]}{\expr[_{2}]} \mid \lget{x}{\expr}\\
+                       &\mid \llet{x}{\lnew{\expr[_{1}]}{\expr[_{2}]}}{\expr[_{3}]} \mid \ldelete{x}\\
+                       &\mid \lset{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lpair{\expr[_{1}]}{\expr[_{2}]} \mid \lproja{\expr} \mid \lprojb{\expr}\\
+                       &\mid \llet{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lreturn{\expr} \mid \lcall{g}{\expr}\\
+                       &\mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \mid \labort
   \end{aligned}
   \\
   \begin{aligned}
-  \mi{(Types)}~&\type\bnfdef\natt \mid \type[_{1}] \times \type[_{2}]
-  &
-  \mi{(Functions)}~&\function\bnfdef\ \lfunction{\textit{foo}}{x}{e}
-  &
-  \mi{(Libraries)}~&\library\bnfdef\ \hole{\cdot} \mid \function,\library
+  \mi{(Functions)}~\function\bnfdef&\ \lfunction{\textit{foo}}{x}{e}
+  \end{aligned}
+  \\
+  \begin{aligned}
+  \mi{(Types)}~\type\bnfdef\natt \mid \type[_{1}] \times \type[_{2}]\hspace{0.5cm}
+  \mi{(Libraries)}~\library\bnfdef\ \hole{\cdot} \mid \function,\library
   \end{aligned}\\
   \begin{aligned}
-  \mi{(Component~Names)}~&\commlib\bnfdef\ \hole{\cdot} \mid \text{foo},\commlib
-  &
-  \mi{(Programs)}~&\prog{\library_{\ctx}}{\library_{\comp}}
+  \mi{(Component~Names)}~\commlib\bnfdef\ \hole{\cdot} \mid \text{foo},\commlib
+  \end{aligned}
+  \\
+  \begin{aligned}
+  \mi{(Programs)}~\prog{\library_{\ctx}}{\library_{\comp}}
   \end{aligned}
 \end{gather*}
 
@@ -1030,30 +1036,19 @@ Lists of component-level names are referred to as $\commlib$.
 
 \begin{gather*}
   \begin{aligned}
-    \mi{(Control~Tags)}~&\sandboxtag\bnfdef\ctx \mid \comp
-    &
-    \mi{(Communication~Tags)}~&\comm\bnfdef\ \ctxtocomp \mid\ \comptoctx \mid \nocomm
-    &
-    \mi{(Poison~Tags)}~&\poison\bnfdef \poisoned \mid \poisonless
-  \end{aligned}\\
-  \begin{aligned}
-    \mi{(Continuation~Stacks)}~&\ectxstack\bnfdef\hole{\cdot} \mid \tup{K}{g},\ectxstack
-    &
+    \mi{(Control~Tags)}~&\sandboxtag\bnfdef\ctx \mid \comp \\
+    \mi{(Communication~Tags)}~&\comm\bnfdef\ \ctxtocomp \mid\ \comptoctx \mid \nocomm \\
+    \mi{(Poison~Tags)}~&\poison\bnfdef \poisoned \mid \poisonless \\
+    \mi{(Continuation~Stacks)}~&\ectxstack\bnfdef\hole{\cdot} \mid \tup{K}{g},\ectxstack \\
     \mi{(Control~Flow~States)}~&\cfstate\bnfdef\tup{\library}{\ectxstack}
-  	\\
-    \mi{(Locations)}~&\loc\in\nat
-    &
+    \hspace{0.5cm}
+    \mi{(Locations)}~\loc\in\nat \\
     \mi{(Substitutions)}~&\substvar\bnfdef \hole{\cdot} \mid \subst{\valueexpr}{x},\gamma
   	\\
-    \mi{(Stores)}~&\Delta\bnfdef\hole{\cdot} \mid x\mapsto\tup{\loc}{\sandboxtag,\poison,n},\Delta
-    &
-    \mi{(Heaps)}~&H\bnfdef\hole{\cdot} | \valueexpr,H
-    \end{aligned}\\
-  \begin{aligned}
-    \mi{(Memory~States)}~&\memstate\bnfdef\tup{H^{\ctx}}{H^{\comp};\Delta}
-    &
-    \mi{(States)}~&\statevar\bnfdef\tup{\cfstate}{\sandboxtag,\memstate}
-    &
+    \mi{(Stores)}~&\Delta\bnfdef\hole{\cdot} \mid x\mapsto\tup{\loc}{\sandboxtag,\poison,n},\Delta \\
+    \mi{(Heaps)}~&H\bnfdef\hole{\cdot} | \valueexpr,H \\
+    \mi{(Memory~States)}~&\memstate\bnfdef\tup{H^{\ctx}}{H^{\comp};\Delta} \\
+    \mi{(States)}~&\statevar\bnfdef\tup{\cfstate}{\sandboxtag,\memstate} \\
     \mi{(Runtime~Terms)}~&\runtimetermvar\bnfdef\rtt{\statevar}{\expr}
   \end{aligned}
 \end{gather*}
@@ -1070,7 +1065,8 @@ Runtime terms are simply expressions $\expr$ paired with the operational state $
 
 \begin{gather*}
   \begin{aligned}
-  \mi{(Pre\text{-}Events)}~\event[_{b}]&\bnfdef \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc \mid \ev{Get}\ \loc\ \valueexpr \mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \cdots \\
+  \mi{(Pre\text{-}Events)}~\event[_{b}]\bnfdef&\ \ev{Alloc}\ \loc\ \valueexpr \mid \ev{Dealloc}\ \loc\\
+                                       &\mid \ev{Get}\ \loc\ \valueexpr \mid \ev{Set}\ \loc\ \valueexpr\ \valueexpr['] \mid \cdots \\
   \mi{(Events)}~\event&\bnfdef \emptyevent \mid \lightning \mid \tup{\event[_{b}]}{\sandboxtag,\securitytag} \\
   \end{aligned}
 \end{gather*}
@@ -1102,10 +1098,11 @@ The following is an excerpt of the operational semantics handling some of the me
   \typerule{$e-\text{new}$}{
     \fresh{\statevar}{z} &
     \fresh{\statevar}{\loc} &
-    \heap[^{\sandboxtag}_1]=\growh{\statevar.\heap[^{\sandboxtag}]}{n} &
-    \store[_1]=\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store
+    \heap[^{\sandboxtag}_1]=\growh{\statevar.\heap[^{\sandboxtag}]}{n} \\
+    \store[_1]=\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store \\
+    \statevar['] = \statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}
   }{
-    \pstepto{\rtt{\statevar}{\lnew{x}{n}{\expr}}}{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}{\tup{\ev{Alloc}\ \loc\ n}{\sandboxtag}}
+    \pstepto{\rtt{\statevar}{\llet{x}{\lnew{\valueexpr}{n}}{e}}}{\rtt{\statevar[']}{\expr\subst{z}{x}}}{\tup{\ev{Alloc}\ \loc\ n}{\sandboxtag}}
   }{e-new}
   %
   \typerule{$e-\text{dealloc}$}{
@@ -1144,23 +1141,23 @@ Contrary, $\ev{Call\ \comptoctx\ foo\ \valueexpr}$ and $\ev{Return\ \comptoctx\ 
 For calls without this context switch, the contextual semantics attaches the $\nocomm$ tag.
 In the following, $\neg\ctx=\comp$ and $\neg\comp=\ctx$.
 
-\begin{center}
-  \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime-term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
-  %
-  \typerule{$e-\text{ret}$}{
-    \statevar.\ectxstack=\tup{\ectx}{\text{foo}},\ectxstack['] &
-    \commlib\vdash\text{foo}:\Omega.\sandboxtag\dashv\comm
-  }{
-    \estepto[]{\rtt{\statevar}{\ectx[']\hole{\lreturn{\valueexpr}}}}{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\ectxstack[']}{\ectxstack}}{\ectx\hole{\valueexpr}}}{\tup{\ev{Ret}\ \comm\ \valueexpr}{\statevar.\sandboxtag}}
-  }{e-ret-notsame}
-  %
-  \typerule{$e-\text{call}-\text{notsame}$}{
-    \lfunction{\text{foo}}{x}{e} \in \statevar.\library &
-    \commlib\vdash\text{foo}:\Omega.\sandboxtag\dashv\comm
-  }{
-    \estepto[]{\rtt{\statevar}{\ectx\hole{\lcall{\text{foo}}{\valueexpr}}}}{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\tup{\ectx}{\text{foo}},\statevar.\ectxstack}{\ectxstack}}{\expr\subst{\valueexpr}{x}}}{\tup{\ev{Call}\ \comm\ \text{foo}\ \valueexpr}{\statevar.\sandboxtag}}
-  }{e-call-notsame}
-\end{center}
+% \begin{center}
+%   \judgbox{\estepto[]{\runtimetermvar}{\runtimetermvar}{\event}}{,,Contextual step from runtime-term $\runtimetermvar$ to $\runtimetermvar[']$ emitting event $\event$.''}
+%   %
+%   \typerule{$e-\text{ret}$}{
+%     \statevar.\ectxstack=\tup{\ectx}{\text{foo}},\ectxstack['] &
+%     \commlib\vdash\text{foo}:\Omega.\sandboxtag\dashv\comm
+%   }{
+%     \estepto[]{\rtt{\statevar}{\ectx[']\hole{\lreturn{\valueexpr}}}}{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\ectxstack[']}{\ectxstack}}{\ectx\hole{\valueexpr}}}{\tup{\ev{Ret}\ \comm\ \valueexpr}{\statevar.\sandboxtag}}
+%   }{e-ret-notsame}
+%   %
+%   \typerule{$e-\text{call}-\text{notsame}$}{
+%     \lfunction{\text{foo}}{x}{e} \in \statevar.\library &
+%     \commlib\vdash\text{foo}:\Omega.\sandboxtag\dashv\comm
+%   }{
+%     \estepto[]{\rtt{\statevar}{\ectx\hole{\lcall{\text{foo}}{\valueexpr}}}}{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\tup{\ectx}{\text{foo}},\statevar.\ectxstack}{\ectxstack}}{\expr\subst{\valueexpr}{x}}}{\tup{\ev{Call}\ \comm\ \text{foo}\ \valueexpr}{\statevar.\sandboxtag}}
+%   }{e-call-notsame}
+% \end{center}
 
 The contextual semantics is mostly straightforward.
 In \Cref{tr:e-ret-notsame,tr:e-call-notsame}, the judgement $\Omega.\commlib\vdash\text{foo}:\Omega.\sandboxtag\dashv \comm$ checks whether $\text{foo}$ is a component-level name by looking it up in the list of component-level names $\commlib$ and emits the appropriate transfer tag, i.e., either $\comptoctx$ or $\ctxtocomp$.
@@ -1183,7 +1180,7 @@ The proof of this theorem relies on a projection $\msfilterLtms{\src{\event}}=\e
 Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a location $\loc$ of the specification trace model.
 
 \begin{center}
-  \judgbox{\msfilterLtms{\src{\event}}=\event}{,,Project an $\Ltms$ event $\src{\event}$ to a specification event $\event$.''}
+  \judgbox{\msfilterLtms{\src{\event}}=\event}{,,Project an $\Ltms$ event $\src{\event}$ to\\a specification event $\event$.''}
   \typerule{$\Ltms$-filter-context}{
     \src{\event[_b]}\not=\src{\lightning}
   }{
@@ -1219,7 +1216,7 @@ But, it also filters any action that a context does as well as the interaction e
 
 \begin{center}
   \begin{align*}
-    \mi{(Expressions)}~\trg{\expr}&\bnfdef \cdots \mid \trg{\lispoisoned{x}} \mid \trg{\lhast{\expr}{\type}} \\
+    \mi{(Expressions)}~\trg{\expr}\bnfdef& \cdots \mid \trg{\lispoisoned{x}} \mid \trg{\lhast{\expr}{\type}} \\
   \end{align*}
 \end{center}
 
@@ -1253,7 +1250,7 @@ The projection $\msfilterLms{\irl{\trace}}$ is also exactly equal to $\msfilterL
 
 \begin{gather*}
   \begin{aligned}
-    \mi{(Expressions)}~\obj{\expr}&\bnfdef \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots \mid \obj{\lwrdoit{D}} \mid \obj{\lrddoit{x}{\expr}}
+    \mi{(Expressions)}~\obj{\expr}\bnfdef&\ \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots\\&\mid \obj{\lwrdoit{D}} \mid \obj{\lrddoit{x}{\expr}}
   \end{aligned} 
   \\
   \begin{aligned}
@@ -1273,7 +1270,8 @@ Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj
 
 \begin{center}
   \begin{align*}
-    \mi{(Pre\text{-}Events)}~\obj{\event[_{b}]}&\bnfdef \cdots \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr[']} \mid \obj{Branch\ n} \mid \obj{Binop\ n}
+    \mi{(Pre\text{-}Events)}~\obj{\event[_{b}]}\bnfdef&\ \cdots \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr[']}\\
+                                                      &\mid \obj{Branch\ n} \mid \obj{Binop\ n}
   \end{align*}
 \end{center}
 
@@ -1308,7 +1306,7 @@ When the data independent timing mode is inactive, pre-events $\obj{\ev{Branch}\
 %To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
 
 \begin{center}
-  \judgbox{\scctfilterLscct{\obj{\event}}=\event}{,,Project an $\Lscct$ event $\obj{\event}$ to a specification event $\event$.''}
+  \judgbox{\scctfilterLscct{\obj{\event}}=\event}{,,Project an $\Lscct$ event $\obj{\event}$\\to a specification event $\event$.''}
   \typerule{$\Lscct$-filter-context}{
     \obj{\event[_b]}\not=\obj{\lightning}
   }{
@@ -1337,7 +1335,7 @@ With this technical setup, the information whether a read or write happened on a
 This allows flexibility: The trace can be checked to satisfy different properties, such as, in this case, \gls*{tms}, \gls*{sms}, \gls*{scct}, and their combined versions.
 \Cref{ex:lscct} illustrates the differences of $\Lscct$ compared to the other languages.
 
-
+\begin{figure*}[!h]
 \begin{exampleenv}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
   Consider again the context presented in \Cref{ex:strncpy:cpp11}, where everything is marked with a security tag of high $\lock$.
   The following table shows parts of the execution trace, read from top to bottom, in the left column (\textit{Active}) with and in the right column (\textit{Inactive}) without data independent timing.
@@ -1366,10 +1364,11 @@ This allows flexibility: The trace can be checked to satisfy different propertie
   When the data independent timing mode is off, the execution yields events in similar fashion to before (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
   But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory gets ultimately translated to a specification trace with \colorbox{lightgray}{no exposed secrets}.
 \end{exampleenv}
+\end{figure*}
 
 \section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
 This section defines several secure compilers, each of which robustly preserves a different property of interest as depicted in \Cref{fig:pipeline}.
-\begin{figure}[!h]
+\begin{figure*}[!h]
   \begin{center}
     \begin{tikzpicture}
       \node (S) {$\src{L_{\tmssafe}}$};
@@ -1410,7 +1409,7 @@ This section defines several secure compilers, each of which robustly preserves 
     All edges are secure compilers, but dotted edges use the presented framework (\Cref{sec:compcomp}) and solid edges classic proof techniques. %
     The dashed lines partition the graph into the sections where the respective theorems are presented.
   }\label{fig:pipeline}
-\end{figure}
+\end{figure*}
 The section demonstrates the power of the framework (\Cref{sec:compprop,sec:compcomp}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls*{msscct}.
 The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls*{tms} (\Cref{thm:cca:rtp:tms}).
 From here, an instrumentation from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls*{sms} (\Cref{thm:ccb:rtp:sms}).
@@ -1421,7 +1420,6 @@ The last step of the chain ensures that code stays \gls*{scct} (\Cref{thm:ccscct
 The final result is that the whole compilation chain robustly preserves \gls*{msscct} (\Cref{thm:ccall:rtp:msscct}).
 
 
-
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
 
 This subsection defines a secure compiler from $\Ltms$ to $\Ltrg$.
@@ -1430,14 +1428,14 @@ It can do so by inserting dynamic typechecks prior to entering the body of a fun
 
 \begin{gather*}
   \begin{aligned}
-    \cca(\src{x}) & = \trg{x} \\
-    \cca(\src{n}) & = \trg{n} \\
-    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & =  \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\
-    \cca(\src{\lget{x}{\expr}}) & = \lget[\trg]{\trg{x}}{\left[\cca(\src{\expr})\right]} \\
-    \cca(\src{\ldelete{x}}) & = \ldelete[\trg]{\left[\cca(\src{x})\right]} \\
+    \cca(\src{x}) = & \trg{x} \\
+    \cca(\src{n}) = & \trg{n} \\
+    \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) = & \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\
+    \cca(\src{\lget{x}{\expr}}) = & \lget[\trg]{\trg{x}}{\left[\cca(\src{\expr})\right]} \\
+    \cca(\src{\ldelete{x}}) = & \ldelete[\trg]{\left[\cca(\src{x})\right]} \\
 %    \cca(\src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = \lset[\trg]{\left[\cca(\src{x})\right]}{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr_{2}})\right]} \\
-    \cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}}) & = \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{%
-                                                                                                \left[\cca(\src{\expr})\right] %
+\cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}})  = & \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{\\%
+                                                            &\left[\cca(\src{\expr})\right] %
                                                                                                  }{\labort[\trg]}}
   \end{aligned}
 \end{gather*}
@@ -1580,9 +1578,9 @@ This follows by specializing the robust satisfaction assumption $\rsat{\src{\lib
 \begin{center}
   $$
   \begin{array}{rcl}
-    \ccb(\trg{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{1}]})}{\lnew[\irl]{\irl{x}}{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{2}]})}} \\
-    \ccb(\trg{\lget{x}{\expr}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr})}{\irl{\lifz{0\le x_{n}<x_{SIZE}}{\lget{x}{x_{n}}}{\labort}}} \\
-    \ccb(\trg{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr[_{1}]})}{\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\lset[\irl]{\irl{x}}{\irl{x_{n}}}{\ccb(\trg{\expr[_{2}]})}}{\irl{\labort}}} \\
+    \ccb(\trg{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{1}]})}{\\&&\lnew[\irl]{\irl{x}}{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{2}]})}} \\
+  \ccb(\trg{\lget{x}{\expr}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr})}{\\&&\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\irl{\lget{x}{x_{n}}}}{\\&&\irl{\labort}}} \\
+  \ccb(\trg{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr[_{1}]})}{\\&&\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\lset[\irl]{\irl{x}}{\irl{x_{n}}}{\\&&\ccb(\trg{\expr[_{2}]})}}{\irl{\labort}}} \\
   \end{array}
   $$
 \end{center}
@@ -1592,10 +1590,11 @@ For passing pointers, it has to pass them with their size information as well.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
 \begin{exampleenv}[Instrumented \texttt{strncpy}]
   Consider again \texttt{strncpy}, but instrumented for \gls*{sms}:
-    \begin{lstlisting}[language=c,basicstyle=\ttfamily\small, morekeywords={size_t}]
+    \begin{lstlisting}[language=c,basicstyle=\ttfamily\scriptsize, morekeywords={size_t}]
   void strncpy(size_t n, size_t dst_size, char *dst,
                          size_t src_size, char *src) {
-    for(size_t i = 0; i < src_size && src[i] != '\0' && i < n; ++i) {
+    for(size_t i = 0; i < src_size && src[i] != '\0'
+                   && i < n; ++i) {
       if(i < src_size && i < dst_size) {
         dst[i] = src[i];
       }
@@ -1643,8 +1642,8 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
     \partialeval{\irl{\lget{x}{\expr}}}{\irl{\substlist}} & = \lget[\irl]{\irl{x}}{\partialeval{\irl{\expr}}{\irl{\substlist}}}
   \end{align*}\\
   \begin{align*}
-    \partialeval{\irl{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}}{\irl{\substlist}} & = \llet[\irl]{\irl{x}}{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}} \\
-    \partialeval{\irl{\lifz{\expr[_{1}]}{\expr[_{2}]}{\expr[_{3}]}}}{\irl{\substlist}} & = \lifz[\irl]{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{3}]}}{\irl{\substlist}}} \\
+    \partialeval{\irl{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}}{\irl{\substlist}} & = \llet[\irl]{\irl{x}}{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\\&\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}} \\
+    \partialeval{\irl{\lifz{\expr[_{1}]}{\expr[_{2}]}{\expr[_{3}]}}}{\irl{\substlist}} & = \lifz[\irl]{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\\&\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{3}]}}{\irl{\substlist}}} \\
   \end{align*}
 \end{gather*}
 

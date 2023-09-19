@@ -1,0 +1,30 @@
+
+- [ ] Add to future work section that we will look at more sophisticated optimisiation passes.
+- [ ] Rephrase introduction for clarification on why we have chosen memory safety and cryptographic constant time.
+- [ ] Emphasise the role of classes and why the compositionality framework is general enough.
+- [ ] Underline the relevance of the combined monitor and make it clearer how, why, and where it is needed.
+- [ ] Incomporate an example where a second secure compilation pass introduces violations to the property the first pass secured against.
+- [ ] Fixing the typos!
+- [ ] Add more discussion about the compositionality theorems.
+- [x] Change $\mathbb{N}_t$ to $\mathbb{N}$
+- [ ] Everywhere were we omit rules: State this explicitly.
+- [ ] Change descriptive text of e-set-\not\in to emphasise that no write happens. `v` is not really a "garbage" value, get rid of this confusing terminology. 
+- [ ] Rephrase paragraph about $L_{ms}$: the compiled code is instrumented to be memory-safe.
+- [x] Change data independent timing mode state to either `on` or `off`.
+- [ ] Add discussion on applicability of the framework.
+- [ ] Add hyperlinks to the Coq development of the respective proofs.
+- [ ] Add emphasis that the framework works for arbitrary properties.
+- [ ] Add discussion on limitations of the compositionality framework. Especially concerning the upper and lower composition. Highlight that one has to ensure that the intersections of classes do not become empty.
+- [ ] Get rid of "as you would expect", "... is straightforward", etc.
+- [ ] Add quantifiers to disambiguate definitions.
+- [ ] Add paragraph on how sCCT overapproximates CCT and what kinds of programs would not satisfy sCCT while satisfying CCT.
+- [ ] Fix the "typing" of monitor states (e.g., line 335)
+- [ ] Rewrite $\textbf{Any}$ to $\textbf{Leak}$.
+- [ ] Rephrase paragraph at 606.
+- [ ] Fix typos.
+- [x] Change wording from "strikethrough edge" to "solid edge".
+- [ ] Add discussion about the unified trace model vs. multiple different trace models
+- [ ] Fix layouting of `mix`
+- [ ] Fix references
+- [ ] :chicken: do lower composition
+- [ ] ensure scct-low-authentic etc. "typecheck"

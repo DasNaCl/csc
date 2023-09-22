@@ -355,3 +355,42 @@ Proof.
   - destruct a as [a' b']. apply zip_cons in H. deex. destruct H as [H1 [H2 H3]].
     cbn; rewrite H1, H2; cbn; now rewrite <- H3.
 Qed.
+
+Require Import Classical.
+
+Definition XM := classic.
+Definition DN := NNPP.
+
+Lemma rw_not_forall {A : Type} (P : A -> Prop) :
+  (~ forall (x : A), P x) <-> (exists x, ~ P x).
+Proof.
+  split.
+  - apply (not_all_ex_not A P).
+  - apply (ex_not_not_all A P).
+Qed.
+
+Lemma contrapos (A B : Prop) :
+  (A -> B) <-> (~ B -> ~ A)
+.
+Proof. destruct (XM B); firstorder. Qed.
+
+Lemma not_material_imp (A B : Prop) :
+  ~(A -> B) <-> (A /\ ~B)
+.
+Proof. destruct (XM A); firstorder. Qed.
+
+Lemma demorgan_and (A B : Prop) :
+  ~(A /\ B) <-> (~A) \/ (~B)
+.
+Proof.
+  split; firstorder eauto.
+  destruct (XM(A \/ B)).
+  firstorder eauto. left. intros H1. apply H0. now left.
+Qed.
+
+Lemma demorgan_or (A B : Prop) :
+  ~(A \/ B) <-> (~A) /\ (~B)
+.
+Proof.
+  split; firstorder eauto.
+Qed.

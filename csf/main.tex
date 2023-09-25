@@ -171,7 +171,7 @@ Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated 
 This function is subject to a subtle \gls*{sms} vulnerability: the bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}: otherwise
 % If \texttt{n} is at least as large as the length of the array \texttt{src}, 
 the memory location past the last element will be leaked to an attacker.
-\begin{lstlisting}[language=c,basicstyle=\scriptsize\ttfamily,morekeywords={size_t}]
+\begin{lstlisting}[language=c,basicstyle=\footnotesize\ttfamily,morekeywords={size_t}]
 void strncpy(size_t n, char *dst, char *src) {
   for(size_t i = 0; src[i] != '\0' && i < n; ++i) {
     dst[i] = src[i];
@@ -287,10 +287,14 @@ With this, property satisfaction is defined as follows:
 \bul{whole programs $\wholeprogvar$ satisfy a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisifies $\pi$} (\Cref{def:propsat}).
 
 \begin{definition}[Property Satisfaction]\label{def:propsat}
-  \bul{$\sat{\progvar}{\pi}$}
-  $\isdef$
-  if \iul{$\forall\runtimetermvar\ \trace,\progstepto{\progvar}{\runtimetermvar}{\trace}$},
-  then \oul{$\trace\in\pi$}.
+  $\;$\\
+  \vspace{-1em}
+  \begin{nscenter}
+    \bul{$\sat{\progvar}{\pi}$}
+    $\isdef$
+    if \iul{$\forall\runtimetermvar\ \trace,\progstepto{\progvar}{\runtimetermvar}{\trace}$},
+    then \oul{$\trace\in\pi$}.
+  \end{nscenter}
 \end{definition}
 
 Property satisfaction is defined on whole programs, i.e., programs without missing definitions.
@@ -305,8 +309,12 @@ The context is an arbitrary program and thus has the role of an {\em attacker} t
 With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the resulting whole program must satisfy $\pi$}.
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
+  $\;$\\
+  \vspace{-1em}
+  \begin{nscenter}
   \bul{$\rsat{\progvar}{\pi}$}
   $\isdef$ \iul{$\forall \contextvar\ \wholeprogvar$, if $\link{\contextvar}{\progvar}=\wholeprogvar$}, then \oul{$\sat{\wholeprogvar}{\pi}$}.
+  \end{nscenter}
 \end{definition}
 
 % \begin{exampleenv}[Double Free in Bluetooth Subsystem]
@@ -327,11 +335,15 @@ To define when a compiler is secure, this paper uses the robust compilation fram
 For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} where \iul{$\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
 
 \begin{definition}[Robust Compilation]\label{def:rtp}
+  $\;$\\
+  \vspace{-1em}
+  \begin{nscenter}
   % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
   \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}
   %, iff 
   $\isdef$
-  \rul{$\forall \left(\pi\in\class\right) \left(\src{p}\in\src{L}\right),$} if \iul{$\rsat{\src{\progvar}}{\pi}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
+  \rul{$\forall \pi\in\class, \src{p}\in\src{L},$} if \iul{$\rsat{\src{\progvar}}{\pi}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
+  \end{nscenter}
 \end{definition}
 
 Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
@@ -363,6 +375,7 @@ Lastly, for each of the key properties, this section introduces corresponding mo
 
 \subsection{Specification Trace Model}\label{subsec:propdefs}
 
+\vspace{-2em}
 \begin{gather*}
   \begin{aligned}
   \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock\hspace{0.5cm}
@@ -445,10 +458,13 @@ To sidestep this issue, this section defines the property \gls*{scct}, a stricte
   $$
 \end{definition}
 
+While \gls*{scct} may seem overly strict, since it may seem that secrets must not occur on a trace (since $\securitytag$ is forced to be $\unlock$). 
+However, programs that operate on secrets and have a ''data independent timing mode'' enabled do not leak these secrets, despite performing computation on them (see \Cref{ex:ditm}). 
+
 \subsubsection{Memory Safe, Strict Cryptographic Constant Time}
 
 The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
-Since \gls*{ms} and \gls*{scct} are just sets of traces that, intuitively, contain all program behaviors that follow a security policy, the intersection of them contains all program behaviors that follow both security policies, i.e., it entails all program behaviours that are both \gls*{ms} and \gls*{scct}.
+%Since \gls*{ms} and \gls*{scct} are just sets of traces that, intuitively, contain all program behaviors that follow a security policy, the intersection of them contains all program behaviors that follow both security policies, i.e., it entails all program behaviours that are both \gls*{ms} and \gls*{scct}.
 
 \begin{definition}[\glsfirst*{ms} and \gls*{scct}]\label{def:trace:msscctdef}
   $
@@ -473,7 +489,10 @@ To this end, monitor satisfaction is defined as follows.
 \bul{A specification trace $\trace$ monitor-satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor\footnote{In this paper, for all monitors, the initial monitor state is denoted as $\emptyset$.} can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
 
 \begin{definition}[Monitor Satisfaction]\label{def:monsat}
+  $\;$ 
+  \begin{nscenter}
   \bul{$\monsafe{\trace}{\pi}$} $\isdef$ $\exists \abstrace\ \monitor$, \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
+  \end{nscenter}
 \end{definition}
 
 \subsubsection{Monitor for \glsfirst*{tms}}\label{subsubsec:tms}
@@ -596,7 +615,7 @@ This rejects the behavior of programs that forget to free memory.
 The trace agreement is entirely straightforward, so only allocation, branch, and crash are shown.
 
 \begin{lemma}[Traces with Monitor Satisfaction are $\tmssafe$]\label{lem:mon:tmssafe}
-  If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
+  $\;\;$ If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
 \end{lemma}
 
 % \begin{exampleenv}[A program not satisfying \gls*{tms}]\label{ex:strncpy:cpp11}
@@ -657,7 +676,10 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
   }{sms-use}
   %
   \typerule{sms-alloc}{
-    (\loc;\sandboxtag;m)\notin\smsmonitor
+    (\loc;\sandboxtag;m)\notin\smsmonitor %\\
+    % unfortunately, this does not render sms-use and sms-alloc side by side
+    % my only other idea is \scalebox...ugh
+    %\smsmonitor[']=\smsmonitor\cup\left\{(\loc;\sandboxtag;n)\right\}
   }{
     \monitorcheck[]{\smsmonitor}{\smsmonitor\cup\left\{(\loc;\sandboxtag;n)\right\}}{\absev{Alloc\ }\loc\ \sandboxtag\ n}
   }{sms-alloc}
@@ -707,7 +729,8 @@ The trace agreement is entirely straightforward and similar to the one for \gls*
 
 
 \begin{lemma}[Traces with Monitor Satisfaction are $\smssafe$]\label{lem:mon:smsafe}
-  If $\monsmssafe{\trace}$, then $\trace\in\smssafe$.\Coqed
+  $\;\;$
+  If $\monsmssafe{\trace}$, then $\trace\in\smssafe$. %\Coqed
 \end{lemma}
 
 % \begin{exampleenv}[Normal invocation of \texttt{strncpy}]\label{ex:strncpy:sms}
@@ -750,6 +773,9 @@ The combined monitor runs the one for \gls*{tms} and the one for \gls*{sms} in a
 \begin{lemma}[Traces with Monitor Satisfaction are $\mssafe$]\label{lem:mon:msafe}
   If $\monmssafe{\trace}$, then $\trace\in\mssafe$.\Coqed
 \end{lemma}
+
+Any technique to combine existing monitors $T_A$, $T_B$ (that check for properties $A$ and $B$) into one $T_{AB}$ (that checks for both $A$ and $B$) is sufficient for the sake of the analysis of this paper.
+Note that monitors only apply to trace-properties, but not, e.g., relational hyperproperties~\cite{abate2019jour}.
 
 \subsubsection{Monitor for \glsfirst*{scct}}
 \begin{gather*}
@@ -802,7 +828,7 @@ Accordingly, the event agreement simply disregards all events that involved publ
   If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
 \end{lemma}
 
-\begin{exampleenv}[Data-independent timing mode]
+\begin{exampleenv}[Data-independent timing mode]\label{ex:ditm}
   Consider the call \texttt{strncpy(1,x,y)} to the \texttt{strncpy} function (\Cref{ex:strncpy}) with low ($\unlock$) security for \texttt{x} and high security ($\lock$) for \texttt{y}.
   The trace of just the copying part inside of \texttt{strncpy} looks like $\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
   In terms of the abstract monitor trace, this is just $\absev{Leak}$.
@@ -965,10 +991,15 @@ The following theorem demonstrates what happens if the involved compilers are se
 Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\src{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their lower composition $\cc{\src{L}}{\trg{L}+\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{theorem}[Lower Composition of Secure Compilers]\label{thm:lrtp}
-  If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\obj{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}+\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. %\Coqed
+  If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\obj{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}+\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
 \end{theorem}
 
 %Either way, the theoretical results suggest that it is possible to always find a ,,most-general'', secure compiler, given two secure compilers, that robustly preserves the least-upper bound of the classes involved in their compilation process.
+
+\subsection{Applicability of the Compositionality Framework}
+
+It is worth emphasizing that the framework is general: It supports both ordinary trace properties as well as hyperproperties or even relational hyperproperties~\cite{abate2019jour}.
+Moreover, while this paper assumes a unified trace-model, it is merely a technical exercise to allow for different trace-models between programming languages~\cite{abate2021extacc}.
 
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}
 
@@ -1050,11 +1081,13 @@ But, it also filters any action that a context does as well as the interaction e
 
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
+\vspace{-2em}
 \begin{center}
   \begin{align*}
     \mi{(Expressions)}~\trg{\expr}\bnfdef& \cdots \mid \trg{\lispoisoned{x}} \mid \trg{\lhast{\expr}{\type}} \\
   \end{align*}
 \end{center}
+\vspace{-2em}
 
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks $\trg{\lhast{\expr}{\type}}$ and a way to inspect poison tags $\trg{\lispoisoned{x}}$ in the metadata of pointers.
 For valid pointers ($\trg{\poisonless}$) bound to variable $\trg{x}$, the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
@@ -1070,6 +1103,7 @@ $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to signify tha
 
 \subsection{$\Lscct$: A Memory-Unsafe Language with a Data Independent Timing Mode}\label{subsec:lscct}
 
+\vspace{-1em}
 \begin{gather*}
   \begin{aligned}
     \mi{(Expressions)}~\obj{\expr}\bnfdef&\ \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots\\&\mid \obj{\lwrdoit{D}} \mid \obj{\lrddoit{x}{\expr}}
@@ -1090,6 +1124,7 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
 The language also adds user-annotations to values and variables to know their secrecy $\obj{\securitytag}$, which is either high $\obj{\lock}$ or low $\obj{\unlock}$.
 Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
 
+\vspace{-2em}
 \begin{center}
   \begin{align*}
     \mi{(Pre\text{-}Events)}~\obj{\event[_{b}]}\bnfdef&\ \cdots \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr[']}\\
@@ -1138,10 +1173,11 @@ This allows flexibility: The trace can be checked to satisfy different propertie
 
 \begin{figure*}[!h]
 \begin{exampleenv}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
-  Consider again the context presented in \Cref{ex:strncpy:cpp11}, where everything is marked with a security tag of high $\lock$.
+  Consider again \Cref{ex:strncpy}, with a context copying the string \texttt{Hello World}, where everything is marked with a security tag of high $\lock$.
   The following table shows parts of the execution trace, read from top to bottom, in the left column (\textit{Active}) with and in the right column (\textit{Inactive}) without data independent timing.
   The left side of the table ($\Lscct$), i.e., the two columns on the left, describes the execution trace of the program, while the right side of the table ($Spec$), i.e., the two columns on the right, describes the respective projections $\scctfilterLscct{\obj{\trace}}$ to the specification trace model.
 
+\vspace{-2em}
   $${\footnotesize
   \begin{array}{ccccccc}
         & \Lscct &        &   &      & Spec & \\
@@ -1227,6 +1263,7 @@ This subsection defines a secure compiler from $\Ltms$ to $\Ltrg$.
 To this end, the compiler needs to ensure that when execution switches from context to component, the type signatures are respected.
 It can do so by inserting dynamic typechecks prior to entering the body of a function belonging to the component.
 
+\vspace{-1em}
 \begin{gather*}
   \begin{aligned}
     \cca(\src{x}) = & \trg{x} \\
@@ -1376,6 +1413,7 @@ This follows by specializing the robust satisfaction assumption $\rsat{\src{\lib
 
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 
+\vspace{-1em}
 \begin{center}
   $$
   \begin{array}{rcl}
@@ -1391,18 +1429,18 @@ For passing pointers, it has to pass them with their size information as well.
 To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$ to keep track of the allocation size.
 \begin{exampleenv}[Instrumented \texttt{strncpy}]
   Consider again \texttt{strncpy}, but instrumented for \gls*{sms}:
-    \begin{lstlisting}[language=c,basicstyle=\ttfamily\scriptsize, morekeywords={size_t}]
-  void strncpy(size_t n, size_t dst_size, char *dst,
-                         size_t src_size, char *src) {
-    for(size_t i = 0; i < src_size && src[i] != '\0'
-                   && i < n; ++i) {
-      if(i < src_size && i < dst_size) {
-        dst[i] = src[i];
-      }
+    \begin{lstlisting}[language=c,basicstyle=\ttfamily\footnotesize, morekeywords={size_t}]
+void strncpy(size_t n, size_t dst_size, char *dst,
+                       size_t src_size, char *src) {
+  for(size_t i = 0; i < src_size && src[i] != '\0'
+                 && i < n; ++i) {
+    if(i < src_size && i < dst_size) {
+      dst[i] = src[i];
     }
   }
+}
     \end{lstlisting}
-    When calling this in similar fashion to \Cref{ex:strncpy:sms}, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution, since the bounds check prevents the condition \texttt{src[i] != '\textbackslash 0'} from executing.
+    When calling this with \texttt{strncpy(2, x, y)}, where \texttt{x} and \texttt{y} are pointers to valid regions of memory with allocated space for exactly two cells and do not contain the null-terminating character \texttt{'\textbackslash 0'}, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution, since the bounds check prevents the condition \texttt{src[i] != '\textbackslash 0'} from executing.
 \end{exampleenv}
 
 \begin{theorem}[Compiler $\ccb$ is secure with respect to \gls*{sms}]\label{thm:ccb:rtp:sms}
@@ -1423,6 +1461,7 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
 
 \subsection{Optimising Compilers}\label{subsec:cs:opts}
 
+\vspace{-1em}
 \begin{gather*}
   \begin{align*}
     \ccdce(\irl{\lifz{true}{\expr[_{1}]}{\expr[_{2}]}}) & = \ccdce(\irl{\expr[_{1}]}) &\\
@@ -1447,6 +1486,7 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
 %   \partialeval{\irl{\lifz{\expr[_{1}]}{\expr[_{2}]}{\expr[_{3}]}}}{\irl{\substlist}} & = \lifz[\irl]{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\\&\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{3}]}}{\irl{\substlist}}} \\
 % \end{align*}
 \end{gather*}
+\vspace{-3em}
 
 The two optimising compiler passes from $\Lms$ to $\Lms$ perform \gls*{dce} and \gls*{cf}, respectively.
 The \gls*{dce} pass applies a naive rewrite rule on conditionals.
@@ -1454,7 +1494,7 @@ For \gls*{cf}, the pass uses an auxiliary function \texttt{mix} that does the ac
 It rewrites constant binary operations, e.g., $\irl{{17}-1}$ to $\irl{16}$, and replaces variables that are assigned to constants with their constant, e.g., $\irl{\llet{x}{7}{x}}$ to $\irl{7}$.
 Both passes are secure with respect to \gls*{ms}.
 The proof for either is relatively simple, because both \gls*{dce} and \gls*{cf} do not change the way memory accesses happen.
-Moreover, since the input and output languages to these compilers are the same, attacker contexts do not have more power in the target language than in the source.
+Moreover, since the input and output languages to these compilers are the same, attacker contexts do not have more power in the target language than in the source, since both languages are equal.
 
 \begin{theorem}[Compiler $\ccdce$ is secure with respect to \gls*{ms}]\label{thm:ccdce:rtp:ms}
   $\rtp{\ccdce}{\mssafe}$ %\Coqed
@@ -1470,7 +1510,8 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
 \end{theorem}
 
 \subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
-%
+
+\vspace{-2em}
 \begin{center}
   \begin{align*}
     \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{ON};}\ccscct(\irl{\expr})} \\
@@ -1478,6 +1519,7 @@ With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swa
     \ccscct(\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = \lbinop[\obj]{\ccscct{\irl{\expr[_{1}]}}}{\ccscct{\irl{\expr[_{2}]}}} \\
   \end{align*}
 \end{center}
+\vspace{-2em}
 %
 Given the fact that $\Lscct$ provides a \gls*{cct}-mode that can be turned on or off, the compiler inserts wrapper code for function bodies to ensure that execution in the component always happen in this \gls*{cct}-mode.
 The context can overwrite the flag and exit the mode, but upon invoking a function that is part of the component, the flag would be set again.
@@ -1565,9 +1607,12 @@ This paper tackled the problem of understanding what kind of security properties
 For this, this paper first formalised security properties of interest and their composition.
 % 
 Then, it proved that composing secure compilers that preserve certain properties results in a secure compiler that preserves the composition of these properties.
+While the presented security property composition relied on monitors that check only trace-properties, the composition of secure compilers does not make any restriction towards the kind of property involved in the composition. 
+It is subject to future work to develop techniques to verify relational hyperproperties~\cite{abate2019jour}, while the composition of hyperproperties could be very similar to the composition of ordinary properties as presented in this paper, since hyperproperties can be checked with an automata-based model-checker~\cite{beutner23hyperltl}.
 % 
 Finally, this paper defines a multi-pass compiler and proves that it preserves \gls*{msscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
+For future work, it is interesting to look at more sophisticated optimisation passes that, e.g., reorder events that appear on traces.
 
 
 % This paper does a first step towards practical secure compilation chains by introducing a theoretical framework demonstrating that secure compilers compose.

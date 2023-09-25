@@ -143,9 +143,18 @@ Lemma rsat_trim {S I T : Language}
   induced_tau (rel1 ◘ rel2) Π = induced_tau rel2 (induced_tau rel1 Π)
 .
 Proof.
-  apply set_eq_equiv_eq; split; intros x Hx. 
-  (*should be similar to above*)
-Admitted.
+  apply set_eq_equiv_eq; split; intros πt Hx. 
+  - destruct Hx as [πs [Hs Hx]].
+    apply set_eq_equiv_eq in Hx.
+    exists (tau rel1 πs).
+    split; subst; eauto using rsat_trim'.
+    exists πs; split; trivial; apply set_eq_equiv_eq; easy.
+  - destruct Hx as [πi [[πs [Hs Hi]] Hx]].
+    exists πs; split; trivial.
+    apply set_eq_equiv_eq in Hi, Hx.
+    apply set_eq_equiv_eq; symmetry; apply set_eq_equiv_eq.
+    subst; eauto using rsat_trim'.
+Qed.
 
 Lemma belongs_to_rel_comm { S I : Language } (C1 : Class (Event S))
   (Π : Hyperproperty (Event S)) (C2 : Class (Event I))

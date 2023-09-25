@@ -178,7 +178,11 @@ Proof.
   assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
   unfold prsat__τ in H2.
   rewrite rsat_trim.
-  eapply H2. 1: (*the belongs_to_rel_comm needs more ass*) eauto using belongs_to_rel_comm.
+  eapply H2.
+  (* this is an additional assumption *)
+  eapply belongs_to_rel_comm.
+
+  1: (*the belongs_to_rel_comm needs more ass*) eauto using belongs_to_rel_comm.
   eapply H1; try exact HΠa.
   exact Hsat.
 Qed.

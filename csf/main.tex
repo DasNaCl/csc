@@ -23,6 +23,13 @@
 \usepackage{soul}
 \usepackage{bm}
 
+\hypersetup{
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
+
 \setul{0.95ex}{0.3ex}
 
 \input{cmds.tex}
@@ -57,22 +64,26 @@
 \begin{document}
 \linenumbers
 
-\title{Secure Composition of Robust and Optimising Compilers}
+\title{Secure Composition \\ of Robust and Optimising Compilers}
 
-\author{\IEEEauthorblockN{1\textsuperscript{st} Matthis Kruse\orcidlink{0000-0003-4062-9666}}
-\IEEEauthorblockA{\textit{CISPA and Saarland University} \\
-Saarbr\"ucken, Germany \\
-matthis.kruse@cispa.de}
-\and
-\IEEEauthorblockN{2\textsuperscript{nd} Michael Backes}
-\IEEEauthorblockA{\textit{CISPA} \\
-Saarbr\"ucken, Germany \\
-director@cispa.de}
-\and
-\IEEEauthorblockN{3\textsuperscript{rd} Marco Patrignani\orcidlink{0000-0003-3411-9678}}
-\IEEEauthorblockA{\textit{Trento University} \\
-Trento, Italy \\
-marco.patrignani@unitn.it}%
+% \author{
+% \IEEEauthorblockN{1\textsuperscript{st} Matthis Kruse\orcidlink{0000-0003-4062-9666}}
+% \IEEEauthorblockA{\textit{CISPA and Saarland University} \\
+% Saarbr\"ucken, Germany \\
+% matthis.kruse@cispa.de}
+% \and
+% \IEEEauthorblockN{2\textsuperscript{nd} Michael Backes}
+% \IEEEauthorblockA{\textit{CISPA} \\
+% Saarbr\"ucken, Germany \\
+% director@cispa.de}
+% \and
+% \IEEEauthorblockN{3\textsuperscript{rd} Marco Patrignani\orcidlink{0000-0003-3411-9678}}
+% \IEEEauthorblockA{\textit{Trento University} \\
+% Trento, Italy \\
+% marco.patrignani@unitn.it}%
+% }
+\author{
+	
 }
 
 \maketitle
@@ -131,7 +142,7 @@ From an engineering perspective, this is the desirable approach to building secu
 \end{abstract}
 
 \begin{IEEEkeywords}
-  memory-safety, secure compilation, privacy
+  memory-safety, cryptographic constant-time, secure compilation, robustness
 \end{IEEEkeywords}
 
 \section{Introduction\pages{4}}\label{sec:introduction}
@@ -168,7 +179,7 @@ As discussed in \Cref{ex:strncpy}, these security properties can be enforced by 
 Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}.
 % Assume that the length of the array pointed by \texttt{dst} is at least \texttt{n}, and \texttt{src} is terminated by \texttt{'\textbackslash 0'}.
 % Even under these assumptions, there is a 
-This function is subject to a subtle \gls*{sms} vulnerability: the bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{x[i]}: otherwise
+This function is subject to a subtle \gls*{sms} vulnerability: the bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{src[i]}: otherwise
 % If \texttt{n} is at least as large as the length of the array \texttt{src}, 
 the memory location past the last element will be leaked to an attacker.
 \begin{lstlisting}[language=c,basicstyle=\footnotesize\ttfamily,morekeywords={size_t}]
@@ -182,8 +193,8 @@ void strncpy(size_t n, char *dst, char *src) {
 To prevent this vulnerability, one can use a compilation pass that enforces \gls*{sms}, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}.
 The most naive solution in this case is to insert bounds-checks in front of every access to memory.
 
-Because of timing attacks, fixing \gls*{sms} is not enough to make \texttt{strncpy} secure.
-In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, thus making program execution time proportional to the length of the array pointed by \texttt{src}.
+Because of timing attacks, addressing \gls*{sms} is not enough to make \texttt{strncpy} secure.
+In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, thus making program execution time proportional to the length of the array pointed by \texttt{src}, and violating the \gls*{cct} property.
 % Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
 Also in this case there exist compiler passes that can rewrite such programs into \gls*{cct} ones~\cite{cauligi2019fact}.
  % so that they are no longer vulnerable to timing attacks.
@@ -233,7 +244,7 @@ In summary, this paper makes the following contributions:
 
   \item %
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
-        This paper takes the secure compilation framework of~\cite{abate2019jour} and extends it to reason about the security of all different known forms of compiler composition (\Cref{sec:compcomp}).
+        This paper takes the secure compilation framework of Abate et al.~\cite{abate2019jour} and extends it to reason about the security of all different known forms of compiler composition (\Cref{sec:compcomp}).
         %Concretely, it investigates upper and lower compositions, as well as the sequential composition.
         For this, this paper studies sequential compiler composition as well as compilers with multiple input languages or multiple output ones, as used in existing compilation chains.
         %
@@ -243,6 +254,10 @@ In summary, this paper makes the following contributions:
         Finally, this paper proves that the order of composition of sequential compiler passes is irrelevant for the resulting security.
         % 
         This is crucial for reordering optimisation passes and thus generating secure and efficient code.
+      	\MP{
+      		doublecheck.
+      		also, the corollary .. ?
+      	}
 
   \item %
         This paper presents a case-study showcasing the conjunction of the previous contributions (\Cref{sec:casestud:defs,sec:casestud:rtp}).
@@ -317,12 +332,12 @@ With this, \Thmref{def:propsat} can be extended as follows: for \bul{components 
   \end{nscenter}
 \end{definition}
 
-\begin{exampleenv}[Double Free in Bluetooth Subsystem]
-  Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
-  The vulnerability arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
-  Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether a pointer has been freed already:
-  Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that leads to a violation of that property when linked with \texttt{hci\_dev\_do\_open}.
-\end{exampleenv}
+% \begin{exampleenv}[Double Free in Bluetooth Subsystem]
+%   Consider \texttt{CVE-2021-3564}~\cite{doublefree-bluetooth}, one of many submissions for a double-free vulnerability.
+%   The vulnerability arises due to a race condition where the context-level function \texttt{hci\_cmd\_work} was not expected to behave maliciously, since it resides in the same source-code repository where the vulnerability occurs.
+%   Nevertheless, the component-level code of \texttt{hci\_dev\_do\_open} is linked with \texttt{hci\_cmd\_work} and does not atomically check whether a pointer has been freed already:
+%   Therefore, \texttt{hci\_dev\_do\_open} does not satisfy the no-double-frees property robustly, since there is an implementation for \texttt{hci\_cmd\_work} that leads to a violation of that property when linked with \texttt{hci\_dev\_do\_open}.
+% \end{exampleenv}
 
 \subsection{Secure Compilers}\label{subsec:bg:rtp}
 
@@ -348,6 +363,9 @@ For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of prope
 
 Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
 Because of this, this paper writes $\rtp{\cc{\src{L}}{\trg{L}}}{\pi}$, even though $\pi$ is a property and not a class.
+\MP{
+	check that we say classes are hp
+}
 
 % \begin{exampleenv}[Types]
 %   Suppose $\src{L}$ is a statically-typed language similar to \texttt{C} and $\trg{T}$ is dynamically typed, where both share the same syntax up to dynamic type checks.
@@ -376,19 +394,20 @@ Lastly, for each of the key properties, this section introduces corresponding mo
 \subsection{Specification Trace Model}\label{subsec:propdefs}
 
 \vspace{-2em}
-\begin{gather*}
+\begin{gather*}\small
   \begin{aligned}
-  \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock\hspace{0.5cm}
+  \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock
+  \qquad
   \mi{(Control\ Tag)}~\sandboxtag\bnfdef \ctx\mid\comp\\
   \mi{(Event)}~\event\bnfdef&\ \emptyevent \mid \lightning \mid \event[_{b}];\sandboxtag;\sigma \\
-  \mi{(Pre\text{-}event)}~\event[_{b}]\bnfdef&\ \ev{Alloc\ \loc\ n} \mid \ev{Dealloc\ \loc} \\
-                                             & \mid \ev{Use\ \loc\ n} \mid \ev{Branch\ n} \mid \ev{Binop\ n} \\
+  \mi{(Pre\text{-}event)}~\event[_{b}]\bnfdef&\ \ev{Alloc\ \loc\ n} \mid \ev{Dealloc\ \loc} 
+  \\
+                                             & 
+                                             \mid \ev{Use\ \loc\ n} \mid \ev{Branch\ n} \mid \ev{Binop\ n} \\
   \end{aligned}
 \end{gather*}
-
 The specification trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or as tuples consisting of a pre-event, a control-tag, and a security-tag.
-The purpose of the model is to define key security properties of interest, such as \gls*{ms} or a stricter variant of cryptographic constant time.
-To this end, security-tags indicate whether an event contains sensitive information ($\lock$) or not ($\unlock$), while control-tags state whether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
+Since the purpose of the model is to define key security properties of interest, such as \gls*{ms} or a stricter variant of cryptographic constant time, security-tags indicate whether an event contains sensitive information ($\lock$) or not ($\unlock$), while control-tags state whether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event.
 The latter is necessary to be able to ignore actions done by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls*{tms}~\cite{nagarakatte2010cets}.
 %Even though this could be used for blame~\cite{patrignani2023blame}, this is not what this paper is concerned about.
 Lastly, pre-events describe the actual kind of event that happened.
@@ -398,7 +417,10 @@ These two events alone are enough to provide a partial description of \gls*{tms}
 To be able to express \gls*{sms}, there is also an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
 Finally, for cryptographic code, there is a general guideline that secrets must not be visible on a trace.
 Moreover, an instruction whose timing is data-dependent must not have a secret as an operand.
-Typical operations with data-dependent timing are branches and certain binary operations, such as division\footnote{This is highly architecture-dependent, but division is an operation that serves as a classic example for a data-dependent timing instruction, e.g., \cite[p.~755]{arm-refman}.}.
+Typical operations with data-dependent timing are branches and certain binary operations, such as division.%
+\footnote{
+	This is architecture-dependent, but division is an operation that serves as a classic example for a data-dependent timing instruction~\cite[p.~755]{arm-refman}.
+}
 Both operations are also modelled in the specification trace model ($\ev{Branch\ n}$ and $\ev{Binop\ n}$).
 
 \subsubsection{Temporal Memory Safety}
@@ -421,9 +443,10 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 
 \subsubsection{Spatial Memory Safety}
 
-\gls*{sms} prohibits out-of-bounds accesses:
+\gls*{sms} prohibits out-of-bounds accesses.
 
 \begin{definition}[\glsfirst*{sms}]\label{def:trace:smsdef}
+\small
   $$
   \smssafe:=\left\{\trace \left|\begin{array}{rcl}
                                   \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}, \text{ then }m<n
@@ -436,7 +459,7 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 Full \gls*{ms} (similar to earlier work~\cite{nagarakatte2009soft,nagarakatte2010cets,jim2002cyclone,necula2005ccured,michael2023mswasm}) is then described as the conjunction of \Cref{def:trace:tmsdef,def:trace:smsdef}.
 %%% Catalin's paper doesn't apply, since their definition of MS relies on noninterference to guarantee data isolation.
 %%% our definition does not guarantee that (on purpose, we want to compose it with cct)
-Note, however, that this definition says nothing about memory-safety issues introduced by side-channels, such as speculation.
+Note that this definition says nothing about memory-safety issues introduced by side-channels.
 
 \begin{definition}[\glsfirst*{ms}]\label{def:trace:msdef}
   $
@@ -458,8 +481,8 @@ To sidestep this issue, this section defines the property \gls*{scct}, a stricte
   $$
 \end{definition}
 
-While \gls*{scct} may seem overly strict, since it may seem that secrets must not occur on a trace (since $\securitytag$ is forced to be $\unlock$). 
-However, programs that operate on secrets and have a ''data independent timing mode'' enabled do not leak these secrets, despite performing computation on them (see \Cref{ex:ditm}). 
+\gls*{scct} may seem overly strict, since it may seem that secrets must not occur on a trace (since $\securitytag$ is forced to be $\unlock$). 
+However, programs that operate on secrets and have a ``data independent timing mode'' enabled do not leak these secrets, despite performing computation on them (see \Cref{ex:ditm}). 
 
 \subsubsection{Memory Safe, Strict Cryptographic Constant Time}
 
@@ -467,16 +490,16 @@ The combination of \gls*{ms} and \gls*{scct} is the intersection of these proper
 %Since \gls*{ms} and \gls*{scct} are just sets of traces that, intuitively, contain all program behaviors that follow a security policy, the intersection of them contains all program behaviors that follow both security policies, i.e., it entails all program behaviours that are both \gls*{ms} and \gls*{scct}.
 
 \begin{definition}[\glsfirst*{ms} and \gls*{scct}]\label{def:trace:msscctdef}
-  $
+  $$
   \msscctsafe:=\mssafe\cap\scctsafe
-  $
+  $$
 \end{definition}
 
 %\section{Monitors and Trace Agreements\pages{1.5}}\label{subsec:monitors}
 \subsection{Monitors\pages{1.5}}\label{subsec:monitors}
 
 Monitors enforce safety properties by accepting or rejecting traces, i.e., if they reject a trace, the trace does not satisfy the property they check.
-Since reasoning on monitors is easier than directly on just traces, this section presents a monitor for each of the previously shown safety properties (\Cref{subsec:propdefs}).
+Since reasoning on monitors is easier than on just traces, this section presents a monitor for each of the previously shown safety properties (\Cref{subsec:propdefs}).
 %\MPpost{
 %	this is fine, but it'd be nice to provide more insights on why it's easier
 %}
@@ -613,6 +636,9 @@ This rejects the behavior of programs that forget to free memory.
 \end{center}
 
 The trace agreement is entirely straightforward, so only allocation, branch, and crash are shown.
+\MP{
+	we should say something .. ?
+}
 
 \begin{lemma}[Traces with Monitor Satisfaction are $\tmssafe$]\label{lem:mon:tmssafe}
   $\;\;$ If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
@@ -624,21 +650,111 @@ The trace agreement is entirely straightforward, so only allocation, branch, and
   \begin{lstlisting}[language=c++,basicstyle=\small\ttfamily,mathescape,commentstyle=\color{gray}]
 int hello() {
   char* greet = new char[12] { "Hello CSF!!" };
-  // greet address ${\color{gray}\loc_{x}}$
   char* to = new char[12];
-  // to address ${\color{gray}\loc_{y}}$
   strncpy(11, to, greetings);
   delete to;
   printf("%cSF\n", to[6]);
 }
   \end{lstlisting}
-  Up to the body of \texttt{printf}, the program execution yields the specification trace $\ev{Alloc}\ \loc[_{x}]\ 12;\comp;\unlock\cdot\ev{Alloc}\ \loc[_{y}]\ 12;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 12;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{y}];\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 6;\comp;\unlock$.
-  Relating this trace to abstract monitor events yields $\abstrace=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
-  Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), observe that it does not deallocate its arguments.
-  Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls*{tms}, since the location $\loc[_{x}]$ is still allocated.
-  However, having returned from \texttt{strncpy}, the \texttt{greet} function continues and deallocates $\loc[_{y}]$ whose subsequent use in the \texttt{printf} call is a use-after-free bug.
+    % // greet address ${\color{gray}\loc_{x}}$
+  % // to address ${\color{gray}\loc_{y}}$
+% 
+  Up to the body of \texttt{printf}, the program execution yields the specification trace 
+  	% $\ev{Alloc}\ \loc[_{x}]\ 12;\comp;\unlock\cdot\ev{Alloc}\ \loc[_{y}]\ 12;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 12;\comp;\unlock\cdot\ev{Dealloc}\ \loc[_{y}];\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 6;\comp;\unlock$
 
-  The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace $\abstrace[']=\absev{Alloc}\ \loc[_{x}]\ \comp\cdot\absev{Alloc}\ \loc[_{y}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp\cdot\ldots\cdot\absev{Use}\ \loc[_{x}]\ \comp\cdot\absev{Dealloc}\ \loc[_{x}]\ \comp\cdot\absev{Use}\ \loc[_{y}]\ \comp$.
+  	\vspace{-1em}
+  	{\small
+  	\begin{align*}
+  		&
+  		\ev{Alloc}\ \loc[_{x}]\ 12;\comp;\unlock
+  		\cdot
+  		\ev{Alloc}\ \loc[_{y}]\ 12;\comp;\unlock
+  		\cdot
+  		\ev{Use}\ \loc_{x}\ 0;\comp;\unlock
+  		\\
+  		&
+  		\cdot
+  		\ev{Use}\ \loc_{x}\ 0;\comp;\unlock
+  		\cdot
+  		\ev{Use}\ \loc_{y}\ 0;\comp;\unlock
+  		\cdot
+  		\ev{Use}\ \loc_{x}\ 1;\comp;\unlock
+  		\cdot
+  		\ldots
+  		\\
+  		&
+  		\cdot
+  		\ev{Use}\ \loc_{x}\ 12;\comp;\unlock
+  		\cdot
+  		\ev{Dealloc}\ \loc[_{y}];\comp;\unlock
+  		\cdot
+  		\ev{Use}\ \loc_{y}\ 6;\comp;\unlock
+  	\end{align*}
+  	}
+Relating this trace to abstract monitor events yields trace
+  
+  \vspace{-1em}
+  {\small
+  \begin{align*}
+   	% \abstrace=
+   	&
+   	\absev{Alloc}\ \loc[_{x}]\ \comp
+   	\cdot
+   	\absev{Alloc}\ \loc[_{y}]\ \comp
+   	\cdot
+   	\absev{Use}\ \loc[_{x}]\ \comp
+   	\\
+   	&
+   	\cdot
+   	\absev{Use}\ \loc[_{x}]\ \comp
+   	\cdot
+   	\absev{Use}\ \loc[_{y}]\ \comp
+   	\cdot
+   	\ldots
+   	\\
+   	&
+   	\cdot
+   	\absev{Use}\ \loc[_{x}]\ \comp
+   	\cdot
+   	\absev{Dealloc}\ \loc[_{y}]\ \comp
+   	\cdot
+   	\absev{Use}\ \loc[_{y}]\ \comp
+   \end{align*} 
+  	}
+  Remembering the definition of \texttt{strncpy} (\Cref{ex:strncpy}), observe that it does not deallocate its arguments.
+  Even though the trace contains an out-of-bounds access right before returning from \texttt{strncpy}, this is no concern for \gls*{tms}, since location $\loc[_{x}]$ is still allocated.
+  However, having returned from \texttt{strncpy}, the \texttt{greet} function continues and deallocates $\loc[_{y}]$ whose subsequent use in \texttt{printf} is a use-after-free bug.
+
+  The fix would be to \lstinline[language=c++,basicstyle=\small\ttfamily]|delete greetings| instead of \texttt{to} and add a \lstinline[language=c++,basicstyle=\small\ttfamily]|delete to| after the \texttt{printf} call, which leads to the abstract monitor trace 
+  
+\vspace{-1em}
+  {\small
+  \begin{align*}
+  	\abstrace[']=
+  	&
+  	\absev{Alloc}\ \loc[_{x}]\ \comp
+  	\cdot
+  	\absev{Alloc}\ \loc[_{y}]\ \comp
+  	\cdot
+  	\absev{Use}\ \loc[_{x}]\ \comp
+  	\\
+  	&
+  	\cdot
+  	\absev{Use}\ \loc[_{x}]\ \comp
+  	\cdot
+  	\absev{Use}\ \loc[_{y}]\ \comp
+  	\cdot
+  	\ldots
+  	\cdot
+  	\\
+  	&
+  	\absev{Use}\ \loc[_{x}]\ \comp
+  	\cdot
+  	\absev{Dealloc}\ \loc[_{x}]\ \comp
+  	\cdot
+  	\absev{Use}\ \loc[_{y}]\ \comp	
+  \end{align*}
+  }
   It follows that $\montmssafe{\abstrace[']}$ and from \Thmref{lem:mon:tmssafe}, it follows that the program satisfies \Thmref{def:trace:tmsdef}, even though the program still violates \gls*{sms}.
 \end{exampleenv}
 
@@ -737,17 +853,71 @@ The trace agreement is entirely straightforward and similar to the one for \gls*
   Consider the insecure \texttt{strncpy} function from \Cref{ex:strncpy} with a context \texttt{strncpy(2, x, y)}, where \texttt{x} and \texttt{y} are pointers to valid regions of memory with allocated space for exactly two cells and do not contain the null-terminating character \texttt{'\textbackslash 0'}.
   For the sake of this example, the pointers have been allocated by the component and passed to the context.
   The loop of \texttt{strncpy} will copy exactly two cells and then check the loop condition for the last time.
-  At that stage, the induction variable \texttt{i} is equal to \texttt{2} and, unfortunately, the order of checks is such that first the cell \texttt{x[i]} is read prior to bounds checking \texttt{i < n}.
-  Because of this, there is an out-of-bounds memory access right before exiting the function.
-  This is also visible on the trace, which can be sketched as $\ldots\cdot\ev{Alloc}\ \loc_{x}\ 2;\comp;\unlock\cdot\ldots\cdot\ev{Alloc}\ \loc_{y}\ 2;\comp;\unlock\cdot\ldots\cdot\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 1;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 1;\comp;\unlock\cdot\ev{Use}\ \loc_{x}\ 2;\comp;\unlock\cdot\ldots$, where $\loc_{x}$ and $\loc_{y}$ are the memory addresses associated to \texttt{x} and \texttt{y}, respectively.
-  Omitting the events for all ,,$\ldots$'' for sake of brevity, the abstract monitor trace of this is $\absev{Alloc}\ \loc_{x}\ \comp\ 2\cdot\absev{Alloc}\ \loc_{y}\ \comp\ 2\cdot\absev{Use}\ \loc_{x}\ \comp\ 0\cdot\absev{Use}\ \loc_{y}\ \comp\ 0\cdot\absev{Use}\ \loc_{x}\ \comp\ 1\cdot\absev{Use}\ \loc_{y}\ \comp\ 1\cdot\absev{Use}\ \loc_{x}\ \comp\ 2$.
+  At that stage, variable \texttt{i} is equal to \texttt{2} and, unfortunately, the order of checks is such that first the cell \texttt{x[i]} is read prior to bounds checking \texttt{i < n}, so there is an out-of-bounds memory access right before exiting the function.
+  This is also visible on the trace, which can be sketched as 
+  	
+  	{\small
+  	\begin{align*}
+  	&
+  		\ldots
+  		\cdot
+  		\ev{Alloc}\ \loc_{x}\ 2;\comp;\unlock
+  		\cdot
+  		\ldots
+  		\cdot
+  		\ev{Alloc}\ \loc_{y}\ 2;\comp;\unlock
+  		\cdot
+  		\ldots
+  		\cdot
+  	\\
+  	&
+  		\ev{Use}\ \loc_{x}\ 0;\comp;\unlock
+  		\cdot
+  		\ev{Use}\ \loc_{y}\ 0;\comp;\unlock
+  		\cdot
+  		\ev{Use}\ \loc_{x}\ 1;\comp;\unlock
+  	\\
+  	&
+  		\cdot
+  		\ev{Use}\ \loc_{y}\ 1;\comp;\unlock
+  		\cdot
+  		\ev{Use}\ \loc_{x}\ 2;\comp;\unlock
+  		\cdot
+  		\ldots	
+  	\end{align*}
+  	}
+
+\noindent
+where $\loc_{x}$ and $\loc_{y}$ are the memory addresses associated to \texttt{x} and \texttt{y}, respectively.
+  Omitting the events for all ,,$\ldots$'' for sake of brevity, the abstract monitor trace of this is 
+  	
+  	{\small
+  	\begin{align*}
+  		&
+  		\absev{Alloc}\ \loc_{x}\ \comp\ 2
+  		\cdot
+  		\absev{Alloc}\ \loc_{y}\ \comp\ 2
+  		\cdot
+  		\absev{Use}\ \loc_{x}\ \comp\ 0
+  		\\
+  		&
+  		\cdot
+  		\absev{Use}\ \loc_{y}\ \comp\ 0
+  		\cdot
+  		\absev{Use}\ \loc_{x}\ \comp\ 1
+  		\cdot
+  		\absev{Use}\ \loc_{y}\ \comp\ 1
+  		\cdot
+  		\absev{Use}\ \loc_{x}\ \comp\ 2
+  	\end{align*}
+  	}
 
   After the allocation events, the state of the monitor is $\left\{(\loc_{x};\comp;2),(\loc_{y};\comp;2)\right\}$.
   All uses up to the last are accepted by the monitor, but the last event does not satisfy the premise $2<2$ in \Cref{tr:sms-use}.
   Therefore, the whole program (\texttt{strncpy} linked with this kind of context) is not \gls*{sms}.
 \end{exampleenv}
 
-\subsubsection{Combining \glsfirst*{tms} and \glsfirst*{sms} Monitors to obtain \glsfirst*{ms}}\label{subsubsec:ms}
+\subsubsection{Combining \glsfirst*{tms} and \glsfirst*{sms} Monitors into \glsfirst*{ms}}\label{subsubsec:ms}
 
 \begin{center}
   \judgbox{\monitorcheck[]{\msmonitor}{\msmonitor[']}{\absevent}}{,,Monitor $\msmonitor$ does one step to $\msmonitor[']$\\given event $\absevent$.''}$\;$\\
@@ -779,9 +949,13 @@ Note that monitors only apply to trace-properties, but not, e.g., relational hyp
 
 \subsubsection{Monitor for \glsfirst*{scct}}
 \begin{gather*}
+% \small
   \begin{aligned}
-    \mi{(Abstract\ Store)}~\scctmonitor:=&\ \emptyset \\
-    \mi{(Abstract\ Events)}~\absevent:=&\ \absev{\varepsilon} \mid \absterm \mid \absev{Leak} \\
+    \mi{(Abstract\ Store)}~\scctmonitor:=&\ \emptyset 
+    % &
+    \\
+    \mi{(Abstract\ Events)}~\absevent:=&\ \absev{\varepsilon} \mid \absterm \mid \absev{Leak} 
+    % \\
   \end{aligned}
 \end{gather*}
 \begin{center}
@@ -830,7 +1004,14 @@ Accordingly, the event agreement simply disregards all events that involved publ
 
 \begin{exampleenv}[Data-independent timing mode]\label{ex:ditm}
   Consider the call \texttt{strncpy(1,x,y)} to the \texttt{strncpy} function (\Cref{ex:strncpy}) with low ($\unlock$) security for \texttt{x} and high security ($\lock$) for \texttt{y}.
-  The trace of just the copying part inside of \texttt{strncpy} looks like $\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
+  The trace for the copying part of \texttt{strncpy} is: 
+
+\vspace{-1em}
+  {\small
+  \begin{align*}
+  	\ev{Use}\ \loc_{x}\ 0;\comp;\unlock\cdot\ev{Use}\ \loc_{y}\ 0;\comp;\lock	
+  \end{align*}
+  }
   In terms of the abstract monitor trace, this is just $\absev{Leak}$.
   Running this on the monitor would result in getting stuck, since there is no matching rule to step in the presence of $\absev{Leak}$ event. % pun intended
   By means of additional features to ensure cryptographic constant time even in the presence of memory reads and loads, such as a flag to enable a data independent timing mode, which is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors, the original trace now does $\ev{Use}\ \loc_{y}\ 0;\comp;\unlock$ instead of $\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
@@ -850,12 +1031,14 @@ The construction is entirely similar to the one for \gls*{ms} (\Cref{subsubsec:m
 
 This section presents the key meta-theoretic results of this paper concerning secure compiler compositions (\Cref{sec:sequential,sec:other-compos}).
 Note that the presented framework works with arbitrary classes.
+\MP{check, we ened more than this}
 % and builds on prior work~\cite{kruse2022csc}\MK{mention this at all? may reveal identity even though its double-blind}. % MP: not needed at all, ever, workshop work does not need to be cited in the main work
 
 \subsection{Secure Sequential Composition}\label{sec:sequential}
 
 The main result is that secure compilers in the robust compilation framework~\cite{abate2019jour} compose {\em sequentially}.
 This is not intuitive in the sense that in the security domain, composition does not work without additional generalizations~\cite{canetti2006univcomp,mccullough2012compo,fabian2022automatic}.
+\MP{what deos this mean?}
 The \bul{sequential composition of compilers $\cc{\src{L}}{\trg{L}}$ and $\cc{\trg{L}}{\obj{L}}$} is defined as follows:
 Given an $\src{L}$ program $\src{p}$ and compilers $\cc{\src{L}}{\trg{L}},\cc{\trg{L}}{\obj{L}}$, \rul{its compiled $\obj{L}$ counterpart is obtained by plugging $\src{p}$ into $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$}.
 \begin{definition}
@@ -875,6 +1058,7 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 
 Since the composition of secure compilers is again a secure compiler, the theorem generalises to a whole chain of $n$ secure compilers.
 
+\MP{move this}
 Note that the theorem may not be applicable in certain cases.
 For example, consider $\rtp{\cc{\src{L}}{\trg{L}}}{\tmssafe}$ and $\rtp{\cc{\trg{L}}{\obj{L}}}{\smssafe}$, where $\cc{\trg{L}}{\obj{L}}$ introduces code that allocates a table that stores bounds information of pointers, but fails to insert code that deallocates this table.
 By \Cref{def:trace:tmsdef}, this violates $\tmssafe$.
@@ -926,6 +1110,12 @@ This {\em phase ordering problem} is well--known in literature and a practical s
 Compiler engineers typically try to find an order of optimisations that yields well-optimised programs for either code size~\cite{cooper1999geneticphases} or performance~\cite{kulkarni2006exhaustivephase}.
 \Cref{corr:swappable} justifies that any such order of compilation passes is valid with respect to security.
 So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
+% 
+\MP{
+	later on, say that optimisation passes remove elements from traces, so they should be fine with respect to the result with $\tau$.
+	also, yes, if $\tau$ adds we have a problem, if it removes we don't
+}
+
 
 \begin{corollary}[Sequential Composition of Secure Compilers]\label{corr:swappable}
   If \bul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}\circ\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}\circ\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{2}]\cap\class[_{1}]}$}. \Coqed
@@ -999,6 +1189,7 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 \subsection{Applicability of the Compositionality Framework}
 
 It is worth emphasizing that the framework is general: It supports both ordinary trace properties as well as hyperproperties or even relational hyperproperties~\cite{abate2019jour}.
+\MP{pull this out to earlier}
 Moreover, while this paper assumes a unified trace-model, it is merely a technical exercise to allow for different trace-models between programming languages~\cite{abate2021extacc}.
 
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}

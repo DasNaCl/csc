@@ -1,5 +1,9 @@
 Require Import Coq.Logic.FunctionalExtensionality.
 
+(** Emptyset *)
+Definition emptyset {A : Type} := fun (_ : A) => False.
+Notation "∅" := emptyset.
+
 (** Set operations *)
 Definition subsets {A : Type} (set1 set2 : A -> Prop) : Prop :=
   forall (a : A), set1 a -> set2 a
@@ -100,6 +104,19 @@ Definition induced_tau {S T : Language} (rel : Trace (Event S) -> Trace (Event T
   fun (πt : Property (Event T)) =>
     exists (πs : Property (Event S)), Π πs /\ set_eq πt (tau rel πs)
 .
+Notation "'τ'" := tau.
+Notation "'τ~'" := induced_tau.
+(** Universal image *)
+Definition sigma {S T : Language} (rel : Trace (Event S) -> Trace (Event T) -> Prop) (π : Property (Event T)) : Property (Event S) :=
+  fun (s : Trace (Event S)) =>
+    forall (t : Trace (Event T)), rel s t -> π t
+.
+Definition induced_sigma {S T : Language} (rel : Trace (Event S) -> Trace (Event T) -> Prop) (Π : Hyperproperty (Event T)) : Hyperproperty (Event S) :=
+  fun (πs : Property (Event S)) =>
+    forall (πt : Property (Event T)), Π πt -> set_eq πs (sigma rel πt)
+.
+Notation "'σ'" := sigma.
+Notation "'σ~'" := induced_sigma.
 (** Compilers *)
 Definition Compiler (S T : Language) := Partials S -> Partials T.
 
@@ -184,3 +201,36 @@ Proof.
   exact Hsat.
 Qed.
 
+Definition wf' {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (Π : Hyperproperty (Event S)) :=
+    forall (π : Property (Event S)),
+      Π π ->
+      (induced_tau rel Π) (tau rel π)
+.
+Definition nwf' {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (Π : Hyperproperty (Event S)) :=
+    exists (π : Property (Event S)),
+      Π π /\
+      ~(induced_tau rel Π) (tau rel π)
+.
+
+Theorem empty_compo {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
+  (C1 C2 : Class (Event S))
+  (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
+  (H__wf : wf' rel1 C1)
+  (H__nwf : nwf' rel2 (induced_tau rel1 C1))
+  :
+    induced_tau (rel1 ◘ rel2) (C1 ∩ C2) = ∅
+.
+Proof.
+  apply set_eq_equiv_eq; split; intros πt Ht; try easy; cbv.
+  destruct Ht as [πs [Hs Hx]]; apply set_eq_equiv_eq in Hx; subst.
+  destruct Hs as [Hs1 Hs2].
+  specialize (H__wf πs Hs1).
+  destruct H__wf as [πs' [Hs' Hx]]; apply set_eq_equiv_eq in Hx; subst.
+  destruct H__nwf as [πi [Hi Hx']]; apply Hx'; clear Hx'.
+  exists πi; split; trivial. apply set_eq_equiv_eq; reflexivity.
+Qed.

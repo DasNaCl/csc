@@ -156,19 +156,20 @@ Proof.
     subst; eauto using rsat_trim'.
 Qed.
 
-Lemma belongs_to_rel_comm { S I : Language } (C1 : Class (Event S))
-  (Π : Hyperproperty (Event S)) (C2 : Class (Event I))
-  (rel : Trace (Event S) -> Trace (Event I) -> Prop) :
-  belongs_to (Event S) Π C1 ->
-  belongs_to (Event I) (induced_tau rel Π) C2
+Definition wf {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (C : Class (Event S)) :=
+    forall (Π : Hyperproperty (Event S)),
+      belongs_to (Event S) Π C ->
+      belongs_to (Event I) (induced_tau rel Π) (induced_tau rel C)
 .
-Proof.
-Admitted.
+Notation "'[' '|-wf' rel ':' C ']'" := (wf rel C) (at level 81, rel at next level, C at next level).
 
 Theorem seqcompo {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
   (C1 C2 : Class (Event S))
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
-  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
+  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
+  (H__wf : [ |-wf rel1 : C2 ]) : 
     [pres|- cc1 : rel1, C1] ->
     [pres|- cc2 : rel2, induced_tau rel1 C2] ->
     [pres|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
@@ -178,81 +179,8 @@ Proof.
   assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
   unfold prsat__τ in H2.
   rewrite rsat_trim.
-  eapply H2.
-  (* this is an additional assumption *)
-  eapply belongs_to_rel_comm.
-
-  1: (*the belongs_to_rel_comm needs more ass*) eauto using belongs_to_rel_comm.
+  eapply H2; try now eapply H__wf.
   eapply H1; try exact HΠa.
   exact Hsat.
 Qed.
 
-(** I think up to here everything is ok, there are axioms besides the one of Coq. *)
-(** So, the above theorem definitely holds. *)
-
-
-(** But now, suppose we have two classes of properties, one that describes TMS behavior and the other describing SMS behavior. *)
-Axiom (TMS SMS : Class).
-Definition MS : Class := TMS ∩ SMS.
-
-(** Likewise, say we have compilers that preserve robust satisfaction of behavior from these casses. *)
-Axiom (S I T : Language).
-Axiom (cc__TMS : Compiler S I) (cc__SMS : Compiler I T).
-Axiom prsat_cc__TMS : [pres|- cc__TMS : TMS].
-Axiom prsat_cc__SMS : [pres|- cc__SMS : SMS].
-
-(** Furthermore, now suppose we have an S program that is robustly MS *)
-Axiom robust_MS : forall (Π : Hyperproperty),
-  belongs_to Π MS ->
-  exists (p : Partials S), rsat p Π
-.
-
-(** What if cc__SMS has a table and forgets to allocate this?
-    -> all components resulting from cc__SMS violate TMS! *)
-Axiom cc__SMS_not_TMS : forall (Π : Hyperproperty) (p : Partials I),
-  belongs_to Π TMS -> ~(rsat (cc__SMS p) Π)
-.
-
-(* Classical Lemma for pushing negation into quantifiers *)
-Require Import Classical.
-
-Definition XM := classic.
-Definition DN := NNPP.
-
-Lemma rw_not_forall {A : Type} (P : A -> Prop) :
-  (~ forall (x : A), P x) <-> (exists x, ~ P x).
-Proof.
-  split.
-  - apply (not_all_ex_not A P).
-  - apply (ex_not_not_all A P).
-Qed.
-
-(** But assuming this exists is somehow invalid (??) *)
-(** I guess the question really is whether this table-driven SMS
-    compiler can actually be proven to be prsat SMS *)
-Goal False.
-Proof.
-  (** Pick any hyperproperty from the class *)
-  destruct (always_belongs_to MS) as [Π HΠ];
-  assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠ__TMS HΠ__SMS].
-
-  (** Assume a source-level execution exists that is MS. *)
-  destruct (robust_MS Π HΠ) as [p Hrsat].
-  (** Assume that no component that is the output of cc__SMS can give us a behavior from MS. *)
-  specialize (cc__SMS_not_TMS Π (cc__TMS p) HΠ__TMS); intros H.
-
-  (** Just push the negation inwards. *)
-  unfold rsat in H; rewrite rw_not_forall in H; destruct H as [Ct H].
-
-  (** Use the sequential composition lemma to obtain a secure MS compiler *)
-  specialize (seqcompo cc__TMS cc__SMS TMS SMS prsat_cc__TMS prsat_cc__SMS); intros Hprsat.
-
-  (** Now just compile the S component p and use the fact that the obtained
-      compiler is prsat MS, thus obtaining that the compiled program is also 
-     robustly satisfying a subset of MS properties. *)
-  apply Hprsat in Hrsat; try exact HΠ.
-
-  (** Finally, just provide the target context at hand, obtaining a contradiction *)
-  specialize (Hrsat Ct).
-  contradiction.
-Qed.

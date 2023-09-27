@@ -251,13 +251,11 @@ In summary, this paper makes the following contributions:
         This paper proves that starting from two compilers that preserve two (possibly distinct) properties, their composition preserves the intersection of those properties.
         % For example, a compiler that is secure with respect to \gls*{tms} can be composed with a compiler that is secure with respect to \gls*{sms}, resulting in a compiler that is secure with respect to \gls*{ms}.
         % 
-        Finally, this paper proves that the order of composition of sequential compiler passes is irrelevant for the resulting security.
+        From this, the paper proves that the order of composition of sequential compiler passes is irrelevant for the resulting security.
         % 
-        This is crucial for reordering optimisation passes and thus generating secure and efficient code.
-      	\MP{
-      		doublecheck.
-      		also, the corollary .. ?
-      	}
+        This is crucial for reordering individual optimisation passes and thus generating secure and efficient code.
+        %
+        Finally, this paper extends parts of the compositionality framework to support different trace-models between compilation passes.
 
   \item %
         This paper presents a case-study showcasing the conjunction of the previous contributions (\Cref{sec:casestud:defs,sec:casestud:rtp}).
@@ -1117,9 +1115,13 @@ Compiler engineers typically try to find an order of optimisations that yields w
 \Cref{corr:swappable} justifies that any such order of compilation passes is valid with respect to security.
 So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
 % 
-\MP{
+\MPin{
 	later on, say that optimisation passes remove elements from traces, so they should be fine with respect to the result with $\tau$.
 	also, yes, if $\tau$ adds we have a problem, if it removes we don't
+\MKin{ Optimisations that remove elements from traces are not necessarily sound,
+ e.g., remove all deallocations to "optimise" memory management by offloading
+ the work to the OS.
+}
 }
 
 
@@ -1302,29 +1304,12 @@ In spirit of this, all languages besides $\Lscct$ are trivially \gls*{scct}.
 $\Lscct$ (\Cref{subsec:lscct}) programs have access to a ``\gls*{cct}-mode'' and can change the leakage of emitted events according to the value of this mode (either $\obj{ON}$ or $\obj{OFF}$).
 
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
-\MPin{
-	note to fix as agreed upon
-	+ red syntax
-	+ green syntax
-}
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Expressions)}~&\expr\bnfdef\ x \mid \valueexpr \mid \lbinop{\expr[_{1}]}{\expr[_{2}]} \mid \lget{x}{\expr}\\
-                       &\mid \llet{x}{\lnew{\expr[_{1}]}{\expr[_{2}]}}{\expr[_{3}]} \mid \ldelete{x}\\
-                       &\mid \lset{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lpair{\expr[_{1}]}{\expr[_{2}]} \mid \lproja{\expr} \mid \lprojb{\expr}\\
-                       &\mid \llet{x}{\expr[_{1}]}{\expr[_{2}]} \mid \lreturn{\expr} \mid \lcall{g}{\expr}\\
-                       &\mid \lifz{\expr}{\expr[_{1}]}{\expr[_{2}]} \mid \labort
-  \end{aligned}
-  \\
-  \begin{aligned}
-  \mi{(Functions)}~\function\bnfdef&\ \lfunction{\textit{foo}}{x}{e}
-  \end{aligned}
-  \\
-  \begin{aligned}
-  \mi{(Libraries)}~\library\bnfdef&\ \hole{\cdot} \mid \function,\library\hspace{0.5cm}
-  \mi{(Programs)}~\prog{\library_{\ctx}}{\library_{\comp}}
-  \end{aligned}
-\end{gather*}
+
+All presented programming languages share a common fragment. 
+Programs ($\prog{\library_{\ctx}}{\library_{\comp}}$) consist of libraries ($\library$), which are lists of functions ($\function$).
+Functions ($\lfunction{\textit{foo}}{x}{\expr}$) have a single argument $x$ and an expression ($\expr$) as a body which may have $x$ as a free variable.
+Expressions can be variables ($x$), values ($\valueexpr$), binary operations ($\lbinop{\expr[_1]}{\expr[_2]}$), reading from ($\lget{x}{\expr}$) and writing to ($\lset{x}{\expr[_1]}{\expr[_2]}$) memory, memory allocation ($\llet{x}{\lnew{\expr[_1]}{\expr[_2]}}{\expr[_3]}$) as well as deallocation ($\ldelete{x}$), let expressions ($\llet{x}{\expr[_1]}{\expr[_2]}$), pairs ($\lpair{\expr[_1]}{\expr[_2]}$), their first ($\lproja{\expr}$) and second projection ($\lprojb{\expr}$), conditionals ($\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}$), function calls ($\lcall{\texttt{foo}}{\expr}$), returns ($\lreturn{\expr}$), and an aborting expression ($\labort$).
+
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
@@ -1369,20 +1354,15 @@ Crucially, the projection filters irrelevant actions such as context-made ones (
 % \MP{rewrite these lines}
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls*{tms}]\label{thm:wt:tms}
+  $\;$
+  \begin{nscenter}
   For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
+  \end{nscenter}
 \end{theorem}
 
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
-\vspace{-2em}
-\begin{center}
-  \begin{align*}
-    \mi{(Expressions)}~\trg{\expr}\bnfdef& \cdots \mid \trg{\lispoisoned{x}} \mid \trg{\lhast{\expr}{\type}} \\
-  \end{align*}
-\end{center}
-\vspace{-2em}
-
-$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks $\trg{\lhast{\expr}{\type}}$ and a way to inspect poison tags $\trg{\lispoisoned{x}}$ in the metadata of pointers.
+$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$) and a way to inspect poison tags ($\trg{\lispoisoned{x}}$) in the metadata of pointers.
 For valid pointers ($\trg{\poisonless}$) bound to variable $\trg{x}$, the check $\trg{\lispoisoned{x}}$ yields $\trg{1}$.
 If the array bound to $\trg{x}$ was deallocated, i.e., has been poisoned ($\trg{\poisoned}$), the check $\trg{\lispoisoned{x}}$ evaluates to $\trg{0}$.
 
@@ -1396,39 +1376,13 @@ $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to signify tha
 
 \subsection{$\Lscct$: A Memory-Unsafe Language with a Data Independent Timing Mode}\label{subsec:lscct}
 
-\vspace{-1em}
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Expressions)}~\obj{\expr}\bnfdef&\ \obj{n^{\securitytag}} \mid \cdots \mid \obj{\llet{x^{\securitytag}}{\expr[_{1}]}{\expr[_{2}]}} \mid \cdots\\&\mid \obj{\lwrdoit{D}} \mid \obj{\lrddoit{x}{\expr}}
-  \end{aligned} 
-  \\
-  \begin{aligned}
-    \mi{(States)}~\obj{\statevar}&\bnfdef \obj{\tup{\cfstate}{\sandboxtag,D,\memstate}}
-     &
-    \mi{(DIT\ Flag)}~\obj{D}&\bnfdef \obj{ON} \mid \obj{OFF}
-  \end{aligned}
-\end{gather*}
-
-$\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to write to a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
-To this end, states are extended with the value of the register, which is initially set to be not active.
-If the register is marked active, the intuition is that no secrets can appear on specification traces.
+$\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to read from ($\obj{\lrddoit{x}{\expr}}$) and to write to ($\obj{\lwrdoit{D}}$) a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
+To this end, states are extended with the value of the register ($\obj{D}$), which is initially set to be not active ($\obj{OFF}$).
+If the register is marked active ($\obj{ON}$), the intuition is that no secrets can appear on specification traces.
 If the register is marked inactive, secrets may appear on traces.
 For the other languages seen earlier, the mode is intuitively always-on, i.e., the mode of execution always uses data independent timing.
 The language also adds user-annotations to values and variables to know their secrecy $\obj{\securitytag}$, which is either high $\obj{\lock}$ or low $\obj{\unlock}$.
 Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
-
-\vspace{-1em}
-% \begin{center}
-{\small
-  \begin{align*}
-    \mi{(Pre\text{-}Events)}~\obj{\event[_{b}]}\bnfdef&\ \cdots \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr[']}
-    % \\
-                                                      % &
-                                                      \mid \obj{Branch\ n} \mid \obj{Binop\ n}
-  \end{align*}
-% \end{center}
-}
-
 To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends pre-events with $\obj{\widehat{Get}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$.
 These indicate reads from and writes to memory without leaking secret information involved in the access.
 Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.

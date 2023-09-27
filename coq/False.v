@@ -212,7 +212,7 @@ Proof.
   intros H πs Hπs; exists πs; split; trivial;
   apply set_eq_equiv_eq; reflexivity.
 Qed.
-Lemma wf_equiv_gwf {S I : Language}
+Corollary wf_equiv_gwf {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (C : Hyperproperty (Event S)) :
   (|-gwf rel : C) <->
@@ -248,21 +248,40 @@ Definition nwf {S I : Language}
 .
 Notation "'¬|-wf' rel ':' Π" := (nwf rel Π) (at level 81, rel at next level, Π at next level).
 
-Theorem empty_compo {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
-  (C1 C2 : Class (Event S))
+Theorem empty_compo {S I T : Language} 
+  (C : Class (Event S))
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
-  (H__wf : |-wf rel1 : C1)
-  (H__nwf : ¬|-wf rel2 : τ~ rel1 C1)
+  (H__wf : |-wf rel1 : C)
+  (H__nwf : ¬|-wf rel2 : τ~ rel1 C)
   :
-    τ~ (rel1 ◘ rel2) (C1 ∩ C2) = ∅
+    τ~ (rel1 ◘ rel2) C = ∅
 .
 Proof.
   apply set_eq_equiv_eq; split; intros πt Ht; try easy; cbv.
   destruct Ht as [πs [Hs Hx]]; apply set_eq_equiv_eq in Hx; subst.
-  destruct Hs as [Hs1 Hs2].
-  specialize (H__wf πs Hs1).
+  specialize (H__wf πs Hs).
   destruct H__wf as [πs' [Hs' Hx]]; apply set_eq_equiv_eq in Hx; subst.
   destruct H__nwf as [πi [Hi Hx']]; apply Hx'; clear Hx'.
   exists πi; split; trivial. apply set_eq_equiv_eq; reflexivity.
+Qed.
+
+
+Corollary swappable {I : Language} (cc1 cc2 : Compiler I I)
+  (C1 C2 : Class (Event I))
+  (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
+    (|-wf rel2 : C1) ->
+    (|-wf rel1 : C2) ->
+    [pres|- cc1 : rel1, τ~ rel2 C1] ->
+    [pres|- cc2 : rel2, C2] ->
+    [pres|- cc1 : rel1, C1] ->
+    [pres|- cc2 : rel2, τ~ rel1 C2] ->
+    [pres|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+ /\ [pres|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
+.
+Proof.
+  split; intros.
+  - apply seqcompo; auto.
+  - apply seqcompo; auto.
 Qed.

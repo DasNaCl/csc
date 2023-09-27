@@ -956,8 +956,6 @@ The combined monitor runs the one for \gls*{tms} and the one for \gls*{sms} in a
 \end{lemma}
 
 Any technique to combine existing monitors $T_A$, $T_B$ (that check for properties $A$ and $B$) into one $T_{AB}$ (that checks for both $A$ and $B$) is sufficient for the sake of the analysis of this paper.
-Note that monitors only apply to trace-properties, but not, e.g., relational hyperproperties~\cite{abate2019jour}.
-\MP{what}
 
 \subsubsection{Monitor for \glsfirst*{scct}}
 \begin{gather*}
@@ -1196,15 +1194,95 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 
 \subsection{Applicability of the Compositionality Framework}
 
-Moreover, while this paper assumes a unified trace-model, it is merely a technical exercise to allow for different trace-models between programming languages~\cite{abate2021extacc}.
-
-\MP{moved this}
-Note that the theorem may not be applicable in certain cases.
+So far, this paper assumes a unified trace-model and secure compilers that do not change the behavior.
+It is worth noting that in this setting, the theorem may not be applicable.
 For example, consider $\rtp{\cc{\src{L}}{\trg{L}}}{\tmssafe}$ and $\rtp{\cc{\trg{L}}{\obj{L}}}{\smssafe}$, where $\cc{\trg{L}}{\obj{L}}$ introduces code that allocates a table that stores bounds information of pointers, but fails to insert code that deallocates this table.
-By \Cref{def:trace:tmsdef}, this violates $\tmssafe$.
+By \Thmref{def:trace:tmsdef}, this violates $\tmssafe$.
 Therefore, no behavior resulting from programs produced by the $\cc{\trg{L}}{\obj{L}}$ compiler is secure with respect to $\tmssafe$, but only for $\smssafe$.
-This, however, is a requirement of the preservation statement (the property of interest must be in $\class[_1]\cap\class[_2]$).
+$\cc{\trg{L}}{\obj{L}}$ modifies the behavior and because of this, the theorem is inapplicable.
 
+This section re-introduces secure compiler composition without this limitation. 
+To this end, it utilises existing work on secure compilation~\cite{abate2021extacc} that defines Galois connections for several real-world compiler scenarios, such as a compilation pass that exploits undefined behavior.
+This section is concerned about source-level properties, and henceforth uses the existential image of a source-level property $\src{\pi}$ to map $\src{\pi}$ to a target-level property:
+
+\begin{definition}[Existential Image of Properties]\label{def:eximg:prop}
+  Given a cross-language trace relation $\sim$,
+  $$
+  \tau_\sim(\src{\pi}) \isdef \left\{
+    \trg{\trace} \mid \exists\src{\trace}.\src{\trace}\sim\trg{\trace} \text{ and }
+    \src{\trace}\in\src{\pi}
+  \right\}
+  $$
+\end{definition}
+
+\Thmref{def:eximg:prop} can be lifted to hyperproperties/classes as follows:
+\begin{definition}[Existential Image of Hyperproperties]\label{def:eximg:hprop}
+  Given a cross-language trace relation $\sim$,
+  $$
+  \tilde{\tau}_\sim(\src{\Pi}) \isdef \left\{
+    \trg{\pi} \mid \exists\src{\pi}.\src{\pi}\in\src{\Pi} \text{ and }
+    \trg{\pi}=\tau_\sim\left(\src{\pi}\right)
+  \right\}
+  $$
+\end{definition}
+
+\bul{A cross-language relation $\sim$ is well-formed with respect to $\src{\Pi}$} iff \rul{the existential images preserve membership}.
+\begin{definition}[Well-formedness of Cross-Language Trace Relations for a Concrete Property $\src{\Pi}$]\label{def:wf:tracerel}
+  $$
+  \text{\bul{$\wf{\sim}{\src{\Pi}}$}} \isdef \text{\rul{$\forall \src{\pi}\in\src{\Pi}, \tau_\sim(\src{\pi})\in\tilde{\tau}_\sim(\src{\Pi})$}}
+  $$
+\end{definition}
+\begin{definition}[Well-formedness of Cross-Language Trace Relations for a Class $\src{\class}$]\label{def:wfc:tracerel}
+  $$
+  \wfc{\sim}{\src{\class}} \isdef \forall \src{\Pi}\subseteq\src{\class}, \tau_\sim(\src{\Pi})\subseteq\tilde{\tau}_\sim(\src{\class})
+  $$
+\end{definition}
+\begin{lemma}[Well-Formedness Equivalence for Classes]\label{lem:wf:equiv:wfc}
+  $\;\;$
+  $ \wf{\sim}{\src{\class}} \Leftrightarrow\ \wfc{\sim}{\src{\class}} $\Coqed
+\end{lemma}
+
+\Thmref{def:rtp} needs to be adapted to account for different target-level trace-models:
+
+\begin{definition}[Robust Compilation with $\sim$]\label{def:rtpsim}
+  $$\rtpsim{\cc{\src{L}}{\trg{L}}}{\src{\class}}{\sim} \isdef
+  \forall \src{\pi} \src{p}.
+    \text{if }\rsat{\src{\progvar}}{\src{\pi}},
+    \text{then }\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\tilde{\tau}_\sim\left(\src{\pi}\right)}.
+  $$
+\end{definition}
+
+To state a similar theorem as \Thmref{thm:rtp} but for \Cref{def:rtpsim}, it is necessary to define composition of cross-language trace relations:
+\begin{definition}[Composing Cross-Language Trace Relations]
+  Given $\sim_1 : \src{\trace}\to\irl{\trace}\to\text{Prop},\sim_2 : \irl{\trace}\to\trg{\trace}\to\text{Prop}$, then 
+  $$  
+  \sim_1\bullet\sim_2\ \isdef \lambda \src{\trace}\ \trg{\trace}. \exists \irl{\trace}. \src{\trace}\sim_1\irl{\trace} \text{ and } \irl{\trace}\sim_2\trg{\trace}
+  $$
+\end{definition}
+
+\begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtpsim}
+  If $\rtpsim{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}{\sim_1}$, $\rtpsim{\cc{\trg{L}}{\obj{L}}}{\tilde{\tau}_{\sim_1}\left(\class[_{2}]\right)}{\sim_2}$, and $\wf{\sim_1}{\class[_2]}$, then $\rtpsim{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}{\sim_1\bullet\sim_2}$. \Coqed
+\end{theorem}
+
+Reconsidering the example from the beginning of the section, suppose $\sim_{{\smssafe}}$ is a suitable trace relation such that $\trg{\trace}\sim_{{\smssafe}}\irl{\trace}$ establishes the fact that $\irl{\trace}$ contains an allocation of a table containing bounds information which is never deallocated.
+It is impossible that $\wf{\sim_{{\smssafe}}}{{\tmssafe}}$, since every behavior of compiled $\trg{L}$ programs never contains a deallocation of the bounds-information table.
+Still, supposing $\rtpsim{\cc{\src{L}}{\trg{L}}}{\tmssafe}{{\sim_{\tmssafe}}}$, $\rtpsim{\cc{\trg{L}}{\irl{L}}}{\smssafe}{{\sim_{\smssafe}}}$,
+and $\wf{{\sim_{\tmssafe}}}{{\smssafe}}$ allows to apply \Thmref{thm:rtpsim}.
+However, the resulting class $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\smssafe}}}}\left(\tmssafe\cap\smssafe\right)=\emptyset$, which the following lemma shows to hold in general.
+
+\begin{lemma}[Composition is Useless]\label{lem:useless}
+  If $\wf{\sim_1}{\class}$, $\neg\left(\wf{\sim_2}{\tilde{\tau}_{\sim_1}\class}\right)$, then $\tilde{\tau}_{\sim_1\bullet\sim_2}\left(\class\right)=\emptyset$. \Coqed
+\end{lemma}
+
+With this, the previous claim follows as a simple corollary:
+\begin{corollary}
+  $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\smssafe}}}}\left(\tmssafe\cap\smssafe\right)=\emptyset$.
+\end{corollary}
+\begin{proof}
+  Note that $\neg\left(\wf{\sim_{{\smssafe}}}{{\tmssafe}}\right)$, since the bounds-table is never deallocated and therefore, for any $\trg{\trace}\in\tmssafe$, $\tau_{\sim_{\tmssafe}}\left(\trg{\trace}\right)\notin\tilde{\tau}_{\sim_{\tmssafe}}\left({\tmssafe}\right)$.
+  However, by assumption, $\wf{\sim_{{\tmssafe}}}{{\tmssafe}}$.
+  Using \Thmref{lem:useless} it follows that $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\smssafe}}}}\left(\tmssafe\right)=\emptyset$.
+\end{proof}
 
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}
 

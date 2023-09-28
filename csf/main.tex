@@ -391,7 +391,7 @@ Lastly, for each of the key properties, this section introduces corresponding mo
 
 \subsection{Specification Trace Model}\label{subsec:propdefs}
 
-\vspace{-2em}
+\vspace{-1em}
 \begin{gather*}\small
   \begin{aligned}
   \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock
@@ -1115,14 +1115,14 @@ Compiler engineers typically try to find an order of optimisations that yields w
 \Cref{corr:swappable} justifies that any such order of compilation passes is valid with respect to security.
 So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
 % 
-\MPin{
-	later on, say that optimisation passes remove elements from traces, so they should be fine with respect to the result with $\tau$.
-	also, yes, if $\tau$ adds we have a problem, if it removes we don't
-\MKin{ Optimisations that remove elements from traces are not necessarily sound,
- e.g., remove all deallocations to "optimise" memory management by offloading
- the work to the OS.
-}
-}
+% \MPin{
+% 	later on, say that optimisation passes remove elements from traces, so they should be fine with respect to the result with $\tau$.
+% 	also, yes, if $\tau$ adds we have a problem, if it removes we don't
+% \MKin{ Optimisations that remove elements from traces are not necessarily sound,
+%  e.g., remove all deallocations to "optimise" memory management by offloading
+%  the work to the OS.
+% }
+% }
 
 
 \begin{corollary}[Sequential Composition of Secure Compilers]\label{corr:swappable}
@@ -1202,10 +1202,26 @@ For example, consider $\rtp{\cc{\src{L}}{\trg{L}}}{\tmssafe}$ and $\rtp{\cc{\trg
 By \Thmref{def:trace:tmsdef}, this violates $\tmssafe$.
 Therefore, no behavior resulting from programs produced by the $\cc{\trg{L}}{\obj{L}}$ compiler is secure with respect to $\tmssafe$, but only for $\smssafe$.
 $\cc{\trg{L}}{\obj{L}}$ modifies the behavior and because of this, the theorem is inapplicable.
+\MPin{
+	this is still applicable though
+	many use it, and we showcase it too.
+}
 
 This section re-introduces secure compiler composition without this limitation. 
 To this end, it utilises existing work on secure compilation~\cite{abate2021extacc} that defines Galois connections for several real-world compiler scenarios, such as a compilation pass that exploits undefined behavior.
-This section is concerned about source-level properties, and henceforth uses the existential image of a source-level property $\src{\pi}$ to map $\src{\pi}$ to a target-level property:
+This section is concerned about source-level properties, and henceforth 
+\MPin{
+	different source and target trace models
+	.
+	traces are related
+	.
+	there is a function tau that lefts the relation from individual traces to props/hprops
+}
+\MPin{
+	drop next 3 defs
+}
+
+uses the existential image of a source-level property $\src{\pi}$ to map $\src{\pi}$ to a target-level property:
 
 \begin{definition}[Existential Image of Properties]\label{def:eximg:prop}
   Given a cross-language trace relation $\sim$,
@@ -1239,6 +1255,9 @@ This section is concerned about source-level properties, and henceforth uses the
   \wfc{\sim}{\src{\class}} \isdef \forall \src{\Pi}\subseteq\src{\class}, \tau_\sim(\src{\Pi})\subseteq\tilde{\tau}_\sim(\src{\class})
   $$
 \end{definition}
+\MPin{
+	explain with text and underline
+}
 \begin{lemma}[Well-Formedness Equivalence for Classes]\label{lem:wf:equiv:wfc}
   $\;\;$
   $ \wf{\sim}{\src{\class}} \Leftrightarrow\ \wfc{\sim}{\src{\class}} $\Coqed
@@ -1255,6 +1274,9 @@ This section is concerned about source-level properties, and henceforth uses the
 \end{definition}
 
 To state a similar theorem as \Thmref{thm:rtp} but for \Cref{def:rtpsim}, it is necessary to define composition of cross-language trace relations:
+\MPin{
+	do in text
+}
 \begin{definition}[Composing Cross-Language Trace Relations]
   Given $\sim_1 : \src{\trace}\to\irl{\trace}\to\text{Prop},\sim_2 : \irl{\trace}\to\trg{\trace}\to\text{Prop}$, then 
   $$  
@@ -1262,6 +1284,9 @@ To state a similar theorem as \Thmref{thm:rtp} but for \Cref{def:rtpsim}, it is 
   $$
 \end{definition}
 
+\MPin{
+	explain
+}
 \begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtpsim}
   If $\rtpsim{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}{\sim_1}$, $\rtpsim{\cc{\trg{L}}{\obj{L}}}{\tilde{\tau}_{\sim_1}\left(\class[_{2}]\right)}{\sim_2}$, and $\wf{\sim_1}{\class[_2]}$, then $\rtpsim{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}{\sim_1\bullet\sim_2}$. \Coqed
 \end{theorem}
@@ -1276,6 +1301,9 @@ However, the resulting class $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\sms
   If $\wf{\sim_1}{\class}$, $\neg\left(\wf{\sim_2}{\tilde{\tau}_{\sim_1}\class}\right)$, then $\tilde{\tau}_{\sim_1\bullet\sim_2}\left(\class\right)=\emptyset$. \Coqed
 \end{lemma}
 
+\MPin{
+	drop
+}
 With this, the previous claim follows as a simple corollary:
 \begin{corollary}
   $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\smssafe}}}}\left(\tmssafe\cap\smssafe\right)=\emptyset$.
@@ -1285,6 +1313,14 @@ With this, the previous claim follows as a simple corollary:
   However, by assumption, $\wf{\sim_{{\tmssafe}}}{{\tmssafe}}$.
   Using \Thmref{lem:useless} it follows that $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\smssafe}}}}\left(\tmssafe\right)=\emptyset$.
 \end{proof}
+
+\MPin{
+	what about sim2 and C1?
+	-> no relation 
+}
+\MPin{
+	For the sake of simplicity we go back to the singel trace model and go back to the framework of single trace model
+}
 
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}
 

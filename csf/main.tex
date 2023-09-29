@@ -1196,18 +1196,22 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 
 \subsection{Applicability of the Compositionality Framework}\label{subsec:app}
 
-So far, this paper assumes a unified trace-model and secure compilers that do not change the behavior.
-It is worth noting that, as demonstrated in our case study, quite a few compilation passes do not change the behavior in such a way that the projections to the specification trace model become unequal to each other, i.e., source and target language of the compiler essentially have a different trace model. 
+So far, this paper assumes a unified trace-model between source and target languages.
+Moreover secure compilers (in the sense of \Cref{def:rtp}) cannot change the behavior of compiled programs.
+It is worth noting that, as our case study in \Cref{sec:casestud:defs} demonstrates, several compilation passes do not change the behavior of compiled programs
+% in such a way that the projections to the specification trace model become unequal to each other, 
+% i.e., source and target language of the compiler essentially have a different trace model. 
 However, there are instances of passes where this is not the case.
 For example, consider $\rtp{\cc{\src{L}}{\trg{L}}}{\tmssafe}$ and $\rtp{\cc{\trg{L}}{\obj{L}}}{\smssafe}$, where $\cc{\trg{L}}{\obj{L}}$ introduces code that allocates a table that stores bounds information of pointers, but fails to insert code that deallocates this table.
 By \Thmref{def:trace:tmsdef}, this violates $\tmssafe$.
 Therefore, no behavior resulting from programs produced by the $\cc{\trg{L}}{\obj{L}}$ compiler is secure with respect to $\tmssafe$, but only for $\smssafe$.
 $\cc{\trg{L}}{\obj{L}}$ modifies the behavior and this section re-introduces the compositionality framework with support for these situations. 
 
-To this end, the section utilises existing work on secure compilation~\cite{abate2021extacc} that defines Galois connections for several real-world compiler scenarios, such as a compilation pass that exploits undefined behavior.
-This section is concerned about a compilation setting with different source and target trace models. 
-To this end, there needs to be a way to say that two traces $\src{\trace}$ and $\trg{\trace}$ are related ($\sim$) and a way to translate a source-level property $\src{\pi}$ into a target-level property ($\tau_\sim\left( \src{\pi} \right)$~\cite{abate2021extacc}) using this trace relation.
-Moreover, the function to map source-level properties to target-level properties can be lifted to translate source-level classes of properties $\src{\class}$ to target-level classes ($\tilde{\tau}_\sim\left(\src{\class}\right)$).
+To reason about these kinds of compilers, we rely on existing work~\cite{abate2021extacc} that lifts the presented secure compilation theory to compilers whose source and target trace models are different.
+% These compilers require a Galois connections for several real-world compiler scenarios, such as a compilation pass that exploits undefined behavior.
+% This section is concerned about a compilation setting with different source and target trace models. 
+These compilers require a way to say that two traces $\src{\trace}$ and $\trg{\trace}$ are related ($\sim$) and a function to translate a source-level property $\src{\pi}$ into a target-level property ($\tau_\sim\left( \src{\pi} \right)$~\cite{abate2021extacc}) using this trace relation.
+The function to map source-level properties to target-level properties can be lifted to translate source-level classes of properties $\src{\class}$ to target-level classes ($\tilde{\tau}_\sim\left(\src{\class}\right)$).
 The section refers to these functions as existential images.
 
 With this, \bul{a cross-language relation $\sim$ is well-formed with respect to a class of source-level properties $\src{\class}$} iff \rul{the existential images preserve set inclusion}.
@@ -1217,7 +1221,7 @@ With this, \bul{a cross-language relation $\sim$ is well-formed with respect to 
   $$
 \end{definition}
 
-\Thmref{def:rtp} needs to be adapted to account for different target-level trace-models~\cite{abate2021extacc}:
+\Cref{def:rtpsim} shows how to adapt \Thmref{def:rtp} to account for different target-level trace-models~\cite{abate2021extacc}:
 
 \begin{definition}[Robust Compilation with $\sim$]\label{def:rtpsim}
   $$\rtpsim{\cc{\src{L}}{\trg{L}}}{\src{\class}}{\sim} \isdef
@@ -1232,26 +1236,37 @@ Suppose there are traces $\src{\trace}$ and $\trg{\trace}$ as well as two trace 
 The traces are related $\src{\trace}\sim_1\bullet\sim_2\trg{\trace}$ if there is another trace $\irl{\trace}$ such that $\src{\trace}\sim_1\irl{\trace}$ and $\irl{\trace}\sim_2\trg{\trace}$.
 
 For the adapted sequential composition theorem, let \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserve the class $\src{\class[_1]}$ under $\sim_1$} and let \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserve the class $\tilde{\tau}_{\sim_1}\left(\src{\class[_2]}\right)$ under $\sim_2$}.
-Then, \iul{when the cross-language relation $\sim_1$ is well-formed with respect to class $\src{\class[_2]}$}, it follows that \oul{the composed compiler $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\src{\class[_1]}\cap\src{\class[_2]}$ under $\sim_1\bullet\sim_2$}.
+Then, \iul{when the cross-language relation $\sim_1$ is well-formed with respect to class $\src{\class[_2]}$}, and \pul{relation $\sim_2$ is well-formed with respect to $\src{\class[_1]}$}, it follows that \oul{the composed compiler $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\src{\class[_1]}\cap\src{\class[_2]}$ under $\sim_1\bullet\sim_2$}.
+% 
+For space reasons, \Thmref{thm:urtp} and \Thmref{thm:lrtp} are not presented here, but can be found in the technical appendix ($\CoqSymbol$).
+% Note that it is not necessary to require $\sim_2$ to be well-formed with respect to $\src{\class[_1]}$, since the 
+% \MPin{why}
 \begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtpsim}
-  If \bul{$\rtpsim{\cc{\src{L}}{\trg{L}}}{\src{\class[_{1}]}}{\sim_1}$}, \rul{$\rtpsim{\cc{\trg{L}}{\obj{L}}}{\tilde{\tau}_{\sim_1}\left(\src{\class[_{2}]}\right)}{\sim_2}$}, and \iul{$\wf{\sim_1}{\src{\class[_2]}}$}, then \oul{$\rtpsim{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\src{\class[_{1}]}\cap\src{\class[_{2}]}}{\sim_1\bullet\sim_2}$}. \Coqed
+  If \bul{$\rtpsim{\cc{\src{L}}{\trg{L}}}{\src{\class[_{1}]}}{\sim_1}$}, \rul{$\rtpsim{\cc{\trg{L}}{\obj{L}}}{\tilde{\tau}_{\sim_1}\left(\src{\class[_{2}]}\right)}{\sim_2}$}, and \iul{$\wf{\sim_1}{\src{\class[_2]}}$}, and \pul{$\wf{\sim_2}{\src{\class[_1]}}$}, then \oul{$\rtpsim{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\src{\class[_{1}]}\cap\src{\class[_{2}]}}{\sim_1\bullet\sim_2}$}. \Coqed
 \end{theorem}
 
-For space reasons, \Thmref{thm:urtp} and \Thmref{thm:lrtp} are not presented here, but can be found in the technical appendix ($\CoqSymbol$).
-Note that it is not necessary to require $\sim_2$ to be well-formed with respect to $\src{\class[_1]}$.
+The reason we need assumptions about both relations is motivated by \Cref{lem:useless}.
+% 
+In fact, if \bul{that a relation $\sim_1$ is well-formed for a property $\class$} but \rul{another relation $\sim_2$ is not well-formed for the property mapped with the first relation $\tilde{\tau}_{\sim_1}\class$} then \iul{their composition is empty}.
+% 
+An empty intersection means that there is no correct behaviour to preserve for the compiler, which nullifies its security relevance.
+\begin{lemma}[Composition is Useless]\label{lem:useless}
+  If \bul{$\wf{\sim_1}{\class}$}, \rul{$\neg\left(\wf{\sim_2}{\tilde{\tau}_{\sim_1}\class}\right)$}, then \iul{$\tilde{\tau}_{\sim_1\bullet\sim_2}\left(\class\right)=\emptyset$}. \Coqed
+\end{lemma}
 
-However, reconsidering the example from the beginning of the section, suppose $\sim_{{\smssafe}}$ is a suitable trace relation such that $\trg{\trace}\sim_{{\smssafe}}\irl{\trace}$ establishes the fact that $\irl{\trace}$ contains an allocation of a table containing bounds information which is never deallocated.
+
+
+Let us now reconsider the example from the beginning of the section, suppose $\sim_{{\smssafe}}$ is a suitable trace relation such that $\trg{\trace}\sim_{{\smssafe}}\irl{\trace}$ establishes the fact that $\irl{\trace}$ contains an allocation of a table containing bounds information which is never deallocated.
 It is impossible that $\wf{\sim_{{\smssafe}}}{{\tmssafe}}$, since every behavior of compiled $\trg{L}$ programs never contains a deallocation of the bounds-information table.
 Still, supposing $\rtpsim{\cc{\src{L}}{\trg{L}}}{\tmssafe}{{\sim_{\tmssafe}}}$, $\rtpsim{\cc{\trg{L}}{\irl{L}}}{\smssafe}{{\sim_{\smssafe}}}$,
 and $\wf{{\sim_{\tmssafe}}}{{\smssafe}}$ allows to apply \Thmref{thm:rtpsim}.
-However, the resulting class $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\smssafe}}}}\left(\tmssafe\cap\smssafe\right)=\emptyset$, which the following lemma shows to hold in general.
+However, the resulting class $\tilde{\tau}_{{{\sim_{\tmssafe}}\bullet{\sim_{\smssafe}}}}\left(\tmssafe\cap\smssafe\right)=\emptyset$.
 
-\begin{lemma}[Composition is Useless]\label{lem:useless}
-  If $\wf{\sim_1}{\class}$, $\neg\left(\wf{\sim_2}{\tilde{\tau}_{\sim_1}\class}\right)$, then $\tilde{\tau}_{\sim_1\bullet\sim_2}\left(\class\right)=\emptyset$. \Coqed
-\end{lemma}
+\smallskip
 
 For sake of simplicity, the case-study presented in the following sections does not consider different trace-models: The traces of all programs of the presented languages are projected to a unified trace model. 
-The case-study demonstrates that, while the compositionality framework without the consideration for different trace-models may seem overly simplistic, it is useful and simpler in practice, if applicable.
+The case-study demonstrates that, the compositionality framework without the different trace-models is already applicable to a variety of security-relevant passes as well as existing optimisations.
+% may seem overly simplistic, it is useful and simpler in practice, if applicable.
 
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}
 

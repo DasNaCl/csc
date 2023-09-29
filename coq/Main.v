@@ -238,7 +238,6 @@ Proof.
   eapply H1; try exact HΠa.
   exact Hsat.
 Qed.
-
 Definition nwf {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (Π : Hyperproperty (Event S)) :=
@@ -266,6 +265,22 @@ Proof.
   exists πi; split; trivial. apply set_eq_equiv_eq; reflexivity.
 Qed.
 
+Lemma is_induced_tau {I : Language} (cc : Compiler I I)
+    (C : Class (Event I))
+    (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
+    (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
+    (|-wf rel2 : C) ->
+    [pres|- cc : rel1, C] ->
+    [pres|- cc : rel1, τ~ rel2 C]
+.
+Proof.
+  intros H0 H1 Π HΠ p Hrsat Ci.
+  apply wf_is_gwf in H0.
+  eapply H1; trivial. 
+  intros bI HΠbI. 
+  specialize (HΠ bI HΠbI).
+  destruct HΠ as [πi [Hπi Hx]].
+Admitted.
 
 Corollary swappable {I : Language} (cc1 cc2 : Compiler I I)
   (C1 C2 : Class (Event I))
@@ -285,3 +300,4 @@ Proof.
   - apply seqcompo; auto.
   - apply seqcompo; auto.
 Qed.
+

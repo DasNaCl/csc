@@ -4,6 +4,7 @@
 \documentclass[dvipsnames]{llncs}
 
 \usepackage[T1]{fontenc}
+\usepackage[scaled=.83]{beramono}
 
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[inference]{semantic}
@@ -51,7 +52,7 @@
 
 \title{Secure Composition \\ of Robust and Optimising Compilers}
 
-% \author{
+\author{}
 % Matthis Kruse\orcidID{0000-0003-4062-9666}
 % \and
 % Michael Backes
@@ -60,7 +61,7 @@
 % }
 % \authorrunning{M. Kruse et al.}
 
-% \institute{
+\institute{}
 % CISPA Helmholtz Center for Information Security and Saarland University
 % \and
 % CISPA Helmholtz Center for Information Security
@@ -300,10 +301,10 @@ The context is an arbitrary program and thus has the role of an {\em attacker} t
 With this, \Thmref{def:propsat} can be extended as follows: for \bul{components $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the resulting whole program must satisfy $\pi$}.
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
-  \begin{nscenter}
+  % \begin{nscenter}
   \bul{$\rsat{\progvar}{\pi}$}
   $\isdef$ \iul{$\forall \contextvar\ \wholeprogvar$, if $\link{\contextvar}{\progvar}=\wholeprogvar$}, then \oul{$\sat{\wholeprogvar}{\pi}$}.
-  \end{nscenter}
+  % \end{nscenter}
 \end{definition}
 
 % \begin{exampleenv}[Double Free in Bluetooth Subsystem]
@@ -324,17 +325,17 @@ To define when a compiler is secure, this paper uses the robust compilation fram
 For \bul{compilers $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of properties $\class$}, if for any \rul{property $\pi$ of that class $\class$ and programs $\src{p}$ written in $\src{L}$} where \iul{$\src{\progvar}$ robustly satisfies $\pi$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\pi$}.
 
 \begin{definition}[Robust Compilation]\label{def:rtp}
-  $\;$\\
-  \vspace{-1em}
-  \begin{nscenter}
+  % $\;$\\
+  % \vspace{-1em}
+  % \begin{nscenter}
   % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
   \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}
   %, iff 
   $\isdef$
   \rul{$\forall \pi\in\class, \src{p}\in\src{L},$} if \iul{$\rsat{\src{\progvar}}{\pi}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
-  \end{nscenter}
+  % \end{nscenter}
 \end{definition}
-
+% 
 Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
 Thus we write $\rtp{\cc{\src{L}}{\trg{L}}}{\pi}$, even though $\pi$ is a property and not a class.
 % \MP{
@@ -419,12 +420,16 @@ Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\even
 \gls*{sms} prohibits out-of-bounds accesses.
 
 \begin{definition}[\glsfirst*{sms}]\label{def:trace:smsdef}
-\small
+% \small
+  % \begin{nscenter}
+
+  \noindent
   $
   \smssafe:=\left\{\trace \left|\begin{array}{rcl}
                                   \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}, \text{ then }m<n
                                 \end{array}\right.\right\}
-  $
+                                $
+  % \end{nscenter}
 \end{definition}
 
 \subsubsection{Memory Safety}
@@ -447,11 +452,14 @@ This is because, intuitively, hypersafety properties can relate multiple executi
 To sidestep this issue, this section defines the property \gls*{scct}, a stricter variant of \gls*{cct} that enforces the policy that no secret appears on a trace (inspired by earlier work~\cite{almeida2017jasmin}).
 
 \begin{definition}[\glsfirst*{scct}]\label{def:trace:scctdef}
-  $
+% \begin{nscenter}
+  
+  \noindent$
   \scctsafe:=\left\{\trace \left|\begin{array}{rcl}
                                    \trace=\hole{\cdot} & \text{ or } & \trace=\event[_{b}];\sandboxtag;\unlock\cdot\trace['] \wedge \trace[']\in\scctsafe
                                  \end{array}\right.\right\}
   $
+% \end{nscenter}
 \end{definition}
 
 \gls*{scct} may seem overly strict, since it may seem that secrets must not occur on a trace (since $\securitytag$ is forced to be $\unlock$). 
@@ -495,8 +503,10 @@ To this end, monitor satisfaction is defined as follows.
     \\%
     % \emptyset:=&\ \left\{\text{A}:\emptyset,\text{F}:\emptyset\right\}
     % \\
-    \mi{(Abstract\ Events)}~\absevent\bnfdef&\ \absev{\emptyevent} \mid \absev{Alloc\ }\loc\ \sandboxtag \mid \absev{Dealloc\ }\loc\ \sandboxtag \\
-                                            & \mid \absev{Use\ }\loc\ \sandboxtag \mid \absterm\\
+    \mi{(Abstract\ Events)}~\absevent\bnfdef&\ \absev{\emptyevent} \mid \absev{Alloc\ }\loc\ \sandboxtag \mid \absev{Dealloc\ }\loc\ \sandboxtag 
+    % \\
+                                            % & 
+                                            \mid \absev{Use\ }\loc\ \sandboxtag \mid \absterm\\
   \end{aligned}
 \end{gather*}
 For \gls*{tms}, the state of the monitor is a record with two sets keeping track of allocated and deallocated locations, and the initial state $\emptyset$ is defined as $\left\{\text{A}:\emptyset,\text{F}:\emptyset\right\}$.
@@ -527,7 +537,9 @@ Monitor events include {\em allocation}, {\em deallocation}, and {\em use} of a 
   %
   \typerule{tms-alloc}{
     (\loc;\sandboxtag)\notin\tmsmonitor.\text{A} &
-    (\loc;\sandboxtag)\notin\tmsmonitor.\text{F} \\
+    (\loc;\sandboxtag)\notin\tmsmonitor.\text{F} 
+    % \\
+    &
     \tmsmonitor[']=\left\{\text{A}: \tmsmonitor.\text{A}\cup\left\{(\loc;\sandboxtag)\right\},\text{F}: \tmsmonitor.\text{F}\right\}
   }{
     \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Alloc\ }\loc\ \sandboxtag}
@@ -684,8 +696,8 @@ Relating this trace to abstract monitor events yields trace:
    	\absev{Alloc}\ \loc[_{y}]\ \comp
    	\cdot
    	\absev{Use}\ \loc[_{x}]\ \comp
-   	\\
-   	&
+   	% \\
+   	% &
    	\cdot
    	\absev{Use}\ \loc[_{x}]\ \comp
    	\cdot
@@ -718,8 +730,8 @@ Relating this trace to abstract monitor events yields trace:
   	\absev{Alloc}\ \loc[_{y}]\ \comp
   	\cdot
   	\absev{Use}\ \loc[_{x}]\ \comp
-  	\\
-  	&
+  	% \\
+  	% &
   	\cdot
   	\absev{Use}\ \loc[_{x}]\ \comp
   	\cdot
@@ -850,15 +862,17 @@ The trace agreement is entirely straightforward and similar to the one for \gls*
   		\cdot
   		\ldots
   		\cdot
-  	\\
-  	&
+  	% \\
+  	% &
   		\ev{Use}\ \loc_{x}\ 0;\comp;\unlock
   		\cdot
+  		\\
+  	&
   		\ev{Use}\ \loc_{y}\ 0;\comp;\unlock
   		\cdot
   		\ev{Use}\ \loc_{x}\ 1;\comp;\unlock
-  	\\
-  	&
+  	% \\
+  	% &
   		\cdot
   		\ev{Use}\ \loc_{y}\ 1;\comp;\unlock
   		\cdot
@@ -871,7 +885,7 @@ The trace agreement is entirely straightforward and similar to the one for \gls*
 \noindent
 where $\loc_{x}$ and $\loc_{y}$ are the memory addresses associated to \texttt{x} and \texttt{y}, respectively.
   Omitting the events for all ,,$\ldots$'' for sake of brevity, the abstract monitor trace of this is:
-  	
+  	% 
   	{\small
   	\begin{align*}
   		&
@@ -995,7 +1009,7 @@ Accordingly, the event agreement simply disregards all events that involved publ
   In terms of the abstract monitor trace, this is just $\absev{Leak}$.
   Running this on the monitor would result in getting stuck, since there is no matching rule to step in the presence of $\absev{Leak}$ event. % pun intended
   By means of additional features to ensure cryptographic constant time even in the presence of memory reads and loads, such as a flag to enable a data independent timing mode, which is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors, the original trace now does $\ev{Use}\ \loc_{y}\ 0;\comp;\unlock$ instead of $\ev{Use}\ \loc_{y}\ 0;\comp;\lock$.
-  Because of this, the whole trace of the component equates to $\absev{\emptyevent}$ and the monitor can step without getting stuck.
+  Because of this, the whole trace of the component is $\absev{\emptyevent}$ and the monitor can step without getting stuck.
 \end{exampleenv}
 
 \subsubsection{Combining \gls*{ms} and \gls*{scct} Monitors to obtain \gls*{msscct}}
@@ -1004,10 +1018,11 @@ The combination of monitors for \gls*{ms} and \gls*{scct} yields one for \gls*{m
 The construction is entirely similar to the one for \gls*{ms} (\Cref{subsubsec:ms}).
 
 \begin{lemma}[Monitor Satisfaction is $\msscctsafe$]\label{lem:mon:msscctsafe}
-  $\;$\\\vspace{-1em}
-  \begin{nscenter}
+  % $\;$\\\vspace{-1em}
+  % \begin{nscenter}
+  % \noindent
   If $\monmsscctsafe{\trace}$, then $\trace\in\msscctsafe$. %\Coqed
-  \end{nscenter}
+  % \end{nscenter}
 \end{lemma}
 
 \section{Composing Secure Compilers\pages{1}}\label{sec:compcomp}
@@ -1191,19 +1206,22 @@ The section refers to these functions as existential images.
 
 With this, \bul{a cross-language relation $\sim$ is well-formed with respect to a class of source-level properties $\src{\class}$} iff \rul{the existential images preserve set inclusion}.
 \begin{definition}[Well-formedness of Trace Relations for a Class $\src{\class}$]\label{def:wfc:tracerel}
-  $$
+  % $$
+
+  \noindent
   \text{\bul{$\wfc{\sim}{\src{\class}}$}} \isdef \text{\rul{$\forall \src{\Pi}\subseteq\src{\class}, \tau_\sim(\src{\Pi})\subseteq\tilde{\tau}_\sim(\src{\class})$}}
-  $$
+  % $$
 \end{definition}
 
 \Cref{def:rtpsim} shows how to adapt \Thmref{def:rtp} to account for different target-level trace-models~\cite{abate2021extacc}:
 
 \begin{definition}[Robust Compilation with $\sim$]\label{def:rtpsim}
-  $$\rtpsim{\cc{\src{L}}{\trg{L}}}{\src{\class}}{\sim} \isdef
+  $
+  \rtpsim{\cc{\src{L}}{\trg{L}}}{\src{\class}}{\sim} \isdef
   \forall \src{\pi} \src{p}.
     \text{if }\rsat{\src{\progvar}}{\src{\pi}},
     \text{then }\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\tilde{\tau}_\sim\left(\src{\pi}\right)}.
-  $$
+  $
 \end{definition}
 
 To state a similar theorem as \Thmref{thm:rtp} but for \Cref{def:rtpsim}, it is necessary to define composition of cross-language trace relations.
@@ -1631,9 +1649,28 @@ Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$
 \begin{center}\small
   $$
   \begin{array}{rcl}
-    \ccb(\trg{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{1}]})}{\\&&\lnew[\irl]{\irl{x}}{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{2}]})}} \\
-  \ccb(\trg{\lget{x}{\expr}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr})}{\\&&\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\irl{\lget{x}{x_{n}}}}{\\&&\irl{\labort}}} \\
-  \ccb(\trg{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr[_{1}]})}{\\&&\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\lset[\irl]{\irl{x}}{\irl{x_{n}}}{\\&&\ccb(\trg{\expr[_{2}]})}}{\irl{\labort}}} \\
+    \ccb(\trg{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}}) & = 
+    	& \llet[\irl]{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{1}]})}{
+    		% \\&&
+    		\lnew[\irl]{\irl{x}}{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{2}]})}
+    		} \\
+  \ccb(\trg{\lget{x}{\expr}}) & = 
+  	& \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr})}{
+  	% \\&&
+  	\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\irl{\lget{x}{x_{n}}}}{
+  		% \\&&
+  		\irl{\labort}
+  		}
+  		} \\
+  \ccb(\trg{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = 
+  	& \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr[_{1}]})}{
+  		\\&&
+  		\lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\lset[\irl]{\irl{x}}{\irl{x_{n}}}{
+  		% \\&&
+  		\ccb(\trg{\expr[_{2}]})
+  		}}{\irl{\labort}}
+  		} 
+  		% \\
   \end{array}
   $$
 \end{center}
@@ -1644,10 +1681,8 @@ To this end, the compiler introduces another, fresh identifier $\irl{x_{SIZE}}$ 
 \begin{exampleenv}[Instrumented \texttt{strncpy}]
   Consider again \texttt{strncpy}, but instrumented for \gls*{sms}:
     \begin{lstlisting}[language=c,basicstyle=\ttfamily\footnotesize, morekeywords={size_t}]
-void strncpy(size_t n, size_t dst_size, char *dst,
-                       size_t src_size, char *src) {
-  for(size_t i = 0; i < src_size && src[i] != '\0'
-                 && i < n; ++i) {
+void strncpy(size_t n, size_t dst_size, char *dst, size_t src_size, char *src) {
+  for(size_t i = 0; i < src_size && src[i] != '\0' && i < n; ++i) {
     if(i < src_size && i < dst_size) {
       dst[i] = src[i];
     }

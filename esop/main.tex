@@ -249,7 +249,7 @@ In summary, this paper makes the following contributions:
 
   \item The key contributions of this paper are formalised in the Coq proof assistant and the paper indicates this with \CoqSymbol.
 \end{itemize}
-
+% 
 This paper starts by introducing relevant notions of security properties and secure compilation (\Cref{sec:background}),
 and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:concl}).
 
@@ -403,7 +403,8 @@ Both operations are also modelled in the specification trace model ($\ev{Branch\
 Moreover, the property requires that all allocated objects must be deallocated at some point.
 
 \begin{definition}[\glsfirst*{tms}]\label{def:trace:tmsdef}
-  \footnotesize$$
+  % \footnotesize
+  $$
   \tmssafe:=\left\{\trace \left| \begin{array}{rcl}
                               \ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
                               \ev{Use\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
@@ -556,7 +557,7 @@ Monitor events include {\em allocation}, {\em deallocation}, and {\em use} of a 
   }{tms-dealloc}
   %
 \end{center}
-
+% 
 \Cref{tr:tms-use} simply requires that a location is (i) allocated and (ii) not freed.
 \Cref{tr:tms-alloc,tr:tms-dealloc} both require a location to not be freed already and extend the monitor state accordingly.
 This restriction effectively disallows reallocation to reassign the same location to an object.
@@ -948,7 +949,7 @@ Any technique to combine existing monitors $T_A$, $T_B$ (that check for properti
     \mi{(Abstract\ Store)}~\scctmonitor:=&\ \emptyset 
     % &
     &
-    \mi{(Abstract\ Events)}~\absevent:=&\ \absev{\varepsilon} \mid \absterm \mid \absev{Leak} 
+    \qquad\mi{(Abstract\ Events)}~\absevent:=&\ \absev{\varepsilon} \mid \absterm \mid \absev{Leak} 
     % \\
   \end{aligned}
 \end{gather*}
@@ -966,7 +967,9 @@ Any technique to combine existing monitors $T_A$, $T_B$ (that check for properti
   }{scct-abort}
 \end{center}
 The monitor state for the \gls*{scct} monitor is completely empty, since it does not need to keep track of information.
-As soon as any event is hit, the execution gets stuck, since any event is considered confidental from the perspective of this monitor.
+% As soon as 
+If
+any event is hit, the execution gets stuck, since any event is considered confidental from the perspective of this monitor.
 \begin{center}
   \judgbox{\sccttraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ w.r.t. \gls*{cct}.''}$\;$\\
   %
@@ -1047,7 +1050,7 @@ Given an $\src{L}$ program $\src{p}$ and compilers $\cc{\src{L}}{\trg{L}},\cc{\t
 
 Consider the compilation chain for $\src{TypeScript}$.
 First, $\src{TypeScript}$ programs are translated to $\trg{JavaScript}$ which, e.g., V8~\cite{googlev8} eventually compiles in parts to $\irl{Ignition BC}$.
-The following theorem establishes what happens if all these compilation steps were robustly secure with respect to \gls*{ms}:
+The following theorem establishes what happens if all these compilation steps were robustly secure with respect to e.g., \gls*{ms}:
 The resulting $\irl{Ignition BC}$ code would be \gls*{ms} regardless of the context the binary runs in.
 
 Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
@@ -1195,7 +1198,7 @@ However, there are instances of passes where this is not the case.
 For example, consider $\rtp{\cc{\src{L}}{\trg{L}}}{\tmssafe}$ and $\rtp{\cc{\trg{L}}{\obj{L}}}{\smssafe}$, where $\cc{\trg{L}}{\obj{L}}$ introduces code that allocates a table that stores bounds information of pointers, but fails to insert code that deallocates this table.
 By \Thmref{def:trace:tmsdef}, this violates $\tmssafe$.
 Therefore, no behavior resulting from programs produced by the $\cc{\trg{L}}{\obj{L}}$ compiler is secure with respect to $\tmssafe$, but only for $\smssafe$.
-$\cc{\trg{L}}{\obj{L}}$ modifies the behavior and this section re-introduces the compositionality framework with support for these situations. 
+$\cc{\trg{L}}{\obj{L}}$ modifies the behavior of compiled code and this section introduces support for these situations in the compositionality framework. 
 
 To reason about these kinds of compilers, we rely on existing work~\cite{abate2021extacc} that lifts the presented secure compilation theory to compilers whose source and target trace models are different.
 % These compilers require a Galois connections for several real-world compiler scenarios, such as a compilation pass that exploits undefined behavior.
@@ -1240,7 +1243,7 @@ Then, \iul{when the cross-language relation $\sim_1$ is well-formed with respect
 
 The reason we need assumptions about both relations is motivated by \Cref{lem:useless}.
 % 
-In fact, if \bul{that a relation $\sim_1$ is well-formed for a property $\class$} but \rul{another relation $\sim_2$ is not well-formed for the property mapped with the first relation $\tilde{\tau}_{\sim_1}\class$} then \iul{their composition is empty}.
+In fact, if \bul{a relation $\sim_1$ is well-formed for a property $\class$} but \rul{another relation $\sim_2$ is not well-formed for the property mapped with the first relation $\tilde{\tau}_{\sim_1}\class$} then \iul{their composition is empty}.
 % 
 An empty intersection means that there is no correct behaviour to preserve for the compiler, which nullifies its security relevance.
 \begin{lemma}[Composition is Useless]\label{lem:useless}
@@ -1279,7 +1282,7 @@ $\Lscct$ (\Cref{subsec:lscct}) programs have access to a ``\gls*{cct}-mode'' and
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 
 All presented programming languages share a common fragment. 
-Programs ($\prog{\library_{\ctx}}{\library_{\comp}}$) consist of libraries ($\library$), which are lists of functions ($\function$).
+Programs ($\prog{\library_{\ctx}}{\library_{\comp}}$) consist of libraries ($\library$) that belong to a context ($\ctx$) or to a component ($\comp$), and that are lists of functions ($\function$).
 Functions ($\lfunction{\textit{foo}}{x}{\expr}$) have a single argument $x$ and an expression ($\expr$) as a body which may have $x$ as a free variable.
 Expressions can be variables ($x$), values ($\valueexpr$), binary operations ($\lbinop{\expr[_1]}{\expr[_2]}$), reading from ($\lget{x}{\expr}$) and writing to ($\lset{x}{\expr[_1]}{\expr[_2]}$) memory, memory allocation ($\llet{x}{\lnew{\expr[_1]}{\expr[_2]}}{\expr[_3]}$) as well as deallocation ($\ldelete{x}$), let expressions ($\llet{x}{\expr[_1]}{\expr[_2]}$), pairs ($\lpair{\expr[_1]}{\expr[_2]}$), their first ($\lproja{\expr}$) and second projection ($\lprojb{\expr}$), conditionals ($\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}$), function calls ($\lcall{\texttt{foo}}{\expr}$), returns ($\lreturn{\expr}$), and an aborting expression ($\labort$).
 
@@ -1332,10 +1335,9 @@ Crucially, the projection filters irrelevant actions such as context-made ones (
 
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
-$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$).
-The pointers carry poison tags, which signify a pointer being allocated ($\trg{\poisoned}$) or freed ($\trg{\poisonless}$). 
-The syntax of $\Ltrg$ is extended further with a way to inspect whether a pointer is invalid ($\trg{\lispoisoned{x}}$).
-Dynamic typechecks $\trg{\lhast{\expr}{\type}}$ match on $\trg{\expr}$ and evaluate to $\trg{0}$ if the term is of type $\trg{\type}$ and $\trg{1}$ otherwise.
+$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$), evaluating to $\trg{0}$ if the type matches with the shape of $\trg{\expr}$ and $\trg{1}$ otherwise.
+%The pointers carry poison tags, which signify a pointer being allocated ($\trg{\poisoned}$) or freed ($\trg{\poisonless}$). 
+Furthermore, the syntax of $\Ltrg$ is extended with a way to inspect whether a pointer is freed ($\trg{\lispoisoned{x}}$), evaluating to $\trg{0}$ if it is freed and to $\trg{1}$ otherwise.
 The projection $\msfilterL{\trg{\trace}}$ is structurally equal to $\msfilterLtms{\src{\trace}}$.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
@@ -1488,23 +1490,28 @@ This subsection defines a secure compiler from $\Ltms$ to $\Ltrg$.
 To this end, the compiler needs to ensure that when execution switches from context to component, the type signatures are respected.
 It can do so by inserting dynamic typechecks prior to entering the body of a function belonging to the component.
 
-\begin{gather*}\small
+\begin{gather*}
+% \small
   \begin{aligned}
     \cca(\src{x}) = &\ \trg{x} 
     % \\
   	&
+  	\qquad
     \cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) = &\ \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\
     \cca(\src{n}) = &\ \trg{n} 
     % \\
     &
+    \qquad
     \cca(\src{\lget{x}{\expr}}) = &\ \lget[\trg]{\trg{x}}{\left[\cca(\src{\expr})\right]}
   \end{aligned}
     \\
   \begin{aligned}
     \cca(\src{\ldelete{x}}) = &\ \ldelete[\trg]{\left[\cca(\src{x})\right]} \\
 %    \cca(\src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = \lset[\trg]{\left[\cca(\src{x})\right]}{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr_{2}})\right]} \\
-\cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}})  = &\ \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{\\%
-                                                            &\left[\cca(\src{\expr})\right] %
+\cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}})  = &\ \lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{
+\\%
+                                                            &
+                                                            \left[\cca(\src{\expr})\right] %
                                                                                                  }{\labort[\trg]}}
   \end{aligned}
 \end{gather*}
@@ -1646,7 +1653,8 @@ Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$
 \subsection{Robust (Spatial) Memory Safety Preservation}\label{subsec:cs:ms}
 
 \vspace{-1em}
-\begin{center}\small
+\begin{center}
+% \small
   $$
   \begin{array}{rcl}
     \ccb(\trg{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}}) & = 

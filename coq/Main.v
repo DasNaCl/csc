@@ -265,23 +265,6 @@ Proof.
   exists πi; split; trivial. apply set_eq_equiv_eq; reflexivity.
 Qed.
 
-Lemma is_induced_tau {I : Language} (cc : Compiler I I)
-    (C : Class (Event I))
-    (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
-    (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
-    (|-wf rel2 : C) ->
-    [pres|- cc : rel1, C] ->
-    [pres|- cc : rel1, τ~ rel2 C]
-.
-Proof.
-  intros H0 H1 Π HΠ p Hrsat Ci.
-  apply wf_is_gwf in H0.
-  eapply H1; trivial. 
-  intros bI HΠbI. 
-  specialize (HΠ bI HΠbI).
-  destruct HΠ as [πi [Hπi Hx]].
-Admitted.
-
 Corollary swappable {I : Language} (cc1 cc2 : Compiler I I)
   (C1 C2 : Class (Event I))
   (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
@@ -301,3 +284,32 @@ Proof.
   - apply seqcompo; auto.
 Qed.
 
+(** Preservation of robust satisfaction.
+    Requires classes to be subset closed *)
+Definition enfsat__τ {S T : Language}
+    (rel : Trace (Event S) -> Trace (Event T) -> Prop)
+    (cc : Compiler S T) (C : Class (Event S)) :=
+  forall (Π : Hyperproperty (Event S)),
+    belongs_to (Event S) Π C ->
+    forall (p : Partials S),
+      rsat (cc p) (induced_tau rel Π)
+.
+Notation "'[enf|-' cc ':' rel ',' C ']'" := (enfsat__τ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
+
+(* beware of empty compo *)
+Theorem enfcompo {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
+  (C1 C2 : Class (Event S))
+  (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
+    [enf|- cc2 : rel2, induced_tau rel1 C2] ->
+    [pres|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+.
+Proof.
+  intros H1 Π HΠ p Hsat Ct.
+  assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
+  rewrite rsat_trim.
+  apply H1.
+  intros bI H. destruct H as [πs [Ha Hb]].
+  specialize (HΠ πs Ha).
+  exists πs; split; trivial; apply HΠ.
+Qed.

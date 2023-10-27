@@ -113,15 +113,14 @@ Definition sigma {S T : Language} (rel : Trace (Event S) -> Trace (Event T) -> P
 .
 Definition induced_sigma {S T : Language} (rel : Trace (Event S) -> Trace (Event T) -> Prop) (Π : Hyperproperty (Event T)) : Hyperproperty (Event S) :=
   fun (πs : Property (Event S)) =>
-    forall (πt : Property (Event T)), Π πt -> set_eq πs (sigma rel πt)
+    exists (πt : Property (Event T)), Π πt /\ set_eq πs (sigma rel πt)
 .
 Notation "'σ'" := sigma.
 Notation "'σ~'" := induced_sigma.
 (** Compilers *)
 Definition Compiler (S T : Language) := Partials S -> Partials T.
 
-(** Preservation of robust satisfaction.
-    Requires classes to be subset closed *)
+(** Preservation of robust satisfaction. *)
 Definition prsat__τ {S T : Language}
     (rel : Trace (Event S) -> Trace (Event T) -> Prop)
     (cc : Compiler S T) (C : Class (Event S)) :=
@@ -129,9 +128,20 @@ Definition prsat__τ {S T : Language}
     belongs_to (Event S) Π C ->
     forall (p : Partials S),
       rsat p Π ->
-      rsat (cc p) (induced_tau rel Π)
+      rsat (cc p) (τ~ rel Π)
 .
-Notation "'[pres|-' cc ':' rel ',' C ']'" := (prsat__τ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
+Notation "'[presτ|-' cc ':' rel ',' C ']'" := (prsat__τ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
+
+Definition prsat__σ {S T : Language}
+    (rel : Trace (Event S) -> Trace (Event T) -> Prop)
+    (cc : Compiler S T) (C : Class (Event T)) :=
+  forall (Π : Hyperproperty (Event T)),
+    belongs_to (Event T) Π C ->
+    forall (p : Partials S),
+      rsat p (σ~ rel Π) ->
+      rsat (cc p) Π 
+.
+Notation "'[presσ|-' cc ':' rel ',' C ']'" := (prsat__σ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
 
 (** Sequential Composition *)
 Notation "cc1 '∘' cc2" := (fun t => cc2(cc1 t)) (at level 81, left associativity, cc2 at next level).
@@ -140,7 +150,7 @@ Infix "∩" := (intersect _) (at level 81, left associativity).
 
 Notation "a '∈' b" := (hsat _ a b) (at level 89, no associativity, b at next level).
 
-Lemma rsat_trim' {S I T : Language} 
+Lemma rsat_trim_inducedτ' {S I T : Language} 
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
   (π : Property (Event S)) :
@@ -153,48 +163,79 @@ Proof.
   - destruct Hx as [i [Hi [s [Hs Hx]]]].
     exists s; split; trivial; exists i; firstorder.
 Qed.
-Lemma rsat_trim {S I T : Language} 
+Lemma rsat_trim_inducedτ {S I T : Language} 
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
   (Π : Hyperproperty (Event S)) :
-  induced_tau (rel1 ◘ rel2) Π = induced_tau rel2 (induced_tau rel1 Π)
+  τ~ (rel1 ◘ rel2) Π = τ~ rel2 (τ~ rel1 Π)
 .
 Proof.
   apply set_eq_equiv_eq; split; intros πt Hx. 
   - destruct Hx as [πs [Hs Hx]].
     apply set_eq_equiv_eq in Hx.
     exists (tau rel1 πs).
-    split; subst; eauto using rsat_trim'.
+    split; subst; eauto using rsat_trim_inducedτ'.
     exists πs; split; trivial; apply set_eq_equiv_eq; easy.
   - destruct Hx as [πi [[πs [Hs Hi]] Hx]].
     exists πs; split; trivial.
     apply set_eq_equiv_eq in Hi, Hx.
     apply set_eq_equiv_eq; symmetry; apply set_eq_equiv_eq.
-    subst; eauto using rsat_trim'.
+    subst; eauto using rsat_trim_inducedτ'.
 Qed.
 
-Definition wf {S I : Language}
+Lemma rsat_trim_σ {S I T : Language} 
+  (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
+  (π : Property (Event T)) :
+  sigma (rel1 ◘ rel2) π = sigma rel1 (sigma rel2 π)
+.
+Proof.
+  apply set_eq_equiv_eq; split; intros As Hx.
+  - intros πi Hi At Ht.
+    specialize (Hx At); eauto.
+  - intros At [Ai [Ha Hb]].
+    specialize (Hx Ai Ha At Hb); eauto.
+Qed.
+Lemma rsat_trim_inducedσ {S I T : Language} 
+  (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
+  (Π : Hyperproperty (Event T)) :
+  σ~ (rel1 ◘ rel2) Π = σ~ rel1 (σ~ rel2 Π)
+.
+Proof.
+  apply set_eq_equiv_eq; split; intros πs [πt [Ht Hx]].
+  - apply set_eq_equiv_eq in Hx; subst.
+    exists (σ rel2 πt); split; eauto.
+    + exists πt; split; eapply set_eq_equiv_eq; eauto.
+    + apply set_eq_equiv_eq, rsat_trim_σ.
+  - destruct Ht as [πt' [Ht Hy%set_eq_equiv_eq]]; subst.
+    apply set_eq_equiv_eq in Hx; subst. 
+    exists πt'; split; eauto.
+    eapply set_eq_equiv_eq; eauto using rsat_trim_σ.
+Qed.
+
+Definition wfτ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (Π : Hyperproperty (Event S)) :=
     forall (π : Property (Event S)),
       Π π ->
-      (induced_tau rel Π) (tau rel π)
+      (τ~ rel Π) (tau rel π)
 .
-Notation "'|-wf' rel ':' Π" := (wf rel Π) (at level 81, rel at next level, Π at next level).
-Definition gwf {S I : Language}
+Notation "'|-wfτ' rel ':' Π" := (wfτ rel Π) (at level 81, rel at next level, Π at next level).
+Definition gwfτ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (C : Class (Event S)) :=
     forall (Π : Hyperproperty (Event S)),
       belongs_to (Event S) Π C ->
       belongs_to (Event I) (τ~ rel Π) (τ~ rel C)
 .
-Notation "'|-gwf' rel ':' Π" := (gwf rel Π) (at level 81, rel at next level, Π at next level).
+Notation "'|-gwfτ' rel ':' Π" := (gwfτ rel Π) (at level 81, rel at next level, Π at next level).
 
-Lemma wf_is_gwf {S I : Language}
+Lemma wfτ_is_gwfτ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (C : Hyperproperty (Event S)) :
-  (|-wf rel : C) ->
-  (|-gwf rel : C)
+  (|-wfτ rel : C) ->
+  (|-gwfτ rel : C)
 .
 Proof.
   intros H Π HΠC bI [πs [Hs Hx]]; apply set_eq_equiv_eq in Hx; subst.
@@ -202,57 +243,57 @@ Proof.
   specialize (H πs HΠC).
   assumption.
 Qed.
-Lemma gwf_is_wf {S I : Language}
+Lemma gwfτ_is_wfτ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (C : Hyperproperty (Event S)) :
-  (|-gwf rel : C) ->
-  (|-wf rel : C)
+  (|-gwfτ rel : C) ->
+  (|-wfτ rel : C)
 .
 Proof.
   intros H πs Hπs; exists πs; split; trivial;
   apply set_eq_equiv_eq; reflexivity.
 Qed.
-Corollary wf_equiv_gwf {S I : Language}
+Corollary wfτ_equiv_gwfτ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (C : Hyperproperty (Event S)) :
-  (|-gwf rel : C) <->
-  (|-wf rel : C)
+  (|-gwfτ rel : C) <->
+  (|-wfτ rel : C)
 .
-Proof. split; auto using gwf_is_wf, wf_is_gwf. Qed.
+Proof. split; auto using gwfτ_is_wfτ, wfτ_is_gwfτ. Qed.
 
-Theorem seqcompo {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
+Theorem seqcompoτ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
   (C1 C2 : Class (Event S))
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
-    (|-wf rel1 : C2) ->
-    [pres|- cc1 : rel1, C1] ->
-    [pres|- cc2 : rel2, induced_tau rel1 C2] ->
-    [pres|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+    (|-wfτ rel1 : C2) ->
+    [presτ|- cc1 : rel1, C1] ->
+    [presτ|- cc2 : rel2, τ~ rel1 C2] ->
+    [presτ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
 .
 Proof.
-  intros H__wf%wf_equiv_gwf H1 H2 Π HΠ p Hsat Ct.
+  intros H__wf%wfτ_equiv_gwfτ H1 H2 Π HΠ p Hsat Ct.
   assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
   unfold prsat__τ in H2.
-  rewrite rsat_trim.
+  rewrite rsat_trim_inducedτ.
   eapply H2; try now eapply H__wf.
   eapply H1; try exact HΠa.
   exact Hsat.
 Qed.
-Definition nwf {S I : Language}
+Definition nwfτ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (Π : Hyperproperty (Event S)) :=
     exists (π : Property (Event S)),
       Π π /\
-      ~(induced_tau rel Π) (tau rel π)
+      ~(τ~ rel Π) (tau rel π)
 .
-Notation "'¬|-wf' rel ':' Π" := (nwf rel Π) (at level 81, rel at next level, Π at next level).
+Notation "'¬|-wfτ' rel ':' Π" := (nwfτ rel Π) (at level 81, rel at next level, Π at next level).
 
 Theorem empty_compo {S I T : Language} 
   (C : Class (Event S))
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
-  (H__wf : |-wf rel1 : C)
-  (H__nwf : ¬|-wf rel2 : τ~ rel1 C)
+  (H__wf : |-wfτ rel1 : C)
+  (H__nwf : ¬|-wfτ rel2 : τ~ rel1 C)
   :
     τ~ (rel1 ◘ rel2) C = ∅
 .
@@ -269,20 +310,87 @@ Corollary swappable {I : Language} (cc1 cc2 : Compiler I I)
   (C1 C2 : Class (Event I))
   (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
-    (|-wf rel2 : C1) ->
-    (|-wf rel1 : C2) ->
-    [pres|- cc1 : rel1, τ~ rel2 C1] ->
-    [pres|- cc2 : rel2, C2] ->
-    [pres|- cc1 : rel1, C1] ->
-    [pres|- cc2 : rel2, τ~ rel1 C2] ->
-    [pres|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
- /\ [pres|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
+    (|-wfτ rel2 : C1) ->
+    (|-wfτ rel1 : C2) ->
+    [presτ|- cc1 : rel1, τ~ rel2 C1] ->
+    [presτ|- cc2 : rel2, C2] ->
+    [presτ|- cc1 : rel1, C1] ->
+    [presτ|- cc2 : rel2, τ~ rel1 C2] ->
+    [presτ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+ /\ [presτ|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
 .
 Proof.
   split; intros.
-  - apply seqcompo; auto.
-  - apply seqcompo; auto.
+  - apply seqcompoτ; auto.
+  - apply seqcompoτ; auto.
 Qed.
+
+Definition wfσ {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (Π : Hyperproperty (Event I)) :=
+    forall (π : Property (Event I)),
+      Π π ->
+      (σ~ rel Π) (sigma rel π)
+.
+Notation "'|-wfσ' rel ':' Π" := (wfσ rel Π) (at level 81, rel at next level, Π at next level).
+Definition gwfσ {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (C : Class (Event I)) :=
+    forall (Π : Hyperproperty (Event I)),
+      belongs_to (Event I) Π C ->
+      belongs_to (Event S) (σ~ rel Π) (σ~ rel C)
+.
+Notation "'|-gwfσ' rel ':' Π" := (gwfσ rel Π) (at level 81, rel at next level, Π at next level).
+
+Lemma wfσ_is_gwfσ {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (C : Hyperproperty (Event I)) :
+  (|-wfσ rel : C) ->
+  (|-gwfσ rel : C)
+.
+Proof.
+  intros H Π HΠC bI [πs [Hs Hx]]; apply set_eq_equiv_eq in Hx; subst.
+  specialize (HΠC πs Hs).
+  specialize (H πs HΠC).
+  assumption.
+Qed.
+Lemma gwfσ_is_wfσ {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (C : Hyperproperty (Event I)) :
+  (|-gwfσ rel : C) ->
+  (|-wfσ rel : C)
+.
+Proof.
+  intros H πs Hπs; exists πs; split; trivial;
+  apply set_eq_equiv_eq; reflexivity.
+Qed.
+Corollary wfσ_equiv_gwfσ {S I : Language}
+  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
+  (C : Hyperproperty (Event I)) :
+  (|-gwfσ rel : C) <->
+  (|-wfσ rel : C)
+.
+Proof. split; auto using gwfσ_is_wfσ, wfσ_is_gwfσ. Qed.
+
+Theorem seqcompoσ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
+  (C1 C2 : Class (Event T))
+  (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
+    (|-gwfσ rel2 : C1) ->
+    [presσ|- cc1 : rel1, σ~ rel2 C1] ->
+    [presσ|- cc2 : rel2, C2] ->
+    [presσ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+.
+Proof.
+  intros H__wf H1 H2 Π HΠ p Hsat Ct.
+  assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
+  unfold prsat__σ in H1, H2.
+  rewrite rsat_trim_inducedσ in Hsat.
+  eapply H2; try exact HΠb.
+  eapply H1; try now eapply H__wf.
+  exact Hsat.
+Qed.
+
 
 (** Preservation of robust satisfaction.
     Requires classes to be subset closed *)
@@ -302,12 +410,12 @@ Theorem enfcompo {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
     [enf|- cc2 : rel2, induced_tau rel1 C2] ->
-    [pres|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+    [presτ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
 .
 Proof.
   intros H1 Π HΠ p Hsat Ct.
   assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
-  rewrite rsat_trim.
+  rewrite rsat_trim_inducedτ.
   apply H1.
   intros bI H. destruct H as [πs [Ha Hb]].
   specialize (HΠ πs Ha).

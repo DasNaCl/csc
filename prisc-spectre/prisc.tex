@@ -68,6 +68,7 @@
                         %% http://ctan.org/pkg/booktabs
 \usepackage{subcaption} %% For complex figures with subfigures/subcaptions
                         %% http://ctan.org/pkg/subcaption
+\usepackage{semantic}
 \usepackage{stmaryrd}
 \usepackage{mathrsfs}
 \usepackage{mathtools}
@@ -86,7 +87,7 @@
 \usetikzlibrary{decorations,positioning,arrows}
 
 \newacronym{rc}{RC}{Robust Compilation}
-\newacronym{ltlp}{LTL-Past}{Linear Temporal Logic with Past}
+\newacronym{ltlp}{LTL+Past}{Linear Temporal Logic with Past}
 \newacronym{imd}{IMD}{Index-masking Defense}
 \newacronym{lfence}{LFENCE}{Insertion of \texttt{lfence}s}
 \newacronym{slh}{SLH}{Speculative Load Hardening}
@@ -207,16 +208,15 @@ Even correct compilers do not provide satisfactory guarantees and one has to res
 Compilers that give these strong security guarantees usually instrument the code with mitigation mechanisms, such as bounds checks for (spatial) memory safety.
 While such source-code instrumentations can be done in a local manner, i.e., there is one compilation pass that does just this, a compiler typically consists of several compilation passes, e.g., translating to continuation-passing-style or performing optimisations, like loop unrolling or vectorisation. 
 From a software engineering perspective, these passes are tackled in an individual manner and there have been efforts to make compiler correctness proofs modular as well. 
-A recent line of work\MK{cit} demonstrates what is necessary for secure compilers to enjoy this modularity, effectively enabling a divide-and-conquer approach to the engineering of secure compilers. 
+A recent line of work~\cite{kruse22,kruse23,abate21} demonstrates what is necessary for secure compilers to enjoy this modularity, effectively enabling a divide-and-conquer approach to the engineering of secure compilers. 
 
-To prove individual compilation passes secure and compose them into one compiler, the authors, inspired by earlier work\MK{catalin}, give a semantic interpretation of the modifications done by a compilation pass. 
+To prove individual compilation passes secure and compose them into one compiler, there is a semantic interpretation of the modifications done by a compilation pass~\cite{kruse23,abate21}. 
 To instantiate their framework, one has to define a cross-language trace relation that witnesses the behavioral changes of a program when compiled.
 It is worth noting that some compiler compositions are not useful in practice, such as one where the last compilation pass invalidates the security guarantees given by other passes, like a pass that inserts accesses to some arbitrary memory address without any checks, thereby violating memory-safety.
 Whether a composition is useful or not can be captured by compatibility of the corresponding cross-language trace relation, thus bypassing the need to reason about the concrete, syntactic changes a compilation pass does. 
 
 \begin{definition}[Compatibility]
-  Given languages $\src{S}$ and $\trg{T}$, a cross-language trace relation $\sim$ between traces of $\src{S}$ and $\trg{T}$, and a $\trg{T}-$level class of properties $\trg{\mathbb{C}}$.
-  $\sim$ is compatible with $\trg{\mathbb{C}}$ iff for any $\trg{\Pi}\subseteq\trg{\mathbb{C}}$ it holds that $\tilde{\sigma}(\trg{\Pi})\subseteq\tilde{\sigma}(\trg{\mathbb{C}})$.
+  Given languages $\src{S}$ and $\trg{T}$, a cross-language trace relation $\sim$ between traces of $\src{S}$ and $\trg{T}$, and a $\trg{T}-$level class of properties $\trg{\mathbb{C}}$, then $\sim$ is compatible with $\trg{\mathbb{C}}$ iff for any $\trg{\Pi}\subseteq\trg{\mathbb{C}}$ it holds that $\tilde{\sigma}(\trg{\Pi})\subseteq\tilde{\sigma}(\trg{\mathbb{C}})$.
  
 %Definition gwfσ {S I : Language}
 %  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
@@ -228,11 +228,11 @@ Whether a composition is useful or not can be captured by compatibility of the c
 
 %Compatibility states that any source-level trace $\src{\trace}$ must have a corresponding target-level trace $\trg{\trace}$ such that the traces are related $\src{\trace}\sim\trg{\trace}$ and $\trg{\trace}$ satisfies a target-level property of interest.
 
-Another prominent example for \textit{in}compatiblity is the \gls{imd}\MK{cit} that prevents SPECTREv1 attacks that exploit speculative execution of loads happening after a branch. 
-\gls{imd} works by masking the index of the load with the size of the corresponding array.
-Unfortunately, while this mitigation prevents SPECTREv1 attacks, it can introduce SPECTREv4 vulnerabilities, where loads/stores are run out-of-order and, thus, it can happen that the index is not masked in a subsequent, speculative load.
+Another prominent example for \textit{in}compatiblity is the \gls{imd}~\cite{pizlo18} that prevents SPECTREv1 attacks that exploit speculative execution of loads happening after a branch. 
+\gls{imd} works by masking the index of a load with the size of the corresponding memory region.
+Unfortunately, while this mitigation prevents SPECTREv1 attacks, it can introduce SPECTREv4 vulnerabilities, where loads/stores are run speculatively and, thus, may bypass the masking of the index.
 This demonstrates that a secure compilation pipeline that aims at instrumenting the source-code to be hardened against SPECTREv1 and SPECTREv4 has two options: (1) do not use \gls{imd} for SPECTREv1 mitigation and adopt another technique that is compatible with SPECTREv4 or (2) \textit{first} do \gls{imd}, then a source-code instrumentation to prevent SPECTREv4 vulnerabilities that does not assume that the original source-code satisfied absence of SPECTREv4 vulnerabilities\footnote{Of course, in both options, the mitigation for SPECTREv4 must not be incompatible with the one used for SPECTREv1.}.
-For the latter, this paper refers to these kinds of compilation passes as (robust) \textit{enforcements}, because they are much stronger than (robust) preservations:
+For the latter, this extended abstract refers to these kinds of compilation passes as (robust) \textit{enforcements}, because they are much stronger than (robust) preservations:
 
 \begin{figure}[h]
   \small
@@ -243,16 +243,15 @@ For the latter, this paper refers to these kinds of compilation passes as (robus
     \text{then }\gamma_{\text{pres}}(\src{p})\text{ robustly satisfies }\trg{\pi} & \gamma_{\text{enf}}(\src{p})\text{ robustly satisfies }\trg{\pi}
   \end{array}
 \]
-\caption{Comparison of formal statements of robust preservation and robust enforcement. $\gamma_{\text{pres}}$ is a robustly preserving compiler and $\gamma_{\text{enf}}$ a robust enforcing compiler. $\trg{\pi}$ is an arbitrary target-level property. $\tilde{\sigma}$ is the universal image.}
+\caption{Comparison of formal statements of robust preservation and robust enforcement. $\gamma_{\text{pres}}$ is a robustly preserving compiler and $\gamma_{\text{enf}}$ a robust enforcing compiler. $\trg{\pi}$ is an arbitrary target-level property. $\tilde{\sigma}$ is taken from recent work~\cite{abate21}.}
 \end{figure}
-.\MK{cite ,,an extended account'' in caption}
 
-Within the framework of recent work\MK{cit kruse et al (arxiv)}, this extended abstract aims to formalize the semantic effect of mitigation mechanisms for SPECTRE variants and investigate their compatibility with each other.
+Within the framework of recent work~\cite{kruse22,kruse23}, this extended abstract aims to formalize the semantic effect of mitigation mechanisms for SPECTRE variants and investigate their compatibility with each other.
 %
 %
 %This work aims to investigate the compatibility, within the framework of recent work\MK{kruse et al}, of source-code instrumentation passes that insert SPECTRE mitigations. 
 Moreover, the paper investigates not only security-preserving compilers, but also security-\textit{enforcing} compilers. 
-Enforcements make no assumptions to the code of a source-level component\footnote{Although the source-level language may impose restrictions by means of a type-system that nonetheless provide security guarantees.}.
+Enforcements make no assumptions to the code of a source-level component\footnote{Although the source-level language may impose restrictions by means of a type-system that nonetheless provide security guarantees, since ill-typed programs are not compiled in practice.}.
 %% MK:
 %% motivation lacking for why we do it for just SPECTRE
 %% literally no explanation for spectre whatsoever
@@ -263,8 +262,8 @@ In the following, it is assumed that the source-level traces $\src{\trace}$ are 
 This is an acceptable assumption to make, since higher-level programming languages typically do not have a semantics where speculation is considered. 
 Consequently, if no speculation happens, no speculative leak can occur.
 For the target-level traces $\trg{\trace}$, it is assumed that all vulnerabilities are in some sense expressible in the trace model of the target language. 
-At the very least, this paper assumes the existence of some kind of allocation, memory load/store and branch events as well as a marker event for the beginning of a speculative execution, a barrie, and a rollback event. \MK{cite spectector, list concrete names in parentheses}
-The following bulletlist describes the semantic effect of popular SPECTRE mitigation techniques and borrows the succinct notation from \gls{ltlp}\MK{cit}\footnote{$\square \equiv$ ,,always'', $\lozenge \equiv$ ,,eventually'', $\triangleright \equiv$ ,,next'', and $\triangleleft \equiv$ ,,previous''}.
+At the very least, this paper assumes the existence of some kind of allocation ($\trg{Alloc(\loc;n)}$), memory load/store ($\trg{Get(\loc;idx;n)}$ and $\trg{Set(\loc;idx;n;v)}$), branch ($\trg{If(b)}$), and indirect branch events ($\trg{Ibranch(v)}$) as well as a marker event for a barrier ($\trg{\times}$), and a rollback event ($\trg{Rlb}$)~\cite{patrignani21b}.
+The following sketches the semantic effect of popular SPECTRE mitigation techniques and borrows the succinct notation from \gls{ltlp}~\cite{markey03}\footnote{$\square \equiv$ ,,always'', $\lozenge \equiv$ ,,eventually'', $\triangleright \equiv$ ,,next'', and $\triangleleft \equiv$ ,,previous''}.
 Note that this paper only considers security tags $\trg{\sigma}$ in the target language, the source language is implicitly secure with respect to speculation, since it does not model any in its dynamic semantics. 
 
 \begin{itemize}
@@ -272,23 +271,24 @@ Note that this paper only considers security tags $\trg{\sigma}$ in the target l
 $$
 \begin{array}{rcl}
   \src{\trace} \sim^{v1}_{\texttt{\tiny IMD}} \trg{\trace} & \equiv & \text{if }\src{Alloc(\loc;n)},\src{Get(\loc;idx;v)}\in\src{\trace} \\
-                                                           && \text{then } \exists \trg{\loc\ n\ idx\ v}, \trg{Alloc(\loc;n)}\in\trg{\trace}\\
-                                                           && \text{s.t. } \trg{Get(\loc;idx;v)}\in\trg{\trace} \\
+                                                           && \text{then } \exists \trg{\loc\ n\ idx\ v}, \trg{Alloc(\loc;n)^\sigma}\in\trg{\trace}\\
+                                                           && \text{s.t. } \trg{Get(\loc;idx;v)^{\sigma'}}\in\trg{\trace} \\
                                                            && \text{and } \exists m, \trg{n} = 2^m \text{ and } \trg{idx} \le 2^m \\
                                                            && \text{and } \src{\loc}\approx\trg{\loc} \text{ and }\src{v}\approx\trg{v}
 \end{array}
 $$
-  \gls{imd} changes memory allocation to be powers-of-2 and masks all indices by the bounds of the array.
+  \gls{imd} changes memory allocation to be powers-of-2 and masks all indices with the bounds of the array.
 
   \item \gls{lfence} (\texttt{v1}, \texttt{v4})
 $$
 \begin{array}{rcl}
-  \src{\trace} \sim^{v1,v4}_{\texttt{\tiny LFENCE}} \trg{\trace} & \equiv & \trg{\trace}\vDash\square(\trg{Branch(\_)}\implies\triangleright\trg{Barrier})\\
-                                                                 && \text{ and }\trg{\trace}\vDash\square(\trg{Get(\_)}\implies\triangleleft\trg{Barrier})
+  \src{\trace} \sim^{v1,v4}_{\texttt{\tiny LFENCE}} \trg{\trace} & \equiv & \trg{\trace}\vDash\square(\trg{If(\_)^\sigma}\implies\triangleright\trg{\times^{\sigma'}})\\
+                                                                 && \text{ and }\trg{\trace}\vDash\square(\trg{Get(\_)^{\sigma''}}\implies\triangleleft\trg{\times^{\sigma'''}})
 \end{array}
 $$
   \gls{lfence} simply puts a barrier after any branch or before any load instruction. 
   While the literature provides (partial) solutions that do not insert the barrier \textit{everywhere}, due to the significant performance penalty, this pass is simple, stupid and puts the barrier ,,everywhere'', i.e., in front of loads and after branches.
+  Since the $\src{S}$-level trace is completely irrelevant, this is an example for an enforcement.
 
 %   \item \gls{slh} (\texttt{v1})
 % $$
@@ -296,18 +296,21 @@ $$
 % $$
 
   \item \gls{retpoline} (\texttt{v2})
+
+\begin{center}
+  \typerule{retpol-ibranch}{\src{v}\approx\trg{v} \\
+    \trg{\trace}=\trg{Set(\loc;sp;v)^\sigma}\cdot\trg{Ret^{\sigma'}}\cdot\trg{\overline{Jmp}^{\overline{\sigma''}}}\cdot\trg{Rlb}\cdot\trg{\trace'}
+  }{\src{Ibranch(v)}\cdot\src{\trace}\sim^{v2}_{\texttt{\tiny Retpoline}}\trg{\trace}}{retpol-ibranch}
+\end{center}
 $$
 \begin{array}{rcl}
-  \src{\trace} \sim^{v2}_{\texttt{\tiny Retpoline}} \trg{\trace} & \equiv & \forall i, \src{\trace}[i]=\src{IndirectBranch(to)} \implies \\
+  \src{\trace} \sim^{v2}_{\texttt{\tiny Retpoline}} \trg{\trace} & \equiv & \forall i, \src{\trace}[i]=\src{Ibranch(v)} \implies \\
                                                                  && \text{\color{red}todo} \\
-                                                                 && \text{ and }\trg{\trace}\vDash\square(\trg{Get(\_)}\implies\triangleleft\trg{Barrier})
 \end{array}
 $$
 The \gls{retpoline} applies for every indirect branch on the source-level trace. 
-Each indirect branch at source-level must have an associated retpoline at target-level. 
-That is, the address of the indirect call must be pushed onto the stack to be used in the return instruction and speculation busy waits.
-\MKin{This is tricky to express.
-There needs to be an abstract way to say "this source-level indirect branch corresponds to this sequence of events in the target trace"}
+Each indirect branch at source-level must have an associated retpoline at target-level, as sketched with the \cref{tr:retpol-ibranch}. 
+That is, the address of the indirect call must be pushed onto the stack to be used in the return instruction and speculation busy waits until the rollback happens.
 
 
 %   \item \gls{speccfi} (\texttt{v2}, \texttt{v5})
@@ -319,8 +322,8 @@ There needs to be an abstract way to say "this source-level indirect branch corr
 $$
 \src{\trace} \sim^{v2,v4,v5}_{\texttt{\tiny MSR}} \trg{\trace} \equiv \forall\trg{\event^\sigma}, \trg{\sigma}=\trg{S}
 $$
-\MK{fix def to match intuition in text}
 Modern processors have flags to turn off speculation features, resulting in complete absence of speculation (for these variants) and all taints being secure $\trg{S}$.
+This is another example of an enforcement.
 
 %   \item Hunter (v1, v4)
 % $$
@@ -337,36 +340,51 @@ Modern processors have flags to turn off speculation features, resulting in comp
 
 \section{Compatibility of SPECTREv\texttt{X} Mitigations}
 
-The target-level property of interest (that is to be robustly preserved/enforced) would be a variant of \gls{ss}\MK{cit exorcising spectres}.
+The target-level property of interest (that is to be robustly preserved/enforced) would be a variant of \gls{ss}~\cite{patrignani21b}.
 Contrary to the original definition of SS, \Cref{def:ss} does not require tags to be always of the shape $\trg{S}$, i.e., the ,,secure'' tag.
+Instead, tags should be unequal to the kind of variant that one is interested in:
 
-\begin{definition}[\gls{ss} for Variant $x$]\label{def:ss}
-  \[
+\begin{definition}[\gls{ss} for variant $\trg{vX}$]\label{def:ss}
+  \small$
     \trg{\pi}_{\trg{vX}} = \left\{ \trg{\trace} \mid \forall \trg{\event^\sigma}\in\trg{\trace}, \trg{\sigma} \not= \trg{vX} \right\}
-  \]
+  $
 \end{definition}
-Here, it is assumed that the trace model of the target language has taint tags $\trg{\sigma}$.
-Instead, tags should be unequal to the kind of variant that one is interested in.
-Due to this, it is possible to recover SS, hereby simply referred to as $\trg{\pi}_{ss}$:
+Due to this, it is possible to recover SS~\cite{patrignani21b}, hereby simply referred to as $\trg{\pi}_{ss}$:
 $$\trg{\pi}_{ss} = \displaystyle\bigcap_{\trg{vX}}\trg{\pi}_{\trg{vX}}$$
+
+\Cref{fig:rels} sketches the compatibility of SPECTRE mitigations given the semantic interpretation as presented in the previous section.
 
 \begin{figure}[h]
   \fbox{%
   \begin{tikzpicture}
     \node (imd) {\gls{imd}};
     \node[right=1.0 of imd] (lfence) {\gls{lfence}};
+    \node[below=1.0 of imd] (retpoline) {\gls{retpoline}};
+    \node[right=1.0 of retpoline] (msr) {\gls{msr}};
 
-    \draw[->] (imd.east) to[bend left=20] (lfence.west);
+    \draw[->,very thick] (lfence) edge[loop right,right] node {$\trg{\pi_{v1,v4}}$} (lfence);
+    \draw[->,very thick] (msr) edge[loop right,right] node {$\trg{\pi_{v2,v4,v5}}$} (msr);
+    \draw[->,very thick] (imd) edge[loop left,left] node {$\trg{\pi_{v1}}$} (imd);
+    \draw[->,very thick] (retpoline) edge[loop left,left] node {$\trg{\pi_{v2}}$} (retpoline);
+
+    \draw[->,very thick] (imd.east) to[bend left=20,above] node {$\trg{\pi_{v1,v4}}$} (lfence.west);
+    \draw[->,very thick] (retpoline.east) to[bend right=20,below] node {$\trg{\pi_{v2,v4,v5}}$} (msr.west);
+    \draw[<->,very thick] (msr.north) to[bend right=20,right] node {$\trg{\pi}_{ss}$} (lfence.south);
+    \draw[<->,very thick] (retpoline.north) to[bend left=20,below right] node {$\trg{\pi_{v1,v2,v4}}$} (lfence.south);
+    \draw[<->,very thick] (msr.north) to[bend left=20,left] node {$\trg{\pi}_{ss}$} (imd.south);
+    \draw[<->,very thick] (retpoline.north) to[bend left=20,left] node {$\trg{\pi_{v1,v2}}$} (imd.south);
   \end{tikzpicture}}
   \caption{Compatibility of source-code instrumentations to prevent attacks of individual or multiple SPECTRE-variants.
   Nodes are compilers that perform the respective source-code instrumentation. 
   Edges are directed and represent compatibility of the composition. 
-  Tha origin of an edge is the compiler that should be run first, the target of an edge is the compiler that should be run afterwards.}
+  The origin of an edge is the compiler that should be run first, the target of an edge is the compiler that should be run afterwards.
+  Edge labels indicate the \gls{ss} variants.}
+  \label{fig:rels}
 \end{figure}
 
 \section{Conclusion}
 
-This short paper sketched a real-world application of the compositionality framework for secure compilers as presented in earlier work\MK{cit}. 
+This short paper sketched a real-world application of the compositionality framework for secure compilers as presented in earlier work~\cite{abate21,kruse22,kruse23}. 
 While few source-code transformations have been formally proven secure, it is nonetheless interesting to investigate their compatiblity relationships with other transformations on a semantic level, pretending the passes have been proven secure.
 Future work considers more source-code instrumentations, not only on just speculation. 
 Most interestingly, the authors would like to investigate the compatiblity of common compiler optimisations.

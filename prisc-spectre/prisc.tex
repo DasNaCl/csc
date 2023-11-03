@@ -203,16 +203,29 @@
 
 Some modern programming languages enjoy strong security guarantees, for example the Rust programming languages has memory safety guarantees given by its compiler performing a semantic analysis pass.
 While programmers may expect that these guarantees hold even after translating their program to the target programming language, it has been shown that this expectation is false in the general case~\cite{barthe18}.
-Even correct compilers do not provide satisfactory guarantees and thus one has to resort to secure compilers~\cite{abate19,abate20,patrignani21} which preserve property satisfaction even when the compiled program is linked with arbitrary target-level code, i.e., the compiled program is robust.
 
-Compilers that give these strong security guarantees usually instrument the code with mitigation mechanisms, for example they insert bounds checks for (spatial) memory safety.
-While such source-code instrumentations can be done in a local manner, i.e., there is one compilation pass that does just this, a compiler typically consists of several compilation passes, e.g., translating to continuation-passing-style or performing optimisations like loop unrolling. 
-From a software engineering perspective, these passes are tackled in an individual manner, so there have been efforts to make compiler correctness proofs modular. 
-Recent work~\cite{kruse23} demonstrates what is necessary for secure compilers to enjoy this modularity too, effectively enabling a divide-and-conquer approach to the engineering of secure compilers. 
+Correct compilers do not necessarily provide satisfactory guarantees~\cite{barthe18} and thus one has to resort to secure compilers~\cite{abate19,abate20,patrignani21} which preserve property satisfaction even when the compiled program is linked with arbitrary target-level code, i.e., the compiled program is robust.
+A recent framework~\cite{kruse23} describes how to compose secure compilers, thus allowing a divide-and-conquer approach to the engineering of secure compilers. 
+This framework primarily focuses on compilers that do not change the traces of the original program.
+However, real-world compilers perform source-code transformations that may change the trace, such as applying source-code instrumentations that enhance security by, e.g., inserting bounds-checks. 
+Other work~\cite{abate21} showed that there are essentially two approaches to this, where the robust preservation~\cite{abate19,abate20,patrignani21} statement is changed to lift the restriction of a unified trace-model as follows:
+{
+  \footnotesize
+\[
+  \begin{array}{l|l}
+    \textbf{Top-down Approach} & \textbf{Bottom-up Approach} \\\hline
+     \text{if }\src{p}\text{ robustly satisfies }\src{\pi}, & \text{if }\src{p}\text{ robustly satisfies }\sigma_\sim(\trg{\pi}), \\
+     \text{then }\gamma(\src{p})\text{ robustly satisfies }\tau_\sim(\src{\pi}) & \text{then }\gamma(\src{p})\text{ robustly satisfies }\trg{\pi}
+  \end{array}
+\]
+}
+Hereby, $\gamma$ is a compiler, $\sim$ a cross-language trace relation from $\src{S}$-level traces to $\trg{T}$-level traces describing the semantic effect of $\gamma$, and $\tau_\sim$/$\sigma_\sim$ project a source/target property to a target/source property.
+While the compositionality framework~\cite{kruse23} does consider the top-down approach, it does not entail composition of the bottom-up one.
+However, the bottom-up approach is crucial for security properties that can only be described in the target-level, such as absence of SPECTRE vulnerabilities~\cite{kocher19}, since higher-level languages do not model speculation in their semantics.
 
-To prove individual compilation passes secure and compose them into one compiler, previous work introduces a framework for a semantic interpretation of the modifications done by a compilation pass~\cite{kruse23,abate21}. 
-To instantiate this framework, one has to define a cross-language trace relation that witnesses the behavioral changes of a program when compiled.
-It is worth noting that some compiler compositions may not give the wanted security properties, such as one where the last compilation pass invalidates the security guarantees given by other passes, like a pass that inserts accesses to some arbitrary memory address without any checks, thereby violating memory-safety.
+It is worth noting that some compiler compositions may not give the wanted security properties, such as when composing with \gls{imd}~\cite{pizlo18} that prevents SPECTREv1 attacks that exploit speculative execution of loads happening after a branch. 
+While \gls{imd} prevents SPECTREv1 attacks, it can introduce SPECTREv4 vulnerabilities and, thus, can render a SPECTREv4 mitigation run prior to \gls{imd} useless.
+
 Compilation passes that do not violate the security properties of earlier ones fulfill a notion of compatibility of a cross-language trace relation that describes the effect of the compiler. 
 Because compatiblity is defined on cross-language trace relations, there is no need to reason about the concrete, syntactic changes a compilation pass does. 
 
@@ -229,37 +242,18 @@ Because compatiblity is defined on cross-language trace relations, there is no n
 
 %Compatibility states that any source-level trace $\src{\trace}$ must have a corresponding target-level trace $\trg{\trace}$ such that the traces are related $\src{\trace}\sim\trg{\trace}$ and $\trg{\trace}$ satisfies a target-level property of interest.
 
-Another prominent example for \textit{in}compatiblity is the \gls{imd}~\cite{pizlo18} that prevents SPECTREv1 attacks that exploit speculative execution of loads happening after a branch. 
-\gls{imd} works by masking the index of a load with the size of the corresponding memory region.
-Unfortunately, while this mitigation prevents SPECTREv1 attacks, it can introduce SPECTREv4 vulnerabilities, where loads/stores are run speculatively and, thus, may bypass the masking of the index.
-This demonstrates that a secure compilation pipeline that aims at instrumenting the source-code to be hardened against SPECTREv1 and SPECTREv4 has two options: (1) do not use \gls{imd} for SPECTREv1 mitigation and adopt another technique that is compatible with SPECTREv4 or (2) \textit{first} do \gls{imd}, then a source-code instrumentation to prevent SPECTREv4 vulnerabilities that does not assume that the original source-code satisfied absence of SPECTREv4 vulnerabilities\footnote{Of course, in both options, the mitigation for SPECTREv4 must not be incompatible with the one used for SPECTREv1.}.
-For the latter, this extended abstract refers to these kinds of compilation passes as (robust) \textit{enforcements}, because they are much stronger than (robust) preservations:
-
-\begin{figure}[h]
-  \small
-\[
-  \begin{array}{l|l}
-    \textbf{Robust Preservation} & \textbf{Robust Enforcement} \\\hline
-    \text{if }\src{p}\text{ robustly satisfies }\sigma_\sim(\trg{\pi}), & \\
-    \text{then }\gamma_{\text{pres}}(\src{p})\text{ robustly satisfies }\trg{\pi} & \gamma_{\text{enf}}(\src{p})\text{ robustly satisfies }\trg{\pi}
-  \end{array}
-\]
-\caption{Comparison of formal statements of robust preservation and robust enforcement. $\gamma_{\text{pres}}$ is a robustly preserving compiler and $\gamma_{\text{enf}}$ a robust enforcing compiler. $\trg{\pi}$ is an arbitrary target-level property. $\sigma_\sim$ is taken from recent work~\cite{abate21}.}\label{fig:pres}
-\end{figure}
-
-Within the framework of recent work~\cite{kruse22,kruse23}, this extended abstract aims to give cross-language trace relations that describe the semantic effect of mitigation mechanisms for SPECTRE variants and sketch their compatibility with each other.
+This extended abstract extends prior work~\cite{kruse23} to consider bottom-up secure compiler composition and aims to apply that theory to a selection of mitigations for SPECTRE variants. 
+It is demonstrated that it suffices to setup a cross-language trace relation that describes the semantic effect of a secure compiler and prove compatibility with properties of interest in order to compose the secure compiler without giving up on security guarantees. 
 %
 %
 %This work aims to investigate the compatibility, within the framework of recent work\MK{kruse et al}, of source-code instrumentation passes that insert SPECTRE mitigations. 
-Moreover, the paper investigates not only security-preserving compilers, but also security-\textit{enforcing} compilers. 
-Enforcements make no assumptions to the code of a source-level component\footnote{Although the source-level language may impose restrictions by means of a type-system that nonetheless provide security guarantees, since ill-typed programs are not compiled in practice.}.
 
 \section{Composing Secure Compilers}
 
 The composition of secure compilers requires two theorems to be proven:
-(1) either of the statements in \Cref{fig:pres} and (2) \Thmref{def:compat}.
-The rest of the paper assumes that, for the presented SPECTRE mitigations, the statements in \Cref{fig:pres} have been shown for the respective compilation pass. 
-The property that all mitigations aim to robustly preserve/enforce is a variant of \gls{ss}~\cite{patrignani21b}, which relies on a taint-tracking mechanism and taints ($\sigma$) that tag events as safe ($S$) or unsafe.
+(1) robust preservation, either with a unified trace-model~\cite{abate19}, top-down, or bottom-up, and (2) \Thmref{def:compat}.
+The rest of the paper assumes that the presented SPECTRE mitigations have been proven secure as in (1).
+The property that all mitigations aim to robustly preserve is a variant of \gls{ss}~\cite{patrignani21b}, which relies on a taint-tracking mechanism and taints ($\sigma$) that tag events as safe ($S$) or unsafe.
 Contrary to the original definition of \gls{ss}, this paper states \gls{ss} such that tags should be unequal to the tag of the kind of variant ($\text{vX}$) that one is interested in:
 
 \begin{definition}[\gls{ss} for variant $\trg{vX}$]\label{def:ss}
@@ -270,11 +264,10 @@ Contrary to the original definition of \gls{ss}, this paper states \gls{ss} such
 \noindent The original \gls{ss}~\cite{patrignani21b}, hereby named $\trg{\pi}_{ss}$, can be recovered:
 $$\trg{\pi}_{ss} = \displaystyle\bigcap_{\trg{vX}}\trg{\pi}_{\trg{vX}}$$
 
-Both robust preservation/enforcement (\Cref{fig:pres}) and compatiblity (\Cref{def:compat}) require a cross-language trace relation that describes the corresponding compilers semantically.
+Robust preservation (only for top-down or bottom-up) and compatiblity (\Cref{def:compat}) require a cross-language trace relation that describes the effect of a corresponding compiler semantically.
 Therefore, for the rest of the extended abstract, it is assumed that there are source ($\src{S}$) and target ($\trg{T}$) languages, which share a large portion of their trace model. 
-The trace models must have some kind of allocation ($\text{Alloc}{(\loc;n)}$), memory load/store ($\text{Get}{(\loc;idx;n)}$ and $\text{Set}{(\loc;idx;n;v)}$), branch ($\text{If}(b)$), and indirect branch events ($\text{Ibranch(v)}$), as well as a marker event for a barrier ($\times$), and a rollback event ($\text{Rlb}$)~\cite{patrignani21b}.
-Trace events are annotated with taint tags. 
-For sake of readability, trace events tagged with the secure tag (S) are written without the tag.
+The trace models must have some kind of allocation ($\text{Alloc}{(\loc;n)}$), memory load/store ($\text{Get}{(\loc;idx;n)}$ and $\text{Set}{(\loc;idx;n;v)}$), branch ($\text{If}(b)$), and indirect branch events ($\text{Ibranch}(v)$), jumps ($\text{Jmp}(v)$), as well as a marker event for a barrier ($\times$), and a rollback event ($\text{Rlb}$)~\cite{patrignani21b}.
+Trace events are annotated with taint tags and for sake of readability, trace events tagged with the secure tag (S) are written without the tag.
 This is enough setup to sketch the cross-language trace relations describing the semantic changes each considered mitigation does:
 
 \begin{itemize}
@@ -299,7 +292,7 @@ $$
 \end{array}
 $$
   \gls{lfence} simply puts a barrier after any branch or before any load instruction. 
-  While the literature provides (partial) solutions that do not insert the barrier \textit{everywhere}, due to the significant performance penalty, this pass is simple, stupid and puts the barrier ,,everywhere'', i.e., in front of loads and after branches.
+  While the literature provides (partial) solutions that do not insert the barrier \textit{everywhere}, due to the significant performance penalty, the considered pass is simple and puts the barrier ,,everywhere'', i.e., in front of loads and after branches.
   Since the $\src{S}$-level trace is completely irrelevant, this is an example for an enforcement.
 
 %   \item \gls{slh} (\texttt{v1})
@@ -310,7 +303,7 @@ $$
   \item \gls{retpoline}~\cite{turnerret} (\texttt{v2})
 
 \begin{center}
-  \typerule{retpol-ibranch}{\src{v}\approx\trg{v} \\
+  \typerule{retpol-ibranch}{\src{v}\approx\trg{v} &
     \trg{\trace}=\trg{Set(\loc;sp;v)^\sigma}\cdot\trg{Ret^{\sigma'}}\cdot\trg{\overline{Jmp}^{\overline{\sigma''}}}\cdot\trg{Rlb}\cdot\trg{\trace'}
   }{\src{Ibranch(v)}\cdot\src{\trace}\sim^{v2}_{\texttt{\tiny Retpoline}}\trg{\trace}}{retpol-ibranch}
 \end{center}
@@ -326,9 +319,9 @@ That is, the address of the indirect call must be pushed onto the stack to be us
 
   \item \gls{msr}~\cite{redhatmsr} (\texttt{\scriptsize v2, v4, v5})
 $$
-\src{\trace} \sim^{v2,v4,v5}_{\texttt{\tiny MSR}} \trg{\trace} \equiv \forall\trg{\event^\sigma}, \trg{\sigma}=\trg{S}
+\src{\trace} \sim^{v2,v4,v5}_{\texttt{\tiny MSR}} \trg{\trace} \equiv \forall\trg{\event^\sigma}, \trg{\sigma}\not\in\{\trg{v2},\trg{v4},\trg{v5}\}
 $$
-Modern processors have flags to turn off speculation features, resulting in complete absence of speculation (for these variants) and all taints being secure $\trg{S}$.
+Modern processors have flags to turn off speculation features, resulting in complete absence of speculation (for these variants). 
 This is another example of an enforcement.
 
 %   \item Hunter (v1, v4)
@@ -342,8 +335,8 @@ This is another example of an enforcement.
 % $$
 \end{itemize}
 
-Having shown either theorem stated in \Cref{fig:pres} for each of the mitigations in the list above, it remains to show \Cref{def:compat}.
-Without a proof of \Cref{def:compat}, the composition of mitigations may not provide the security guarantees of interest.
+It remains to show \Thmref{def:compat}.
+Without a proof of \Thmref{def:compat}, the composition of mitigations may not provide the security guarantees of interest, since one could intuitively ,,undo'' what another one did.
 For space reasons, this extended abstract does not provide formal proof for all possible compositions of above mitigations, but at least sketches the anticipated proofs of compatibility theorems in \Cref{fig:rels}.
 
 \begin{figure}[h]

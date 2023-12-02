@@ -423,7 +423,7 @@ Inductive πss (variant : SecurityTag) : Trace (Event T) -> Prop :=
 .
 Definition powerset (π : Trace (Event T) -> Prop) : (Trace (Event T) -> Prop) -> Prop :=
   fun (π' : Trace (Event T) -> Prop) =>
-  forall t, π' t -> π t
+  subsets π' π
 .
 Goal forall v, |-wfσ msrrel : powerset(πss v).
 Proof.

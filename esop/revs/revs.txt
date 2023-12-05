@@ -1,0 +1,178 @@
+---------------------- REVIEW 1 ---------------------
+SUBMISSION: 3347
+TITLE: Secure Composition of Robust and Optimising Compilers
+AUTHORS: Matthis Kruse, Michael Backes and Marco Patrignani
+
+----------- Overall evaluation -----------
+SCORE: -1 (weak reject (the paper should be rejected))
+----- TEXT:
+I don't know what to make of this paper. The preservation of security properties by compilation is certainly an important problem, and there seems to be a lot of work under the hood here (a 129-page draft techreport and a lengthy, albeit partial, Coq formalization in the supplementary material).
+
+However, the basic setup seems to be highly idealized, 
+
+===============================================================================================
+standard setup
+===============================================================================================
+
+and its limitations, and the extent to which it would scale up to more realistic settings, are quite unclear. There's some related discussion later in the paper (e.g. 4.6), but the paper would really benefit from an up-front nuanced discussion of what it does and does not provide.
+
+Instead, we get rather grand claims, e.g.
+
+- "This paper is the first to study what security properties are preserved across the composition of different secure compiler passes."
+- "From an engineering perspective, this is the desirable approach to building secure compilers."
+
+which are not really well supported.
+----------- Reviewer's confidence -----------
+SCORE: 2 ((low))
+----------- Questions for authors -----------
+Please clarify the detailed concerns where possible.
+----------- Detailed comments for authors -----------
+The syntax highlighting may be "accessible to both colourblind and black & white readers", but to my eye it's quite distracting, with the horizontal lines closer to the line below than to the text they're supposedly highlighting.  Later you randomly add randomly colored lines in paragraphs of text, e.g. 507-520, making it hard to read.
+
+161 "whole programs w satisfy a property π iff w yields a trace a such that a satisifies π"
+
+Don't you mean "*a* whole program"?   And do you really mean *a* trace there?  I'd expect all the traces of the program to have to satisfy π.
+
+===============================================================================================
+determinism
+===============================================================================================
+
+153 "Definition 1 (Property Satisfaction). ⊢ p : π = if ∀r a, p =a⇒ r, then a ∈ π."
+
+This doesn't make sense as stated: the RHS reads as "if (∀r a, p =a⇒ r), then (a ∈ π)".  I presume you mean "if for all r and a, if p=a=> r then a in pi".
+
+187 I don't understand what "correct" is supposed to mean in this trace setup.  The obvious thing would be to require that the compiler preserves the set of traces, or perhaps that the result of compilation is semantically trace-included in the source, but both of those are obviously inapplicable to any real compiler, which would change the memory accesses substantially.
+
+But an incorrect compiler could change the memory accesses - and the security labelling - completely, so why does it make sense to think about whether a potentially incorrect compiler preserves some security properties?
+
+Many compilers, including those using LLVM, rely crucially on some notion of undefined behavior to capture assumptions on the source, and the notion of correctness for those has to take that into account - but there is no mention of this in the paper.
+
+Many languages have some kind of nondeterminism, e.g. to loosely specify the evaluation order.  That too has to be taken into account in the notion of correctness, and a priori it's quite unclear how one could specify that a compiler for such a language prevents information flow leakage via the resolution of those nondeterministic choices. Again I see no mention of this in the paper.
+
+===============================================================================================
+TODO
+===============================================================================================
+
+226 Is Use l n supposed to be an access to the first n bytes from l?  That's not realistic - many accesses will be to non-prefixes of allocations.
+
+234 Definition 4 (TMS). This definition seems strange in several ways, including:
+
+- why insist that there is a Dealloc?  A program that runs indefinitely using a persistent allocation does not intuitively have a temporal memory safety violation.
+
+===============================================================================================
+definition taken from established sources?
+===============================================================================================
+
+- how are the l, n, t, sigma supposed to be quantified? E.g. is the last line supposed to say that there is at most one Alloc in the trace, or that for each (l,n,t,sigma) there is at most one Alloc?  Either would be weird.  Or perhaps you mean (but don't say) that for all l, there is at most one Alloc that matches Alloc l _;_;_ ? 
+- are locations l supposed to be concrete addresses, or unique allocation IDs, or combinations of the two?  If they're concrete addresses, it's again weird, as any real implementation will reallocate at the same address.
+- the second line says that a Use can't be after a Dealloc with the same l and t, but there's nothing to say that a Use can't be before an Alloc
+
+238 Definition 5 (SMS). This definition also seems strange.
+
+- it only constrains pairs of an Alloc and Use from the same component t, but surely if the program uses more than the allocated footprint of a location allocated by the context, that should also be considered a spatial violation
+- again it is unclear what locations l are, semantically
+
+In all of this section, it's unclear where the security tag information is supposed to come from.  Are we supposed to imagine an annotated operational semantics that propagates sensitive tags?   If so, are control-flow choices on a sensitive value supposed to infect all later computation?
+
+The idea that any access in compiled code can be uniquely associated to either the component or context also seems naive: in reality there'll be a nontrivial calling convention, with both caller-save and callee-save registers; how are those accesses supposed to be labelled?  Are we presuming that there's no inlining or other optimisation that crosses those boundaries?
+
+Why are the examples numbered so strangely?  At least turn on hyperref so that the reader can find them.
+
+252 "sCCT may seem overly strict" - yes, it does.
+
+278 Better not nest text inside maths - here again the natural reading of the scoping is not what you intend.
+
+283 Typo: broken quotes (and again later).
+
+Do the monitors exactly characterize the properties?   You state only one direction of implication.  If not, why are they useful?
+
+404-408 It's not at all clear how these real-world compilation steps could map into your setup.
+
+If you state theorems, you have to give the reader some clue about their proofs.
+
+===============================================================================================
+no
+===============================================================================================
+
+
+----------------------- REVIEW 2 ---------------------
+SUBMISSION: 3347
+TITLE: Secure Composition of Robust and Optimising Compilers
+AUTHORS: Matthis Kruse, Michael Backes and Marco Patrignani
+
+----------- Overall evaluation -----------
+SCORE: 0 (weak accept / borderline  (the paper can be accepted))
+----- TEXT:
+This paper investigates the composition of robustly safe compilers. It shows that robust safety properties can be preserved when composing multiple passes of the compilation, each satisfying some robust safety properties. Some of the formal results are formalized in Coq. This paper also provides several case studies of composing compilation passes.
+
+Composition is an important and challenging problem. This work presents the first result in the domain of composing robustly safe compliers. It is great to have positive results that the compilers do compose. This work carefully set up the infrastructure that could be used as a foundation that future research on secure composition can build on. It is also great that parts of the metatheory are formalized in Coq.
+
+The main weakness of this work is that the form of composition is limited. It requires the compilers (or compiler passes) to use the same trace model and are robustly safe, which limit the applicability of the results. The framework set up here may not be suitable for studying composition of other forms of properties (e.g., hyper-properties) or not robustly safe compiler composition. This paper does not discuss its limitations and whether extensions are possible using this framework.
+
+===============================================================================================
+why not hp?
+clarify that hp works?
+===============================================================================================
+
+Finally, the Coq formalization is not complete. It is unclear if there are fundamental difficulties in completing the proofs, or it is due to the limitation of time.
+
+===============================================================================================
+the only missing coq is the compilers for the example,
+which is 20K locs per proof
+===============================================================================================
+
+In summary, this paper provides the first result on the composition of secure compilers. This review's rating is not more positive because of the above mentioned limitations. None the less, the results is of interest to the community.
+----------- Reviewer's confidence -----------
+SCORE: 4 ((high))
+----------- Questions for authors -----------
+Challenges in developing the framework and constructing the proofs?
+
+===============================================================================================
+todo
+===============================================================================================
+
+
+----------------------- REVIEW 3 ---------------------
+SUBMISSION: 3347
+TITLE: Secure Composition of Robust and Optimising Compilers
+AUTHORS: Matthis Kruse, Michael Backes and Marco Patrignani
+
+----------- Overall evaluation -----------
+SCORE: 0 (weak accept / borderline  (the paper can be accepted))
+----- TEXT:
+This paper studies the composability of secure compilation passes.  The paper presents a general framework for describing these properties, shows that compositions preserves the intersection of properties, and instantiates the framework on a case study showing spacial memory safety, temporal memory safety, and (strict) cryptographic constant time for a simpler multi-pass pipeline.
+
+I am not an expert in this field, so my opinion is not very relevant.  I found the presentation clean and relatively easy to follow, but finishing my read-through left me feeling a bit unsure of what the takeaway of the paper was.
+
+I appreciated that the results were formalized in Coq.
+----------- Reviewer's confidence -----------
+SCORE: 3 ((medium))
+----------- Questions for authors -----------
+I was particularly puzzled by the composition property.  Naively, it seemed straightforward to me that if a pass preserves A and B, then it preserves A; and if two passes preserve A, then their composition preserves A; given this, it seems straightforward that composition preserves (at least) the intersection of properties.  I'm sure there is something more to the results in the paper, but I wasn't entirely sure what; a clarification would be very helpful.
+
+I would in particular like to understand this better from the perspective of theorems 12 and 13.  What is really going on in these two, and can you sketch the proof?  It seems that the theorem here would say that /any/ function that is MS would, when composed with the lowering to Lscct, also be Lscct; is that the case?
+
+===============================================================================================
+todo
+===============================================================================================
+
+My rating is conservatively low because I do not understand the state of the art in this subfield, but I will defer to more experienced reviewers and won't object to acceptance.
+----------- Detailed comments for authors -----------
+I'm not sure how much the colors help in reading the theorems, but I will react to the initial statement on accessibility: I don't believe "black & white readers" is the term of art in accessibility, and when I printed the paper in grayscale I could not distinguish underline colors.  I printed again in color, but my office's printer isn't good enough to distinguish the reds and oranges.  It may be simpler to stick with the tried-and-true technique of using dashed/dotted underlines.
+
+The definition of strncpy is not the one I'm used to; the one I know pads `dst` with 0s.
+
+I don't understand the grammar on lines 61 and 194.
+
+
+
+===============================================================================================
+===============================================================================================
+===============================================================================================
+
+Overall:
+need to turn 2 and 3 into strong accepts
+
+the first rev does not know that the setup is standard
+the second rev needs to be convinced this works for HPS,
+the third needs to be convinced there was something technical

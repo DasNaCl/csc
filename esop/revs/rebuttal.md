@@ -29,7 +29,7 @@ Reply:
 
 The claims we make are factually correct, it is the first to study composition of secure compilers.
 Moreover, given how compilers are built (i.e., sequences of passes), the theory we devise works with the current compiler construction approach.
-We use (some) real-world compiler passes to highlight the real-world applicability of our approach, but we are happy to add explanatory text as 
+We use (some) real-world compiler passes to highlight the real-world applicability of our approach, but we are happy to add explanatory text to support our claims.
 
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
@@ -51,7 +51,7 @@ Reply:
 Section 4.3 presents extensions to the framework that allow to take undefinedness, non-determinism, resource exhaustion, and similar settings into account.
 Here, it is crucial to find a suitable cross-language trace relation `~`.
 Example instantiations of `~` are in section 1 in the paper `An Extended Account of Trace-relating Compiler Correctness and Secure Compilation` by Abate et al., 2021.
-Thus, our framework supports reasoning about that kind of behaviour. We do not take that into account in our evaluation study because we focus on security properties, whose preservation does not rely on exploiting undefined behaviour.
+Thus, our framework supports reasoning about that kind of behaviour. We do not take that into account in our evaluation study because we focus on security properties whose preservation does not rely on exploiting undefined behaviour.
 
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
@@ -211,5 +211,3 @@ Reply:
 
 We admit that the paper presents a more naive version of strncpy for sake of presentation.
 We will add a note for this.
-
-

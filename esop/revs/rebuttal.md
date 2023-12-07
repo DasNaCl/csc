@@ -1,19 +1,6 @@
 # Author Response for submission
 
 We thank the reviewers for their comments and questions.
-
-==========
-TODO: where are the general comments ? 
-  just get rid of general points?
-==========
-
-========================================================
-General Points
-========================================================
-
-
-
-
 Below, we address each individual review, addressing the questions for authors first, and then other questions raised in the reviews.
 
 ==========================================================================================
@@ -82,14 +69,9 @@ It's a random access of a single value at (intuitively) location `l + n`, where 
 Reply:
 ------
 
-We agree that whether TMS covers existence of a Dealloc event is debatable.
-========
--TODO: is there existing work that uses this? i think our MSWasm paper perhaps
-               no, the monitor in mswasm does not enforce this.
-               we may as well get rid of the requirement. But alas, we are able to show something more interesting...
-========
-However, this debate is orthogonal to the main goal of the work, since this enforcement of Dealloc events does not affect the usage of the compositionality framework at large.
-However, it does complicate the case-study in the sense that the static semantics of `L_{tms}` enforces this requirement.
+Temporal memory safety is concerned with use-after-free and double-frees, therefore not having a free (Dealloc) event renders the TMS argument void.
+We choose to consider the Dealloc event in our trace model -- as other work has done before, e.g., the work of Michael et al in POPL23 -- because we want a meaningful version of TMS.
+Also, note that the Dealloc argument is orthogonal to the main goal of the work, since the enforcement of Dealloc events does not affect the usage of the compositionality framework at large.
 
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------
@@ -169,8 +151,6 @@ This is also a common technique for the verification of hyperproperties.
 Reply:
 ------
 
-TODO -> focus on the pros!
-   already done?
 The Coq proofs concern the main technical results (section 4, parts of sections 5 and 6 as well as 3), and these results are all completely covered by the Coq development.
 What is missing in terms of Coq proofs is the secure compilation proofs, each of which can easily take 20klocs per proof, as demonstrated by the work of El-Korashy et al, CSF'22.
 We plan to study the modularisation of these proofs in future work, but since they follow a known pattern (albeit very complex to mechanise), we do not believe the lack of this mechanisation to be a significant drawback.
@@ -190,9 +170,6 @@ Your intuition is entirely correct and we agree that the results can seem intuit
 Despite their intuitiveness, as the other reviewers acknowledge as well, the results are important, and their importance can be demonstrated in a concrete setting, where the framework is applied and the paper contains a case-study that does this.
 Also, an intuition that may be harder to convey is: what does it mean to perform the intersection of 2 properties *in practice*? A reason we have to provide such a rich case study is also to give a better intuition of this fact.
 We can clarify this point in the related section.
-
-TODO: drop next sentence?
-From a technical standpoint, instantiations of the compositionality framework are non-trivial in the sense that secure compilation proofs need quite a lot of technical setup, as demonstrated by the case-study from the paper, which takes the vast majority of space in our supplementary material.
 
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------

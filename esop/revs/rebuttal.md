@@ -39,7 +39,7 @@ Reply:
 ------
 
 We are thankful for identifying this typo.
-To be clear -- besides the typo -- notion we are using is the canonical definition for program behaviour, as taken from Compcert and other similar work.
+To be clear -- besides the typo -- the notion we are using is the canonical definition for program behaviour, as taken from Compcert and other similar work.
 
 ---------------------------------------------------------------------------------
 ---------------------------------------------------------------------------------

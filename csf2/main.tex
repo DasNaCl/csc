@@ -1301,32 +1301,6 @@ The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{
 The proof of this theorem relies on a projection $\msfilterLtms{\src{\event}}=\event$ from $\src{L_{\tmssafe}}$ events to specification events $\event$, because the properties defined earlier (\Cref{subsec:propdefs}) are defined in the specification trace model.
 Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a location $\loc$ of the specification trace model.
 
-\begin{center}\small
-  \judgbox{\msfilterLtms{\src{\event}}=\event}{,,Project an $\Ltms$ event $\src{\event}$ to\\a specification event $\event$.''}
-  \typerule{$\Ltms$-filter-context}{
-    \src{\event[_b]}\not=\src{\lightning}
-  }{
-    \msfilterLtms{\src{\tup{\event[_b]}{\ctx,\securitytag}}} = \emptyevent
-  }{ltms-filter-context}
-  %
-  \typerule{$\Ltms$-filter-abort}{
-  }{
-    \msfilterLtms{\src{\lightning}} = \lightning
-  }{ltms-filter-abort}
-  %
-  \typerule{$\Ltms$-filter-start}{
-  }{
-    \msfilterLtms{\src{\tup{Start}{\comp}}} = \emptyevent
-  }{ltms-filter-start}
-  %
-  \typerule{$\Ltms$-filter-alloc}{
-    \locmapsto{\src{\loc}}{\loc} &
-    \src{n}=n
-  }{
-    \msfilterLtms{\src{\tup{Alloc\ \loc\ n}{\comp}}} = \tup{\ev{Alloc}\ \loc\ n}{\comp,\unlock}
-  }{ltms-filter-alloc}
-\end{center}
-
 Projection $\msfilterLtms{\src{\event}}$ translates an action into its correspondent (e.g., \Cref{tr:ltms-filter-alloc}); since these rules are straightforward they are mostly omitted.
 Crucially, the projection filters irrelevant actions such as context-made ones (\Cref{tr:ltms-filter-context}) and interaction events (\Cref{tr:ltms-filter-start}).
 
@@ -1367,34 +1341,6 @@ The evaluation steps are amended to propagate the security-tag annotations $\obj
 When the data independent timing mode is inactive, pre-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
 %To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
 
-\begin{center}
-  \judgbox{\scctfilterLscct{\obj{\event}}=\event}{,,Project an $\Lscct$ event $\obj{\event}$\\to a specification event $\event$.''}
-  \typerule{$\Lscct$-filter-context}{
-    \obj{\event[_b]}\not=\obj{\lightning}
-  }{
-    \scctfilterLscct{\obj{\tup{\event[_b]}{\ctx,\securitytag}} = \emptyevent}
-  }{lscct-filter-context}
-  %
-  \typerule{$\Lscct$-filter-$\widehat{\text{get}}$}{
-    \locmapsto{\obj{\loc}}{\loc} &
-    \obj{n}=n
-  }{
-    \scctfilterLscct{\obj{\tup{\widehat{Get}\ \loc\ n}{\comp,\securitytag}}} = \tup{\ev{Get}\ \loc\ n}{\comp,\unlock}
-  }{lscct-filter-get-hat}
-  %
-  \typerule{$\Lscct$-filter-$\text{get}$}{
-    \locmapsto{\obj{\loc}}{\loc} &
-    \obj{n}=n
-  }{
-    \scctfilterLscct{\obj{\tup{Get\ \loc\ n}{\comp,\securitytag}}} = \tup{\ev{Get}\ \loc\ n}{\comp,\securitytag}
-  }{lscct-filter-get}
-\end{center}
-
-The projection to the specification trace model is mostly straightforward and similar to the others, e.g., \Cref{subsec:cs:tms}.
-However, for events containing the pre-events $\obj{\widehat{Get}}$ and $\obj{\widehat{Set}}$, the projection always translates the security-tag $\obj{\sigma}$ to $\unlock$, regardless of its actual value, as seen in \Cref{tr:lscct-filter-get-hat}.
-The pre-events themselves still translate to just $\ev{Get}$ and $\ev{Set}$, respectively.
-With this technical setup, the information whether a read or write happened on a secret value is not hidden by the semantics, e.g., by emitting $\obj{\emptyevent}$, but when projecting to specification events.
-This allows flexibility: The trace can be checked to satisfy different properties, such as, in this case, \gls*{tms}, \gls*{sms}, \gls*{scct}, and their combined versions.
 
 \Cref{ex:lscct} illustrates the differences between $\Lscct$ and other languages.
 

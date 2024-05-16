@@ -1286,6 +1286,15 @@ When the data independent timing mode is inactive, pre-events $\obj{\ev{Branch}\
   But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory gets ultimately translated to a specification trace with \colorbox{lightgray}{no exposed secrets}.
 \end{exampleenv}
 
+\subsection{$\Lspec$: A Memory-Unsafe Language with Speculation}\label{subsec:lspec}
+
+$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics. 
+After branching or accessing memory, speculation can start and run subsequent code in a predetermined window until a rollback of operational state is performed. 
+Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant.
+In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
+The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
+A barrier prevents any events whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode.
+
 \begin{figure*}[!h]
  \vspace{-2em}
   $$
@@ -1690,6 +1699,20 @@ Let $\ccmsscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\ccc
 %   Assuming $\irl{\progvar[']}$ robustly satisfies \gls*{scct}, by \Thmref{thm:ccscct:rtp:scct} it compiles to an $\Lscct$ program $\obj{\progvar}$ that robustly satisfies \gls*{scct} as well.
 %   Finally, from \Thmref{thm:rtp} it follows that, given $\src{\progvar}$ robustly satisfies \gls*{scct} and \gls*{ms}, $\obj{\progvar}$ also robustly satisfies \gls*{scct} and \gls*{ms}.
 % \end{proof}
+
+\subsection{Robust Speculative Safety Preservation}\label{subsec:cs:ss}
+
+\vspace{-1em}
+\begin{center}\small
+  \begin{align*}
+    \ccspec(\obj{\lifz{\expr[_0]}{\expr[_1]}{\expr[_2]}}) & = \lifz[\ird]{\ccspec{\left(\obj{\expr[_0]}\right)}}{\\&\ird{\lbarrier;}\ccspec{\left(\obj{\expr[_1]}\right)}\\&}{\ird{\lbarrier;}\ccspec{\left(\ird{\expr[_2]}\right)}} \\
+  \end{align*}
+\end{center}
+% \vspace{-2em}
+%
+\begin{theorem}[$\ccspec$ is secure with respect to \gls*{ss}]\label{thm:ccspec:rtp:spec}
+  $\rtp{\ccspec}{\specmssafe}$ % \Coqed
+\end{theorem}
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 

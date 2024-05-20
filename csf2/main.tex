@@ -9,6 +9,7 @@
 \usepackage[colorinlistoftodos]{todonotes}
 \usepackage[inference]{semantic}
 \usepackage[switch]{lineno}
+\usepackage{halloweenmath}
 \usepackage{fontawesome5}
 \usepackage{listofitems}
 \usepackage{breakcites}
@@ -631,9 +632,11 @@ Note that \Cref{def:trace:msdef} says nothing about memory-safety issues introdu
 \subsection{Memory Safety Trace Model with Constant Timeness}
 
 \[
-  \begin{array}{rcll}
-    \event[^b_{ct}] &:=& \\
-    \event[_{ct}] &:=& \ev{Alloc \loc\ n} \mid \ev{Dealloc \loc} \mid \ev{Use \loc\ n} \mid \emptyevent \mid \lightning \\ 
+  \begin{array}{rrcl}
+    (\text{Pre-Event}) & \event[^b_{ct}] &:=& \ev{Alloc \loc\ n} \mid \ev{Dealloc \loc} \mid \ev{Use \loc\ n}\\
+                       &&\mid& \ev{Branch\ }n \mid \ev{Binop\ }n\\
+    (\text{Security Tag}) & \securitytag &:=& \lock \mid \unlock\\ 
+    (\text{Event}) & \event[_{ct}] &:=& \event[^b_{ct}];\securitytag \mid \emptyevent \mid \lightning \\ 
   \end{array}
 \]
 
@@ -672,7 +675,7 @@ The combination of \gls*{ms} and \gls*{scct} is, intuitively, the intersection o
 However, \gls*{ms} uses a simpler trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
 To remedy this issue, let $\sim_{msscct}$ be a cross-language trace relation that relates the basic memory safety trace model with the memory safety trace model by ignoring security tags and replacing the new pre-events with the empty event:
 \[
-  \typerulenolabel{mscctrel:drop:tag}{}{\event[_b];\sim_{msscct}\event[_b];\securitytag}
+  \typerulenolabel{mscctrel:drop:tag}{}{\event[_{ms}]\sim_{msscct}\event[^b_{ct}];\securitytag}
 \]
 \[
   \typerulenolabel{mscctrel:drop:branch}{}{\emptyevent\sim_{msscct}\ev{Branch n};\securitytag}
@@ -690,6 +693,16 @@ It is now possible to define \gls*{msscct} using the universal image:
 \end{definition}
 
 \subsection{Memory-Safe, Constant-Time Trace Model with Speculation}
+
+\[
+  \begin{array}{rrcl}
+    (\text{Pre-Event}) & \event[^b_{\mathghost}] &:=& \ev{Alloc \loc\ n} \mid \ev{Dealloc \loc} \mid \ev{Use \loc\ n}\\
+                       &&\mid& \ev{Branch\ }n \mid \ev{Binop\ }n \mid \ev{Spec} \mid \ev{Rlb}\\
+    (\text{Spectre Variant}) & vX &:=& \operatorname{PHT} \\
+    (\text{Security Tag}) & \securitytag &:=& \lock_{vX} \mid \unlock\\ 
+    (\text{Event}) & \event[_{\mathghost}] &:=& \event[^b_{\mathghost}];\securitytag \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
 
 So far, the considered trace models do not take speculative execution into account. 
 For this, extend the memory safety trace model so that the security tags ($\securitytag$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
@@ -731,7 +744,7 @@ With this, define \gls*{specms} as follows:
 \section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}
 
 This section defines programming languages that the secure compilers defined in the next section will use.
-To this end, this section defines the languages $\Ltms$, $\Ltrg$, $\Lms$, and $\Lscct$ which share many common elements (presented in \Cref{subsec:cs:defs}).
+To this end, this section defines the languages $\Ltms$, $\Ltrg$, $\Lms$, $\Lscct$, and $\Lspec$ which share many common elements (presented in \Cref{subsec:cs:defs}).
 $\Ltms$ is the only statically typed language and exhibits the property that all well-typed programs are \gls*{tms} (\Cref{subsec:ltms}).
 However, not all $\Ltms$ programs are \gls*{sms}.
 That is, there are well-typed $\Ltms$ programs that perform an out-of-bounds access.
@@ -743,7 +756,10 @@ All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls*{cct} to
 Writing code attaining \gls*{cct} should not be of the programmer's concerns~\cite{cauligi2019fact}.
 Such consideration is also backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
 In spirit of this, all languages besides $\Lscct$ are trivially \gls*{scct}. 
-$\Lscct$ (\Cref{subsec:lscct}) programs have access to a ``\gls*{cct}-mode'' and can change the leakage of emitted events according to the value of this mode (either $\obj{ON}$ or $\obj{OFF}$).
+$\Lscct$ (\Cref{subsec:lscct}) programs have access to a ``\gls*{cct}-mode'' and can change the leakage of emitted events according to the value of this mode (either $\obj{ON}$ or $\obj{OFF}$). 
+
+Lastly, modern processors also employ speculative execution to achieve speedups, but fail to rollback properly, so that data may be left over at a cache, so that an attacker can exploit the difference in runtime for cache-hits versus cache-misses. 
+$\Lspec$ extends $\Lscct$ to model this situation, while all previous languages trivially satisfy \gls*{ss}, since they do not support speculative execution at all.
 
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 

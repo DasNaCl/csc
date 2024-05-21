@@ -162,8 +162,8 @@ From an engineering perspective, this is the desirable approach to building secu
 
 \gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
 \gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing}.
-Together, \gls*{sms}, \gls*{tms} and \gls*{scct}, an enforceable overapproximation of \gls*{cct}, yield \gls*{msscct}, which is the gold standard of security properties for secure applications.
-Programs attaining \gls*{msscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels.
+Together, \gls*{sms}, \gls*{tms}, \gls*{scct}, an enforceable overapproximation of \gls*{cct}, and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
+Programs attaining \gls*{mssscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels, even under speculative execution.
 As discussed in \Cref{ex:strncpy}, these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
 
 \begin{exampleenv}[strncpy]\label{ex:strncpy}
@@ -208,8 +208,8 @@ Worse, without a framework for composing secure compiler passes, it is not possi
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adding \gls*{scct} to the mix to obtain \gls*{msscct}.
 Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
-The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{scct}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
-Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end preservation of \gls*{msscct}.
+The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
+Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end preservation of \gls*{mssscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes.
 % Crucially, this end-to-end security preservation is obtained by composing the security property preserved by each individual pass, as dictated by the framework of this paper.
 This result showcases how the framework allows the kind of formal security reasoning that compiler writers already want (and already do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
@@ -217,43 +217,30 @@ This result showcases how the framework allows the kind of formal security reaso
 In summary, this paper makes the following contributions:
 \begin{itemize}
   \item %
-        %\Cref{sec:compprop} presents a formal framework to reason about compositions of security properties and demonstrate its usage with concrete examples:
-        This paper formalises security properties (\Cref{sec:compprop}) that are of interest for real-world compiler writers, namely \gls*{tms}, \gls*{sms} and \gls*{cct} (as identified by the plethora of work enforcing such properties individually~\cite{akritidis2009baggy,nagarakatte2009soft,nagarakatte2010cets,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact}).
-        % 
-        Starting from ways to formalise those properties individually, this paper shows how to compose their formalisation.
-        % 
-        % This paper then showcases the benefits of this composition by composing \gls*{tms} and \gls*{sms} into \gls*{ms}, and ultimately adding \gls*{cct} to the composition, yielding the the conjunction of \gls*{ms} and \gls*{cct}.
-        % 
-        The resulting security property is \gls*{msscct}, i.e., the gold standard of security properties for secure programs~\cite{lemay2021ccc}.
-
-        % \MPpast{
-        % 	some of the good things here: 
-        % 	our definitions are amenable to sec comp proofs, unlike existing definitions
-        % 	MS def is like mswasm MS def, 
-        % 	but CCT is new
-        % }
-
-  \item %
         %\Cref{sec:compcomp} studies different forms of secure compiler compositions.
-        This paper takes the secure compilation framework of Abate et al.~\cite{abate2019jour} and extends it to reason about the security of all different known forms of compiler composition (\Cref{sec:compcomp}).
+        This paper takes the secure compilation framework of Abate et al.~\cite{abate2021extacc} and extends it for compositionality. (\Cref{sec:sequential}).
         %Concretely, it investigates upper and lower compositions, as well as the sequential composition.
-        For this, this paper studies sequential compiler composition as well as compilers with multiple input languages or multiple output ones, as used in existing compilation chains.
+        %For this, this paper studies compiler composition as well as compilers with multiple input languages or multiple output ones, as used in existing compilation chains.
         %
-        This paper proves that starting from two compilers that preserve two (possibly distinct) properties, their composition preserves the intersection of those properties.
+        This paper proves that starting from two compilers that preserve two (possibly distinct) properties, their composition preserves roughly the intersection of those properties.
         % For example, a compiler that is secure with respect to \gls*{tms} can be composed with a compiler that is secure with respect to \gls*{sms}, resulting in a compiler that is secure with respect to \gls*{ms}.
         % 
-        From this, the paper proves that the order of composition of sequential compiler passes is irrelevant for the resulting security.
+        From this, the paper proves that the order of composition of sequential compiler passes is irrelevant for security.
         % 
         This is crucial for reordering individual optimisation passes and thus generating secure and efficient code.
         %
-        Finally, this paper extends parts of the compositionality framework to support different trace-models between compilation passes.
+        %Finally, this paper extends parts of the compositionality framework to support different trace-models between compilation passes.
 
   \item %
-        This paper presents a case-study showcasing the conjunction of the previous contributions (\Cref{sec:casestud:defs,sec:casestud:rtp}).
-        To this end, it presents a compilation chain consisting of several passes that ultimately preserves \gls*{msscct} by means of composing the individual, secure passes concerning \gls*{tms}, \gls*{sms}, and \gls*{scct}, respectively.
-        Furthermore, the chain includes two optimisation passes: One performs \gls*{dce} and the other \gls*{cf}.
+        This paper presents a case-study with five programming languages showcasing the previous contribution (\Cref{sec:casestud:defs,sec:casestud:rtp}).
+        To this end, it presents a compilation chain consisting of six passes, two of which are well-known optimisations \gls*{dce} and \gls*{cf}, that ultimately preserve \gls*{mssscct} by means of composing the individual, secure passes concerning \gls*{tms}, \gls*{sms}, \gls*{scct}, and \gls*{ss}, respectively.
+        %Furthermore, the chain includes two optimisation passes: One performs \gls*{dce} and the other \gls*{cf}.
         The formalisation of this case study showcases the power of the presented framework: The divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
+
+  \item %
+        The considered compilation passes are analyzed in terms of their compatibility with each other (\Cref{sec:formalities}).
+        In doing so, the paper provides formal insights into some technicalities of the concrete proofs necessary as technical setup to reap the benefits of the presented compositionality framework.
 
   \item The key contributions of this paper are formalised in the Coq proof assistant and the paper indicates this with \CoqSymbol.
 \end{itemize}
@@ -384,7 +371,7 @@ A degenerate case where $\sim$ coincides with equality, i.e., the trace model is
   % \end{nscenter}
 \end{definition}
 
-\subsection{Secure Sequential Composition}\label{sec:sequential}
+\section{Secure Composition}\label{sec:sequential}
 
 Notably, real-world compilation chains also perform a series of (sequential) passes whose main purpose is not necessarily to translate from one language to another, but to, e.g., optimise the code or enforce a certain property.
 Both examples can be seen in practice, e.g. as in the work of~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,wegman1991ccp,manjikian1997fusion} and many more.
@@ -454,14 +441,21 @@ Then, \iul{when the cross-language relation $\sim_2$ is well-formed with respect
   If \bul{$\rtpsig{\cc{\src{L}}{\trg{L}}}{\tilde{\sigma}_{\sim_2}\left(\trg{\class[_{1}]}\right)}{\sim_1}$}, \rul{$\rtpsig{\cc{\trg{L}}{\obj{L}}}{\trg{\class[_2]}}{\sim_2}$}, and \iul{$\wfcsig{\sim_1}{\trg{\class[_2]}}$}, then \oul{$\rtpsig{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\trg{\class[_{1}]}\cap\trg{\class[_{2}]}}{\sim_1\bullet\sim_2}$}. \Coqed
 \end{theorem}
 
+Since the composition of secure compilers is again a secure compiler, the theorems generalise to a whole chain of $n$ secure compilers. 
+Moreover, the previously defined theory dually holds for the existential image $\tau_\sim\left(\src{\pi}\right)$, but these results have been moved to the technical report in the interest of space and interest.
+
+\subsection{Secure Compiler Composition with Same Trace Models}
 When the cross-language trace relation is an equality, \Cref{thm:rtpsim:sig} collapse:
 Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
-\begin{theorem}[Sequential Composition of Secure Compilers]\label{thm:rtp}
+\begin{corollary}[Sequential Composition of Secure Compilers]\label{corr:rtp}
   If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\trg{L}}{\obj{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
-\end{theorem}
+\end{corollary}
 
-Since the composition of secure compilers is again a secure compiler, the theorems generalise to a whole chain of $n$ secure compilers.
+\Cref{corr:rtp} provides an easy to use theorem to compose secure compilers without any caveats. 
+However, while \Cref{thm:rtpsim:sig} explicitly requires that $\sim_1$ is well-formed with respect to $\trg{\class[_2]}$, if $\sim_2$ is not well-formed with respect to $\trg{\class[_1]}$, care must be taken. 
+Worst-case is that the resulting class $\sigma_{\sim_1\bullet\sim_2}\left(\trg{\class[_1]}\cap\trg{\class[_2]}\right)$ becomes empty, even though $\trg{\class[_1]}\cap\trg{\class[_2]}$ is not necessarily empty.
+\Cref{sec:formalities:compoex} provides an example of this phenomenon.
 
 %If possible, optimisations are merged to enhance the analysis' result, since even when iterating to a fixpoint the final program may not be as optimised as it could be~\cite{click1995combining}.
 Compiler engineers typically try to find an order of optimisations that yields well-optimised programs for either code size~\cite{cooper1999geneticphases} or performance~\cite{kulkarni2006exhaustivephase}.
@@ -481,7 +475,7 @@ So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{
   If \bul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{1}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc[_{1}]{\trg{L}}{\trg{L}}\circ\cc[_{2}]{\trg{L}}{\trg{L}}}{\class[_{1}]\cap\class[_{2}]}$ and $\rtp{\cc[_{2}]{\trg{L}}{\trg{L}}\circ\cc[_{1}]{\trg{L}}{\trg{L}}}{\class[_{2}]\cap\class[_{1}]}$}. \Coqed
 \end{corollary}
 
-The technical appendix describes a more general version of \Cref{corr:swappable} that is applicable when trace models differ.
+The technical appendix describes a more general version of \Cref{corr:swappable} that is applicable when trace models differ. 
 
 \subsection{Secure Upper and Lower Composition}\label{sec:other-compos}
 Besides sequential composition, there are two other compositions, namely an {\em upper}, i.e., a compiler that takes multiple inputs and yields one output, and a {\em lower} composition, i.e., a compiler that takes one input and yields multiple outputs.
@@ -550,11 +544,12 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
 
 \section{Security Properties: Formalisation, Enforcement and Composition\pages{1.5}}\label{sec:compprop}
 
-This section introduces trace properties of interest for this paper: \gls*{tms}, \gls*{sms}, \gls*{ms}, \gls*{scct}, and \gls*{ss} (\Cref{subsec:propdefs}).
+This section introduces trace properties of interest for this paper: \gls*{tms}, \gls*{sms}, \gls*{ms}, \gls*{scct}, and \gls*{ss}.
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) presented later. 
-For each of these properties, the technical appendix accompanying the paper defines corresponding monitors, which refine a given property. 
+While up to \gls*{scct}, none of the properties is novel, for self-containment of the paper, their definition is necessary for the case study.
+For each of the presented properties, the technical appendix accompanying the paper defines corresponding monitors, which refine a given property. 
 
-\subsection{Memory Safety Trace Model}\label{subsec:propdefs}\label{subsec:basic:memsafety:tracemodel}
+\subsection{Memory Safety Trace Model}\label{subsec:basic:memsafety:tracemodel}
 
 \vspace{-1.5em}
 
@@ -763,10 +758,13 @@ $\Lspec$ extends $\Lscct$ to model this situation, while all previous languages 
 
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 
-All presented programming languages share a common fragment. 
-Programs ($\prog{\library_{\ctx}}{\library_{\comp}}$) consist of libraries ($\library$) that belong to a context ($\ctx$) or to a component ($\comp$), and that are lists of functions ($\function$).
-Functions ($\lfunction{\textit{foo}}{x}{\expr}$) have a single argument $x$ and an expression ($\expr$) as a body which may have $x$ as a free variable.
-Expressions can be variables ($x$), values ($\valueexpr$), binary operations ($\lbinop{\expr[_1]}{\expr[_2]}$), reading from ($\lget{x}{\expr}$) and writing to ($\lset{x}{\expr[_1]}{\expr[_2]}$) memory, memory allocation ($\llet{x}{\lnew{\expr[_1]}{\expr[_2]}}{\expr[_3]}$) as well as deallocation ($\ldelete{x}$), let expressions ($\llet{x}{\expr[_1]}{\expr[_2]}$), pairs ($\lpair{\expr[_1]}{\expr[_2]}$), their first ($\lproja{\expr}$) and second projection ($\lprojb{\expr}$), conditionals ($\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}$), function calls ($\lcall{\texttt{foo}}{\expr}$), returns ($\lreturn{\expr}$), and an aborting expression ($\labort$).
+All presented programming languages share a common fragment which is partially presented here and in full detail in the technical report. 
+The trace models of all languages are similar to those presented earlier (\Cref{sec:compprop}).
+One technical detail is the addition of a sandboxtag, indicating who is to blame for an emitted action: context ($\ctx$) or component ($\comp$).
+
+% Programs ($\prog{\library_{\ctx}}{\library_{\comp}}$) consist of libraries ($\library$) that belong to a context ($\ctx$) or to a component ($\comp$), and that are lists of functions ($\function$).
+% Functions ($\lfunction{\textit{foo}}{x}{\expr}$) have a single argument $x$ and an expression ($\expr$) as a body which may have $x$ as a free variable.
+% Expressions can be variables ($x$), values ($\valueexpr$), binary operations ($\lbinop{\expr[_1]}{\expr[_2]}$), reading from ($\lget{x}{\expr}$) and writing to ($\lset{x}{\expr[_1]}{\expr[_2]}$) memory, memory allocation ($\llet{x}{\lnew{\expr[_1]}{\expr[_2]}}{\expr[_3]}$) as well as deallocation ($\ldelete{x}$), let expressions ($\llet{x}{\expr[_1]}{\expr[_2]}$), pairs ($\lpair{\expr[_1]}{\expr[_2]}$), their first ($\lproja{\expr}$) and second projection ($\lprojb{\expr}$), conditionals ($\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}$), function calls ($\lcall{\texttt{foo}}{\expr}$), returns ($\lreturn{\expr}$), and an aborting expression ($\labort$).
 
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
@@ -774,11 +772,7 @@ Expressions can be variables ($x$), values ($\valueexpr$), binary operations ($\
 $\src{L_{\tmssafe}}$ uses the same syntax as presented earlier (\Cref{sec:casestud:defs}) without extensions to the term level.
 $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
 The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
-The proof of this theorem relies on a projection $\msfilterLtms{\src{\event}}=\event$ from $\src{L_{\tmssafe}}$ events to specification events $\event$, because the properties defined earlier (\Cref{subsec:propdefs}) are defined in the specification trace model.
 Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a location $\loc$ of the specification trace model.
-
-Projection $\msfilterLtms{\src{\event}}$ translates an action into its correspondent (e.g., \Cref{tr:ltms-filter-alloc}); since these rules are straightforward they are mostly omitted.
-Crucially, the projection filters irrelevant actions such as context-made ones (\Cref{tr:ltms-filter-context}) and interaction events (\Cref{tr:ltms-filter-start}).
 
 % Most rules of the projection $\msfilterLtms{\src{\event}}$ are left out 
 % since, for the most part, it does the expected, e.g., $\msfilterLtms{\src{\ev{Dealloc}\ \loc;\comp;\securitytag}}=\ev{Dealloc}\ \delta(\loc);\comp;\securitytag$.
@@ -794,7 +788,6 @@ Crucially, the projection filters irrelevant actions such as context-made ones (
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$), evaluating to $\trg{0}$ if the type matches with the shape of $\trg{\expr}$ and $\trg{1}$ otherwise.
 %The pointers carry poison tags, which signify a pointer being allocated ($\trg{\poisoned}$) or freed ($\trg{\poisonless}$). 
 Furthermore, the syntax of $\Ltrg$ is extended with a way to inspect whether a pointer is freed ($\trg{\lispoisoned{x}}$), evaluating to $\trg{0}$ if it is freed and to $\trg{1}$ otherwise.
-The projection $\msfilterL{\trg{\trace}}$ is structurally equal to $\msfilterLtms{\src{\trace}}$.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
 $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to signify that the code considered is after applying $\cc{\Ltrg}{\Lms}$.
@@ -808,7 +801,7 @@ If the register is marked inactive, secrets may appear on traces.
 For the other languages seen earlier, the mode is intuitively always-on, i.e., the mode of execution always uses data independent timing.
 The language also adds user-annotations to values and variables to know their secrecy $\obj{\securitytag}$, which is either high $\obj{\lock}$ or low $\obj{\unlock}$.
 Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
-To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends pre-events with $\obj{\widehat{Get}\ \loc\ \valueexpr}$ and $\obj{\widehat{Set}\ \loc\ \valueexpr}$.
+To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends pre-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$.
 These indicate reads from and writes to memory without leaking secret information involved in the access.
 Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
 The following rules demonstrate how this is handled semantically.
@@ -838,6 +831,7 @@ Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an an
 In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
 The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
 A barrier prevents any events whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode.
+The speculative semantics are taken from existing work~\cite{fabian:mispredict}.
 
 \begin{figure*}[!h]
  \vspace{-2em}
@@ -849,17 +843,17 @@ A barrier prevents any events whatsoever besides $\ird{\ev{Rlb}}$ when run in sp
     Active & \mid & Inactive & \mid & Active & \mid & Inactive \\\hline
     \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock\\
     \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
     \text{\colorbox{yellow}{$\obj{\emptyevent}$}} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
-    \obj{\widehat{\ev{Set}}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Set}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\lock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 1;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 1;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\lock\\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\comp;\lock\\
+    \obj{{\ev{iSet}}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Set}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 0;\comp;\lock\\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 1;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 1;\comp;\lock} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 1;\comp;\lock\\
     \text{\colorbox{yellow}{$\obj{\emptyevent}$}} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} & \mid & \emptyevent & \mid & \ev{Branch}\ 0;\comp;\lock\\
     \vdots & \mid & \vdots & \mid & \vdots & \mid & \vdots \\
-    \obj{\widehat{\ev{Get}}\ \loc_{x}\ 12;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 12;\comp;\lock} & \mid &  \ev{Use}\ \loc_{x}\ 12;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 12;\comp;\lock\\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 12;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 12;\comp;\lock} & \mid &  \ev{Use}\ \loc_{x}\ 12;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 12;\comp;\lock\\
     \text{\colorbox{yellow}{$\obj{\emptyevent}$}}& \mid & \obj{\ev{Branch}\ 1;\comp;\lock} & \mid &  \emptyevent & \mid & \ev{Branch}\ 1;\comp;\lock\\
     \obj{\ev{Dealloc}\ \loc_{y};\comp;\unlock} & \mid & \obj{\ev{Dealloc}\ \loc_{y};\comp;\lock} & \mid &  \ev{Dealloc}\ \loc_{y};\comp;\unlock & \mid & \ev{Dealloc}\ \loc_{y};\comp;\unlock\\
-    \obj{\widehat{\ev{Get}}\ \loc_{y}\ 6;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{y}\ 6;\comp;\lock} & \mid &  \ev{Use}\ \loc_{y}\ 6;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 6;\comp;\lock\\
+    \obj{{\ev{iGet}}\ \loc_{y}\ 6;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{y}\ 6;\comp;\lock} & \mid &  \ev{Use}\ \loc_{y}\ 6;\comp;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 6;\comp;\lock\\
   \end{array}
   % }
   $$

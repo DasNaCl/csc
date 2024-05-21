@@ -876,7 +876,7 @@ Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an an
 In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
 The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
 A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode.
-The speculative semantics are taken from existing work~\cite{fabian:mispredict}.
+The speculative semantics are inspired by existing work~\cite{guarnieri2018spectector}.
 
 \begin{figure*}[!h]
  \vspace{-2em}
@@ -918,6 +918,7 @@ This section defines several secure compilers, each of which robustly preserves 
     \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
     \node[right=3.0 of M] (E) {$\irl{L_{\mssafe}}$};
     \node[right=1.5 of E] (O) {$\obj{L_{\scctsafe}}$};
+    \node[right=1.5 of O] (Z) {$\ird{L_{\mathghost}}$};
 
     \draw[->] (S) to[sloped] node[align=center,font=\scriptsize] (tmsedge) {\gls*{tms}\\ \Cref{thm:cca:rtp:tms}} (T);
     \draw[->] (T) to[sloped] node[align=center,font=\scriptsize] {\gls*{sms}\\ \Cref{thm:ccb:rtp:sms}} (M);
@@ -926,22 +927,26 @@ This section defines several secure compilers, each of which robustly preserves 
     \draw[->] (D0) to[sloped] node[align=center,font=\scriptsize] {\gls*{cf}\\ \Cref{thm:cccf:rtp:ms}} (E);
     \draw[->] (C0) to[sloped] node[align=center,font=\scriptsize] {\gls*{dce}\\ \Cref{thm:ccdce:rtp:ms}} (E);
     \draw[->] (E) to[sloped,above] node[align=center,font=\scriptsize] {\gls*{scct}\\ \Cref{thm:ccscct:rtp:scct}} (O);
+    \draw[->] (O) to[sloped,above] node[align=center,font=\scriptsize] {\gls*{ss}\\ \Cref{thm:ccspec:rtp:spec}} (Z);
 
     % Sections
     \node[above=1.0 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
     \node[right=0.5 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
     \node[right=1.5 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
     \node[right=1.25 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
+    \node[right=1.00 of secscct] (secss) {{\scriptsize\Cref{subsec:cs:ss}}};
 
     \draw[thick,dotted,->] (S) to[bend right=33,sloped] node[align=center,font=\scriptsize] {\gls*{ms}\\ \Cref{thm:ccab:rtp:ms}} (M);
     \draw[thick,dotted,->] (M) to[bend right=0,sloped] node[align=center,font=\scriptsize] {\gls*{ms}\\ \Cref{thm:cccfccdce:rtp:ms}} (E);
     \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped] node[align=center,font=\scriptsize] {\gls*{ms}+\gls*{scct}\\ \Cref{thm:ccall:rtp:msscct}} (O);
+    \draw[thick,dotted,->] (S) to[out=-50,in=210,sloped] node[align=center,font=\scriptsize] {\gls*{mssscct}\\ \Cref{thm:ccall:rtp:mssscct}} (Z);
 
     \draw[dashed] ($(sectms)-(1.2,0)$) -- ($(sectms)-(1.2,1.25)$);
     \draw[dashed] ($(sectms)-(-1.0,0)$) -- ($(sectms)-(-1.0,1.25)$);
     \draw[dashed] ($(secsms)-(-1.2,0)$) -- ($(secsms)-(-1.2,1.25)$);
     \draw[dashed] ($(secscct)-(1.1,0)$) -- ($(secscct)-(1.1,1.25)$);
     \draw[dashed] ($(secscct)-(-1.4,0)$) -- ($(secscct)-(-1.4,1.25)$);
+    \draw[dashed] ($(secss)-(-1.0,0)$) -- ($(secss)-(-1.0,1.25)$);
   \end{tikzpicture}
   % \vspace{-2.5em}
   \caption{Visualisation of the optimising compilation pipeline that attains a combination of \gls*{ms} and \gls*{cct}. %

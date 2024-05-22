@@ -85,7 +85,7 @@
 %   it'll be a good exercise for you to take inspiration from this, but then write something as concise but with a more direct focus on robust properties
 % }
 % context
-To ensure that secure applications do not leak their secrets, they are required to uphold several security properties such as spatial and temporal memory safety as well as cryptographic constant time.
+To ensure that secure applications do not leak their secrets, they are required to uphold several security properties such as spatial and temporal memory safety, cryptographic constant time, as well as speculative safety.
 % need
 Existing work shows how to enforce these properties individually, in an architecture-independent way, by using secure compiler passes that each focus on an individual property.
 % task
@@ -161,7 +161,7 @@ From an engineering perspective, this is the desirable approach to building secu
 % }
 
 \gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
-\gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing}.
+\gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing} and \gls*{ss} is a security property that enforces the same but under a speculative semantics~\cite{guarnieri2018spectector}.
 Together, \gls*{sms}, \gls*{tms}, \gls*{scct}, an enforceable overapproximation of \gls*{cct}, and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
 Programs attaining \gls*{mssscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels, even under speculative execution.
 As discussed in \Cref{ex:strncpy}, these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
@@ -191,7 +191,7 @@ Also in this case there exist compiler passes that can rewrite such programs int
  % so that they are no longer vulnerable to timing attacks.
 %
 Alas, code is not run in isolation, so a malicious attacker could supply code that interacts with \texttt{strncpy} and trigger a violation of either \gls*{ms} or \gls*{cct} by calling \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
-This would, in turn, triggering a series of reads from uninitialised memory, which is an immediate \gls*{ms} violation with devastating real-world consequences~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
+This would, in turn, trigger a series of reads from uninitialised memory, which is an immediate \gls*{ms} violation with devastating real-world consequences~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 % An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 
 Robust compilers~\cite{abate2019jour} are a form of secure compilers that preserve security properties even in the presence of arbitrary attackers interacting with compiled code.
@@ -206,10 +206,10 @@ Worse, without a framework for composing secure compiler passes, it is not possi
 
 
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
-To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adding \gls*{scct} to the mix to obtain \gls*{msscct}.
-Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
+To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{scct} as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
+%Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
 The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
-Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end preservation of \gls*{mssscct}.
+Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end (robust) preservation of \gls*{mssscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes.
 % Crucially, this end-to-end security preservation is obtained by composing the security property preserved by each individual pass, as dictated by the framework of this paper.
 This result showcases how the framework allows the kind of formal security reasoning that compiler writers already want (and already do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
@@ -1296,21 +1296,36 @@ Let $\ccmssscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\cc
   $\rtp{\cc{\Ltms}{\Lspec}}{\mssafe\cap\scctsafe\cap\sssafe}$ % \Coqed
 \end{theorem}
 
+\section{Formal Insights}\label{sec:formalities}
+
+This section provides some formal insights into the case study. 
+
+\subsection{Preconditions for Compositionality}
+
+The composition theorems can only be used on compilers which have been proven secure in the sense that they robustly preserve a certain class of properties. 
+Traditional proof techniques apply, the usual strategy is to establish a backwards simulation between source components and their compiled target counterpart. 
+For the universally quantified target context, a technique known as backtranslation is well-established, which constructs a source-level context either by backtranslating the target-level context, amounting to a ,,decompilation'', or by constructing it using the target-level trace, so that the source-context emits parts of the whole execution trace that are related to the parts emitted by the target-level context. 
+Up to backtranslations for $\ccdce$ and $\cccf$, all backtranslations in the case-study are trace based, while for $\ccdce$ and $\cccf$, they are context-based. 
+Since these optimisations have no significant semantic effect and source- and target-language are equal, the backtranslation amounts to an identity translation. 
+
+\subsection{Compatibility of Secure Compiler Passes}
+
+\Cref{thm:rtpsim:sig} is always applicable, up to well-formedness of $\sim_1$ with respect to $\trg{\class[_2]}$.
+However, consider $\ccb$ and $\ccspec$.
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 
 This section discusses work on robust compilation (\Cref{subsec:relw:seccomprtp}) and on other secure compilation criteria (\Cref{subsec:relw:seccompcrit}).
-Since the case study of \Cref{sec:casestud:defs,sec:casestud:rtp} implements measures for preserving \gls*{ms} and \gls*{cct}, this section then presents relevant related work as well (\Cref{subsec:relw:msmechs,subsec:relw:cctmechs}).
+Since the case study of \Cref{sec:casestud:defs,sec:casestud:rtp} implements measures for preserving \gls*{ms}, \gls*{cct}, and \gls*{ss}, this section then presents relevant related work as well (\Cref{subsec:relw:msmechs,subsec:relw:cctmechs,subsec:relw:ssmechs}).
 
 \subsection{Secure Compilation as Robust Preservation}\label{subsec:relw:seccomprtp}
 
 The robust preservation of properties as a compiler-level criterion has been analyzed extensively~\cite{abate2019jour,patrignani2021rsc,abate2021extacc,patrignani2019survey} and thus we build on that framework.
 No existing work is concerned with composing robustly safe compilers.
-These works consider languages with different trace models and our technical setup can be adapted to that as long as security properties and their monitors are still defined on the same trace model.
+%Parts of these works consider languages with different trace models and our technical setup can handle this. 
 The work relating robust preservation with universal composability~\cite{patrignani2022universal} is closest to what this paper presents.
-The authors demonstrate a similar compositionality theorem to what is presented here (\Cref{sec:compcomp}) but use it in the context of protocols.
-They do not demonstrate the scalability of the approach.
-Moreover, they are missing the upper and lower compositions.
+The authors demonstrate a similar compositionality theorem to what is presented here (\Cref{sec:sequential}) but use it in the context of protocols.
+The work is missing the upper and lower compositions as well as the generality to support different trace models.
 % The authors demonstrate a similar compositionality theorem to what is presented here (\Cref{sec:compcomp}) as well as in an earlier version of this work~\cite{kruse2022csc}.
 % However, they do not demonstrate the scalability of the approach by means of a case study.
 
@@ -1355,216 +1370,27 @@ An approach to allow programmers to write more high-level code is CryptOpt~\cite
 This paper abstracts over concrete mitigation strategies and simply assumes that there is a flag to switch to a cryptographic-constant time execution mode.
 This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, which translates common non-constant time code patterns to be constant-time, and the data (object) independent timing execution mode of modern processors.
 
+\subsection{Speculation Safety Mechanisms}\label{subsec:relw:ssmechs}
+
+With the advent of speculative execution in processors, it is possible to exploit leftover data in caches to identify secrets.
+SPECTECTOR~\cite{guarnieri2018spectector} models speculative execution formally and the present work has taken inspiration in the sematics of $\Lspec$ and in \Cref{def:trace:ss} from SPECTECTOR.
+A subsequent line of work~\cite{fabian2022automatic} shows how to modularly define and compose formal semantics that models different speculative execution variants. 
+Similar in spirit, recent work~\cite{fabian2024lift} demonstrates how to lift existing secure compilation proofs for security properties related to speculative execution to more powerful properties, i.e., properties defined for languages with a trace model that enables more vulnerabilities, such as combinations of different speculative execution exploits. 
+To this end, they define a lifting framework and demonstrate how a secure compilation proof for a weaker property can be lifted to a stronger one. 
+Contrary to the compositionality framework presented in this paper, these works are only concerned with composing semantics of the respective programming languages, while in this paper, the secure compilers themselves are composed.
+
 \section{Conclusion\pages{$\sfrac{1}{2}$}}\label{sec:concl}
-This paper tackled the problem of understanding what kind of security properties does a secure compiler preserve, when said compiler is the combination of compiler passes that preserve possibly different security properties.
+This paper tackles the problem of understanding what kind of security properties a secure compiler preserves, when said compiler is the combination of compiler passes that preserve possibly different security properties.
 % 
-For this, this paper first formalised security properties of interest and their composition.
+%For this, this paper first formalised security properties of interest and their composition.
 % 
-Then, it proved that composing secure compilers that preserve certain properties results in a secure compiler that preserves the composition of these properties.
+The paper proves that composing secure compilers that preserve certain properties results in a secure compiler that preserves the composition of these properties.
 % While the presented security property composition relied on monitors that check only trace-properties, the composition of secure compilers does not make any restriction towards the kind of property involved in the composition. 
 % It is subject to future work to develop techniques to verify relational hyperproperties~\cite{abate2019jour}, while the composition of hyperproperties could be very similar to the composition of ordinary properties as presented in this paper, since hyperproperties can be checked with an automata-based model-checker~\cite{beutner23hyperltl}.
 % 
-Finally, this paper defines a multi-pass compiler and proves that it preserves \gls*{msscct}.
+Finally, this paper defines a multi-pass compiler and proves that it preserves \gls*{mssscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
 % For future work, it is interesting to look at more sophisticated optimisation passes that, e.g., reorder events that appear on traces.
-
-
-% This paper does a first step towards practical secure compilation chains by introducing a theoretical framework demonstrating that secure compilers compose.
-% The paper exercises this framework on a case-study that consists of an optimising compilation chain that is secure with respect to \gls*{msscct}.
-% \MP{
-% 	not an appropriate recap.
-% 	rewrite summarising the paper
-% }
-
-% In future work, it would be interesting to investigate whether it is possible to provide {\em secure compiler combinators}, similarly to how parser combinators work.
-% %To this end, it may be necessary to extend existing frameworks for multi-language semantics.
-% It is also interesting to extend our case-study and verify all results of it in Coq.
-% This way, it is possible to obtain an executable, secure compiler.
-% However, the formalisation effort for backtranslation proofs is known to be enormous\MP{cit + details}, so another research avenue may be to find better ways to (semi-)automate standard secure compilation proofs.
-% \MPin{
-% 	not particularly informative FW. i'd rather not have it as such
-% }
-
-%% The acknowledgments section is defined using the "acks" environment
-%% (and NOT an unnumbered section). This ensures the proper
-%% identification of the section in the article metadata, and the
-%% consistent spelling of the heading.
-
-% \begin{acks}
-%   We would like to thank the anonymous reviewers for their feedback.
-% 	This work was partially supported by a gift from
-		% the Italian Ministry of Education through funding for the Rita Levi Montalcini grant (call of 2019).
-% \end{acks}
-
-% \section*{Acknowledgements}\label{sec:acks}
-
-% \section*{Appendix}
-
-% The appendix contains insights on the structure of proofs for the theorems of \Cref{sec:casestud:rtp} (\Cref{sec:proof-sketch}).
-% Then it contains the proof of \Thmref{thm:ccab:rtp:ms} (\Cref{sec:proof1}) and of \Thmref{thm:ccall:rtp:msscct} (\Cref{sec:proof2}).
-
-% \section{Proving Robust Safety Property Preservation}\label{sec:proof-sketch}
-
-% We illustrate the proof of \Cref{thm:cca:rtp:tms} since the other secure compilation proofs of this paper follow the same approach.
-% Unfolding the theorem statement yields the following assumptions:  
-%   for any $\pi\in\lceil\tmssafe\rceil$\footnote{$\lceil\cdot\rceil$ lifts the property to a hyperproperty by applying the powerset operation~\cite{clarkson2008hyper}.}, 
-%   $\src{\trace}$, 
-%   $\src{\runtimetermvar}$, 
-%   and component $\src{\library_{comp}}$, 
-%   we have that $\rsat{\src{\library_{comp}}}{\pi}$ and 
-%   $\progstepto{\prog[\trg]{\trg{\library_{\ctx}}}{\cca(\src{\library_{\comp}})}}{\trg{\runtimetermvar}}{\trg{\trace}}$, where $\trg{\library_{\ctx}}$ is arbitrary.
-% The proof obligation is $\msfilterL{\trg{\trace}}\in\pi$, i.e., the specification trace associated to $\trg{\trace}$ satisfies the property $\pi$.
-% A way to show this is to relate trace $\trg{\trace}$ to some $\Ltms$ trace $\src{\trace}$ (which already satisfies the property as per the assumptions).
-% The assumptions already contain a target execution associated to this trace, so the task is to find an associated $\Ltms$ execution that yields $\trg{\trace}$.
-% The trace $\trg{\trace}$ is split into different parts, as commonly done in secure compilation works~\cite{korashy2021capableptrs,abate2018goodcomps}, where each part contains the events that either the context or the component does, but not both.
-% Because of this, all such trace segments are ,,well-bracketed'' in the sense that they start with either $\trg{\ev{Start}}$, $\trg{\ev{Call}\ \comptoctx\ foo\ \valueexpr}$, or $\trg{\ev{Ret}\ \comptoctx\ \valueexpr}$ and end with either $\trg{\ev{End}\ \valueexpr}$, $\trg{\ev{Ret}\ \ctxtocomp\ \valueexpr}$, or $\trg{\ev{Call}\ \ctxtocomp\ foo\ \valueexpr}$.
-% In the following, the former is referred to as a context segment, since these executions happen in $\trg{\library_{\ctx}}$, and the latter is referred to as a component segment, since these executions happen in $\cca(\src{\library_{\comp}})$.
-% \Cref{fig:proofdiag:rtp} visualises this division for a program execution with one call from context to component and how the target execution is related to a source execution.
-% In the figure, the green dashed lines encompass the component segments while the orange boxes contain the actual context switches from context to component or vice versa.
-% From a technical perspective, as typically done in compilation proofs, the proof requires some setup to maintain a relation between $\src{\Omega}$ and $\trg{\Omega}$ .
-% Two cross-language relations make this precise: (i) $\multimap_{\delta}$ relates states that are involved in a context segment, allowing the target execution to perform internal calls, and (ii) $\approx_{\delta}$ relates states that are involved in a component segment, where both states need to agree exactly, i.e., the memory and the control flow states are required to contain the same information.
-% The relations are indexed with $\delta$, which is an injective mapping from $\Ltms$ locations $\src{\loc}$ to $\Ltrg$ locations $\trg{\loc}$.
-% %Note that the relations $\multimap_{\delta}$ and $\approx_{\delta}$ swap when context switching.
-
-% So far, the paper explained how to relate an $\Ltms$ execution with a $\Ltrg$ execution.
-% The next question is therefore how to build the corresponding $\Ltms$ execution.
-% This is done using a standard secure compilation proof technique called trace-based backtranslation~\cite{abate2019jour,korashy2021capableptrs,patrignani2021rsc}, which can be used to build a context $\src{\library_{\ctx}}$ that behaves similar to $\trg{\library_{\ctx}}$.
-% % Since $\Ltms$ is statically typed, the context $\src{\library_{\ctx}}$ obtained from the backtranslation needs to be well-typed when linked with $\src{\library_{\comp}}$.
-% For context segments of the trace $\trg{\trace}$ it is also necessary to show that the execution behaves similarily, i.e., the context obtained from the backtranslation generates trace $\src{\trace}$.
-% For component segments of the trace, the relatedness of states and traces follows from a compiler correctness argument.
-% These two arguments yield the source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$.
-
-% The proof now works as follows.
-% Given that $\msfilterL{\trg{\trace}}=\msfilterLtms{\src{\trace}}$, the proof goal changes from $\msfilterL{\trg{\trace}}\in\pi$ to $\msfilterLtms{\src{\trace}}\in\pi$.
-% This follows by specializing the robust satisfaction assumption $\rsat{\src{\library_{\comp}}}{\pi}$ to use the context $\src{\library_{\ctx}}$, which is obtained from the backtranslation, and to use the source execution $\progstepto{\src{\prog{\library_{\ctx}}{\library_{\comp}}}}{\src{\runtimetermvar}}{\src{\trace}}$.
-
-% \begin{figure*}[!ht]
-%   \begin{center}
-%     \begin{tikzpicture}[state/.style={minimum height=1.5cm}]
-%       % relative horizontal/vertical distance between states
-%       \pgfmathsetmacro{\hdist}{0.95}
-%       \pgfmathsetmacro{\vdist}{1.35}
-%       \pgfmathsetmacro{\halfvdist}{0.725}
-
-%       % row of src states
-%       \node[state] (srcempty) {$\rtt{\src{\emptyset}}{\src{\lcall{main}{0}}}$};
-%       \foreach \s [remember=\s as \cur (initially empty)] in {1,w_1,p,w_2,2} {
-%         \node[state,right=\hdist of src\cur] (src\s) {$\rtt{\src{\Omega_{\s}}}{\src{\expr[_{\s}]}}$};
-%       }
-%       % row of trg states
-%       \node[state,below=\vdist of srcempty] (trgempty) {$\rtt{\trg{\emptyset}}{\trg{\lcall{main}{0}}}$};
-%       \foreach \s in {1,w_1,p,w_2,2} {
-%         \node[state,below=\vdist of src\s] (trg\s) {$\rtt{\trg{\Omega_{\s}}}{\trg{\expr[_{\s}]}}$};
-%       }
-%       %% illustrations
-%         % backtrans wrapper 1
-%         \draw[ultra thick,loosely dotted,Peach!50,rounded corners] (src1.north east) -- (srcw\string_1.north east)
-%           -- (trgw\string_1.south east) -- (trg1.south west) -- (src1.north west) -- cycle;
-%         % backtrans wrapper 2
-%         \draw[ultra thick,loosely dotted,Peach!50,rounded corners] (srcp.north east) -- (srcw\string_2.north east)
-%           -- (trgw\string_2.south east) -- (trgp.south west) -- (srcp.north west) -- cycle;
-%         % compiler correctness
-%         \draw[ultra thick,loosely dashed,Emerald!50,rounded corners] ($(srcw\string_1.north east)+(0,0.05)$) -- ($(srcp.north east)+(0,0.05)$)
-%           -- ($(trgw\string_2.north east)+(0.05,0)$) -- ($(trgw\string_2.south east)+(0.05,-0.05)$)
-%           -- ($(trg1.south west)+(-0.05,-0.05)$) -- ($(trg1.north west)+(-0.05,0)$) -- ($(srcw\string_1.north west)+(0,0.05)$) -- cycle;
-%       % state relations
-%       \path (srcempty) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_\emptyset$} (trgempty)
-%         (src1) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trg1)
-%         (srcp) edge[very thick,draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgp)
-%         (src2) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_2}$} (trg2)
-%         (srcw\string_1) edge[very thick,draw=gray!25] node[pos=0.5,sloped,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trgw\string_1)
-%         (srcw\string_2) edge[very thick,draw=gray!25] node[pos=0.5,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (trgw\string_2)
-%         % diagonals
-%         (srcw\string_1) edge[thick,draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\approx_{\delta_{w_1}}$} (trg1)
-%         (src1) edge[thick,draw=gray!25] node[pos=0.16,sloped,rotate=180,fill=white] {\scriptsize$\multimap_{\delta_1}$} (trgw\string_1)
-%         (srcp) edge[thick,draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\approx_{\delta_p}$} (trgw\string_2)
-%         (trgp) edge[thick,draw=gray!25] node[pos=0.2,sloped,fill=white] {\scriptsize$\multimap_{\delta_{w_2}}$} (srcw\string_2)
-%         ;
-%       %\drawpolygon src1,srcw\string_1,trgw\string_1,trg1;
-%       %\drawpolygon srcp,srcw\string_2,trgw\string_2,trgp;
-%       %\node[font=\tiny,align=center,above=0.2 of srcw1srcp] (wrapper) {Backtranslation\\Wrapper};
-%       %\path[->,draw] (wrapper) -- (srcw\string_1);
-%       %\path[->,draw] (wrapper) -- (srcp);
-%       % steps
-%       \path[very thick,color=\stlccol] (srcempty) edge[draw=none] node {\ $\xrightarrow{\trace[_1]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src1)
-%         (src1) edge[draw=none] node {\ $\xrightarrow{\trace[_c]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_1)
-%         (srcw\string_1) edge[draw=none] node {\ $\xrightarrow{\trace[_p]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (srcp)
-%         (srcp) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\trace[_r]}{}{\kern-3.5pt}_{\text{ctx}}$} (srcw\string_2)
-%         (srcw\string_2) edge[draw=none] node {\ $\xrightarrow{\trace[_2]}{}{\kern-3.5pt}_{\text{ctx}}^*$} (src2)
-%         ;
-%       \path[very thick,color=\ulccol] (trgempty) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\phantom{\trace[_1]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg1)
-%         (trg1) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgw\string_1)
-%         (trgw\string_1) edge[draw=none] node[fill=white,inner sep=0,outer sep=0] {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgp)
-%         (trgp) edge[very thick,draw=none] node {\ $\xrightarrow{\phantom{\trace[_p]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trgw\string_2)
-%         (trgw\string_2) edge[draw=none] node {\ $\xrightarrow{\phantom{\trace[_2]}}{}{\kern-3.5pt}_{\text{ctx}}^*$} (trg2)
-%         ;
-%       % legend
-% %     \node[align=left,below right=0.3 and 0.3 of trgempty,font=\tiny] (legend) {%
-% %       ${\src{\trace[_c]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Call\ ?\ foo\ \valueexpr})}$\\%
-% %       ${\src{\trace[_r]}}\cong{\backt{\Ltms}{\Ltrg}(\trg{Ret\ !\ foo\ \valueexpr})}$
-% %       };
-%       \node[below=0.5 of trgempty,draw=none] (legend) {};
-%       \draw[ultra thick,loosely dotted,Peach!50,rounded corners] ($(legend.north east)+(0.5,-0.4)$) -- ($(legend.north east)+(1,-0.4)$);
-%       \node at ($(legend.north east)+(1.5,-0.4)$) (legendwrapper) {};
-%       \node[right of=legendwrapper] {\tiny Backtranslation Wrapper};
-%       \draw[ultra thick,loosely dashed,Emerald!50,rounded corners] ($(legend.south east)+(0.5,0.4)$) -- ($(legend.south east)+(1,0.4)$);
-%       \node at ($(legend.south east)+(1.5,0.4)$) (legendcorrectness) {};
-%       \node[right of=legendcorrectness] {\tiny Compiler Correctness};
-%     \end{tikzpicture}
-%     \caption{Proof diagram for \Cref{thm:cca:rtp:tms} depicting the general structure of robust preservation proofs. %
-%       Nodes in the graph represent runtime states. %
-%       Vertical lines indicate cross language relations, while horizontal ones are execution steps. %
-%       The green dashed trapezoid encompasses the component segment, while the orange dotted rectangles entail the context switches. %
-%       $\Ltrg$ traces are omitted for readability. %
-%       $\Ltms$ trace segments $\src{\trace[_{c}]}$ and $\src{\trace[_{r}]}$ describe the events that happen at the boundaries, i.e., during a context switch.
-%       $\src{\trace_{p}}$ is the behavior of the component and the traces $\src{\trace[_{1}]}$ and $\src{\trace[_{2}]}$ describe the context.
-%     }\label{fig:proofdiag:rtp}
-%   \end{center}
-% \end{figure*}
-
-% \section{Proof of \Cref{thm:ccab:rtp:ms}} \label{sec:proof1}
-%   From \Thmref{thm:cca:rtp:tms} it follows that for any $\Ltms$ program $\src{\progvar}$, it compiles to an $\Ltrg$ program $\trg{\progvar}$ that robustly satisfies \gls*{tms}.
-%   Note that $\src{\progvar}$ robustly satisfies \gls*{tms} by the properties of the typesystem of $\Ltms$.
-%   Then, \Thmref{thm:ccb:rtp:sms} demonstrates that, assuming $\trg{\progvar}$ robustly satisfies \gls*{sms}, the program $\trg{\progvar}$ compiles to an $\Lms$ program $\irl{p}$ that also robustly satisfies \gls*{sms}.
-%   From \Thmref{thm:ccab:rtp:ms} it follows that $\src{p}$ compiles to $\irl{p}$ that robustly satisfies \gls*{ms}, since \gls*{ms} is the intersection of \gls*{tms} and \gls*{sms}.
-
-% \section{Proof of \Cref{thm:ccall:rtp:msscct}} \label{sec:proof2}
-% From \Thmref{thm:ccab:rtp:ms}, we have that any $\Ltms$ program $\src{\progvar}$ compiles into a $\Lms$ program $\irl{\progvar}$ that robustly satisfies \gls*{ms}.
-% Then, from \Thmref{thm:cccfccdce:rtp:ms} we have that $\irl{\progvar}$ gets optimised to a program $\irl{\progvar[']}$ that is also \gls*{ms}, where the order of optimisations does not matter for $\irl{\progvar[']}$ to be \gls*{ms}.
-% Assuming $\irl{\progvar[']}$ robustly satisfies \gls*{scct}, by \Thmref{thm:ccscct:rtp:scct} it compiles to an $\Lscct$ program $\obj{\progvar}$ that robustly satisfies \gls*{scct} as well.
-% Finally, from \Thmref{thm:rtp} it follows that, given $\src{\progvar}$ robustly satisfies \gls*{scct} and \gls*{ms}, $\obj{\progvar}$ also robustly satisfies \gls*{scct} and \gls*{ms}.
-
-% \section{Auxiliary definitions for \Cref{subsec:app}}
-% \begin{definition}[Existential Image of Properties]\label{def:eximg:prop}
-%   Given a cross-language trace relation $\sim$,
-%   $$
-%   \tau_\sim(\src{\pi}) \isdef \left\{
-%     \trg{\trace} \mid \exists\src{\trace}.\src{\trace}\sim\trg{\trace} \text{ and }
-%     \src{\trace}\in\src{\pi}
-%   \right\}
-%   $$
-% \end{definition}
-
-% \Thmref{def:eximg:prop} can be lifted to hyperproperties/classes as follows:
-% \begin{definition}[Existential Image of Hyperproperties]\label{def:eximg:hprop}
-%   Given a cross-language trace relation $\sim$,
-%   $$
-%   \tilde{\tau}_\sim(\src{\Pi}) \isdef \left\{
-%     \trg{\pi} \mid \exists\src{\pi}.\src{\pi}\in\src{\Pi} \text{ and }
-%     \trg{\pi}=\tau_\sim\left(\src{\pi}\right)
-%   \right\}
-%   $$
-% \end{definition}
-% \bul{A cross-language relation $\sim$ is well-formed with respect to a source-level (hyper-)property $\src{\Pi}$} iff \rul{the existential images preserve membership}.
-% \begin{definition}[Well-formedness of Cross-Language Trace Relations for a Properties $\src{\Pi}$]\label{def:wf:tracerel}
-%   $$
-%   \text{\bul{$\wfc{\sim}{\src{\Pi}}$}} \isdef \text{\rul{$\forall \src{\pi}\in\src{\Pi}, \tau_\sim(\src{\pi})\in\tilde{\tau}_\sim(\src{\Pi})$}}
-%   $$
-% \end{definition}
-% \begin{lemma}[Well-Formedness Equivalence for Classes]\label{lem:wf:equiv:wfc}
-%   $\;\;$
-%   $ \wf{\sim}{\src{\class}} \Leftrightarrow\ \wfc{\sim}{\src{\class}} $\Coqed
-% \end{lemma}
 
 
 % \newpage

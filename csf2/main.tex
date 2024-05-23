@@ -777,20 +777,26 @@ For example, a context immediately deallocating an allocated memory region twice
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
+$\src{L_{\tmssafe}}$ is a relatively naive language with second class functionns, the only values being numbers. 
+It has simple binary operations, case analyses, C-like memory operations on arrays, as well as C-like function calls.
+Programs have sets of pre-determined functions called libraries and it is assumed that there are functions part of some component or context.
+
 \vspace{-1.5em}
 \[
-  \begin{array}{rcl}
-    \src{\event[^b]} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \\
-                     && \mid \src{\ev{Set \loc\ n}} \mid \src{\ev{Branch\ n}} \mid \src{\ev{Binop\ n}}\\
-   && \src{\sandboxtag} := \src{\ctx} \mid \src{\comp} \hspace{3em}
-   \src{\event} := \src{\event[^b];\sandboxtag} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
-    \src{\expr} &:=& \src{x} \mid \src{n} \mid \src{\lbinop{\expr[_1]}{\expr[_2]}} \mid \src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}} \mid \src{\llet{x}{\expr[_1]}{\expr[_2]}} \\
-                && \src{\library_{\ctx}} : \src{Vars} \to \src{\expr} \hspace{4em}
+  \begin{array}{rrcl}
+    \text{(Pre-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
+    \text{(Sandboxtag)} & \src{\sandboxtag} &:=& \src{\ctx} \mid \src{\comp} \\
+    \text{(Events)} & \src{\event} &:=& \src{\preevent;\sandboxtag} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
+    \text{(Expressions)} & \src{\expr} &:=& \src{x} \mid \src{n} \mid \src{\lbinop{\expr[_1]}{\expr[_2]}} \mid \src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}} \\ 
+                         &&&\mid \src{\llet{x}{\expr[_1]}{\expr[_2]}} \mid \src{\llet{x}{new\ \expr[_1]}{\expr[_2]}} \\
+                         &&&\mid \src{\ldelete{x}} \mid \src{\lget{x}{\expr}} \mid \src{\lset{x}{\expr[_1]}{\expr[]}} \mid \src{stuck}\\
+                         &&&\mid \src{\lcall{f}{\expr}} \mid \src{\lreturn{\expr}} \\
+    \text{(Libraries)} &&& \src{\library_{\ctx}} : \src{Vars} \to \src{\expr} \hspace{2em}
     \src{\library_{\comp}} : \src{Vars} \to \src{\expr} \\
   \end{array}
 \]
 
-$\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
+Crucially, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
 The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
 %Hereby, the map $\thelocmap(\src{\loc})=\loc$ maps an $\Ltms$ location to a location $\loc$ of the specification trace model.
 
@@ -810,8 +816,8 @@ $\Ltms$ dynamic semantics do not get stuck if a memory-safety violation is encou
 
 \vspace{-1.5em}
 \[
-  \begin{array}{rcl}
-    \trg{\expr} &:=& \dots \mid \trg{\lhast{\expr}{\tau}} \mid \trg{\lispoisoned{x}}
+  \begin{array}{rrcl}
+    \text{(Expressions)} & \trg{\expr} &:=& \dots \mid \trg{\lhast{\expr}{\tau}} \mid \trg{\lispoisoned{x}}
   \end{array}
 \]
 
@@ -827,12 +833,14 @@ $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to emphasize t
 
 \vspace{-1.5em}
 \[
-  \begin{array}{rcl}
-    \obj{D} &:=& \obj{ON} \mid \obj{OFF} \hspace{2em}
-    \obj{\securitytag} := \obj{\lock} \mid \obj{\unlock} \\
-    \obj{\event[^b]} &:=& \dots \mid \obj{iGet\ \loc\ v} \mid \obj{iSet\ \loc\ v} \mid \obj{Binop\ n} \mid \obj{Branch\ n} \\
-    \obj{\expr} &:=& \dots \mid \obj{\lrddoit{x}{\expr}} \mid \obj{\lwrdoit{D}} \mid \obj{\llet{x^{\securitytag}}{\expr[_1]}{\expr[_2]}}\\
-    \obj{\event} &:=& \obj{\event[^b];\sandboxtag;\securitytag} \mid \dots
+  \begin{array}{rrcl}
+    \text{(Mode Values)} & \obj{D} &:=& \obj{ON} \mid \obj{OFF} \\
+    \text{(Security Tags)} & \obj{\securitytag} &:=& \obj{\lock} \mid \obj{\unlock} \\
+    \text{(Pre-Event)} & \obj{\preevent} &:=& \dots \mid \obj{iGet\ \loc\ v} \mid \obj{iSet\ \loc\ v} \\
+                       &&& \mid\ \obj{Binop\ n} \mid \obj{Branch\ n} \\
+    \text{(Event)} & \obj{\event} &:=& \obj{\event[^b];\sandboxtag;\securitytag} \mid \obj{\emptyevent} \mid \obj{\lightning} \\
+    \text{(Expressions)} & \obj{\expr} &:=& \dots \mid \obj{\lrddoit{x}{\expr}} \mid \obj{\lwrdoit{D}} \\
+                         &&&\mid\ \obj{\llet{x^{\securitytag}}{\expr[_1]}{\expr[_2]}}\\
   \end{array}
 \]
 \begin{center}
@@ -886,9 +894,9 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
 
 \vspace{-1.5em}
 \[
-  \begin{array}{rcl}
-    \ird{\event[^b]} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
-    \ird{\expr[^b]} &:=& \dots \mid \ird{\lbarrier}
+  \begin{array}{rrcl}
+    \text{(Pre-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
+    \text{(Expressions)} & \ird{\expr} &:=& \dots \mid \ird{\lbarrier}
   \end{array}
 \]
 

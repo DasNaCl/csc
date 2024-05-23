@@ -859,32 +859,13 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
   When the data independent timing mode is off, the execution yields events in similar fashion to before (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
   But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory gets ultimately translated to a specification trace with \colorbox{lightgray}{no exposed secrets}.
 \end{exampleenv}
-
-\subsection{$\Lspec$: A Memory-Unsafe Language with Speculation}\label{subsec:lspec}
-
-\vspace{-1.5em}
-\[
-  \begin{array}{rcl}
-    \ird{\event[^b]} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
-    \ird{\expr[^b]} &:=& \dots \mid \ird{\lbarrier}
-  \end{array}
-\]
-
-$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics. 
-After branching or accessing memory, speculation can start and run subsequent code in a predetermined window until a rollback of operational state is performed. 
-Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant.
-In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
-The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
-A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode.
-The speculative semantics are inspired by existing work~\cite{guarnieri2018spectector}.
-
-\begin{figure*}[!h]
+\begin{figure}[!htb]
  \vspace{-2em}
   $$
   \scriptsize
   % {
   \begin{array}{ccccccc}
-        & \Lscct &        &   &      & Spec & \\
+    & \Lscct &        &   &      & Spec & \\
     Active & \mid & Inactive & \mid & Active & \mid & Inactive \\\hline
     \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{x}\ 12;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\unlock\\
     \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \ev{Alloc}\ \loc_{y}\ 12;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\unlock\\
@@ -904,7 +885,27 @@ The speculative semantics are inspired by existing work~\cite{guarnieri2018spect
   $$
   \caption{Traces for \Cref{ex:lscct}.}
   \label{fig:ex-cct}
-\end{figure*}
+\end{figure}
+
+\subsection{$\Lspec$: A Memory-Unsafe Language with Speculation}\label{subsec:lspec}
+
+\vspace{-1.5em}
+\[
+  \begin{array}{rcl}
+    \ird{\event[^b]} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
+    \ird{\expr[^b]} &:=& \dots \mid \ird{\lbarrier}
+  \end{array}
+\]
+
+$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics. 
+After branching or accessing memory, speculation can start and run subsequent code in a predetermined window until a rollback of operational state is performed. 
+Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant.
+In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
+The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
+A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode.
+The speculative semantics are inspired by existing work~\cite{guarnieri2018spectector}.
+
+
 
 \section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
 This section defines several secure compilers, each of which robustly preserves a different property of interest as depicted in \Cref{fig:pipeline}.

@@ -829,6 +829,22 @@ $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to emphasize t
     \obj{\event} &:=& \obj{\event[^b];\sandboxtag;\securitytag} \mid \dots
   \end{array}
 \]
+\begin{center}
+\footnotesize
+  \typerule{$e-\obj{wrdoit}-\text{off}$}{
+  }{
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag;OFF;\memstate}}{\obj{0^{\securitytag}}}}{\obj{\emptyevent}}
+  }{e-wrdoit-off}
+\newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
+\newcommand{\exprevalo}[5]{\expreval{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}}
+  \typerule{$e-\obj{get}-\in-$noleak}{
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
+  }{
+    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{{iGet}\ \loc\ n;\sandboxtag;\sigma''}
+  }{to-e-get-in-noleak}
+\end{center}
 
 $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to read from ($\obj{\lrddoit{x}{\expr}}$) and to write to ($\obj{\lwrdoit{D}}$) a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
 To this end, states are extended with the value of the register ($\obj{D}$), which is initially set to be not active ($\obj{OFF}$).
@@ -869,6 +885,19 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
     \ird{\expr[^b]} &:=& \dots \mid \ird{\lbarrier}
   \end{array}
 \]
+
+\begin{center}
+  \footnotesize
+\newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
+\newcommand{\exprevald}[5]{\expreval{\ird{#1}}{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}}
+
+  %
+  \typerule{$e-\ird{ifz}-\ird{true}-\text{spec}$}{
+    \dots \text{todo}
+  }{
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\begin{array}{c}\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_1]}}\\\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_2]}}\end{array}}{\ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}}
+  }{e-ifz-true-leak}
+\end{center}
 
 $\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics. 
 After branching or accessing memory, speculation can start and run subsequent code in a predetermined window until a rollback of operational state is performed. 
@@ -1312,6 +1341,13 @@ Since these optimisations have no significant semantic effect and source- and ta
 
 \Cref{thm:rtpsim:sig} is always applicable, up to well-formedness of $\sim_1$ with respect to $\trg{\class[_2]}$.
 However, consider $\ccb$ and $\ccspec$.
+Even though swapping these compilers in the compilation chain is syntactically impossible, let us pretend that it is possible by just extending $\ccb$ for the constructs present in $\Lscct$ that are not present in $\Ltrg$.
+Clearly, as evidenced in the case study earlier, $\ccb\cdot\ccspec$ is an acceptable composition that yields an interesting class of security properties, i.e., $\sigma_{\sim_{\irl{ms}}\bullet\sim_{\ird{\mathghost}}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$. 
+However, swapping them $\ccspec\cdot\ccb$ means that $\ccb$ inserts new branches into the code that are not necessarily protected by a speculative execution barrier! 
+It is crucial to ensure that the resulting class is meaningful, much similar to ensuring that a definition models what the formal methods expert intends to model. 
+For the $\ccspec\cdot\ccb$ case, the class is $\sigma_{\sim_{\ird{\mathghost}}\bullet\sim_{\irl{ms}}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$
+Since $\ev{Use\ \loc\ n}\sim_{\irl{ms}}\ev{Branch n}\cdot\ev{Spec}\cdots$, where $\cdots$ does not contain a $\ird{\ev{Barrier}}$ event, the resulting class of properties is only a subset of the intended one.
+Because of this, it is crucial to analyze the precise shape of the class of properties after mapping a target-level property to a source-level property\footnote{Dito for vice-versa.}.
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 

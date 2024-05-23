@@ -777,8 +777,9 @@ For example, a context immediately deallocating an allocated memory region twice
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
-$\src{L_{\tmssafe}}$ is a relatively naive language with second class functionns, the only values being numbers. 
-It has simple binary operations, case analyses, C-like memory operations on arrays, as well as C-like function calls.
+$\src{L_{\tmssafe}}$ is a relatively naive language with second class functions, the only values being numbers. 
+It has simple binary operations, case analyses, C-like function calls, as well as C-like memory operations. 
+Pointers are left second-class and can only be referenced by an identifier, so addresses cannot be guessed by contexts.
 Programs have sets of pre-determined functions called libraries and it is assumed that there are functions part of some component or context.
 
 \vspace{-1.5em}
@@ -806,13 +807,17 @@ The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{
 % \MP{rewrite these lines}
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls*{tms}]\label{thm:wt:tms}
-  For any $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
+  For any component $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
 \end{theorem}
 
 The trace model is largely similar to the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}).
 $\Ltms$ dynamic semantics do not get stuck if a memory-safety violation is encountered, such as a write out of bounds.
 
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
+
+$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$), evaluating to $\trg{0}$ if the type matches with the shape of $\trg{\expr}$ and $\trg{1}$ otherwise.
+%The pointers carry poison tags, which signify a pointer being allocated ($\trg{\poisoned}$) or freed ($\trg{\poisonless}$). 
+Furthermore, the syntax of $\Ltrg$ is extended with a way to inspect whether a pointer is freed ($\trg{\lispoisoned{x}}$), evaluating to $\trg{0}$ if it is freed and to $\trg{1}$ otherwise.
 
 \vspace{-1.5em}
 \[
@@ -821,15 +826,19 @@ $\Ltms$ dynamic semantics do not get stuck if a memory-safety violation is encou
   \end{array}
 \]
 
-$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$), evaluating to $\trg{0}$ if the type matches with the shape of $\trg{\expr}$ and $\trg{1}$ otherwise.
-%The pointers carry poison tags, which signify a pointer being allocated ($\trg{\poisoned}$) or freed ($\trg{\poisonless}$). 
-Furthermore, the syntax of $\Ltrg$ is extended with a way to inspect whether a pointer is freed ($\trg{\lispoisoned{x}}$), evaluating to $\trg{0}$ if it is freed and to $\trg{1}$ otherwise.
 No changes are done to the trace model, but $\Ltrg$ has no static typing, making double-free patterns possible.
 
 \subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
 $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to emphasize that this is code after applying $\cc{\Ltrg}{\Lms}$ (\Cref{subsec:cs:ms}).
 
 \subsection{$\Lscct$: A Memory-Unsafe Language with a Data Independent Timing Mode}\label{subsec:lscct}
+
+$\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to read from ($\obj{\lrddoit{x}{\expr}}$) and to write to ($\obj{\lwrdoit{D}}$) a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
+To this end, states are extended with the value of the register ($\obj{D}$), which is initially set to be not active ($\obj{OFF}$).
+If the register is marked active ($\obj{ON}$), the intuition is that no secrets can appear on specification traces.
+If the register is marked inactive, secrets may appear on traces.
+The state of the register can be read and written to, e.g., \Cref{tr:e-wrdoit-off}.
+For the other languages seen earlier, the mode is intuitively always-on, i.e., the mode of execution always uses data independent timing.
 
 \vspace{-1.5em}
 \[
@@ -860,15 +869,10 @@ $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to emphasize t
   }{to-e-get-in-noleak}
 \end{center}
 
-$\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to read from ($\obj{\lrddoit{x}{\expr}}$) and to write to ($\obj{\lwrdoit{D}}$) a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
-To this end, states are extended with the value of the register ($\obj{D}$), which is initially set to be not active ($\obj{OFF}$).
-If the register is marked active ($\obj{ON}$), the intuition is that no secrets can appear on specification traces.
-If the register is marked inactive, secrets may appear on traces.
-For the other languages seen earlier, the mode is intuitively always-on, i.e., the mode of execution always uses data independent timing.
 The language also adds user-annotations for secrecy $\obj{\securitytag}$, which is either high $\obj{\lock}$ or low $\obj{\unlock}$.
 Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
 To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends pre-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$.
-This way, memory accesses to secret data are still exposed as memory accesses, despite being protected by data-independent timing mode.
+This way, memory accesses to secret data are still exposed as memory accesses, despite being protected by data-independent timing mode, e.g, \Cref{tr:to-e-get-in-noleak}.
 Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
 Events are extended with security-tag to signal the secrecy of the involved data.
 
@@ -882,17 +886,25 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
 
 \begin{exampleenv}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
   Consider again \Cref{ex:strncpy}, with a context copying the string \texttt{Hello World}, where everything is marked with a high security tag: $\lock$.
-  The left half of \Cref{fig:ex-cct} ($\Lscct$, the two columns on the left), describes the execution trace of the program, while the right side of the table ($Spec$, the two columns on the right), describes the related specification trace (\Cref{subsec:msctss:tracemodel}).
-  Read from top to bottom, the figure shows parts of the execution trace. 
+  The top half of \Cref{fig:ex-cct} (titled $\Lscct$), describes the execution trace of the program, while the bottom side of the table (titled $Spec$), describes the related specification trace (\Cref{subsec:msctss:tracemodel}).
+  Read in parallel from top to bottom, the figure shows parts of the execution trace. 
   In each half, the left column (\textit{Active}) has data-independent timing $\obj{ON}$ and the right one (\textit{Inactive}) has it $\obj{OFF}$.
   
   When the data independent timing mode is off, the execution yields events in similar fashion to before (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
-  But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory gets ultimately translated to a specification trace with \colorbox{lightgray}{no exposed secrets}.
+  But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory is related to a specification trace with \colorbox{lightgray}{no exposed secrets}.
 \end{exampleenv}
 
 \subsection{$\Lspec$: A Memory-Unsafe Language with Speculation}\label{subsec:lspec}
 
-\vspace{-1.5em}
+$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics. 
+After branching or accessing memory, speculation can start and run subsequent code in a predetermined window until a rollback of operational state is performed. 
+Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant, in this case just SPECTRE-PHT~\cite{kocher2019spectre}, whose semantics is sketched with \Cref{tr:e-ifz-true-spec}, where $\omega$ is the size of the speculation window.
+The semantics is kept general enough to allow for future extension to support different variants.
+In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
+To facilitate speculative execution in a non-assembly-like language, a stack of operational state is used and speculation is active if that stack has a size greater than one, indicated by writing the operational states vertically.
+This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculation.
+
+\vspace{-1em}
 \[
   \begin{array}{rrcl}
     \text{(Pre-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
@@ -907,18 +919,34 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
 
   %
   \typerule{$e-\ird{ifz}-\ird{true}-\text{spec}$}{
-    \dots \text{todo}
+    \ird{\cfstate[']}.\ird{\operatorname{win}} = \omega
   }{
-    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\begin{array}{c}\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_1]}}\\\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_2]}}\end{array}}{\ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}}
-  }{e-ifz-true-leak}
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\begin{array}{c}\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[_1]}}\\\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_2]}}\end{array}}{\ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}}
+  }{e-ifz-true-spec}
+  %
+  \typerule{$e-\ird{spec}-\text{eat}$}{
+    \ird{\cfstate}.\ird{\operatorname{win}} > 0 &
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr}}}{\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[']}}}{\ird{\event}} &
+    \ird{\cfstate['']}.\ird{\operatorname{win}} = \ird{\cfstate[']}.\ird{\operatorname{win}}-1
+  }{
+    \pstepto{\begin{array}{c}\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr}}\\\ird{r}\end{array}}{\begin{array}{c}\rtt{\ird{\cfstate[''];\sandboxtag;0;\memstate}}{\ird{\expr[']}}\\\ird{r}\end{array}}{\ird{\event}}
+  }{e-spec-eat}
+  % 
+  \typerule{$e-\ird{spec}-\text{eaten}$}{
+    \ird{r}.\ird{\cfstate}.\ird{\operatorname{win}} = 0
+  }{
+    \pstepto{\begin{array}{c}\ird{r}\\\ird{r'}\end{array}}{\ird{r'}}{\ird{Rlb}}
+  }{e-spec-eaten}
+  %
+  \typerule{$e-\ird{spec}-\text{barrier}$}{
+    \ird{r'}.\ird{\cfstate} = \ird{r}.\ird{\cfstate}[.\ird{\operatorname{win}} = 0]
+  }{
+    \pstepto{\begin{array}{c}\ird{r}\\\ird{r''}\end{array}}{\begin{array}{c}\ird{r'}\\\ird{r''}\end{array}}{\ird{Barrier}}
+  }{e-spec-barrier}
 \end{center}
 
-$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics. 
-After branching or accessing memory, speculation can start and run subsequent code in a predetermined window until a rollback of operational state is performed. 
-Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant.
-In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
 The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
-A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode.
+A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode (see \Cref{tr:e-spec-barrier}) and does nothing when run in normal mode.
 The speculative semantics are inspired by existing work~\cite{guarnieri2018spectector}.
 
 \begin{figure}[!htb]

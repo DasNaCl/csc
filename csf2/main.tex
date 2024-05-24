@@ -108,26 +108,6 @@ Crucially, this paper derives the security of the multi-pass compiler from the c
 % 
 From an engineering perspective, this is the desirable approach to building secure compilers.
 
-
-  % \MKin{context}
-  % Memory safety necessitates secrecy, since breaking it can lead to an arbitrarily large attack space, i.e., from simply reading a secret up to alteration of control-flow in order to execute arbitrary code.
-  % However, secrecy cannot be achieved with just memory safety alone, since, e.g., private data could be leaked by differences in execution time for varying program inputs.
-  % This leakage is avoidable by ensuring that programs are cryptographic constant time, i.e., different inputs do not change execution time.
-  % Prior work has shown that strategies to ensure cryptographic constant time can be rendered useless, since a compiler may simply optimize them away.
-  % \MKin{need}
-  % This is why secure compilation is an integral ingredient to achieve security, because a secure compiler guarantees (formally) that properties that hold in the source, also hold in the target. %% mention attacker? the text describes correctness
-  % \MKin{task}
-  % Unfortunately, it is an open question whether secure compilers can be engineered in a modular way.
-  % Ideally, compiler engineers develop two different compilation passes, one that ensures memory safety and another one that is security preserving w.r.t. cryptographic constant time. %, because this style of engineering is well-established for its simplifying divide-and-conquer approach as well as enhanced reusability.
-  % \MKin{object+findings}
-  % This paper answers that question positively: The composition of compilers that are secure w.r.t. some security-properties yields the intersection of these properties.
-  % \MKin{object}
-  % This article discusses different variants of compositions of secure compilers and instantiates parts of these results in a case-study.
-  % To this end, it presents an optimizing, secure compilation chain that preserves both memory safety and cryptographic constant time.
-  % \MKin{conclusion}
-  % The compositionality results enable modular proofs for the presented, secure compiler. % that is secure w.r.t. both memory safety and cryptographic constant time.
-  % Some results of this work are implemented in the Coq proof assistant.
-
 \begin{center}\small\it
 	{This paper uses syntax highlighting accessible to both colourblind and black \& white readers.
 	% ~\cite{patrignani2020use}.
@@ -330,8 +310,7 @@ Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019s
 This is why {\em robust preservation} is a good candidate as a compiler-level security property~\cite{abate2019jour}.
 
 This paper uses a more general notion of robust preservation~\cite{abate2021extacc} that applies to compilers that use languages with different trace models. 
-To this end, considering a source trace $\src{\trace}$ and a target trace $\trg{\trace}$, there is a relation ($\sim$) describing the effect of a corresponding compiler. 
-\MKin{reference example from case study}
+To this end, considering a source trace $\src{\trace}$ and a target trace $\trg{\trace}$, there is a relation ($\sim$) describing the effect of a corresponding compiler (see \Cref{sec:casestud:rtp}). 
 Using this relation, there are two projection functions: (1) the existential image $\tau_\sim\left(\src{\pi}\right)$ and (2) the universal image $\sigma_\sim\left(\trg{\pi}\right)$.
 These projections map source-level (resp. target-level) properties to target-level (resp. source-level) properties. 
 The case study of this paper exclusively uses the universal image, since some considered properties, such as \gls*{ss}, are not definable in a higher-level language that, e.g., does not model speculation.
@@ -595,9 +574,6 @@ For simple memory safety composed of temporal and spatial memory safety, the tra
   \end{array}
 \]
 
-%Control-tags state whether the context ($\ctx$) or the component ($\comp$) are responsible for emitting the event, a necessary technical detail to know who is to blame for, e.g., an allocation.
-%AAAAAAAAAAAAAWith these control-tags it is possible to ignore effects performed by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls*{tms}~\cite{nagarakatte2010cets}.
-%Even though this could be used for blame~\cite{patrignani2023blame}, this is not what this paper is concerned about.
 Base-events describe the actual kind of event that happened.
 For the basic memory-safety properties, these are three variants:
 First, the allocation event ($\ev{Alloc\ \loc\ n}$) that fires whenever a program claims $n$ cells of memory and stores them at address $\loc$, where addresses are assumed to be unique.
@@ -802,11 +778,6 @@ The trace models of all languages are similar to those presented earlier (\Cref{
 One technical detail is the addition of a sandboxtag, indicating who is to blame for an emitted action: context ($\ctx$) or component ($\comp$).
 This is a standard technique in secure compilation in order to rule out irrelevant context-level events. 
 For example, a context immediately deallocating an allocated memory region twice trivially violates memory safety, but the main interest in secure compilation is at component-level events and if those signal, e.g., a memory safety issue.
-
-% Programs ($\prog{\library_{\ctx}}{\library_{\comp}}$) consist of libraries ($\library$) that belong to a context ($\ctx$) or to a component ($\comp$), and that are lists of functions ($\function$).
-% Functions ($\lfunction{\textit{foo}}{x}{\expr}$) have a single argument $x$ and an expression ($\expr$) as a body which may have $x$ as a free variable.
-% Expressions can be variables ($x$), values ($\valueexpr$), binary operations ($\lbinop{\expr[_1]}{\expr[_2]}$), reading from ($\lget{x}{\expr}$) and writing to ($\lset{x}{\expr[_1]}{\expr[_2]}$) memory, memory allocation ($\llet{x}{\lnew{\expr[_1]}{\expr[_2]}}{\expr[_3]}$) as well as deallocation ($\ldelete{x}$), let expressions ($\llet{x}{\expr[_1]}{\expr[_2]}$), pairs ($\lpair{\expr[_1]}{\expr[_2]}$), their first ($\lproja{\expr}$) and second projection ($\lprojb{\expr}$), conditionals ($\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}$), function calls ($\lcall{\texttt{foo}}{\expr}$), returns ($\lreturn{\expr}$), and an aborting expression ($\labort$).
-
 
 \subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
 
@@ -1380,14 +1351,45 @@ Similarly to the previous relation, this holds, since $\sim^{\Lscct}_{\Lspec}$ o
 \section{Formal Insights}\label{sec:formalities}
 
 This section provides some additional formal insights into the case study. 
+\Cref{subsec:formalities:props} demonstrates that the resulting projected security property using the universal image (\Cref{def:universal:img}) is faithful to the original property. 
 \Cref{subsec:compatsecpasses} discusses a caveat with \Cref{thm:rtpsim:sig}, while \Cref{subsec:seccompproofs} gives some additional background on the secure compilation proofs that do not use the compositionality framework (\Cref{sec:sequential}).
+Lastly, \Cref{subsec:formalities:maps} discusses a minor technicality related to the ,,coloring'' of the investigated properties.
+
+\subsection{Security Properties}\label{subsec:formalities:props}
+
+When modeling some thing using formal methods, the intent is to do so faithfully. 
+That is why it is important to ensure that the properties considered in \Cref{sec:casestud:rtp} follow this ideal.
+It is relatively straightforward to see that, e.g., $\mssafe$ models a basic memory safety property. 
+But, what about $\sigma_{\sim^{\Ltms}_{\Lms}}\left(\mssafe\right)$?
+It is not immediately obvious that the resulting property after projecting it from $\Lms$-level to $\Ltms$-level is similar in spirit to the original $\mssafe$ property (\Cref{def:trace:msdef}) and this is what needs to be discussed when using the presented framework.
+Let us investigate the involved projections from the case study.
+
+\paragraph{$\sigma_{\sim^{\Ltms}_{\Lms}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$}
+Consider a trace $\irl{\trace}\in\mssafe$ and remember that $\sim^{\Ltms}_{\Lms}$ is the composition of $\sim^{\Ltms}_{\Ltrg}$ and $\sim^{\Ltrg}_{\Lms}$.
+{\em All} traces $\trg{\trace}$ with $\trg{\trace}\sim^{\Ltrg}_{\Lms}\irl{\trace}$ are almost identical to $\irl{\trace}$. 
+They differ in memory accesses and crashes, where $\irl{\lightning}$ can be related to a $\trg{\lightning}$ or a memory event, e.g., $\trg{Get\ \loc\ 2}$.
+In both cases, the memory access cannot be out of bounds. 
+
+Now, consider all $\src{\trace}$ with $\src{\trace}\sim^{\Ltms}_{\Ltrg}\trg{\trace}$, which is like equality\footnote{Both $\sim^{\Ltms}_{\Ltrg}$ and $\sim^{\Ltrg}_{\Lms}$ filter context actions.}.
+
+Therefore, the resulting projected property should faithfully model $\mssafe$, which translates to both $\scctsafe$ and $\sssafe$, since these properties trivially hold for $\Ltms$, $\Ltrg$, and $\Lms$ traces.
+
+
+\paragraph{$\sigma_{\sim^{\Lms}_{\Lscct}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$}
+Consider a trace $\obj{\trace}\in\scctsafe$ and all $\irl{\trace}$ such that $\irl{\trace}\sim^{\Lms}_{\Lscct}\obj{\trace}$. 
+In turn, $\obj{\trace}$ cannot contain any leaks of secret values, so it cannot violate $\scctsafe$.
+Toggling data-independent timing mode has no impact on $\mssafe$ or $\sssafe$.
+
+\paragraph{$\sigma_{\sim^{\Lscct}_{\Lspec}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$}
+
+The argument here is analogous to the previous one, introducing $\ird{barrier}$ never violates $\sssafe$ and has no effect on $\mssafe$ or $\scctsafe$.
 
 \subsection{Compatibility of Secure Compiler Passes}\label{subsec:compatsecpasses}
 
 \Cref{thm:rtpsim:sig} is always applicable, up to well-formedness of $\sim_1$ w.r.t. $\trg{\class[_2]}$.
 However, consider $\ccb$ and $\ccspec$.
 Even though swapping these compilers in the compilation chain is syntactically impossible, let us pretend that it is possible by just extending $\ccb$ for the constructs present in $\Lscct$ that are not present in $\Ltrg$.
-Clearly, as evidenced in the case study earlier, $\ccb\cdot\ccspec$ is an acceptable composition that yields an interesting class of security properties, i.e., $\sigma_{\sim_{\irl{ms}}\bullet\sim_{\ird{\mathghost}}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$. 
+Clearly, as evidenced earlier (\Cref{subsec:formalities:props}), $\ccb\cdot\ccspec$ is an acceptable composition that yields an interesting class of security properties, i.e., $\sigma_{\sim_{\irl{ms}}\bullet\sim_{\ird{\mathghost}}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$. 
 However, swapping them $\ccspec\cdot\ccb$ means that $\ccb$ inserts new branches into the code that are not necessarily protected by a speculative execution barrier! 
 It is crucial to ensure that the resulting class is meaningful, much similar to ensuring that a definition models what the formal methods expert intends to model. 
 For the $\ccspec\cdot\ccb$ case, the class is $\sigma_{\sim_{\ird{\mathghost}}\bullet\sim_{\irl{ms}}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$
@@ -1402,6 +1404,14 @@ For the universally quantified target context, a technique known as backtranslat
 Up to backtranslations for $\ccdce$ and $\cccf$, all backtranslations in the case-study are trace based, while for $\ccdce$ and $\cccf$, they are context-based. 
 Since these optimisations have no significant semantic effect and source- and target-language are equal, the backtranslation amounts to an identity translation. 
 
+\subsection{Mapping Language-Specific to Property-Specific Traces}\label{subsec:formalities:maps}
+
+Previous sections disregarded a glaring but minor technical issue: Take $\tmssafe$ (\Cref{def:trace:tmsdef}) as an example.
+It contains traces as specified in \Cref{subsec:basic:memsafety:tracemodel}.
+However, these are different from $\Ltms$ traces (\Cref{subsec:ltms}) which means that \Cref{thm:wt:tms} is ,,ill-typed''.
+Similarly for the other theorems.
+In the interest of reducing visual baggage, the notation left out yet another cross-language trace relation, translating language-specific traces into these non-language specific traces. 
+In doing so, context-level actions are dropped and, e.g., both $\src{Get\ \loc\ n}$ and $\src{Set\ \loc\ n}$ are translated into $\ev{Use\ \loc\ n}$.
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 
@@ -1462,7 +1472,7 @@ This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, whic
 
 \subsection{Speculation Safety Mechanisms}\label{subsec:relw:ssmechs}
 
-With the advent of speculative execution in processors, it is possible to exploit leftover data in caches to identify secrets.
+With the advent of speculative execution in processors, it is possible to exploit this unusual paradigm identify secrets.
 SPECTECTOR~\cite{guarnieri2018spectector} models speculative execution formally and the present work has taken inspiration in the sematics of $\Lspec$ and in \Cref{def:trace:ss} from SPECTECTOR.
 A subsequent line of work~\cite{fabian2022automatic} shows how to modularly define and compose formal semantics that models different speculative execution variants. 
 Similar in spirit, recent work~\cite{fabian2024lift} demonstrates how to lift existing secure compilation proofs for security properties related to speculative execution to more powerful properties, i.e., properties defined for languages with a trace model that enables more vulnerabilities, such as combinations of different speculative execution exploits. 

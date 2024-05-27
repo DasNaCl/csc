@@ -74,7 +74,7 @@
 
 \title{Secure Composition \\ of Robust and Optimising Compilers}
 
-% \author{}
+\author{\vspace*{-2em}\phantom{a}}
 % Matthis Kruse\orcidID{0000-0003-4062-9666}
 % \and
 % Michael Backes
@@ -148,7 +148,7 @@ From an engineering perspective, this is the desirable approach to building secu
 
 \gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
 \gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing} and \gls*{ss} is a security property that enforces the same but under a speculative semantics~\cite{guarnieri2018spectector}\MP{cit xaver ccs} that captures speculative execution attacks such as spectre\MP{citations}.
-Together, \gls*{sms}, \gls*{tms}, \gls*{scct}---an enforceable overapproximation of \gls*{cct}---and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
+Together, \gls*{sms}, \gls*{tms}, \gls*{cct} and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
 Programs attaining \gls*{mssscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels, even under speculative execution.
 \Cref{ex:strncpy} below discusses how these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
 
@@ -172,7 +172,6 @@ The most naive solution in this case is to insert bounds-checks in front of ever
 
 Because of timing attacks, addressing \gls*{sms} is not enough to make \texttt{strncpy} secure.
 In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, thus making program execution time proportional to the length of the array pointed by \texttt{src}, and violating the \gls*{cct} property.
-\MP{can we use scct here, instead of cct?}
 % Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
 Also in this case there exist compiler passes that can rewrite such programs into \gls*{cct} ones~\cite{cauligi2019fact}.
  % so that they are no longer vulnerable to timing attacks.
@@ -194,7 +193,7 @@ Worse, without a framework for composing secure compiler passes, it is not possi
 
 
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy}\MP{there aren't really passes there} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
-To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{scct} as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
+To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{scct}---an enforceable overapproximation of \gls*{cct}---as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
 %Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
 The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
 Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end (robust) preservation of \gls*{mssscct}.

@@ -737,7 +737,7 @@ The above relation is extended to traces in a standard way, skipping the empty e
 
 So far, the considered trace models do not let us express speculative execution attacks such as Spectre~\cite{}\MP{cits}. 
 For this, we extend the earlier trace model (see \Cref{subsec:scct:tracemodel}) so that the security tags ($\securitytag$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
-Moreover, add base-events signaling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
+Moreover, we add base-events signalling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
 
 \vspace{-1em}
 {
@@ -751,13 +751,14 @@ Moreover, add base-events signaling the beginning of a speculative execution ($\
 \]
 }
 
-Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants.
+Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants.\MP{cits}
 %For sake of readability, this paper just uses the notation $\lock$ in place of $\lock_{\text{PHT}}$.
 
 \subsubsection{Speculative Safety}
 
 \gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is an overapproximation of a variant of noninterference.
 The definition of the property itself turns out to be syntactically equal to \gls*{scct}, modulo the underlying trace model.
+\MPin{recap its meaning for security}
 
 \begin{definition}[\glsfirst*{ss}]\label{def:trace:ss}
   \noindent
@@ -770,11 +771,12 @@ The definition of the property itself turns out to be syntactically equal to \gl
   $ 
   \end{nscenter}
 \end{definition}
+\MPin{why isn't it ok to have locks with NONE in the trace?}
 
 \subsubsection{Speculation Memory Safety}
 
 Similar to \gls*{msscct}, there is a need to relate the different trace models with each other, so that the memory safety property without speculation can be lifted to speculation. 
-To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose definition can be sketched as follows:
+To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose definition can be sketched as follows:\MP{sketch?}
 
 \[
   \typerulenolabel{specrel:drop:tag}{}{\preevent[_{\ctsafe}];\lock\sim_{\mathghost}\preevent[_{\ctsafe}];\lock_{\text{NONE}}}
@@ -792,8 +794,8 @@ To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose de
 
 The intuition is that \gls*{ss} is trivially satisfied in \gls*{scct}, since speculation is inexpressible there, which amounts to dropping events $\ev{Spec}$, $\ev{Rlb}$, or $\ev{Barrier}$, as well as all base events tagged with $\lock_{\text{PHT}}$. 
 
-Now, define \gls*{specms} as: 
-\begin{definition}[\glsfirst*{specms}]\label{def:trace:specmsdef}
+We conclude this section by defining the ultimate property of interest for secure compilers: \gls*{specms}.
+\begin{definition}[\gls*{specms}]\label{def:trace:specmsdef}
   $
   \specmssafe=\sigma_{\sim_{\mathghost}}\left(\msscctsafe\right)\cap\sssafe
   $

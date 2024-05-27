@@ -259,6 +259,7 @@ The compositionality framework (\Cref{sec:sequential}) presented in this paper c
 As an example, consider a trace describing an interaction with a memory where the deallocation of an address $\loc$ precedes a read at that address in memory: $\ev{Dealloc\ \loc}\cdot\ev{Read\ \loc\ 1729}\cdot\dots$.
 This program behaviour is insecure w.r.t. a canonical notion of (temporal) memory safety dictating no use-after-frees of pointers~\cite{nagarakatte2010cets,azevedo2018meaningsofms}, because it reads from a memory location that was freed already.
 The previous finite trace prefix is enough to decide that the trace does not satisfy \gls*{tms} and there is no way to append events to this prefix which would result in the trace being admissible.
+
 In the following, the execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ is written as $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
 With this, property satisfaction is defined as follows:
 \bul{whole programs $\wholeprogvar$ satisfy a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisifies $\pi$} (\Cref{def:propsat}).
@@ -267,9 +268,9 @@ With this, property satisfaction is defined as follows:
 $\;$ 
 
   \begin{nscenter}
-    \bul{$\sat{\progvar}{\pi}$}
+    \bul{$\sat{\wholeprogvar}{\pi}$}
     $\isdef$
-    if \iul{$\forall\runtimetermvar\ \trace,\progstepto{\progvar}{\runtimetermvar}{\trace}$},
+    if \iul{$\forall\runtimetermvar\ \trace,\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$},
     then \oul{$\trace\in\pi$}.
   \end{nscenter}
 \end{definition}
@@ -314,7 +315,7 @@ To this end, considering a source trace $\src{\trace}$ and a target trace $\trg{
 Using this relation, there are two projection functions: (1) the existential image $\tau_\sim\left(\src{\pi}\right)$ and (2) the universal image $\sigma_\sim\left(\trg{\pi}\right)$.
 These projections map source-level (resp. target-level) properties to target-level (resp. source-level) properties. 
 The case study of this paper exclusively uses the universal image, since some considered properties, such as \gls*{ss}, are not definable in a higher-level language that, e.g., does not model speculation.
-For sake of self-containment, the definition of the universal image is reiterated~\cite{abate2021extacc}:
+For self-containment, the universal image is defined as follows~\cite{abate2021extacc}:
 
 \begin{definition}[Universal Image]\label{def:universal:img}\label{def:sigma}
   \[ 
@@ -323,25 +324,21 @@ For sake of self-containment, the definition of the universal image is reiterate
 \end{definition}
 
 Using these projection functions, the more general version of robust preservation is defined as follows~\cite{abate2021extacc}:
-For a \bul{compiler $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of source properties $\src{\class}$}, if for any \rul{property $\src{\pi}$ of that class $\src{\class}$ and programs $\src{p}$ written in $\src{L}$} where \iul{$\src{\progvar}$ robustly satisfies $\src{\pi}$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\tau_\sim\left(\src{\pi}\right)$}.
+% For a \bul{compiler $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of source properties $\src{\class}$}, if for any \rul{property $\src{\pi}$ of that class $\src{\class}$ and programs $\src{p}$ written in $\src{L}$} where \iul{$\src{\progvar}$ robustly satisfies $\src{\pi}$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\tau_\sim\left(\src{\pi}\right)$}.
 
-\begin{definition}[Robust Preservation with $\tau_\sim$]\label{def:rtp:tau}
-  % $\;$\\
-  % \vspace{-1em}
-  % \begin{nscenter}
-  % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
-  \bul{$\rtptau{\cc{\src{L}}{\trg{L}}}{\src{\class}}{\sim}$}
-  %, iff 
-  $\isdef$
-  \rul{$\forall \src{\pi}\in\src{\class}, \src{p}\in\src{L},$} if \iul{$\rsat{\src{\progvar}}{\src{\pi}}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\tau_\sim{\left(\src{\pi}\right)}}$}.
-  % \end{nscenter}
-\end{definition}
+% \begin{definition}[Robust Preservation with $\tau_\sim$]\label{def:rtp:tau}
+%   % $\;$\\
+%   % \vspace{-1em}
+%   % \begin{nscenter}
+%   % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
+%   \bul{$\rtptau{\cc{\src{L}}{\trg{L}}}{\src{\class}}{\sim}$}
+%   %, iff 
+%   $\isdef$
+%   \rul{$\forall \src{\pi}\in\src{\class}, \src{p}\in\src{L},$} if \iul{$\rsat{\src{\progvar}}{\src{\pi}}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\tau_\sim{\left(\src{\pi}\right)}}$}.
+%   % \end{nscenter}
+% \end{definition}
 % 
-Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
-Because of this, this paper may write $\rtptau{\cc{\src{L}}{\trg{L}}}{\src{\pi}}{\sim}$, even though $\src{\pi}$ is a property and not a class.
-A similar construction can be applied to the projection functions.
-
-Dually to \Cref{def:rtp:tau}, a \bul{compiler $\cc{\src{L}}{\trg{L}}$ to robustly preserves a class of target properties $\trg{\class}$}, if for any \rul{property $\trg{\pi}$ of class $\trg{\class}$ and programs $\src{p}$}, where \iul{$\src{\progvar}$ robustly satisfies $\sigma_\sim\left(\trg{\pi}\right)$}, \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\trg{\pi}$}.
+A \bul{compiler $\cc{\src{L}}{\trg{L}}$ to robustly preserves a class of target properties $\trg{\class}$}, if for any \rul{property $\trg{\pi}$ of class $\trg{\class}$ and programs $\src{p}$}, where \iul{$\src{\progvar}$ robustly satisfies $\sigma_\sim\left(\trg{\pi}\right)$}, \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\trg{\pi}$}.
 
 \begin{definition}[Robust Preservation with $\sigma_\sim$]\label{def:rtp:sigma}
   % $\;$\\
@@ -354,6 +351,10 @@ Dually to \Cref{def:rtp:tau}, a \bul{compiler $\cc{\src{L}}{\trg{L}}$ to robustl
   \rul{$\forall \trg{\pi}\in\trg{\class}, \src{p}\in\src{L},$} if \iul{$\rsat{\src{\progvar}}{\sigma_\sim\left(\trg{\pi}\right)}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\trg{\pi}}$}.
   % \end{nscenter}
 \end{definition}
+Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
+Because of this, this paper may write $\rtptau{\cc{\src{L}}{\trg{L}}}{\trg{\pi}}{\sim}$, even though $\trg{\pi}$ is a property and not a class.
+A similar construction can be applied to the projection functions.
+
 
 A degenerate case where $\sim$ coincides with equality, i.e., the trace model is the same for both source and target programs and the compiler does not have an effect on the resulting traces, is the classic definition of robust preservation~\cite{abate2019jour}:
 
@@ -414,7 +415,7 @@ print "a"
   The source code in the nodes is a glorified compiler intermediate representation and the code gets more optimised towards the right hand side of the figure.}\label{fig:cfdceex}
 \end{figure}
 This {\em phase ordering problem} is well--known in literature and a practical solution is to simply perform a fixpoint iteration of the optimisation pipeline~\cite{click1995combining}.
-Hence, it is of interest to analyze the security of compilation passes and their interation within a compilation pipeline.
+Hence, it is of interest to analyze the security of compilation passes and their interaction within a compilation pipeline.
 
 For starters, suppose there are traces $\src{\trace}$ and $\trg{\trace}$ as well as two trace relations $\sim_1$ and $\sim_2$. 
 The traces are related $\src{\trace}\sim_1\bullet\sim_2\trg{\trace}$ if there is another trace $\irl{\trace}$ such that $\src{\trace}\sim_1\irl{\trace}$ and $\irl{\trace}\sim_2\trg{\trace}$.
@@ -426,7 +427,7 @@ The traces are related $\src{\trace}\sim_1\bullet\sim_2\trg{\trace}$ if there is
 
   \begin{nscenter}
   \noindent
-  \text{\bul{$\wfcsig{\sim}{\trg{\class}}$}} \isdef \text{\rul{$\forall \trg{\Pi}\in\trg{\class}, \sigma_\sim(\trg{\Pi})\in\sigma_\sim(\trg{\class})$}}
+  \text{\bul{$\wfcsig{\sim}{\trg{\class}}$}} \isdef \text{\rul{$\forall \trg{\pi}\in\trg{\class}, \sigma_\sim(\trg{\pi})\in\sigma_\sim(\trg{\class})$}}
   \end{nscenter}
   % $$
 \end{definition}
@@ -447,10 +448,10 @@ Then, \iul{when the cross-language relation $\sim_2$ is well-formed w.r.t. class
 \end{theorem}
 
 Since the composition of secure compilers is again a secure compiler, the theorems generalise to a whole chain of $n$ secure compilers. 
-Moreover, the previously defined theory dually holds for the existential image $\tau_\sim\left(\src{\pi}\right)$, but these results have been moved to the technical report in the interest of space and interest.
+Moreover, the previously defined theory dually holds for the existential image $\tau_\sim\left(\src{\pi}\right)$, but these results have been moved to the technical report in the interest of space.
 
 \subsection{Secure Compiler Composition with Same Trace Models}
-When the cross-language trace relation is an equality, \Cref{thm:rtpsim:sig} collapse:
+When the cross-language trace relation is an equality, \Cref{thm:rtpsim:sig} collapses:
 Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$\cc{\trg{L}}{\obj{L}}$ robustly preserves $\class[_{2}]$}, it follows that \oul{their sequential composition $\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}$ robustly preserves the intersection of classes $\class[_{1}]$ and $\class[_{2}]$}.
 
 \begin{corollary}[Composition of Secure Compilers]\label{corr:rtp}
@@ -459,7 +460,7 @@ Given \bul{$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and \rul{$
   If \bul{$\rtp{\cc{\src{L}}{\trg{L}}}{\class[_{1}]}$} and \rul{$\rtp{\cc{\trg{L}}{\obj{L}}}{\class[_{2}]}$}, then \oul{$\rtp{\cc{\src{L}}{\trg{L}}\circ\cc{\trg{L}}{\obj{L}}}{\class[_{1}]\cap\class[_{2}]}$}. \Coqed
 \end{corollary}
 
-\Cref{corr:rtp} provides an easy to use theorem to compose secure compilers without any caveats. 
+\Cref{corr:rtp} provides an easy to use way to compose secure compilers without any caveats. 
 However, while \Cref{thm:rtpsim:sig} explicitly requires that $\sim_1$ is well-formed w.r.t. $\trg{\class[_2]}$, if $\sim_2$ is not well-formed w.r.t. $\trg{\class[_1]}$, care must be taken. 
 %Worst-case is that the resulting class $\sigma_{\sim_1\bullet\sim_2}\left(\trg{\class[_1]}\cap\trg{\class[_2]}\right)$ becomes empty, even though $\trg{\class[_1]}\cap\trg{\class[_2]}$ is not necessarily empty.
 \Cref{subsec:compatsecpasses} provides an example of this phenomenon.
@@ -467,7 +468,7 @@ However, while \Cref{thm:rtpsim:sig} explicitly requires that $\sim_1$ is well-f
 %If possible, optimisations are merged to enhance the analysis' result, since even when iterating to a fixpoint the final program may not be as optimised as it could be~\cite{click1995combining}.
 Compiler engineers typically try to find an order of optimisations that yields well-optimised programs for either code size~\cite{cooper1999geneticphases} or performance~\cite{kulkarni2006exhaustivephase}.
 \Cref{corr:swappable} justifies that any such order of compilation passes is valid w.r.t. security.
-So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
+So, given two compilation passes \bul{$\cc[_{1}]{\trg{L}}{\trg{L}}$, $\cc[_{2}]{\trg{L}}{\trg{L}}$, both robustly preserving class $\class[_{1}]$ or $\class[_{2}]$, respectively}, \oul{for any order of their composition, the composed compiler robustly preserves the intersection of $\class[_{1}]$ and $\class[_{2}]$}.
 % 
 % \MPin{
 % 	later on, say that optimisation passes remove elements from traces, so they should be fine w.r.t. the result with $\tau$.
@@ -555,12 +556,14 @@ Given {$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and {$\cc{\src
 
 %Either way, the theoretical results suggest that it is possible to always find a ,,most-general'', secure compiler, given two secure compilers, that robustly preserves the least-upper bound of the classes involved in their compilation process.
 
+Future work intends to use upper and lower composition as means to build a secure compiler incrementally.
+
 \section{Security Properties: Formalisation, Enforcement and Composition\pages{1.5}}\label{sec:compprop}
 
 This section introduces trace properties of interest for this paper: \gls*{tms}, \gls*{sms}, \gls*{ms}, \gls*{scct}, and \gls*{ss}.
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study (\Cref{sec:casestud:defs,sec:casestud:rtp}) presented later. 
 While up to \gls*{scct}, none of the properties is novel, for self-containment of the paper, their definition is necessary for the case study.
-For each of the presented properties, the technical appendix accompanying the paper defines corresponding monitors, which refine a given property and have a major role in the proofs of this paper. 
+For each of the presented properties, the technical appendix accompanying the paper defines corresponding monitors, which refine a given property and have a key role in the proofs of this paper. 
 
 \subsection{Memory Safety Trace Model}\label{subsec:basic:memsafety:tracemodel}
 
@@ -639,13 +642,13 @@ This section starts off by extending the memory safety trace model (\Cref{subsec
   \end{array}
 \]
 
-For cryptographic code, there is a general guideline that secrets must not be visible on a trace, i.e., marked as $\unlock$.
-Moreover, an instruction whose timing is data-dependent must not have a secret as an operand.
+For cryptographic code, there is a general guideline that secrets must not be visible on a trace~\cite{ctguidelines}, i.e., marked as $\unlock$.
+In turn, an instruction whose timing is data-dependent must not have a secret as an operand.
 Typical operations with data-dependent timing are branches and certain binary operations, such as division. 
 \footnote{
 	This is architecture-dependent, but division is an operation that serves as a classic example for a data-dependent timing instruction~\cite[p.~755]{arm-refman}.
 }
-Both operations are also modelled in the trace model by extending the set of base-events with branches on some value $n$ ($\ev{Branch\ n}$) and binary operations with result $n$ ($\ev{Binop\ n}$).
+Both operations are also modelled in the trace model by extending the set of base-events with branches ($\ev{Branch\ n}$) and binary operations ($\ev{Binop\ n}$).
 
 \subsubsection{Strict Cryptographic Constant Time}
 
@@ -666,7 +669,7 @@ To sidestep this issue, this section defines the property \gls*{scct}, a stricte
 
 \gls*{scct} may appear overly strict, since it seems that secrets must not occur on a trace (since $\securitytag$ is forced to be $\unlock$). 
 However, this is considered standard practice in terms of coding guidelines~\cite{ctguidelines}.
-Moreover, programs that operate on secrets and have a ``data independent timing mode'' enabled do not leak these secrets, despite performing computation on them (see \Cref{ex:lscct}). 
+Moreover, programs that operate on secrets and have a ``data independent timing mode'' enabled do not leak these secrets, despite performing computation on them~\cite{arm-refman,intel-refman} (see \Cref{ex:lscct}). 
 
 \subsubsection{\gls*{ms}, Strict Cryptographic Constant Time}
 
@@ -683,7 +686,9 @@ To remedy this issue, let $\sim_{\ctsafe}$ be a cross-language trace relation wh
 \]
 
 Essentially, the only work $\sim_{\ctsafe}$ has to do, is to ignore both the new $\ev{Branch\ n}$ and $\ev{Binop\ n}$ base-events as well as the security tag, since they are irrelevant to \gls*{ms}.
-The relation is extended from just events to traces in a standard way, skipping the empty event $\emptyevent$ on either side, and it is now possible to define \gls*{msscct} using the universal image:
+Put differently, traces of \gls*{ms} trivially satisfy \gls*{scct}.
+
+The above relation is extended to traces in a standard way, skipping the empty event $\emptyevent$ on either side, and it is now possible to define \gls*{msscct} using the universal image:
 
 \begin{definition}[\glsfirst*{ms} and \gls*{scct}]\label{def:trace:msscctdef}
   $
@@ -695,7 +700,7 @@ The relation is extended from just events to traces in a standard way, skipping 
 
 So far, the considered trace models do not take speculative execution into account. 
 For this, extend the earlier trace model (see \Cref{subsec:scct:tracemodel}) so that the security tags ($\securitytag$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
-Moreover, add pre-events signaling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
+Moreover, add base-events signaling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
 
 \vspace{-1em}
 {
@@ -715,15 +720,19 @@ Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher201
 
 \subsubsection{Speculative Safety}
 
-\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is an overapproximation to a variant of noninterference.
+\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is an overapproximation of a variant of noninterference.
 The definition of the property itself turns out to be syntactically equal to \gls*{scct}, modulo the underlying trace model.
 
 \begin{definition}[\glsfirst*{ss}]\label{def:trace:ss}
-  \noindent\[
+  \noindent
+
+  \begin{nscenter}
+  $
     \sssafe:=\left\{\trace[_{\mathghost}] \left|\begin{array}{rcl}
         \trace[_{\mathghost}]=\hole{\cdot} & \text{ or } & \trace[_{\mathghost}]=\preevent[_{\mathghost}];\unlock\cdot\trace[_{\mathghost}'] \wedge \trace[_{\mathghost}']\in\sssafe
                                  \end{array}\right.\right\}
-  \]
+  $ 
+  \end{nscenter}
 \end{definition}
 
 \subsubsection{Speculation Memory Safety}
@@ -745,8 +754,9 @@ To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose de
   \typerulenolabel{specrel:drop:barrier}{}{\emptyevent\sim_{\mathghost}\ev{Barrier}}
 \]
 
-The intuition is that speculation is ignored, which amounts to dropping events $\ev{Spec}$, $\ev{Rlb}$, or $\ev{Barrier}$, as well as all base events tagged with $\lock_{\text{PHT}}$. 
-Now, define \gls*{specms} as follows:
+The intuition is that \gls*{ss} is trivially satisfied in \gls*{scct}, since speculation is inexpressible there, which amounts to dropping events $\ev{Spec}$, $\ev{Rlb}$, or $\ev{Barrier}$, as well as all base events tagged with $\lock_{\text{PHT}}$. 
+
+Now, define \gls*{specms} as: 
 \begin{definition}[\glsfirst*{specms}]\label{def:trace:specmsdef}
   $
   \specmssafe=\sigma_{\sim_{\mathghost}}\left(\msscctsafe\right)\cap\sssafe
@@ -795,7 +805,7 @@ For sake of simplicity, contexts may not pass pointers to the component, but onl
 {\small
 \[
   \begin{array}{rrcl}
-    \text{(Pre-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
+    \text{(Base-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
     \text{(Sandboxtag)} & \src{\sandboxtag} &:=& \src{\ctx} \mid \src{\comp} \\
     \text{(Events)} & \src{\event} &:=& \src{\preevent;\sandboxtag} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
     \text{(Expressions)} & \src{\expr} &:=& \src{x} \mid \src{n} \mid \src{\lbinop{\expr[_1]}{\expr[_2]}} \mid \src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}} \\ 
@@ -886,11 +896,11 @@ The language also adds user-annotations for secrecy $\obj{\securitytag}$, which 
 Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
 To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends base-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$.
 This way, memory accesses to secret data are still exposed as memory accesses, despite being protected by data-independent timing mode, e.g, \Cref{tr:to-e-get-in-noleak}.
-Moreover, the language extends pre-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
+Moreover, the language extends base-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
 Events are extended with a security-tag to signal the secrecy of the involved data.
 
 The evaluation steps are amended to propagate the security-tag annotations $\obj{\securitytag}$.
-When the data independent timing mode is inactive, pre-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
+When the data independent timing mode is inactive, base-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
 Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyevent}$ is emitted for binary and branching operations.
 %To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
 
@@ -922,7 +932,7 @@ This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculati
 \vspace{-1em}
 \[
   \begin{array}{rrcl}
-    \text{(Pre-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
+    \text{(Base-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
     \text{(Expressions)} & \ird{\expr} &:=& \dots \mid \ird{\lbarrier}
   \end{array}
 \]

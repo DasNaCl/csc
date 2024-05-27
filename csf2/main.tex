@@ -183,7 +183,6 @@ This would, in turn, trigger a series of reads from uninitialised memory, which 
 
   % last sentence is before the example, which talks about compiler passes enforcing props
 Whether or not compiler passes enforce certain security properties, it is important for a secure compiler to consider partial programs that interact with potentially malicious code, since the latter may lead to, e.g., memory-safety issues in the considered partial program.
-
 Robust compilers~\cite{abate2019jour} are a form of secure compilers that preserve security properties even in the presence of arbitrary attackers interacting with compiled code.
 Thus, robust compilers can be used to prevent vulnerabilities resulting from uninitialised memory (as well as many other ones), e.g., by targeting capability-based languages such as CHERI~\cite{woodruff2014CHERI}, Arm Morello~\cite{arm-morello}, or MSWasm~\cite{michael2023mswasm}, where the compiler relies on capabilities to check that pointers are always initialised.
 
@@ -979,7 +978,8 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
 \subsection{$\Lspec$: A Memory-Unsafe Language with Speculation}\label{subsec:lspec}
 
 $\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics. 
-After branching or accessing memory, speculation can start and run subsequent code in a predetermined window until a rollback of operational state is performed. 
+After branching or accessing memory, speculation can start, pushes the current configuration on the speculation register ($\ird{S}$), and run subsequent code in a predetermined window until a rollback of operational state is performed. 
+The window is set inside the control-flow state ($\ird{\cfstate}$), whose details are in the technical report.
 Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant, in this case just SPECTRE-PHT~\cite{kocher2019spectre}, whose semantics is sketched with \Cref{tr:e-ifz-true-spec}, where $\omega$ is the size of the speculation window.
 Additionally, $\ird{\lock}$ may also carry a $\ird{NONE}$ annotation, to signal that this is a leak irrespective of speculation, i.e., as defined earlier (\Cref{subsec:lscct}).
 The semantics is kept general enough to allow for future extension to support different variants.
@@ -992,7 +992,8 @@ This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculati
 \[
   \begin{array}{rrcl}
     \text{(Base-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
-    \text{(Expressions)} & \ird{\expr} &:=& \dots \mid \ird{\lbarrier}
+    \text{(Expressions)} & \ird{\expr} &:=& \dots \mid \ird{\lbarrier} \\
+    \text{(Speculation Register)} & \ird{S} &:=& \ird{\hole{\cdot}} \mid \left(\ird{\Omega};\ird{\expr}\right)
   \end{array}
 \]
 
@@ -1003,35 +1004,41 @@ This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculati
   %
   \typerule{$e-\ird{ifz}-\ird{true}-\text{spec}$}{
     \ird{\cfstate[']}.\ird{\operatorname{win}} = \omega &
-    \ird{\trace} = \ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}
+    \ird{\trace} = \ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag} \\
+    \ird{S} = ({\ird{\cfstate;\sandboxtag;D;\memstate}};{\ird{\expr[_2]}}),\ird{\hole{\cdot}}
   }{
-    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\begin{array}{c}\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[_1]}}\\\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_2]}}\end{array}}{\ird{\trace}}
+    \pstepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate});\ird{\hole{\cdot}}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\rtt{(\ird{\cfstate['];\sandboxtag;D;\memstate});\ird{S}}{\ird{\expr[_1]}}}{\ird{\trace}}
   }{e-ifz-true-spec}
   %
   \typerule{$e-\ird{spec}-\text{eat}$}{
     \ird{\cfstate}.\ird{\operatorname{win}} > 0 &
-    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr}}}{\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[']}}}{\ird{\event}}
+    \pstepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{\hole{\cdot}})}{\ird{\expr}}}{\rtt{(\ird{\cfstate['];\sandboxtag;D;\memstate};\ird{\hole{\cdot}})}{\ird{\expr[']}}}{\ird{\event}}
     \\
-    \ird{\cfstate['']}.\ird{\operatorname{win}} = \ird{\cfstate[']}.\ird{\operatorname{win}}-1
+    \ird{\cfstate['']}.\ird{\operatorname{win}} = \ird{\cfstate[']}.\ird{\operatorname{win}}-1 &
+    \ird{S} \not=\ird{\hole{\cdot}}
   }{
-    \ghoststepto{\begin{array}{c}\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr}}\\\ird{r}\end{array}}{\begin{array}{c}\rtt{\ird{\cfstate[''];\sandboxtag;0;\memstate}}{\ird{\expr[']}}\\\ird{r}\end{array}}{\ird{\event}}
+    \ghoststepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{S})}{\ird{\expr}}}{\rtt{(\ird{\cfstate[''];\sandboxtag;D;\memstate};\ird{S})}{\ird{\expr[']}}}{\ird{\event}}
   }{e-spec-eat}
   % 
   \typerule{$e-\ird{spec}-\text{eaten}$}{
-    \ird{r}.\ird{\cfstate}.\ird{\operatorname{win}} = 0
+    \ird{\cfstate}.\ird{\operatorname{win}} = 0 &
+    \ird{S} = \left(\ird{\Omega};\ird{\expr[']}\right)
   }{
-    \ghoststepto{\begin{array}{c}\ird{r}\\\ird{r'}\end{array}}{\ird{r'}}{\ird{Rlb}}
+    \ghoststepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{S})}{\ird{\expr}}}{\rtt{(\ird{\Omega};\ird{\hole{\cdot}})}{\ird{\expr[']}}}{\ird{\event}}
   }{e-spec-eaten}
   %
   \typerule{$e-\ird{spec}-\text{barrier}$}{
-    \ird{r'}.\ird{\cfstate} = \ird{r}.\ird{\cfstate}[.\ird{\operatorname{win}} = 0]
+    \ird{\cfstate'} = \ird{\cfstate}[.\ird{\operatorname{win}} = 0] &
+    \ird{S} \not=\ird{\hole{\cdot}}
   }{
-    \ghoststepto{\begin{array}{c}\ird{r}\\\ird{r''}\end{array}}{\begin{array}{c}\ird{r'}\\\ird{r''}\end{array}}{\ird{Barrier}}
+    \ghoststepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{S})}{\ird{\lbarrier}}}{\rtt{(\ird{\cfstate';\sandboxtag;D;\memstate};\ird{\hole{\cdot}})}{\ird{\lbarrier}}}{\ird{\event}}
   }{e-spec-barrier}
 \end{center}
 
 The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
-A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode (see \Cref{tr:e-spec-barrier}) and does nothing when run in normal mode.
+A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode, e.g., \Cref{tr:e-spec-barrier}.
+\footnote{In the rule, the notation $\cfstate' = \cfstate[.\text{win} = 0]$ means that $\cfstate'$ is a copy of $\cfstate$ up to field $\text{win}$, which should be set to $0$.}
+
 The speculative semantics are inspired by existing work~\cite{guarnieri2018spectector}.
 
 \begin{figure}[!htb]

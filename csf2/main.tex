@@ -668,7 +668,7 @@ To sidestep this issue, this section defines the property \gls*{scct}, a stricte
 However, this is considered standard practice in terms of coding guidelines~\cite{ctguidelines}.
 Moreover, programs that operate on secrets and have a ``data independent timing mode'' enabled do not leak these secrets, despite performing computation on them (see \Cref{ex:lscct}). 
 
-\subsubsection{Memory Safe, Strict Cryptographic Constant Time}
+\subsubsection{\gls*{ms}, Strict Cryptographic Constant Time}
 
 The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
 However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
@@ -691,13 +691,15 @@ The relation is extended from just events to traces in a standard way, skipping 
   $
 \end{definition}
 
-\subsection{Memory-Safety, Constant-Time Trace Model with Speculation}\label{subsec:msctss:tracemodel}
+\subsection{\gls*{ms}, \gls*{scct} Trace Model with Speculation}\label{subsec:msctss:tracemodel}
 
 So far, the considered trace models do not take speculative execution into account. 
 For this, extend the earlier trace model (see \Cref{subsec:scct:tracemodel}) so that the security tags ($\securitytag$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
 Moreover, add pre-events signaling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
 
 \vspace{-1em}
+{
+\small
 \[
   \begin{array}{rrcl}
     (\text{Base-Events}) & \preevent[_{\mathghost}] &:=& \preevent[_{\ctsafe}] \\
@@ -706,6 +708,7 @@ Moreover, add pre-events signaling the beginning of a speculative execution ($\e
     (\text{Events}) & \event[_{\mathghost}] &:=& \preevent[_{\mathghost}];\securitytag \mid \emptyevent \mid \lightning \mid \ev{Spec} \mid \ev{Rlb} \mid \ev{Barrier}\\ 
   \end{array}
 \]
+}
 
 Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants.
 %For sake of readability, this paper just uses the notation $\lock$ in place of $\lock_{\text{PHT}}$.
@@ -789,6 +792,7 @@ For sake of simplicity, contexts may not pass pointers to the component, but onl
 %Extending this is orthogonal to this work.
 
 \vspace{-1.5em}
+{\small
 \[
   \begin{array}{rrcl}
     \text{(Pre-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
@@ -803,6 +807,7 @@ For sake of simplicity, contexts may not pass pointers to the component, but onl
     \src{\library_{\comp}} : \src{Vars} \to \src{F} \\
   \end{array}
 \]
+}
 
 Crucially, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
 The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
@@ -811,7 +816,7 @@ The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{
   $\;$ 
 
   \begin{nscenter}
-  For any component $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
+    \hfill For any component $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
   \end{nscenter}
 \end{theorem}
 
@@ -929,9 +934,10 @@ This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculati
 
   %
   \typerule{$e-\ird{ifz}-\ird{true}-\text{spec}$}{
-    \ird{\cfstate[']}.\ird{\operatorname{win}} = \omega
+    \ird{\cfstate[']}.\ird{\operatorname{win}} = \omega &
+    \ird{\trace} = \ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}
   }{
-    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\begin{array}{c}\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[_1]}}\\\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_2]}}\end{array}}{\ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}}
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\begin{array}{c}\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[_1]}}\\\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr[_2]}}\end{array}}{\ird{\trace}}
   }{e-ifz-true-spec}
   %
   \typerule{$e-\ird{spec}-\text{eat}$}{
@@ -1072,7 +1078,8 @@ This subsection defines a secure compiler from $\Ltms$ to $\Ltrg$.
 To this end, the compiler needs to ensure that when execution switches from context to component, the type signatures are respected.
 It can do so by inserting dynamic typechecks prior to entering the body of a function belonging to the component:
 
-% \small
+\vspace{-1em}
+{\small
 \[
   \begin{array}{rcl}
     %\cca(\src{x}) = &\ \trg{x} 
@@ -1093,6 +1100,7 @@ It can do so by inserting dynamic typechecks prior to entering the body of a fun
                                                                                                  }{\labort[\trg]}}
   \end{array}
 \]
+}
 
 The above sketches interesting parts, anything left out is a trivial ,,re-colouring'' from $\src{blue}$ to $\trg{red}$.
 
@@ -1148,12 +1156,10 @@ For the case where it does not, the compiler inserts a panic.
   Consider again \texttt{strncpy}, but instrumented for \gls*{sms}:
     \begin{lstlisting}[language=c,basicstyle=\ttfamily\footnotesize, morekeywords={size_t}]
 void strncpy(size_t n, size_t dst_size, char *dst,
-             size_t src_size, char *src)
-{
-  for(size_t i = 0; i < src_size && src[i] != '\0' && i < n; ++i)
-  {
-    if(i < src_size && i < dst_size)
-    {
+             size_t src_size, char *src) {
+  for(size_t i = 0; i < src_size
+      && src[i] != '\0' && i < n; ++i) {
+    if(i < src_size && i < dst_size) {
       dst[i] = src[i];
     }
   }
@@ -1166,11 +1172,13 @@ void strncpy(size_t n, size_t dst_size, char *dst,
 Contrary to $\cca$, $\ccb$ may in fact change the trace of the original $\Ltrg$ program: if there is a memory access, it needs to be protected with a bounds check.
 The corresponding relation $\sim^{\Ltrg}_{\Lms}$ that describes this semantic effect of the compiler may be sketched as follows:
 
+{
+  \footnotesize
 \[
-  \small
   \typerulenolabel{xrel:sms:read}{n\text{ in bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{Get\ \loc\ n;\comp}}
   \typerulenolabel{xrel:sms:panic}{n\text{ out of bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{\lightning}}
 \]
+}
 
 And so on for the other, $\trg{Set}$ is analogous and any other event is just a trivial re-colouring.
 Note that neither $\Ltrg$ nor $\Lms$ expose branches on the trace.

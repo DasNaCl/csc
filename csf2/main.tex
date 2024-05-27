@@ -1071,7 +1071,7 @@ This section defines several secure compilers, each of which robustly preserves 
     The dashed lines partition the graph into the sections where the respective theorems are presented.
   }\label{fig:pipeline}
 \end{figure*}
-The section demonstrates the power of the framework (\Cref{sec:sequential}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls*{msscct}.
+The section demonstrates the power of the framework (\Cref{sec:sequential}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls*{mssscct}.
 The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls*{tms} (\Cref{thm:cca:rtp:tms}).
 From here, an instrumentation from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls*{sms} (\Cref{thm:ccb:rtp:sms}).
 Since these properties compose into \gls*{ms}, composing these passes yields a compiler that robustly preserves \gls*{ms} (\Cref{corr:ccab:rtp:ms}).
@@ -1120,8 +1120,6 @@ By inserting a check, the compiler ensures that execution does not proceed in su
 
 Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$, the compiler would in this case ensure that the arguments that are evaluated in the compiled \texttt{strncpy} are valid.
 This effectively has no influence on the resulting trace, so a corresponding cross-language trace relation $\sim^{\Ltms}_{\Ltrg}$ is, up to one trace being $\src{blue}$ and the other $\trg{red}$, defined as equality.
-There is only one catch: $\sim^{\Ltms}_{\Ltrg}$ ignores irrelevant context actions, since there is no interest in contexts who are to blame for a security violation {\em inside the context itself}!
-Subsequent cross-language trace relations for the other compilers do it similarly, the explicit details can be found in the technical report.
 
 $\cca$ is robustly preserving (\Cref{def:rtp}) \gls*{tms}:
 \begin{theorem}[$\cca$ secure w.r.t. \gls*{tms}]\label{thm:cca:rtp:tms}
@@ -1183,10 +1181,11 @@ Contrary to $\cca$, $\ccb$ may in fact change the trace of the original $\Ltrg$ 
 The corresponding relation $\sim^{\Ltrg}_{\Lms}$ that describes this semantic effect of the compiler may be sketched as follows:
 
 {
-  \footnotesize
 \[
-  \typerulenolabel{xrel:sms:read}{n\text{ in bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{Get\ \loc\ n;\comp}}
-  \typerulenolabel{xrel:sms:panic}{n\text{ out of bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{\lightning}}
+  \typerulenolabel{xrel:sms:read}{\trg{n}\text{ in bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{Get\ \loc\ n;\comp}}
+\]
+\[
+  \typerulenolabel{xrel:sms:panic}{\trg{n}\text{ out of bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{\lightning}}
 \]
 }
 
@@ -1222,7 +1221,7 @@ This fact is easily established, since $\sim^{\Ltms}_{\Ltrg}$ is an equality.
 
 This section defines two optimising compiler passes from $\Lms$ to $\Lms$ which perform \gls*{dce} and \gls*{cf}, respectively.
 The \gls*{dce} pass applies a naive rewrite rule on conditionals.
-The \gls*{cf} pass relies on an auxiliary function \texttt{mix} that uses a substitutions accumulator $\irl{\substlist}$ in order to rewrite constant binary operations, e.g., $\irl{{17}-1}$ to $\irl{16}$, and replace variables that are assigned to constants with their constant, e.g., $\irl{\llet{x}{7}{x}}$ to $\irl{7}$.
+The \gls*{cf} pass relies on an auxiliary function \texttt{mix} that uses a substitutions accumulator $\irl{\substlist}$ in order to rewrite constant binary operations, e.g., $\irl{{17}-1}$ to $\irl{16}$, and replace variables that are assigned to constants, e.g., $\irl{\llet{x}{7}{x}}$ to $\irl{7}$.
 
 \vspace{-1em}
 \begin{gather*}
@@ -1261,7 +1260,7 @@ The \gls*{cf} pass relies on an auxiliary function \texttt{mix} that uses a subs
 % \vspace{-3em}
 
 Note that both passes have no effect on the resulting trace of a program, up to $\emptyevent$-steps. 
-Because of this, both passes have equalit as corresponding cross language tracce relation. 
+Because of this, both passes have equality as corresponding cross language trace relation. 
 Moreover, it is straightforward to prove both passes as secure (\Cref{def:rtp}) w.r.t. \gls*{ms}. 
 
 \begin{theorem}[$\ccdce$ secure w.r.t. \gls*{ms}]\label{thm:ccdce:rtp:ms}
@@ -1316,7 +1315,7 @@ To do so, $\ccspec$ inserts a speculation barrier after branches, which is suffi
 \vspace{-1em}
 \[
 \begin{array}{rcl}
-  \ccspec(\obj{\lifz{\expr[_0]}{\expr[_1]}{\expr[_2]}}) & = & \lifz[\ird]{\ccspec{\left(\obj{\expr[_0]}\right)}}{\\&&\ \ \ \ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_1]}\right)}\\&&}{\\&&\ \ \ \ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_2]}\right)}} \\
+  \ccspec(\obj{\lifz{\expr[_0]}{\expr[_1]}{\expr[_2]}}) & = & \lifz[\ird]{\ccspec{\left(\obj{\expr[_0]}\right)}}{\\&&\ \ \ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_1]}\right)}\\&&}{\\&&\ \ \ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_2]}\right)}} \\
 \end{array}
 \]
 % \vspace{-2em}
@@ -1330,7 +1329,7 @@ Clearly, the corresponding cross-language trace relation $\sim^{\Lscct}_{\Lspec}
 
 In the above, because of space constraints, pretend that each base-event has an additional $\obj{\comp;\securitytag}$, $\ird{\comp;\securitytag}$ annotation, so that full events are related.
 
-$\ccspec$ is secure with respect to \gls*{ss}.
+With this, $\ccspec$ is secure with respect to \gls*{ss}.
 \begin{theorem}[$\ccspec$ secure w.r.t. \gls*{ss}]\label{thm:ccspec:rtp:spec}
   \small$\rtpsim{\ccspec}{\sssafe}{\sim^{\Lscct}_{\Lspec}}$ % \Coqed
 \end{theorem}

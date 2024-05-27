@@ -74,7 +74,7 @@
 
 \title{Secure Composition \\ of Robust and Optimising Compilers}
 
-\author{}
+% \author{}
 % Matthis Kruse\orcidID{0000-0003-4062-9666}
 % \and
 % Michael Backes
@@ -107,13 +107,13 @@ Then, it showcases this theory on a secure multi-pass compiler that preserves th
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
 % 
 From an engineering perspective, this is the desirable approach to building secure compilers.
-
 \begin{center}\small\it
 	{This paper uses syntax highlighting accessible to both colourblind and black \& white readers.
 	% ~\cite{patrignani2020use}.
 % 	% Specifically, it makes use of a $\src{blue}$, $\src{sans\text{-}serif}$ font for a $\src{source}$,
 % 	% a $\trg{red}$, $\trg{bold}$ font for an $\trg{intermediate}$,
-% 	% and a $\obj{green}$, $\obj{teletype}$ font for a $\obj{target}$ language.
+% 	% and a $\obj{green}$, $\obj{teletype}$ font for a $\obj{target}$ language.	
+	Please print or view in colours.
 	}
 \end{center}
 \end{abstract}
@@ -147,10 +147,10 @@ From an engineering perspective, this is the desirable approach to building secu
 % }
 
 \gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
-\gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing} and \gls*{ss} is a security property that enforces the same but under a speculative semantics~\cite{guarnieri2018spectector}.
-Together, \gls*{sms}, \gls*{tms}, \gls*{scct}, an enforceable overapproximation of \gls*{cct}, and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
+\gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing} and \gls*{ss} is a security property that enforces the same but under a speculative semantics~\cite{guarnieri2018spectector}\MP{cit xaver ccs} that captures speculative execution attacks such as spectre\MP{citations}.
+Together, \gls*{sms}, \gls*{tms}, \gls*{scct}---an enforceable overapproximation of \gls*{cct}---and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
 Programs attaining \gls*{mssscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels, even under speculative execution.
-As discussed in \Cref{ex:strncpy}, these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
+\Cref{ex:strncpy} below discusses how these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
 
 \begin{exampleenv}[strncpy]\label{ex:strncpy}
 Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}.
@@ -159,7 +159,7 @@ Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated 
 This function is subject to a subtle \gls*{sms} vulnerability: the bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{src[i]}: otherwise
 % If \texttt{n} is at least as large as the length of the array \texttt{src}, 
 the memory location past the last element will be leaked to an attacker.
-\begin{lstlisting}[language=c,basicstyle=\footnotesize\ttfamily,morekeywords={size_t}]
+\begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={size_t}]
 void strncpy(size_t n, char *dst, char *src) {
   for(size_t i = 0; src[i] != '\0' && i < n; ++i) {
     dst[i] = src[i];
@@ -172,6 +172,7 @@ The most naive solution in this case is to insert bounds-checks in front of ever
 
 Because of timing attacks, addressing \gls*{sms} is not enough to make \texttt{strncpy} secure.
 In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, thus making program execution time proportional to the length of the array pointed by \texttt{src}, and violating the \gls*{cct} property.
+\MP{can we use scct here, instead of cct?}
 % Often, programmers rewrite programs like these to have loops that run with a fixed number of iterations.
 Also in this case there exist compiler passes that can rewrite such programs into \gls*{cct} ones~\cite{cauligi2019fact}.
  % so that they are no longer vulnerable to timing attacks.
@@ -180,6 +181,7 @@ Alas, code is not run in isolation, so a malicious attacker could supply code th
 This would, in turn, trigger a series of reads from uninitialised memory, which is an immediate \gls*{ms} violation with devastating real-world consequences~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 % An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 
+\MP{flow}
 Robust compilers~\cite{abate2019jour} are a form of secure compilers that preserve security properties even in the presence of arbitrary attackers interacting with compiled code.
 Thus, robust compilers can be used to prevent vulnerabilities resulting from uninitialised memory (as well as many other ones), e.g., by targeting capability-based languages such as CHERI~\cite{woodruff2014CHERI}, Arm Morello~\cite{arm-morello}, or MSWasm~\cite{michael2023mswasm}, where the compiler relies on capabilities to check that pointers are always initialised.
 \end{exampleenv}
@@ -188,10 +190,10 @@ Thus, robust compilers can be used to prevent vulnerabilities resulting from uni
 
 Unfortunately, given secure compiler passes that each preserve a possibly different security property, there is no way to tell what kind of security property will the composition of those secure compilers preserve.
 % Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
-Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls*{ms} that is developed independently of another secure pass for \gls*{cct}, that is developed independently of other passes, such as optimisations.
+Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls*{ms} that is developed independently of another secure pass for \gls*{cct}, that is developed independently of other passes, such as optimisation passes.
 
 
-This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
+This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy}\MP{there aren't really passes there} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{scct} as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
 %Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
 The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
@@ -216,17 +218,18 @@ In summary, this paper makes the following contributions:
         This is crucial for reordering individual optimisation passes and thus generating secure and efficient code.
         %
         %Finally, this paper extends parts of the compositionality framework to support different trace-models between compilation passes.
+        \MP{this isn't really true, is it?. the order matters for the relations' lemmas}
 
   \item %
         This paper presents a case-study with five programming languages showcasing the previous contribution (\Cref{sec:casestud:defs,sec:casestud:rtp}).
-        To this end, it presents a compilation chain consisting of six passes, two of which are well-known optimisations \gls*{dce} and \gls*{cf}, that ultimately preserve \gls*{mssscct} by means of composing the individual, secure passes concerning \gls*{tms}, \gls*{sms}, \gls*{scct}, and \gls*{ss}, respectively.
+        To this end, it presents a compilation chain consisting of six passes that ultimately preserve \gls*{mssscct} by means of composing four secure passes that \emph{individually} preserve \gls*{tms}, \gls*{sms}, \gls*{scct}, and \gls*{ss}, and two passes which are well-known optimisations \gls*{dce} and \gls*{cf},.
         %Furthermore, the chain includes two optimisation passes: One performs \gls*{dce} and the other \gls*{cf}.
         The formalisation of this case study showcases the power of the presented framework: The divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
   \item %
-        The considered compilation passes are analyzed in terms of their compatibility with each other (\Cref{sec:formalities}).
-        In doing so, the paper provides formal insights into some technicalities of the concrete proofs necessary as technical setup to reap the benefits of the presented compositionality framework.
+  	The paper provides formal proofs of the security of each presented pass, and it analyzes each pass in terms of their compatibility with each other (\Cref{sec:formalities}).
+        % In doing so, the paper provides formal insights into some technicalities of the concrete proofs necessary as technical setup to reap the benefits of the presented compositionality framework.
 
   \item The key contributions of this paper are formalised in the Coq proof assistant and the paper indicates this with \CoqSymbol.
 \end{itemize}
@@ -704,7 +707,6 @@ Moreover, add base-events signaling the beginning of a speculative execution ($\
 
 \vspace{-1em}
 {
-\small
 \[
   \begin{array}{rrcl}
     (\text{Base-Events}) & \preevent[_{\mathghost}] &:=& \preevent[_{\ctsafe}] \\
@@ -801,8 +803,9 @@ Programs have sets of pre-determined functions called libraries and it is assume
 Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples and can only accept integers, which also means that contexts may not pass pointers to the component.
 %Extending this is orthogonal to this work.
 
-\vspace{-1.5em}
-{\small
+\vspace{-.5em}
+{
+% \small
 \[
   \begin{array}{rrcl}
     \text{(Base-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
@@ -863,7 +866,7 @@ If the register is marked inactive, secrets may appear on traces.
 The state of the register can be read and written to, e.g., \Cref{tr:e-wrdoit-off}.
 For the other languages seen earlier, the mode is intuitively always-on, i.e., the mode of execution always uses data independent timing.
 
-\vspace{-1.5em}
+\vspace{-.5em}
 \[
   \begin{array}{rrcl}
     \text{(Mode Values)} & \obj{D} &:=& \obj{ON} \mid \obj{OFF} \\
@@ -876,19 +879,29 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
   \end{array}
 \]
 \begin{center}
-\footnotesize
+\newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
+\newcommand{\exprevalo}[5]{\expreval{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}}
   \typerule{$e-\obj{wrdoit}-\text{off}$}{
   }{
     \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag;OFF;\memstate}}{\obj{0^{\securitytag}}}}{\obj{\emptyevent}}
   }{e-wrdoit-off}
-\newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
-\newcommand{\exprevalo}[5]{\expreval{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}}
+
   \typerule{$e-\obj{get}-\in-$noleak}{
-    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
-    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} \\
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} \\
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} &
     \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{{iGet}\ \loc\ n;\sandboxtag;\sigma''}
+    \exprevalo{
+    	\cfstate;\sandboxtag';m+1;\memstate
+    }{
+    	x^\sigma[n^{\sigma'}]
+    }{
+    	\cfstate;\sandboxtag';m+1;\memstate
+    }{
+    	(H^{\sandboxtag}(\loc+n))^{\sigma''}
+    }{
+    	{iGet}\ \loc\ n;\sandboxtag;\sigma''
+    }
   }{to-e-get-in-noleak}
 \end{center}
 
@@ -929,7 +942,7 @@ In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbar
 To facilitate speculative execution in a non-assembly-like language, a stack of operational state is used and speculation is active if that stack has a size greater than one, indicated by writing the operational states vertically.
 This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculation.
 
-\vspace{-1em}
+\vspace{-.5em}
 \[
   \begin{array}{rrcl}
     \text{(Base-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
@@ -938,7 +951,6 @@ This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculati
 \]
 
 \begin{center}
-  \footnotesize
 \newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
 \newcommand{\exprevald}[5]{\expreval{\ird{#1}}{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}}
 
@@ -952,7 +964,8 @@ This is exploited in \Cref{tr:e-spec-eat} to ,,eat away'' any leftover speculati
   %
   \typerule{$e-\ird{spec}-\text{eat}$}{
     \ird{\cfstate}.\ird{\operatorname{win}} > 0 &
-    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr}}}{\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[']}}}{\ird{\event}} &
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr}}}{\rtt{\ird{\cfstate['];\sandboxtag;0;\memstate}}{\ird{\expr[']}}}{\ird{\event}}
+    \\
     \ird{\cfstate['']}.\ird{\operatorname{win}} = \ird{\cfstate[']}.\ird{\operatorname{win}}-1
   }{
     \ghoststepto{\begin{array}{c}\rtt{\ird{\cfstate;\sandboxtag;0;\memstate}}{\ird{\expr}}\\\ird{r}\end{array}}{\begin{array}{c}\rtt{\ird{\cfstate[''];\sandboxtag;0;\memstate}}{\ird{\expr[']}}\\\ird{r}\end{array}}{\ird{\event}}
@@ -1042,29 +1055,33 @@ This section defines several secure compilers, each of which robustly preserves 
     \draw[->] (M) to[sloped] node[align=center] {\gls*{cf}\\ \Cref{thm:cccf:rtp:ms}} (C0);
     \draw[->] (D0) to[sloped] node[align=center] {\gls*{cf}\\ \Cref{thm:cccf:rtp:ms}} (E);
     \draw[->] (C0) to[sloped] node[align=center] {\gls*{dce}\\ \Cref{thm:ccdce:rtp:ms}} (E);
-    \draw[->] (E) to[sloped,above] node[align=center] {\gls*{scct}\\ \Cref{thm:ccscct:rtp:scct}} (O);
-    \draw[->] (O) to[sloped,above] node[align=center] {\gls*{ss}\\ \Cref{thm:ccspec:rtp:spec}} (Z);
+    \draw[->] (E) to[sloped] node[align=center] {\gls*{scct}\\ \Cref{thm:ccscct:rtp:scct}} (O);
+    \draw[->] (O) to[sloped] node[align=center] {\gls*{ss}\\ \Cref{thm:ccspec:rtp:spec}} (Z);
 
     % Sections
-    \node (sectms) at ($(S)+(1.25,3)$) {{\Cref{subsec:cs:tms}}};
-    \node (secsms) at ($(T)+(1.25,3)$) {{\Cref{subsec:cs:ms}}};
-    \node (secopts) at ($(M)+(2.0,3)$) {{\Cref{subsec:cs:opts}}};
-    \node (secscct) at ($(E)+(1.5,3)$) {{\Cref{subsec:cs:scct}}};
-    \node (secss) at ($(O)+(1.5,3)$) {{\Cref{subsec:cs:ss}}};
+    \node (sectms) at ($(S)+(1.25,2.5)$) {{\Cref{subsec:cs:tms}}};
+    \node (secsms) at ($(T)+(1.25,2.5)$) {{\Cref{subsec:cs:ms}}};
+    \node (secopts) at ($(M)+(2.0,2.5)$) {{\Cref{subsec:cs:opts}}};
+    \node (secscct) at ($(E)+(1.5,2.5)$) {{\Cref{subsec:cs:scct}}};
+    \node (secss) at ($(O)+(1.5,2.5)$) {{\Cref{subsec:cs:ss}}};
 
-    \draw[thick,dotted,->] (S) to[bend right=33,sloped] node[align=center] {\gls*{ms}\\ \Cref{corr:ccab:rtp:ms}} (M);
+    \draw[thick,dotted,->] ($(S) + (0.2,0.0)$) to ($(S) - (-0.2,1)$) to node[align=center] {\gls*{ms}\\ \Cref{corr:ccab:rtp:ms}} ($(M) - (0.0,1)$) to (M);
+
+    \draw[thick,dotted,->] (S) to ($(S) - (0.0,2.5)$) to node[align=center,pos=.65] {\gls*{mssscct}\\ \Cref{thm:ccall:rtp:mssscct}} ($(Z) - (0.0,2.5)$) to (Z);
+
+    % \draw[thick,dotted,->] (S) to[bend right=33,sloped] node[align=center] {\gls*{ms}\\ \Cref{corr:ccab:rtp:ms}} (M);
     \draw[thick,dotted,->] (M) to[bend right=0,sloped] node[align=center] {\gls*{ms}\\ \Cref{thm:cccfccdce:rtp:ms}} (E);
 %    \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped] node[align=center] {\gls*{ms}+\gls*{scct}\\ \Cref{thm:ccall:rtp:msscct}} (O);
-    \draw[thick,dotted,->] (S) to[out=-40,in=210,sloped] node[align=center] {\gls*{mssscct}\\ \Cref{thm:ccall:rtp:mssscct}} (Z);
+    % \draw[thick,dotted,->] (S) to[out=-40,in=210,sloped] node[align=center,pos=.8] {\gls*{mssscct}\\ \Cref{thm:ccall:rtp:mssscct}} (Z);
 
-    \draw[dashed] ($(S)-(0.0,-0.5)$) -- ($(S)-(0.0,-3)$);
-    \draw[dashed] ($(T)-(0.0,-0.5)$) -- ($(T)-(0.0,-3)$);
-    \draw[dashed] ($(M)-(0.0,-0.5)$) -- ($(M)-(0.0,-3)$);
-    \draw[dashed] ($(E)-(0.0,-0.5)$) -- ($(E)-(0.0,-3)$);
-    \draw[dashed] ($(O)-(0.0,-0.5)$) -- ($(O)-(0.0,-3)$);
-    \draw[dashed] ($(Z)-(0.0,-0.5)$) -- ($(Z)-(0.0,-3)$);
+    \draw[dashed] ($(S)-(0.0,-0.5)$) -- ($(S)-(0.0,-2.5)$);
+    \draw[dashed] ($(T)-(0.0,-0.5)$) -- ($(T)-(0.0,-2.5)$);
+    \draw[dashed] ($(M)-(0.0,-0.5)$) -- ($(M)-(0.0,-2.5)$);
+    \draw[dashed] ($(E)-(0.0,-0.5)$) -- ($(E)-(0.0,-2.5)$);
+    \draw[dashed] ($(O)-(0.0,-0.5)$) -- ($(O)-(0.0,-2.5)$);
+    \draw[dashed] ($(Z)-(0.0,-0.5)$) -- ($(Z)-(0.0,-2.5)$);
   \end{tikzpicture}
-  % \vspace{-2.5em}
+  \vspace{-1em}
   \caption{Visualisation of the optimising compilation pipeline that attains a combination of \gls*{ms} and \gls*{cct}. %
     Vertices in the graph are the programming languages from earlier sections (\Cref{sec:casestud:defs}). %
     All edges are secure compilers, but dotted edges use the presented framework (\Cref{sec:sequential}) and solid edges classic proof techniques. %
@@ -1089,7 +1106,7 @@ To this end, the compiler needs to ensure that when execution switches from cont
 It can do so by inserting dynamic typechecks prior to entering the body of a function belonging to the component:
 
 \vspace{-1em}
-{\small
+{
 \[
   \begin{array}{rcl}
     %\cca(\src{x}) = &\ \trg{x} 
@@ -1162,7 +1179,7 @@ For the case where it does not, the compiler inserts a panic.
 
 \begin{exampleenv}[Instrumented \texttt{strncpy}]
   Consider again \texttt{strncpy}, but instrumented for \gls*{sms}:
-    \begin{lstlisting}[language=c,basicstyle=\ttfamily\footnotesize, morekeywords={size_t}]
+    \begin{lstlisting}[language=c,basicstyle=\ttfamily, morekeywords={size_t}]
 void strncpy(size_t n, size_t dst_size, char *dst,
              size_t src_size, char *src) {
   for(size_t i = 0; i < src_size
@@ -1314,8 +1331,10 @@ To do so, $\ccspec$ inserts a speculation barrier after branches, which is suffi
 
 \vspace{-1em}
 \[
-\begin{array}{rcl}
-  \ccspec(\obj{\lifz{\expr[_0]}{\expr[_1]}{\expr[_2]}}) & = & \lifz[\ird]{\ccspec{\left(\obj{\expr[_0]}\right)}}{\\&&\ \ \ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_1]}\right)}\\&&}{\\&&\ \ \ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_2]}\right)}} \\
+\begin{array}{cl}
+  &\ccspec{(\obj{\lifz{\expr[_0]}{\expr[_1]}{\expr[_2]}})} = 
+  \\
+  &\qquad\qquad \lifz[\ird]{\ccspec{\left(\obj{\expr[_0]}\right)}}{\ird{\lbarrier;}\ccspec{\left(\obj{\expr[_1]}\right)} \\&\qquad\qquad}{ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_2]}\right)}} 
 \end{array}
 \]
 % \vspace{-2em}

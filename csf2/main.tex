@@ -147,7 +147,7 @@ From an engineering perspective, this is the desirable approach to building secu
 % }
 
 \gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
-\gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing} and \gls*{ss} is a security property that enforces the same but under a speculative semantics~\cite{guarnieri2018spectector}\MP{cit xaver ccs} that captures speculative execution attacks such as spectre\MP{citations}.
+\gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing} and \gls*{ss} is a security property that enforces the same but under a speculative semantics~\cite{guarnieri2018spectector,fabian2022automatic} that captures speculative execution attacks such as spectre~\cite{kocher2019spectre}.
 Together, \gls*{sms}, \gls*{tms}, \gls*{cct} and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
 Programs attaining \gls*{mssscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels, even under speculative execution.
 \Cref{ex:strncpy} below discusses how these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
@@ -192,8 +192,9 @@ Unfortunately, given secure compiler passes that each preserve a possibly differ
 Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls*{ms} that is developed independently of another secure pass for \gls*{cct}, that is developed independently of other passes, such as optimisation passes.
 
 
-This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes akin to those of \Cref{ex:strncpy}\MP{there aren't really passes there} and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
-To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{scct}---an enforceable overapproximation of \gls*{cct}---as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
+This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes %akin to those of \Cref{ex:strncpy}\MP{there aren't really passes there} 
+and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
+To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{cct} as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
 %Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
 The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
 Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end (robust) preservation of \gls*{mssscct}.
@@ -228,7 +229,7 @@ In summary, this paper makes the following contributions:
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
   \item %
-  		This paper provides formal proofs of the security properties preserved by each of the presented pass. 
+  		This paper provides formal proofs of the security properties preserved by each of the presented passes. 
   		% 
   		Additionally this paper analyzes each pass in terms of their compatibility with each other (\Cref{sec:formalities}), proving how does each pass fulfill the conditions that make their composition meaningful from a security standpoint.
         % In doing so, the paper provides formal insights into some technicalities of the concrete proofs necessary as technical setup to reap the benefits of the presented compositionality framework.
@@ -811,7 +812,7 @@ Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples a
 \[
   \begin{array}{rrcl}
     \text{(Base-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
-    \text{(Sandboxtag)} & \src{\sandboxtag} &:=& \src{\ctx} \mid \src{\comp} \\
+    \text{(Control Tags)} & \src{\sandboxtag} &:=& \src{\ctx} \mid \src{\comp} \\
     \text{(Events)} & \src{\event} &:=& \src{\preevent;\sandboxtag} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
     \text{(Expressions)} & \src{\expr} &:=& \src{x} \mid \src{n} \mid \src{\lbinop{\expr[_1]}{\expr[_2]}} \mid \src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}} \\ 
                          &&&\mid \src{\llet{x}{\expr[_1]}{\expr[_2]}} \mid \src{\llet{x}{new\ \expr[_1]}{\expr[_2]}} \\
@@ -820,6 +821,9 @@ Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples a
     \text{(Functions)} & \src{F} &:=& (\src{x};\src{\natt\to\natt};\src{\expr}) \\
     \text{(Libraries)} &&& \src{\library_{\ctx}} : \src{Vars} \to \src{F} \hspace{2em}
     \src{\library_{\comp}} : \src{Vars} \to \src{F} \\
+    \text{(Heaps)} & \src{H} &:=& \src{\hole{\cdot}} \mid \src{n},\src{H}\hspace{0.5cm}    \text{(Pointer Maps)}\ \ \ \src{\Delta} \\
+    \text{(Memory States)} & \src{\memstate} &:=& \left(\src{H^{\ctx}};\src{H^{\comp}};\src{\Delta}\right)\\
+  \text{(Control States)} & \src{\cfstate} & & \text{(States)}\ \ \ \src{\Omega}\ :=\ \left(\src{\cfstate};\src{\sandboxtag};\src{\memstate}\right)\\
   \end{array}
 \]
 }
@@ -835,7 +839,10 @@ The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{
   \end{nscenter}
 \end{theorem}
 
-$\Ltms$ dynamic semantics do not get stuck if a memory-safety violation is encountered, such as a write out of bounds.
+Operational state ($\src{\Omega}$) is a triple consisting of control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag}$), and a memory state ($\memstate$), which carries information about the memory.
+Because pointers are kept ,,alive'' in pointer maps ($\src{\Delta}$), $\Ltms$ dynamic semantics do not get stuck if a memory-safety violation is encountered, such as a double--free.
+The memory state carries two heaps to model sandboxing between a context and a component.
+
 The trace model is largely similar to the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}), where the only real differences are separate events for reading and writing memory, instead of just using it, and the sandboxtags.
 With these tags, it is possible to ignore effects performed by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls*{tms}.
 Even though this could be used for blame preservation~\cite{patrignani2023blame}, this is not what this paper is concerned about.
@@ -862,7 +869,7 @@ $\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to emphasize t
 \subsection{$\Lscct$: A Memory-Unsafe Language with a Data Independent Timing Mode}\label{subsec:lscct}
 
 $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to read from ($\obj{\lrddoit{x}{\expr}}$) and to write to ($\obj{\lwrdoit{D}}$) a model specific register that controls a data (operand) independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
-To this end, states are extended with the value of the register ($\obj{D}$), which is initially set to be not active ($\obj{OFF}$).
+To this end, states ($\src{\Omega}$) are extended with the value of the register ($\obj{D}$), which is initially set to be not active ($\obj{OFF}$).
 If the register is marked active ($\obj{ON}$), the intuition is that no secrets can appear on specification traces.
 If the register is marked inactive, secrets may appear on traces.
 The state of the register can be read and written to, e.g., \Cref{tr:e-wrdoit-off}.
@@ -873,11 +880,12 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
   \begin{array}{rrcl}
     \text{(Mode Values)} & \obj{D} &:=& \obj{ON} \mid \obj{OFF} \\
     \text{(Security Tags)} & \obj{\securitytag} &:=& \obj{\lock} \mid \obj{\unlock} \\
-    \text{(Base-Event)} & \obj{\preevent} &:=& \dots \mid \obj{iGet\ \loc\ v} \mid \obj{iSet\ \loc\ v} \\
+    \text{(Base-Events)} & \obj{\preevent} &:=& \dots \mid \obj{iGet\ \loc\ v} \mid \obj{iSet\ \loc\ v} \\
                        &&& \mid\ \obj{Binop\ n} \mid \obj{Branch\ n} \\
-    \text{(Event)} & \obj{\event} &:=& \obj{\preevent;\sandboxtag;\securitytag} \mid \obj{\emptyevent} \mid \obj{\lightning} \\
+    \text{(Events)} & \obj{\event} &:=& \obj{\preevent;\sandboxtag;\securitytag} \mid \obj{\emptyevent} \mid \obj{\lightning} \\
     \text{(Expressions)} & \obj{\expr} &:=& \dots \mid \obj{\lrddoit{x}{\expr}} \mid \obj{\lwrdoit{D}} \\
                          &&&\mid\ \obj{\llet{x^{\securitytag}}{\expr[_1]}{\expr[_2]}}\\
+    \text{(States)} & \obj{\Omega} & := & \left(\obj{\cfstate};\obj{\sandboxtag};\obj{D};\obj{\memstate}\right)\\
   \end{array}
 \]
 \begin{center}
@@ -885,24 +893,25 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
 \newcommand{\exprevalo}[5]{\expreval{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}}
   \typerule{$e-\obj{wrdoit}-\text{off}$}{
   }{
-    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;m;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag;OFF;\memstate}}{\obj{0^{\securitytag}}}}{\obj{\emptyevent}}
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;D;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag;OFF;\memstate}}{\obj{0^{\securitytag}}}}{\obj{\emptyevent}}
   }{e-wrdoit-off}
 
   \typerule{$e-\obj{get}-\in-$noleak}{
-    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} \\
-    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} &
-    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison),\Delta_2} &
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} \\
+    \obj{\sigma''}=\obj{\sigma\sqcap\sigma'} &
+    \obj{\event} = \obj{{iGet}\ \loc\ n;\sandboxtag;\sigma''}
   }{
     \exprevalo{
-    	\cfstate;\sandboxtag';m+1;\memstate
+    	\cfstate;\sandboxtag';ON;\memstate
     }{
     	x^\sigma[n^{\sigma'}]
     }{
-    	\cfstate;\sandboxtag';m+1;\memstate
+    	\cfstate;\sandboxtag';ON;\memstate
     }{
     	(H^{\sandboxtag}(\loc+n))^{\sigma''}
     }{
-    	{iGet}\ \loc\ n;\sandboxtag;\sigma''
+      \event
     }
   }{to-e-get-in-noleak}
 \end{center}
@@ -911,7 +920,10 @@ The language also adds user-annotations for secrecy $\obj{\securitytag}$, which 
 Security tags $\obj{\securitytag}$ are on the usual secrecy lattice, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
 To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends base-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$.
 This way, memory accesses to secret data are still exposed as memory accesses, despite being protected by data-independent timing mode, e.g, \Cref{tr:to-e-get-in-noleak}.
-Moreover, the language extends base-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
+Due to the technical setup, the rule needs to check if the access is in bounds ($\obj{\loc}+\obj{n}\in\obj{H^t}$) and update the secrecy tag ($\obj{\securitytag''}=\obj{\securitytag\sqcap\securitytag'}$) according to the lattice described earlier.
+The precise information carried by the event, e.g., location ($\obj{\loc}$) is taken from the pointer map, which carries some more information irrelevant to this rule ($\obj{\poison}$).
+
+The language extends base-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
 Events are extended with a security-tag ($\obj{\securitytag}$) to signal the secrecy of the involved data.
 
 The evaluation steps are amended to propagate the security-tag annotations $\obj{\securitytag}$.

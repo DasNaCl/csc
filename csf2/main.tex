@@ -589,11 +589,11 @@ Given {$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and {$\cc{\src
 
 %Either way, the theoretical results suggest that it is possible to always find a ``most-general'', secure compiler, given two secure compilers, that robustly preserves the least-upper bound of the classes involved in their compilation process.
 
-Future work intends to use upper and lower composition as means to build a secure compiler incrementally.
-\MPin{
-	we should add briefly which real-world compilers (taken from the elided examples) are upper and lower compos
-}
-\MP{no coq here ?}
+Future work intends to use upper and lower composition as means to build a secure compiler incrementally
+This follows current non-formal-methods based compiler engineering, such as LLVM~\cite{lattner2004llvm}, where languages such as \texttt{C++} and \texttt{Fortran} translate into LLVM IR and languages such as \texttt{x86} or \texttt{ARMv8} assembly variants translate out of LLVM IR.
+
+% no coq, because above definitions are non-formal. 
+%   How would you precisely define the lower compo compiler, given two compilers? 
 
 \section{Security Properties: Formalisation, Enforcement and Composition\pages{1.5}}\label{sec:compprop}
 
@@ -756,22 +756,23 @@ Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher201
 
 \subsubsection{Speculative Safety}
 
-\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is an overapproximation of a variant of noninterference.
-The definition of the property itself turns out to be syntactically equal to \gls*{scct}, modulo the underlying trace model.
-\MPin{recap its meaning for security}
+\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is a sound overapproximation of a variant of noninterference.
 
 \begin{definition}[\glsfirst*{ss}]\label{def:trace:ss}
   \noindent
 
   \begin{nscenter}
   $
-    \sssafe:=\left\{\trace[_{\mathghost}] \left|\begin{array}{rcl}
-        \trace[_{\mathghost}]=\hole{\cdot} & \text{ or } & \trace[_{\mathghost}]=\preevent[_{\mathghost}];\unlock\cdot\trace[_{\mathghost}'] \wedge \trace[_{\mathghost}']\in\sssafe
+    \sssafe:=\left\{\trace[_{\mathghost}] \left|\begin{array}{l}
+      \trace[_{\mathghost}]=\hole{\cdot} \text{ or } \exists\trace[_{\mathghost}'].\\
+      \left(\trace[_{\mathghost}]=\preevent[_{\mathghost}];\unlock\cdot\trace[_{\mathghost}'] \text{or }\trace[_{\mathghost}]=\preevent[_{\mathghost}];\lock_{\text{NONE}}\cdot\trace[_{\mathghost}']\right)\\
+      \text{and }\ \trace[_{\mathghost}']\in\sssafe
                                  \end{array}\right.\right\}
   $ 
   \end{nscenter}
 \end{definition}
-\MPin{why isn't it ok to have locks with NONE in the trace?}
+The technical setup so far leads to the above definition, where only locks annotated with $\text{SPECTRE-PHT}$ are disallowed to occur on the trace.
+That way, programs attaining \gls*{ss} do not necessarily attain \gls*{scct}.
 
 \subsubsection{Speculation Memory Safety}
 
@@ -831,32 +832,10 @@ Thus, all previous languages trivially satisfy \gls*{ss}, since they do not supp
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 
 All presented programming languages share a common fragment which is partially presented here and in full detail in the technical report. 
-The trace models of all languages are similar to those presented earlier (\Cref{sec:compprop}).
-One technical detail is the addition of a sandboxtag, indicating who is to blame for an emitted action: context ($\ctx$) or component ($\comp$).
-This is a standard technique in secure compilation in order to rule out irrelevant context-level events. 
-For example, a context immediately deallocating an allocated memory region twice trivially violates memory safety, but the main interest in secure compilation is at component-level events and if those signal, e.g., a memory safety issue.
-
-\MPin{this section does not define anything, not even the sandbox tag metavariable}
-\MPin{
-	move b/t/a/e/F/CHI/H/Delta/Phi/Psi to here.
-	their explanation too.
-	make black.
-}
-\MPin{
-	what are pointer maps and Control states?
-}
-
-\subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
-
-$\src{L_{\tmssafe}}$ is a relatively naive language with second class functions, the only values being numbers. 
-It has simple binary operations ($\src{\lbinop{\expr[_1]}{\expr[_2]}}$), branches ($\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}$), C-like function calls ($\src{\lcall{f}{\expr}}$) and returns ($\src{\lreturn{\expr}}$), as well as C-like memory operations. 
-%Pointers are left second-class and can only be referenced by an identifier, so addresses cannot be guessed by contexts.
-Programs have sets of pre-determined functions called libraries and it is assumed that functions are marked as being part of some component ($\src{\library_{\comp}}$) or context ($\src{\library_{\ctx}}$).
-Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples and can only accept integers, which also means that contexts may not pass pointers to the component.
-%Extending this is orthogonal to this work.
 
 \vspace{-.5em}
 {
+  \renewcommand{\src}[1]{\mathsf{#1}}
 % \small
 \[
   \begin{array}{rrcl}
@@ -868,7 +847,7 @@ Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples a
                          &&&\mid \src{\llet{x}{\expr[_1]}{\expr[_2]}} \mid \src{\llet{x}{new\ \expr[_1]}{\expr[_2]}} \\
                          &&&\mid \src{\ldelete{x}} \mid \src{\lget{x}{\expr}} \mid \src{\lset{x}{\expr[_1]}{\expr[]}} \mid \src{stuck}\\
                          &&&\mid \src{\lcall{f}{\expr}} \mid \src{\lreturn{\expr}} \\
-    \text{(Functions)} & \src{F} &:=& (\src{x};\src{\natt\to\natt};\src{\expr}) \\
+    \text{(Functions)} & \src{F} &:=& (\src{x};\src{\expr}) \\
     \text{(Libraries)} &&& \src{\library_{\ctx}} : \src{Vars} \to \src{F} \hspace{2em}
     \src{\library_{\comp}} : \src{Vars} \to \src{F} \\
     \text{(Heaps)} & \src{H} &:=& \src{\hole{\cdot}} \mid \src{n},\src{H}\hspace{0.5cm}    \text{(Pointer Maps)}\ \ \ \src{\Delta} \\
@@ -877,9 +856,29 @@ Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples a
   \end{array}
 \]
 }
+{
+  \renewcommand{\src}[1]{\mathsf{#1}}
+The trace models of all languages are similar to those presented earlier (\Cref{sec:compprop}).
+One technical detail is the addition of a control tag, indicating who is to blame for an emitted action: context ($\ctx$) or component ($\comp$).
+This is a standard technique in secure compilation in order to rule out irrelevant context-level events. 
+For example, a context immediately deallocating an allocated memory region twice trivially violates memory safety, but the main interest in secure compilation is at component-level events and if those signal, e.g., a memory safety issue.
+Even though this tagging could be used for blame preservation~\cite{patrignani2023blame}, this beyond the focus of this paper.
+Another key difference is that memory accesses are now explicitly modeled as reads ($\src{\ev{Read\ \loc\ n}}$) and writes ($\src{\ev{Write\ \loc\ n}}$) instead of just uses.
 
-Crucially, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
-The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
+All languages have at least numbers as values ($\src{v}$) and second class functions ($\src{F}$).
+Functions are modeled as pairs containing the name of one argument and the body of the function.
+Bodies are just ordinary expressions, which can be simple binary operations ($\src{\lbinop{\expr[_1]}{\expr[_2]}}$), conditionals ($\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}$), C-like function calls ($\src{\lcall{f}{e}}$) and returns ($\src{\lreturn{\expr}}$), as well as C-like memory operations. 
+Programs have sets of pre-determined functions called libraries and it is assumed that functions are marked as being part of some component ($\src{\library_{\comp}}$) or context ($\src{\library_{\ctx}}$).
+Moreover, operational state ($\src{\Omega}$) is a triple consisting of a control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag}$), and a memory state ($\src{\memstate}$). 
+The latter carrying information about pointers that are kept ,,alive'' in pointer maps ($\src{\Delta}$), so that dynamic semantics do not get stuck when encountering, e.g., a double-free.
+The memory state also carries two heaps to model sandboxing between a context ($\src{H^{\ctx}}$) and a component ($\src{H^{\comp}}$).
+
+}
+
+\subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
+
+$\src{L_{\tmssafe}}$ is the only statically typed language in this case study and restricts functions ($\src{F}$) to the typing signature $\src{\natt\to\natt}$. 
+The type system of $\src{L_{\tmssafe}}$ is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous} and enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls*{tms}]\label{thm:wt:tms}
   $\;$ 
@@ -888,14 +887,6 @@ The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{
     \hfill For any component $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
   \end{nscenter}
 \end{theorem}
-
-Operational state ($\src{\Omega}$) is a triple consisting of control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag}$), and a memory state ($\src{\memstate}$), which carries information about the memory.
-Because pointers are kept ``alive'' in pointer maps ($\src{\Delta}$), $\Ltms$ dynamic semantics does not get stuck if it encounters a memory-safety violation such as a double--free.
-The memory state carries two heaps to model sandboxing between a context ($\src{H^\ctx}$) and a component ($\src{H^\comp}$).
-
-The trace model is largely similar to the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}), where the only real differences are separate events for reading and writing memory, instead of just using it, and the sandboxtags.
-With these tags, it is possible to ignore effects performed by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls*{tms}.
-Even though this could be used for blame preservation~\cite{patrignani2023blame}, this beyond the focus of this paper.
 
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
@@ -1488,10 +1479,10 @@ Toggling data-independent timing mode has no impact on $\mssafe$ or $\sssafe$.
 
 The argument here is analogous to the previous one, introducing $\ird{barrier}$ never violates $\sssafe$ and has no effect on $\mssafe$ or $\scctsafe$.
 
-\MPin{
-	can this be made formal?
-	what's the point?
-}
+%\MPin{
+%	can this be made formal?
+%	what's the point?
+%}
 
 \subsection{Compatibility of Secure Compiler Passes}\label{subsec:compatsecpasses}
 
@@ -1588,11 +1579,11 @@ This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, whic
 
 With the advent of speculative execution in processors, it is possible to exploit this unusual paradigm leak secrets.
 This work has taken inspiration in the sematics of $\Lspec$ and in \Cref{def:trace:ss} from recent formalisations~\cite{guarnieri2018spectector,fabian2022automatic}.
-\MPin{
-  we take SS from exorcising.
-  we do not take SNI from spectector because it is a hypersafety.
-  other work defined similar props.
-}
+% \MPin{
+%  we take SS from exorcising.
+%  we do not take SNI from spectector because it is a hypersafety.
+%  other work defined similar props. 
+% }
 % A subsequent line of work~\cite{fabian2022automatic} shows how to modularly define and compose formal semantics that models different speculative execution variants. 
 % Recent work~\cite{fabian2024lift} demonstrates how to lift existing secure compilation proofs for security properties related to speculative execution to more powerful properties, i.e., properties defined for languages with a trace model that enables more vulnerabilities, such as combinations of different speculative execution exploits. 
 % To this end, they define a lifting framework and demonstrate how a secure compilation proof for a weaker property can be lifted to a stronger one. 

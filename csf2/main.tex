@@ -1269,7 +1269,7 @@ Fortunately, with \gls*{sms} mitigation in place, that event does not appear dur
 
 Contrary to the previous compiler, $\ccb$ may change the trace of the original $\Ltrg$ program: if there is a memory access, it needs to be protected with a bounds check.
 % 
-The corresponding relation $\sim^{\Ltrg}_{\Lms}$ that describes this semantic effect of the compiler is defined partially below.
+The corresponding relation $\sim^{\Ltrg}_{\Lms} : \trg{\trace}\times\irl{\trace}$ that describes this semantic effect of the compiler is defined partially below.
 % 
 We omit action $\trg{Set}$, which is treated analogously, and any other event, which is related to its cross-language equivalent.
 % \footnote{Up to colours.}
@@ -1294,18 +1294,16 @@ We can now prove that compiler $\ccb$ robustly preserves \gls*{sms}.
   $\rtpsim{\ccb}{\smssafe}{\sim^{\Ltrg}_{\Lms}}$ % \Coqed
 \end{theorem}
 
-\MPin{
-  trace rel eq is not defined.
-  jump.
-  why arewe defining this ?
-}
-\MPin{
-  when defining the sim, state its type (as i did before). here and later too.
-}
-Let $\src{\trace}\sim^{\Ltms}_{\Lms}\irl{\trace}:=\src{\trace}\sim^{\Ltms}_{\Ltrg}\bullet\sim^{\Ltrg}_{\Lms}\irl{\trace}$.
-
-\Cref{corr:ccab:rtp:ms} states that the composition of $\cca$ and $\ccb$ is secure w.r.t. \gls*{ms} and it follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtpsim:sig}.
-
+At this point we can compose $\ccb$ with the previous compiler ($\cca$), but in order to do so, we need a trace relation from $\Ltms$ to $\Lms$.
+% 
+We can obtain this relation by composing the trace relation we just defined ($\sim^{\Ltrg}_{\Lms}$) with the one used by the previous compiler: $\sim^{\Ltms}_{\Ltrg} : \src{\trace}\times\trg{\trace}$.
+% 
+The latter has not been previously defined (nor has it been used in the related theorem) because that is just an equality relation, since the trace models of $\Ltms$ and of $\Ltrg$ are the same.
+% 
+Thus, we formally define $\sim^{\Ltms}_{\Lms}: \src{\trace} \times \irl{\trace}$ as the following composition: $\sim^{\Ltms}_{\Ltrg}\bullet\sim^{\Ltrg}_{\Lms}$.
+% 
+With this relation, \Cref{corr:ccab:rtp:ms} states that the composition of $\cca$ and $\ccb$ is secure w.r.t. \gls*{ms} and it follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtpsim:sig}.
+% 
 \begin{corollary}[$\cca\circ\ccb$ secure w.r.t. \gls*{ms}]\label{corr:ccab:rtp:ms}
   $\;$ 
 
@@ -1313,10 +1311,10 @@ Let $\src{\trace}\sim^{\Ltms}_{\Lms}\irl{\trace}:=\src{\trace}\sim^{\Ltms}_{\Ltr
     $\rtpsim{\cca\circ\ccb}{\mssafe}{\sim^{\Ltms}_{\Lms}}$ % \Coqed
   \end{nscenter}
 \end{corollary}
-
-\Cref{thm:rtpsim:sig} has another precondition besides \Cref{thm:ccb:rtp:sms,thm:cca:rtp:tms}: $\sim^{\Ltms}_{\Ltrg}$ needs to be well-formed with respect to $\smssafe$.
-This fact is easily established, since $\sim^{\Ltms}_{\Ltrg}$ is an equality. 
-
+% 
+This proof requires another precondition besides \Cref{thm:ccb:rtp:sms,thm:cca:rtp:tms}: $\sim^{\Ltms}_{\Ltrg}$ needs to be well-formed with respect to $\smssafe$.
+This follows trivially since $\sim^{\Ltms}_{\Ltrg}$ is an equality. 
+% 
 \begin{lemma}[$\sim^{\Ltms}_{\Ltrg}$ well-formed w.r.t. $\smssafe$]\label{lem:wf:ltmsltrg}
 $\;$ 
 
@@ -1485,18 +1483,67 @@ Similarly to the previous relation, this holds, since $\sim^{\Lscct}_{\Lspec}$ o
   $\wfcsig{\sim^{\Lscct}_{\Lspec}}{\sssafe}$
 \end{lemma}
 
+
+
+
+
+
+
+
+
+
+
+
 \section{Formal Insights}\label{sec:formalities}
 
 This section provides additional insights for the formal development of the paper.
-First, this section demonstrates that the security property resulting from the universal image projection is faithful to the original property (\Cref{subsec:formalities:props}). 
-Then, it discusses why the order of compiler passes matters, and how does our framework help with identifying insecure compositions (\Cref{subsec:compatsecpasses}).
-Finally, this section then gives additional technical insights on the secure compilation proofs (\Cref{subsec:seccompproofs}) and it discusses how to connect each language-specific security property to the general security properties presented in \Cref{sec:compprop} (\Cref{subsec:formalities:maps}).
+First, this section discusses how to connect each language-specific security property to the general security properties presented in \Cref{sec:compprop} (\Cref{subsec:formalities:maps}), then it demonstrates that the security property resulting from the universal image projection is faithful to the original property (\Cref{subsec:formalities:props}). 
+Finally, this section discusses why the order of compiler passes matters, and how does our framework help with identifying insecure compositions (\Cref{subsec:compatsecpasses}), and it gives additional technical insights on the secure compilation proofs (\Cref{subsec:seccompproofs}).
 
-\subsection{Security Properties}\label{subsec:formalities:props}
+\subsection{From Language Traces to General Ones}\label{subsec:formalities:maps}
 
-Compiler designers need to be careful that their implementation preserves the original source language semantics. 
-Similar to this, it is important to consider the cross-language relation, which gives a semantic description of the compiler in terms of traces, and check that the original target (resp. source) property is properly translated using the universal (resp. existential) image.
-The following discusses this for relations presented in \Cref{sec:casestud:rtp}.
+The previous theorems talk about preserving properties expressed in the trace model of the languages of each compiler.
+However, these trace models are not the same trace model we used to specify the properties of \Cref{sec:compprop} (which we denote with \ev{L}), and which serves as the ``ground truth'' of the meaning of a certain property.
+% 
+To bridge this gap, the formal development requires specifying additional trace relations, from each of the language trace models to the \ev{L} trace model, that, for example, relate $\src{Get\ \loc\ n}$ and $\src{Set\ \loc\ n}$ to $\ev{Use\ \loc\ n}$.
+% 
+One key insight of these relations is that they all omit context-made actions for two reasons: (1) contexts (which are universally quantified) can trivially invalidate any property and (2) we are interested in the component upholding the properties.
+% 
+
+ % disregarded a glaring but minor technical issue: take $\tmssafe$ (\Cref{def:trace:tmsdef}) as an example.
+% It contains traces as specified in \Cref{subsec:basic:memsafety:tracemodel}.
+% However, these are different from $\Ltms$ traces (\Cref{subsec:ltms}) which means that \Cref{thm:wt:tms} is ``ill-typed''.
+% Similarly for the other theorems.
+% In the interest of reducing visual baggage, the notation left out yet another cross-language trace relation, translating language-specific traces into these non-language specific traces. 
+% In doing so, context-level actions are dropped and, e.g., both $\src{Get\ \loc\ n}$ and $\src{Set\ \loc\ n}$ are translated into $\ev{Use\ \loc\ n}$.
+
+
+\subsection{Security Properties and Their Meaning}\label{subsec:formalities:props}
+Each of the presented compilers use a cross-language trace relation, which is also used to translate the property from one language to the other one (via the universal image).
+% 
+Whenever such translations occur, it is important to check whether there has been a change of meaning.
+% 
+That is, we could be using a trace relation that translates a property in a language to a different one in another language.
+% 
+To ensure such a bad translation of properties does not occur, \Cref{thm:prop-rel-corr} states (in a general fashion) that that each security property is properly translated using the universal image according to the cross-language trace relation used by the compiler.
+
+\begin{theorem}[Properties Relation Correctness]\label{thm:prop-rel-corr}
+  \begin{align*}
+    \forall& \pi \in \{\tmssafe,\smssafe,\scctsafe,\sssafe\}, 
+    \\
+    \text{ for each }& \text{pair of languages } \src{L} \text{ and } \trg{L} \text{ used by the compilers},
+    \\
+    \text{ if }& \sigma_{\sim^{\trg{L}}_{\ev{L}}}(\pi) \sim^{\trg{L}}_{\ev{L}} \pi
+    \text{ and } \sigma_{\sim^{\src{L}}_{\trg{L}}}(\trg{\pi}) \sim^{\src{L}}_{\trg{L}} \sigma_{\sim^{\trg{L}}_{\ev{L}}}(\pi)
+    \\
+    \text{ then }& \sigma_{\sim^{\src{L}}_{\trg{L}}}(\trg{\pi}) \sim^{\src{L}}_{\ev{L}} \pi
+  \end{align*}
+\end{theorem}
+The complexity of this theorem is that the relation in the conclusion cannot be obtained by composing the two relations in the premises.
+% 
+What happens in practice is that programmers are given the relations from each language to \ev{L} and they need to build a compiler that induces a relation $\sim^{\src{L}}_{\trg{L}}$ that respects this theorem.
+% 
+% We now informally argue why this theorem holds in all of its specialised cases.
 
 \paragraph{$\sigma_{\sim^{\Ltms}_{\Lms}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$}
 Consider a trace $\irl{\trace}\in\mssafe$ and remember that $\sim^{\Ltms}_{\Lms}$ is the composition of $\sim^{\Ltms}_{\Ltrg}$ and $\sim^{\Ltrg}_{\Lms}$.
@@ -1504,12 +1551,18 @@ Consider a trace $\irl{\trace}\in\mssafe$ and remember that $\sim^{\Ltms}_{\Lms}
 They differ in memory accesses and crashes, where $\irl{\lightning}$ can be related to a $\trg{\lightning}$ or a memory event, e.g., $\trg{Get\ \loc\ 2}$, for an out-of-bounds access.
 In both cases, the translated event does not represent an out-of-bounds memory access. 
 
-Now, consider all $\src{\trace}$ with $\src{\trace}\sim^{\Ltms}_{\Ltrg}\trg{\trace}$, which is like equality\footnote{Both $\sim^{\Ltms}_{\Ltrg}$ and $\sim^{\Ltrg}_{\Lms}$ filter context actions.}.
+Recall that $\sim^{\Ltms}_{\Ltrg}$ is an equality, so if $\src{\trace}\sim^{\Ltms}_{\Ltrg}\trg{\trace}$, we know that $\src{\trace}$ and $\trg{\trace}$ are identical.
+% \footnote{Both $\sim^{\Ltms}_{\Ltrg}$ and $\sim^{\Ltrg}_{\Lms}$ filter context actions.}.
 
-Therefore, the resulting projected property should faithfully model $\mssafe$, which translates to both $\scctsafe$ and $\sssafe$, since these properties trivially hold for $\Ltms$, $\Ltrg$, and $\Lms$ traces.
+Now, starting from $\mssafe$ expressed in $\Lms$, we check that its translation in $\Ltms$ is still $\mssafe$.
+% 
+We can see that the property resulting from the projection of $\Lms$ traces back to $\Ltms$ faithfully models $\mssafe$, which translates to both $\scctsafe$ and $\sssafe$, 
+\MPin{ equiv  +  other rel only adds traces that fail }
+since these properties trivially hold for $\Ltms$, $\Ltrg$, and $\Lms$ traces.
 
 
 \paragraph{$\sigma_{\sim^{\Lms}_{\Lscct}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$}
+
 Consider a trace $\obj{\trace}\in\scctsafe$ and all $\irl{\trace}$ such that $\irl{\trace}\sim^{\Lms}_{\Lscct}\obj{\trace}$. 
 In turn, $\obj{\trace}$ cannot contain any leaks of secret values, so it cannot violate $\scctsafe$.
 Toggling data-independent timing mode has no impact on $\mssafe$ or $\sssafe$.
@@ -1543,14 +1596,19 @@ For the universally quantified target context, a technique known as backtranslat
 Up to backtranslations for $\ccdce$ and $\cccf$, all backtranslations in the case-study are trace based, while for $\ccdce$ and $\cccf$, they are context-based. 
 Since these optimisations have no significant semantic effect and source- and target-language are equal, the backtranslation amounts to an identity translation. 
 
-\subsection{Mapping Language-Specific to Property-Specific Traces}\label{subsec:formalities:maps}
 
-Previous sections disregarded a glaring but minor technical issue: take $\tmssafe$ (\Cref{def:trace:tmsdef}) as an example.
-It contains traces as specified in \Cref{subsec:basic:memsafety:tracemodel}.
-However, these are different from $\Ltms$ traces (\Cref{subsec:ltms}) which means that \Cref{thm:wt:tms} is ``ill-typed''.
-Similarly for the other theorems.
-In the interest of reducing visual baggage, the notation left out yet another cross-language trace relation, translating language-specific traces into these non-language specific traces. 
-In doing so, context-level actions are dropped and, e.g., both $\src{Get\ \loc\ n}$ and $\src{Set\ \loc\ n}$ are translated into $\ev{Use\ \loc\ n}$.
+
+
+
+
+
+
+
+
+
+
+
+
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 
@@ -1642,7 +1700,7 @@ Crucially, this paper derives the security of the multi-pass compiler from the c
 % For future work, it is interesting to look at more sophisticated optimisation passes that, e.g., reorder events that appear on traces.
 
 
-% \newpage
+\newpage
 
 \bibliographystyle{IEEEtran}
 \bibliography{main}

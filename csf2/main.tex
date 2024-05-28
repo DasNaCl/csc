@@ -233,7 +233,7 @@ In summary, this paper makes the following contributions:
 
   \item %
         This paper presents a case-study with five programming languages showcasing the previous contribution (\Cref{sec:casestud:defs,sec:casestud:rtp}).
-        To this end, it presents a compilation chain consisting of six passes that ultimately preserve \gls*{mssscct} by means of composing four secure passes that \emph{individually} preserve \gls*{tms}, \gls*{sms}, \gls*{scct}, and \gls*{ss}, and two passes which are well-known optimisations \gls*{dce} and \gls*{cf},.
+        To this end, it presents a compilation chain consisting of six passes that ultimately preserve \gls*{mssscct} by means of composing four secure passes that \emph{individually} preserve \gls*{tms}, \gls*{sms}, \gls*{scct}---an enforceable version of \gls*{cct}---, and \gls*{ss}, and two passes which are well-known optimisations \gls*{dce} and \gls*{cf},.
         %Furthermore, the chain includes two optimisation passes: one performs \gls*{dce} and the other \gls*{cf}.
         The formalisation of this case study showcases the power of the presented framework: the divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
@@ -345,7 +345,7 @@ This is why {\em robust preservation} is a good candidate as a compiler-level se
 
 This paper uses a general notion of robust preservation~\cite{abate2021extacc} that considers compilers that use languages with different trace models. 
 To this end, considering a source trace $\src{\trace}$ and a target trace $\trg{\trace}$, there is a relation ($\sim$) describing the effect of a corresponding compiler (see \Cref{sec:casestud:rtp}). 
-This relation induces the following two projection functions: (1) the existential image $\tau_\sim\left(\src{\pi}\right)$ and (2) the universal image $\sigma_\sim\left(\trg{\pi}\right)$.
+This relation induces the following two projection functions: (1) the \emph{existential image} $\tau_\sim\left(\src{\pi}\right)$ and (2) the \emph{universal image} $\sigma_\sim\left(\trg{\pi}\right)$.
 These projections map source-level (resp. target-level) properties to target-level (resp. source-level) properties in a way that identifies the ``same'' property across languages. 
 The case study of this paper exclusively uses the universal image, since some considered properties, such as \gls*{ss}, are not definable in a higher-level language that, e.g., does not model speculation.
 For self-containment, the universal image is defined as follows~\cite{abate2021extacc}:
@@ -449,11 +449,10 @@ print "a"
   The source code in the nodes is a glorified compiler intermediate representation and the code gets more optimised towards the right hand side of the figure.}\label{fig:cfdceex}
 \end{figure}
 This {\em phase ordering problem} is well--known in literature and a practical solution is to simply perform a fixpoint iteration of the optimisation pipeline~\cite{click1995combining}.
-Hence, it is of interest to analyze the security of compilation passes and their interaction within a compilation pipeline.
 
 \smallskip
 
-The key notions for our main results are the definition of a trace relation, and the definition of when is a trace relation well-formed with respect to a class.
+To analyze the security of compilation passes and their interaction within a compilation pipeline, we rely on a few key notions: the definition of a trace relation, and the definition of when is a trace relation well-formed with respect to a class.
 %
 Consider traces $\src{\trace}$ and $\trg{\trace}$ as well as two trace relations $\sim_1$ and $\sim_2$. 
 % 
@@ -532,7 +531,7 @@ The technical appendix describes a more general version of \Cref{corr:swappable}
 
 \subsection{Secure Upper and Lower Composition}\label{sec:other-compos}
 Besides sequential composition, there are two other compositions, namely an {\em upper}, i.e., a compiler that takes multiple inputs and yields one output, and a {\em lower} composition, i.e., a compiler that takes one input and yields multiple outputs.
-We {fefine the upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$} as follows:
+We {define the upper composition $\cc{\src{L}+\obj{L}}{\trg{L}}$} as follows:
 Given a program \texttt{p}, its compiled counterpart is obtained by {plugging \texttt{p} into $\cc{\src{L}}{\trg{L}}$ if $\texttt{p}\in\src{L}$} or by {plugging \texttt{p} into $\cc{\obj{L}}{\trg{L}}$ if $\texttt{p}\in\obj{L}$}.
 \begin{definition}[Upper Composition]
   $$\text{{$\cc{\src{L}+\obj{L}}{\trg{L}}$}}\isdef
@@ -609,12 +608,13 @@ This follows current non-formal-methods based compiler engineering, such as LLVM
 
 This section introduces trace properties of interest for this paper: \gls*{tms}, \gls*{sms}, \gls*{ms}, \gls*{scct}, and \gls*{ss}.
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study presented later (\Cref{sec:casestud:defs,sec:casestud:rtp}). 
-While up to \gls*{scct}, none of the properties is novel, for self-containment of the paper, their definition is necessary for the case study.
+For clarity, this section presents all of them, despite the fact that only property \gls*{scct} is novel, while the other ones are inspired by existing work.
+% , none of the properties is novel, for self-containment of the paper, their definition is necessary for the case study.
 For each of the presented properties, the technical appendix accompanying the paper defines corresponding monitors, which refine a given property and have a key role in the proofs of this paper. 
 
 \subsection{Memory Safety Trace Model}\label{subsec:basic:memsafety:tracemodel}
 
-For simple memory safety composed of temporal and spatial memory safety, the trace model defines events as either the empty event ($\emptyevent$), a crash ($\lightning$), or a base-event ($\preevent[_{\mssafe}]$).
+For simple memory safety composed of temporal and spatial memory safety, the trace model defines events ($\event[_{\mssafe}]$) as either the empty event ($\emptyevent$), a crash ($\lightning$), or a base-event ($\preevent[_{\mssafe}]$).
 
 \vspace{-1.0em}
 \[
@@ -678,7 +678,7 @@ Note that \Cref{def:trace:msdef} ignores data isolation, so there may still be m
 
 \subsection{Memory Safety Trace Model with Constant Time}\label{subsec:scct:tracemodel}
 
-This section starts by extending the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}) with a {\em security tag} ($\securitytag$) that indicates whether the involved event contains sensitive information ($\lock$) or not ($\unlock$).
+To express Constant Time, we extend the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}) with a {\em security tag} ($\securitytag$) that indicates whether the involved event contains sensitive information ($\lock$) or not ($\unlock$).
 
 \vspace{-.5em}
 \[
@@ -722,7 +722,7 @@ Moreover, programs that operate on secrets and have a ``data independent timing 
 
 The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
 However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
-To remedy this issue, let $\sim_{\ctsafe}$ be a cross-language trace relation whose definition is partially follows:
+To remedy this issue, we introduce $\sim_{\ctsafe}: \preevent[_{\ctsafe}] \times \preevent[_{\mssafe}] $, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
 \[
   \typerulenolabel{mscctrel:drop:tag}{}{\preevent[_{\mssafe}]\sim_{\ctsafe}\preevent[_{\mssafe}];\securitytag}
   \typerulenolabel{mscctrel:drop:crash}{}{\lightning\sim_{\ctsafe}\lightning}
@@ -735,7 +735,7 @@ To remedy this issue, let $\sim_{\ctsafe}$ be a cross-language trace relation wh
 Essentially, the only work $\sim_{\ctsafe}$ has to do, is to ignore both the new $\ev{Branch\ n}$ and $\ev{Binop\ n}$ base-events as well as the security tag, since they are irrelevant to \gls*{ms}.
 Put differently, traces of \gls*{ms} trivially satisfy \gls*{scct}.
 
-The above relation is extended to traces in a standard way, skipping the empty event $\emptyevent$ on either side, and it is now possible to define \gls*{msscct} using the universal image:
+The above relation is extended point-wise to traces, skipping the empty event $\emptyevent$ on either side, and it is now possible to define \gls*{msscct} using the universal image:
 
 \begin{definition}[\gls*{ms} and \gls*{scct}]\label{def:trace:msscctdef}
   $
@@ -786,8 +786,9 @@ That way, programs attaining \gls*{ss} do not necessarily attain \gls*{scct}.
 
 \subsubsection{Speculation Memory Safety}
 
-Similar to \gls*{msscct}, there is a need to relate the different trace models with each other, so that the memory safety property without speculation can be lifted to speculation. 
-To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose definition is partially as follows:
+As before, we need to relate the different trace models with each other, so that the memory safety property without speculation can be lifted to speculation. 
+To this end, let $\sim_{\mathghost}: \preevent[_{\mathghost}] \times \preevent[_{\ctsafe}]$ be a cross-language trace relation whose key cases are below.
+The intuition is that \gls*{ss} is trivially satisfied in \gls*{scct}, since speculation is inexpressible there, which amounts to dropping events $\ev{Spec}$, $\ev{Rlb}$, or $\ev{Barrier}$, as well as all base events tagged with $\lock_{\text{PHT}}$. 
 
 \[
   \typerulenolabel{specrel:drop:tag}{}{\preevent[_{\ctsafe}];\lock\sim_{\mathghost}\preevent[_{\ctsafe}];\lock_{\text{NONE}}}
@@ -803,9 +804,7 @@ To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose de
   \typerulenolabel{specrel:drop:barrier}{}{\emptyevent\sim_{\mathghost}\ev{Barrier}}
 \]
 
-The intuition is that \gls*{ss} is trivially satisfied in \gls*{scct}, since speculation is inexpressible there, which amounts to dropping events $\ev{Spec}$, $\ev{Rlb}$, or $\ev{Barrier}$, as well as all base events tagged with $\lock_{\text{PHT}}$. 
-
-We conclude this section by defining the ultimate property of interest for secure compilers: \gls*{specms}.
+We conclude by defining the ultimate property of interest for secure compilers: \gls*{specms}.
 \begin{definition}[\gls*{specms}]\label{def:trace:specmsdef}
   $
   \specmssafe := \sigma_{\sim_{\mathghost}}\left(\msscctsafe\right)\cap\sssafe

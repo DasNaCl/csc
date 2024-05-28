@@ -678,14 +678,14 @@ Note that \Cref{def:trace:msdef} ignores data isolation, so there may still be m
 
 \subsection{Memory Safety Trace Model with Constant Time}\label{subsec:scct:tracemodel}
 
-To express Constant Time, we extend the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}) with a {\em security tag} ($\securitytag$) that indicates whether the involved event contains sensitive information ($\lock$) or not ($\unlock$).
+To express Constant Time, we extend the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}) with a {\em security tag} ($\securitytag{}$) that indicates whether the involved event contains sensitive information ($\lock$) or not ($\unlock$).
 
 \vspace{-.5em}
 \[
   \begin{array}{rrcl}
     (\text{Base-Events}) & \preevent[_{\ctsafe}] &:=& \preevent[_{\mssafe}] \mid \ev{Branch\ }n \mid \ev{Binop\ }n\\
-    (\text{Security Tags}) & \securitytag &:=& \lock \mid \unlock\\ 
-    (\text{Events}) & \event[_{\ctsafe}] &:=& \preevent[_{\ctsafe}];\securitytag \mid \emptyevent \mid \lightning \\ 
+    (\text{Security Tags}) & \securitytag{} &:=& \lock \mid \unlock\\ 
+    (\text{Events}) & \event[_{\ctsafe}] &:=& \preevent[_{\ctsafe}];\securitytag{} \mid \emptyevent \mid \lightning \\ 
   \end{array}
 \]
 
@@ -714,7 +714,7 @@ To sidestep this issue, this section defines the property \gls*{scct}, a stricte
 % \end{nscenter}
 \end{definition}
 
-\gls*{scct} may appear overly strict, since it seems that secrets must not occur on a trace (since $\securitytag$ is forced to be $\unlock$). 
+\gls*{scct} may appear overly strict, since it seems that secrets must not occur on a trace (since $\securitytag{}$ is forced to be $\unlock$). 
 However, this is considered standard practice in terms of coding guidelines~\cite{ctguidelines}.
 Moreover, programs that operate on secrets and have a ``data independent timing mode'' enabled do not leak these secrets, despite performing computation on them~\cite{arm-refman,intel-refman} (see \Cref{ex:lscct}). 
 
@@ -724,12 +724,12 @@ The combination of \gls*{ms} and \gls*{scct} is the intersection of these proper
 However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
 To remedy this issue, we introduce $\sim_{\ctsafe}: \preevent[_{\ctsafe}] \times \preevent[_{\mssafe}] $, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
 \[
-  \typerulenolabel{mscctrel:drop:tag}{}{\preevent[_{\mssafe}]\sim_{\ctsafe}\preevent[_{\mssafe}];\securitytag}
+  \typerulenolabel{mscctrel:drop:tag}{}{\preevent[_{\mssafe}]\sim_{\ctsafe}\preevent[_{\mssafe}];\securitytag{}}
   \typerulenolabel{mscctrel:drop:crash}{}{\lightning\sim_{\ctsafe}\lightning}
 \]
 \[
-  \typerulenolabel{mscctrel:drop:branch}{}{\emptyevent\sim_{\ctsafe}\ev{Branch n};\securitytag}
-  \typerulenolabel{mscctrel:drop:binop}{}{\emptyevent\sim_{\ctsafe}\ev{Binop n};\securitytag}
+  \typerulenolabel{mscctrel:drop:branch}{}{\emptyevent\sim_{\ctsafe}\ev{Branch n};\securitytag{}}
+  \typerulenolabel{mscctrel:drop:binop}{}{\emptyevent\sim_{\ctsafe}\ev{Binop n};\securitytag{}}
 \]
 
 Essentially, the only work $\sim_{\ctsafe}$ has to do, is to ignore both the new $\ev{Branch\ n}$ and $\ev{Binop\ n}$ base-events as well as the security tag, since they are irrelevant to \gls*{ms}.
@@ -746,7 +746,7 @@ The above relation is extended point-wise to traces, skipping the empty event $\
 \subsection{\gls*{ms}, \gls*{scct} Trace Model with Speculation}\label{subsec:msctss:tracemodel}
 
 So far, the considered trace models do not let us express speculative execution attacks such as Spectre~\cite{kocher2019spectre}. 
-For this, we extend the earlier trace model (see \Cref{subsec:scct:tracemodel}) so that the security tags ($\securitytag$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
+For this, we extend the earlier trace model (see \Cref{subsec:scct:tracemodel}) so that the security tags ($\securitytag{}$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
 Moreover, we add base-events signalling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
 
 \vspace{-1em}
@@ -755,8 +755,8 @@ Moreover, we add base-events signalling the beginning of a speculative execution
   \begin{array}{rrcl}
     (\text{Base-Events}) & \preevent[_{\mathghost}] &:=& \preevent[_{\ctsafe}] \\
     (\text{Spectre Variants}) & vX &:=& \operatorname{NONE} \mid \operatorname{PHT} \\
-    (\text{Security Tags}) & \securitytag &:=& \lock_{vX} \mid \unlock\\ 
-    (\text{Events}) & \event[_{\mathghost}] &:=& \preevent[_{\mathghost}];\securitytag \mid \emptyevent \mid \lightning \mid \ev{Spec} \mid \ev{Rlb} \mid \ev{Barrier}\\ 
+    (\text{Security Tags}) & \securitytag{} &:=& \lock_{vX} \mid \unlock\\ 
+    (\text{Events}) & \event[_{\mathghost}] &:=& \preevent[_{\mathghost}];\securitytag{} \mid \emptyevent \mid \lightning \mid \ev{Spec} \mid \ev{Rlb} \mid \ev{Barrier}\\ 
   \end{array}
 \]
 }
@@ -849,8 +849,8 @@ All presented programming languages share a common fragment which is partially p
 \[
   \begin{array}{rrcl}
     \text{(Base-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
-    \text{(Control Tags)} & \src{\sandboxtag} &:=& \src{\ctx} \mid \src{\comp} \\
-    \text{(Events)} & \src{\event} &:=& \src{\preevent;\sandboxtag} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
+    \text{(Control Tags)} & \src{\sandboxtag{}} &:=& \src{\ctx} \mid \src{\comp} \\
+    \text{(Events)} & \src{\event} &:=& \src{\preevent;\sandboxtag{}} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
     \text{(Values)} & \src{v} &:=& \src{n} \\
     \text{(Expressions)} & \src{\expr} &:=& \src{x} \mid \src{n} \mid \src{\lbinop{\expr[_1]}{\expr[_2]}} \mid \src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}} \\ 
                          &&&\mid \src{\llet{x}{\expr[_1]}{\expr[_2]}} \mid \src{\llet{x}{new\ \expr[_1]}{\expr[_2]}} \\
@@ -861,7 +861,7 @@ All presented programming languages share a common fragment which is partially p
     \src{\library_{\comp}} : \src{Vars} \to \src{F} \\
     \text{(Heaps)} & \src{H} &:=& \src{\hole{\cdot}} \mid \src{n},\src{H}\hspace{0.5cm}    \text{(Pointer Maps)}\ \ \ \src{\Delta} \\
     \text{(Memory States)} & \src{\memstate} &:=& \left(\src{H^{\ctx}};\src{H^{\comp}};\src{\Delta}\right)\\
-  \text{(Control States)} & \src{\cfstate} & & \text{(States)}\ \ \ \src{\Omega}\ :=\ \left(\src{\cfstate};\src{\sandboxtag};\src{\memstate}\right)\\
+  \text{(Control States)} & \src{\cfstate} & & \text{(States)}\ \ \ \src{\Omega}\ :=\ \left(\src{\cfstate};\src{\sandboxtag{}};\src{\memstate}\right)\\
   \end{array}
 \]
 }
@@ -878,7 +878,7 @@ All languages have at least numbers as values ($\src{v}$) and second class funct
 Functions are modeled as pairs containing the name of one argument and the body of the function.
 Bodies are just ordinary expressions, which can be simple binary operations ($\src{\lbinop{\expr[_1]}{\expr[_2]}}$), conditionals ($\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}$), C-like function calls ($\src{\lcall{f}{e}}$) and returns ($\src{\lreturn{\expr}}$), as well as C-like memory operations. 
 Programs have sets of pre-determined functions called libraries and it is assumed that functions are marked as being part of some component ($\src{\library_{\comp}}$) or context ($\src{\library_{\ctx}}$).
-Moreover, operational state ($\src{\Omega}$) is a triple consisting of a control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag}$), and a memory state ($\src{\memstate}$). 
+Moreover, operational state ($\src{\Omega}$) is a triple consisting of a control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag{}}$), and a memory state ($\src{\memstate}$). 
 The latter carrying information about pointers that are kept ,,alive'' in pointer maps ($\src{\Delta}$), so that dynamic semantics do not get stuck when encountering, e.g., a double-free.
 The memory state also carries two heaps to model sandboxing between a context ($\src{H^{\ctx}}$) and a component ($\src{H^{\comp}}$).
 
@@ -930,13 +930,13 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
 \[
   \begin{array}{rrcl}
     \text{(Mode Values)} & \obj{D} &:=& \obj{ON} \mid \obj{OFF} \\
-    \text{(Security Tags)} & \obj{\securitytag} &:=& \obj{\lock} \mid \obj{\unlock} \\
+    \text{(Security Tags)} & \obj{\securitytag{}} &:=& \obj{\lock} \mid \obj{\unlock} \\
     \text{(Base-Events)} & \obj{\preevent} &:=& \dots \mid \obj{iGet\ \loc\ v} \mid \obj{iSet\ \loc\ v} \\
                        &&& \mid\ \obj{Binop\ n} \mid \obj{Branch\ n} \\
-    \text{(Events)} & \obj{\event} &:=& \obj{\preevent;\sandboxtag;\securitytag} \mid \obj{\emptyevent} \mid \obj{\lightning} \\
+    \text{(Events)} & \obj{\event} &:=& \obj{\preevent;\sandboxtag{};\securitytag{}} \mid \obj{\emptyevent} \mid \obj{\lightning} \\
     \text{(Expressions)} & \obj{\expr} &:=& \dots \mid \obj{\lrddoit{x}{\expr}} \mid \obj{\lwrdoit{D}} \\
-                         &&&\mid\ \obj{\llet{x^{\securitytag}}{\expr[_1]}{\expr[_2]}}\\
-    \text{(States)} & \obj{\Omega} & := & \left(\obj{\cfstate};\obj{\sandboxtag};\obj{D};\obj{\memstate}\right)\\
+                         &&&\mid\ \obj{\llet{x^{\securitytag{}}}{\expr[_1]}{\expr[_2]}}\\
+    \text{(States)} & \obj{\Omega} & := & \left(\obj{\cfstate};\obj{\sandboxtag{}};\obj{D};\obj{\memstate}\right)\\
   \end{array}
 \]
 \begin{center}
@@ -944,41 +944,41 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
 \newcommand{\exprevalo}[5]{\expreval{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}}
   \typerule{$e-\obj{wrdoit}-\text{off}$}{
   }{
-    \pstepto{\rtt{\obj{\cfstate;\sandboxtag;D;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag;OFF;\memstate}}{\obj{0^{\securitytag}}}}{\obj{\emptyevent}}
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag{};D;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag{};OFF;\memstate}}{\obj{0^{\securitytag{}}}}}{\obj{\emptyevent}}
   }{e-wrdoit-off}
 
   \typerule{$e-\obj{get}-\in-$noleak}{
-    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison),\Delta_2} &
-    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} \\
-    \obj{\securitytag''}=\obj{\securitytag\sqcap\securitytag'} &
-    \obj{\event} = \obj{{iGet}\ \loc\ n;\sandboxtag;\securitytag''}
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag{};\poison),\Delta_2} &
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag{}}} \\
+    \obj{\securitytag{''}}=\obj{\securitytag{}\sqcap\securitytag{'}} &
+    \obj{\event} = \obj{{iGet}\ \loc\ n;\sandboxtag{};\securitytag{''}}
   }{
     \exprevalo{
-    	\cfstate;\sandboxtag';ON;\memstate
+    	\cfstate;\sandboxtag{'};ON;\memstate
     }{
-    	x^\securitytag[n^{\securitytag'}]
+      	x^{\securitytag[n^{\securitytag{'}}] }
     }{
-    	\cfstate;\sandboxtag';ON;\memstate
+    	\cfstate;\sandboxtag{'};ON;\memstate
     }{
-    	(H^{\sandboxtag}(\loc+n))^{\securitytag''}
+    	(H^{\sandboxtag{}}(\loc+n))^{\securitytag{''}}
     }{
       \event
     }
   }{to-e-get-in-noleak}
 \end{center}
 
-The language also adds user annotations $\obj{\securitytag}$ for the secrecy of variables, which can be either private (high secrecy) $\obj{\lock}$ or public (low secrecy) $\obj{\unlock}$.
-Security tags $\obj{\securitytag}$ are arranged in the usual secrecy lattice~\MP{NI cits}, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
+The language also adds user annotations $\obj{\securitytag{}}$ for the secrecy of variables, which can be either private (high secrecy) $\obj{\lock}$ or public (low secrecy) $\obj{\unlock}$.
+Security tags $\obj{\securitytag{}}$ are arranged in the usual secrecy lattice~\MP{NI cits}, where $\obj{\lock}\le\obj{\securitytag{}}$ and $\obj{\securitytag{}}\le\obj{\unlock}$.
 
 Memory accesses to secret data need to be present to reason about memory safety, even when execution is in data-independent timing mode, e.g, \Cref{tr:to-e-get-in-noleak}.
 $\Lscct$ extends base-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$ to prevent secrets from leaking but still enable reasoning about memory safety. 
-Due to the technical setup, the rule needs to check if the access is in bounds ($\obj{\loc}+\obj{n}\in\obj{H^t}$) and update the secrecy tag ($\obj{\securitytag''}=\obj{\securitytag\sqcap\securitytag'}$) according to the lattice described earlier.
+Due to the technical setup, the rule needs to check if the access is in bounds ($\obj{\loc}+\obj{n}\in\obj{H^t}$) and update the secrecy tag ($\obj{\securitytag{''}}=\obj{\securitytag{}\sqcap\securitytag{'}}$) according to the lattice described earlier.
 The precise information carried by the event, e.g., location ($\obj{\loc}$) is taken from the pointer map, which carries some more information irrelevant to this rule ($\obj{\poison}$).
 
 The language extends base-events with $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the data independent timing mode is inactive.
-Events are extended with a security-tag ($\obj{\securitytag}$) to signal the secrecy of the involved data.
+Events are extended with a security-tag ($\obj{\securitytag{}}$) to signal the secrecy of the involved data.
 
-The evaluation steps are amended to propagate the security-tag annotations $\obj{\securitytag}$.
+The evaluation steps are amended to propagate the security-tag annotations $\obj{\securitytag{}}$.
 When the data independent timing mode is inactive, base-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
 Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyevent}$ is emitted for binary and branching operations.
 %To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
@@ -1072,9 +1072,9 @@ This is exploited in \Cref{tr:e-spec-eat} to consume any leftover speculation.
 
   %
   \typerule{$e-\ird{ifz}-\ird{true}-\text{spec}$}{
-    \ird{S} = \rtt{(\ird{\cfstate['];\sandboxtag;D;\memstate});\ird{S}}{\ird{\expr[_1]}},({\ird{\cfstate;\sandboxtag;D;\memstate}};\omega;{\ird{\expr[_2]}})
+    \ird{S} = \rtt{(\ird{\cfstate['];\sandboxtag{};D;\memstate});\ird{S}}{\ird{\expr[_1]}},({\ird{\cfstate;\sandboxtag{};D;\memstate}};\omega;{\ird{\expr[_2]}})
   }{
-    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;D;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\ird{S}}{\ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}}
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag{};D;\memstate}}{\ird{\lifz{0^{\securitytag{}}}{\expr[_1]}{\expr[_2]}}}}{\ird{S}}{\ird{\ev{Branch}\ 0;\sandboxtag{};\securitytag{}}\cdot\ird{\ev{Spec};\sandboxtag{};\securitytag{}}}
   }{e-ifz-true-spec}
   %
   \typerule{$e-\ird{spec}-\text{eat}$}{
@@ -1086,12 +1086,12 @@ This is exploited in \Cref{tr:e-spec-eat} to consume any leftover speculation.
   % 
   \typerule{$e-\ird{spec}-\text{eaten}$}{
   }{
-    \ghoststepto{\ird{S},(\ird{\Omega};\ird{0};\ird{\expr})}{\ird{S}}{\ird{Rlb;\Omega.\sandboxtag;\unlock}}
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{0};\ird{\expr})}{\ird{S}}{\ird{Rlb;\Omega.\sandboxtag{};\unlock}}
   }{e-spec-eaten}
   %
   \typerule{$e-\ird{spec}-\text{barrier}$}{
   }{
-    \ghoststepto{\ird{S},(\ird{\Omega};\ird{n};\ird{\lbarrier})}{\ird{S},(\ird{\Omega};\ird{0};\ird{0})}{\ird{Barrier;\Omega.\sandboxtag;\unlock}}
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{n};\ird{\lbarrier})}{\ird{S},(\ird{\Omega};\ird{0};\ird{0})}{\ird{Barrier;\Omega.\sandboxtag{};\unlock}}
   }{e-spec-barrier}
 \end{center}
 
@@ -1417,7 +1417,7 @@ Clearly, the corresponding cross-language trace relation $\sim^{\Lscct}_{\Lspec}
   \typerulenolabel{xrel:spec:if}{}{\obj{Branch\ n}\sim^{\Lscct}_{\Lspec}\ird{Branch\ n}\cdot\ird{Spec}\cdot\ird{Barrier}\cdot\ird{Rlb}}
 \end{center}
 
-The base-event relation above scales to full events by ensuring the missing annotations ($\obj{\comp;\securitytag}$ and $\ird{\comp;\securitytag}$) are the same.
+The base-event relation above scales to full events by ensuring the missing annotations ($\obj{\comp;\securitytag{}}$ and $\ird{\comp;\securitytag{}}$) are the same.
 
 With this, $\ccspec$ is secure with respect to \gls*{ss}.
 \begin{theorem}[$\ccspec$ secure w.r.t. \gls*{ss}]\label{thm:ccspec:rtp:spec}

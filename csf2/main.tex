@@ -225,8 +225,8 @@ In summary, this paper makes the following contributions:
   \item %
         This paper presents a case-study with five programming languages showcasing the previous contribution (\Cref{sec:casestud:defs,sec:casestud:rtp}).
         To this end, it presents a compilation chain consisting of six passes that ultimately preserve \gls*{mssscct} by means of composing four secure passes that \emph{individually} preserve \gls*{tms}, \gls*{sms}, \gls*{scct}, and \gls*{ss}, and two passes which are well-known optimisations \gls*{dce} and \gls*{cf},.
-        %Furthermore, the chain includes two optimisation passes: One performs \gls*{dce} and the other \gls*{cf}.
-        The formalisation of this case study showcases the power of the presented framework: The divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
+        %Furthermore, the chain includes two optimisation passes: one performs \gls*{dce} and the other \gls*{cf}.
+        The formalisation of this case study showcases the power of the presented framework: the divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
 
   \item %
@@ -376,7 +376,7 @@ A \bul{compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves a class of target pro
 \end{definition}
 Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
 Because of this, this paper may write $\rtptau{\cc{\src{L}}{\trg{L}}}{\trg{\pi}}{\sim}$, even though $\trg{\pi}$ is a property and not a class.
-A similar construction can be applied to the projection functions.\MP{wut?}
+A similar construction can be used to the projection functions (see \Cref{def:universal:img}) by applying them to the lifted version of $\trg{\pi}$ instead of just $\trg{\pi}$.
 
 
 In case the trace model is the same for both source and target programs (and thus $\sim$ is equality), we have the classic definition of robust preservation~\cite{abate2019jour}.
@@ -589,11 +589,11 @@ Given {$\cc{\src{L}}{\trg{L}}$ robustly preserves $\class[_{1}]$} and {$\cc{\src
 
 %Either way, the theoretical results suggest that it is possible to always find a ``most-general'', secure compiler, given two secure compilers, that robustly preserves the least-upper bound of the classes involved in their compilation process.
 
-Future work intends to use upper and lower composition as means to build a secure compiler incrementally.
-\MPin{
-	we should add briefly which real-world compilers (taken from the elided examples) are upper and lower compos
-}
-\MP{no coq here ?}
+Future work intends to use upper and lower composition as means to build a secure compiler incrementally
+This follows current non-formal-methods based compiler engineering, such as LLVM~\cite{lattner2004llvm}, where languages such as \texttt{C++} and \texttt{Fortran} translate into LLVM IR and languages such as \texttt{x86} or \texttt{ARMv8} assembly variants translate out of LLVM IR.
+
+% no coq, because above definitions are non-formal. 
+%   How would you precisely define the lower compo compiler, given two compilers? 
 
 \section{Security Properties: Formalisation, Enforcement and Composition\pages{1.5}}\label{sec:compprop}
 
@@ -712,7 +712,7 @@ Moreover, programs that operate on secrets and have a ``data independent timing 
 
 The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
 However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
-To remedy this issue, let $\sim_{\ctsafe}$ be a cross-language trace relation whose definition can be sketched as follows:\MP{why just sketched?}
+To remedy this issue, let $\sim_{\ctsafe}$ be a cross-language trace relation whose definition is partially follows:
 \[
   \typerulenolabel{mscctrel:drop:tag}{}{\preevent[_{\mssafe}]\sim_{\ctsafe}\preevent[_{\mssafe}];\securitytag}
   \typerulenolabel{mscctrel:drop:crash}{}{\lightning\sim_{\ctsafe}\lightning}
@@ -735,7 +735,7 @@ The above relation is extended to traces in a standard way, skipping the empty e
 
 \subsection{\gls*{ms}, \gls*{scct} Trace Model with Speculation}\label{subsec:msctss:tracemodel}
 
-So far, the considered trace models do not let us express speculative execution attacks such as Spectre~\cite{}\MP{cits}. 
+So far, the considered trace models do not let us express speculative execution attacks such as Spectre~\cite{kocher2019spectre}. 
 For this, we extend the earlier trace model (see \Cref{subsec:scct:tracemodel}) so that the security tags ($\securitytag$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
 Moreover, we add base-events signalling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
 
@@ -751,32 +751,33 @@ Moreover, we add base-events signalling the beginning of a speculative execution
 \]
 }
 
-Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants.\MP{cits}
+Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
 %For sake of readability, this paper just uses the notation $\lock$ in place of $\lock_{\text{PHT}}$.
 
 \subsubsection{Speculative Safety}
 
-\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is an overapproximation of a variant of noninterference.
-The definition of the property itself turns out to be syntactically equal to \gls*{scct}, modulo the underlying trace model.
-\MPin{recap its meaning for security}
+\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is a sound overapproximation of a variant of noninterference.
 
 \begin{definition}[\glsfirst*{ss}]\label{def:trace:ss}
   \noindent
 
   \begin{nscenter}
   $
-    \sssafe:=\left\{\trace[_{\mathghost}] \left|\begin{array}{rcl}
-        \trace[_{\mathghost}]=\hole{\cdot} & \text{ or } & \trace[_{\mathghost}]=\preevent[_{\mathghost}];\unlock\cdot\trace[_{\mathghost}'] \wedge \trace[_{\mathghost}']\in\sssafe
+    \sssafe:=\left\{\trace[_{\mathghost}] \left|\begin{array}{l}
+      \trace[_{\mathghost}]=\hole{\cdot} \text{ or } \exists\trace[_{\mathghost}'].\\
+      \left(\trace[_{\mathghost}]=\preevent[_{\mathghost}];\unlock\cdot\trace[_{\mathghost}'] \text{or }\trace[_{\mathghost}]=\preevent[_{\mathghost}];\lock_{\text{NONE}}\cdot\trace[_{\mathghost}']\right)\\
+      \text{and }\ \trace[_{\mathghost}']\in\sssafe
                                  \end{array}\right.\right\}
   $ 
   \end{nscenter}
 \end{definition}
-\MPin{why isn't it ok to have locks with NONE in the trace?}
+The technical setup so far leads to the above definition, where only locks annotated with $\text{SPECTRE-PHT}$ are disallowed to occur on the trace.
+That way, programs attaining \gls*{ss} do not necessarily attain \gls*{scct}.
 
 \subsubsection{Speculation Memory Safety}
 
 Similar to \gls*{msscct}, there is a need to relate the different trace models with each other, so that the memory safety property without speculation can be lifted to speculation. 
-To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose definition can be sketched as follows:\MP{sketch?}
+To this end, let $\sim_{\mathghost}$ be a cross-language trace relation whose definition is partially as follows:
 
 \[
   \typerulenolabel{specrel:drop:tag}{}{\preevent[_{\ctsafe}];\lock\sim_{\mathghost}\preevent[_{\ctsafe}];\lock_{\text{NONE}}}
@@ -797,7 +798,7 @@ The intuition is that \gls*{ss} is trivially satisfied in \gls*{scct}, since spe
 We conclude this section by defining the ultimate property of interest for secure compilers: \gls*{specms}.
 \begin{definition}[\gls*{specms}]\label{def:trace:specmsdef}
   $
-  \specmssafe=\sigma_{\sim_{\mathghost}}\left(\msscctsafe\right)\cap\sssafe
+  \specmssafe := \sigma_{\sim_{\mathghost}}\left(\msscctsafe\right)\cap\sssafe
   $
 \end{definition}
 
@@ -814,7 +815,7 @@ However, not all $\Ltms$ programs are \gls*{sms}.
 That is, there are well-typed $\Ltms$ programs that perform an out-of-bounds access.
 Language $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls*{ms} (\Cref{subsec:lsms}).
 $\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability (\Cref{subsec:lms}).
-All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls*{cct} to hold, since this is -- in an ideal world -- what the programmer would expect, too: It is the job of the compiler to preserve and (potentially) enforce security~\cite{cauligi2019fact,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy}.
+All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls*{cct} to hold, since this is -- in an ideal world -- what the programmer would expect, too: it is the job of the compiler to preserve and (potentially) enforce security~\cite{cauligi2019fact,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy}.
 % This paper considers \gls*{cct} as an architecture-dependent property\MPin{can we justify this}, so
 
 Such consideration is also backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
@@ -831,43 +832,22 @@ Thus, all previous languages trivially satisfy \gls*{ss}, since they do not supp
 \subsection{Shared Language Definitions}\label{subsec:cs:defs}
 
 All presented programming languages share a common fragment which is partially presented here and in full detail in the technical report. 
-The trace models of all languages are similar to those presented earlier (\Cref{sec:compprop}).
-One technical detail is the addition of a sandboxtag, indicating who is to blame for an emitted action: context ($\ctx$) or component ($\comp$).
-This is a standard technique in secure compilation in order to rule out irrelevant context-level events. 
-For example, a context immediately deallocating an allocated memory region twice trivially violates memory safety, but the main interest in secure compilation is at component-level events and if those signal, e.g., a memory safety issue.
-
-\MPin{this section does not define anything, not even the sandbox tag metavariable}
-\MPin{
-	move b/t/a/e/F/CHI/H/Delta/Phi/Psi to here.
-	their explanation too.
-	make black.
-}
-\MPin{
-	what are pointer maps and Control states?
-}
-
-\subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
-
-$\src{L_{\tmssafe}}$ is a relatively naive language with second class functions, the only values being numbers. 
-It has simple binary operations ($\src{\lbinop{\expr[_1]}{\expr[_2]}}$), branches ($\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}$), C-like function calls ($\src{\lcall{f}{\expr}}$) and returns ($\src{\lreturn{\expr}}$), as well as C-like memory operations. 
-%Pointers are left second-class and can only be referenced by an identifier, so addresses cannot be guessed by contexts.
-Programs have sets of pre-determined functions called libraries and it is assumed that functions are marked as being part of some component ($\src{\library_{\comp}}$) or context ($\src{\library_{\ctx}}$).
-Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples and can only accept integers, which also means that contexts may not pass pointers to the component.
-%Extending this is orthogonal to this work.
 
 \vspace{-.5em}
 {
+  \renewcommand{\src}[1]{\mathsf{#1}}
 % \small
 \[
   \begin{array}{rrcl}
     \text{(Base-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
     \text{(Control Tags)} & \src{\sandboxtag} &:=& \src{\ctx} \mid \src{\comp} \\
     \text{(Events)} & \src{\event} &:=& \src{\preevent;\sandboxtag} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
+    \text{(Values)} & \src{v} &:=& \src{n} \\
     \text{(Expressions)} & \src{\expr} &:=& \src{x} \mid \src{n} \mid \src{\lbinop{\expr[_1]}{\expr[_2]}} \mid \src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}} \\ 
                          &&&\mid \src{\llet{x}{\expr[_1]}{\expr[_2]}} \mid \src{\llet{x}{new\ \expr[_1]}{\expr[_2]}} \\
                          &&&\mid \src{\ldelete{x}} \mid \src{\lget{x}{\expr}} \mid \src{\lset{x}{\expr[_1]}{\expr[]}} \mid \src{stuck}\\
                          &&&\mid \src{\lcall{f}{\expr}} \mid \src{\lreturn{\expr}} \\
-    \text{(Functions)} & \src{F} &:=& (\src{x};\src{\natt\to\natt};\src{\expr}) \\
+    \text{(Functions)} & \src{F} &:=& (\src{x};\src{\expr}) \\
     \text{(Libraries)} &&& \src{\library_{\ctx}} : \src{Vars} \to \src{F} \hspace{2em}
     \src{\library_{\comp}} : \src{Vars} \to \src{F} \\
     \text{(Heaps)} & \src{H} &:=& \src{\hole{\cdot}} \mid \src{n},\src{H}\hspace{0.5cm}    \text{(Pointer Maps)}\ \ \ \src{\Delta} \\
@@ -876,9 +856,29 @@ Functions ($(\src{x};\src{\natt\to\natt};\src{\expr})$) are modelled as tuples a
   \end{array}
 \]
 }
+{
+  \renewcommand{\src}[1]{\mathsf{#1}}
+The trace models of all languages are similar to those presented earlier (\Cref{sec:compprop}).
+One technical detail is the addition of a control tag, indicating who is to blame for an emitted action: context ($\ctx$) or component ($\comp$).
+This is a standard technique in secure compilation in order to rule out irrelevant context-level events. 
+For example, a context immediately deallocating an allocated memory region twice trivially violates memory safety, but the main interest in secure compilation is at component-level events and if those signal, e.g., a memory safety issue.
+Even though this tagging could be used for blame preservation~\cite{patrignani2023blame}, this beyond the focus of this paper.
+Another key difference is that memory accesses are now explicitly modeled as reads ($\src{\ev{Read\ \loc\ n}}$) and writes ($\src{\ev{Write\ \loc\ n}}$) instead of just uses.
 
-Crucially, $\src{L_{\tmssafe}}$ is statically typed, where the type system is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous}.
-The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
+All languages have at least numbers as values ($\src{v}$) and second class functions ($\src{F}$).
+Functions are modeled as pairs containing the name of one argument and the body of the function.
+Bodies are just ordinary expressions, which can be simple binary operations ($\src{\lbinop{\expr[_1]}{\expr[_2]}}$), conditionals ($\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}$), C-like function calls ($\src{\lcall{f}{e}}$) and returns ($\src{\lreturn{\expr}}$), as well as C-like memory operations. 
+Programs have sets of pre-determined functions called libraries and it is assumed that functions are marked as being part of some component ($\src{\library_{\comp}}$) or context ($\src{\library_{\ctx}}$).
+Moreover, operational state ($\src{\Omega}$) is a triple consisting of a control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag}$), and a memory state ($\src{\memstate}$). 
+The latter carrying information about pointers that are kept ,,alive'' in pointer maps ($\src{\Delta}$), so that dynamic semantics do not get stuck when encountering, e.g., a double-free.
+The memory state also carries two heaps to model sandboxing between a context ($\src{H^{\ctx}}$) and a component ($\src{H^{\comp}}$).
+
+}
+
+\subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
+
+$\src{L_{\tmssafe}}$ is the only statically typed language in this case study and restricts functions ($\src{F}$) to the typing signature $\src{\natt\to\natt}$. 
+The type system of $\src{L_{\tmssafe}}$ is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous} and enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms} (\Cref{thm:wt:tms}).
 
 \begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls*{tms}]\label{thm:wt:tms}
   $\;$ 
@@ -888,25 +888,17 @@ The type system of $\src{L_{\tmssafe}}$ enforces that every well-typed $\src{L_{
   \end{nscenter}
 \end{theorem}
 
-Operational state ($\src{\Omega}$) is a triple consisting of control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag}$), and a memory state ($\src{\memstate}$), which carries information about the memory.
-Because pointers are kept ``alive'' in pointer maps ($\src{\Delta}$), $\Ltms$ dynamic semantics does not get stuck if it encounters a memory-safety violation such as a double--free.
-The memory state carries two heaps to model sandboxing between a context and a component.
-\MP{notation}
-
-The trace model is largely similar to the memory safety trace model (\Cref{subsec:basic:memsafety:tracemodel}), where the only real differences are separate events for reading and writing memory, instead of just using it, and the sandboxtags.
-With these tags, it is possible to ignore effects performed by a spurious context that, e.g., immediately deallocates a memory location twice, thus violating \gls*{tms}.
-Even though this could be used for blame preservation~\cite{patrignani2023blame}, this beyond the focus of this paper.
-
 \subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
 
 $\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$), evaluating to $\trg{0}$ if the type matches with the shape of $\trg{\expr}$ and $\trg{1}$ otherwise.
 %The pointers carry poison tags, which signify a pointer being allocated ($\trg{\poisoned}$) or freed ($\trg{\poisonless}$). 
 Furthermore, the syntax of $\Ltrg$ is extended with a way to inspect whether a pointer is freed ($\trg{\lispoisoned{x}}$), evaluating to $\trg{0}$ if it is freed and to $\trg{1}$ otherwise.
-Functions may receive arguments that are not $\trg{\natt}$ and values are extended with tuples\MP{add this?}\MP{no values in previous grammar. add?}.
+Functions may receive arguments that are not $\trg{\natt}$ and values are extended with tuples.
 
 \vspace{-1.5em}
 \[
   \begin{array}{rrcl}
+    \text{(Values)} & \trg{v} &:=& \dots \mid \trg{\lpair{v_1}{v_2}} \\
     \text{(Expressions)} & \trg{\expr} &:=& \dots \mid \trg{\lhast{\expr}{\tau}} \mid \trg{\lispoisoned{x}}
   \end{array}
 \]
@@ -967,10 +959,10 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
 \end{center}
 
 The language also adds user annotations $\obj{\securitytag}$ for the secrecy of variables, which can be either private (high secrecy) $\obj{\lock}$ or public (low secrecy) $\obj{\unlock}$.
-Security tags $\obj{\securitytag}$ are arranged in the usual secrecy lattice\MP{NI cits}, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
-To prevent secrets from leaking but still enable reasoning about memory safety, $\Lscct$ extends base-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$.
-\MPin{what's the i for? explain. intuition missing}
-This way, memory accesses to secret data are still exposed as memory accesses, despite being protected by data-independent timing mode, e.g, \Cref{tr:to-e-get-in-noleak}.
+Security tags $\obj{\securitytag}$ are arranged in the usual secrecy lattice~\MP{NI cits}, where $\obj{\lock}\le\obj{\securitytag}$ and $\obj{\securitytag}\le\obj{\unlock}$.
+
+Memory accesses to secret data need to be present to reason about memory safety, even when execution is in data-independent timing mode, e.g, \Cref{tr:to-e-get-in-noleak}.
+$\Lscct$ extends base-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$ to prevent secrets from leaking but still enable reasoning about memory safety. 
 Due to the technical setup, the rule needs to check if the access is in bounds ($\obj{\loc}+\obj{n}\in\obj{H^t}$) and update the secrecy tag ($\obj{\securitytag''}=\obj{\securitytag\sqcap\securitytag'}$) according to the lattice described earlier.
 The precise information carried by the event, e.g., location ($\obj{\loc}$) is taken from the pointer map, which carries some more information irrelevant to this rule ($\obj{\poison}$).
 
@@ -987,7 +979,7 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
 
 \begin{exampleenv}[$\Lscct$ with and without data independent timing]\label{ex:lscct}
   Consider again \Cref{ex:strncpy}, with a context copying the string \texttt{Hello World}, where everything is marked with a high security tag: $\lock$.
-  The top half of \Cref{fig:ex-cct} (titled $\Lscct$), describes the execution trace of the program, while the bottom side of the table (titled $Spec$), describes the related specification trace (\Cref{subsec:msctss:tracemodel}).
+  The top half of \Cref{fig:ex-cct} (titled $\Lscct$), describes the execution trace of the program, while the bottom side of the table (titled ,,Specification''), describes the related specification trace (\Cref{subsec:msctss:tracemodel}).
   Read in parallel from top to bottom, the figure shows parts of the execution trace. 
   In each half, the left column (\textit{Active}) has data-independent timing $\obj{ON}$ and the right one (\textit{Inactive}) has it $\obj{OFF}$.
   
@@ -1000,7 +992,7 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
   % {
   \begin{array}{ccc}
     & \Lscct &        \\
-    Active & \mid & Inactive \\\hline
+    \text{Active} & \mid & \text{Inactive} \\\hline
     \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} \\
     \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} \\
     \obj{{\ev{iGet}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} \\
@@ -1020,8 +1012,8 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
   $$
   % {
   \begin{array}{ccc}
-          & Spec & \\
-     Active & \mid & Inactive \\\hline
+          & \text{Specification} & \\
+  \text{Active} & \mid & \text{Inactive} \\\hline
      \ev{Alloc}\ \loc_{x}\ 12;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\unlock\\
      \ev{Alloc}\ \loc_{y}\ 12;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\unlock\\
      \ev{Use}\ \loc_{x}\ 0;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\lock\\
@@ -1045,15 +1037,15 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
 
 \subsection{$\Lspec$: A Memory-Unsafe Language with Speculation}\label{subsec:lspec}
 
-$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics that is inspired by existing work~\cite{guarnieri2018spectector}\MP{cit xaver's}.
-After branching or accessing memory\MP{?}, speculation starts by pushing the current configuration on the speculation register ($\ird{S}$), and run subsequent code in a predetermined window until a rollback of operational state is performed. 
-The window is set inside the control-flow state ($\ird{\cfstate}$), whose details are in the technical report.
-Within such windows, data is leaked, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant, in this case just SPECTRE-PHT~\cite{kocher2019spectre}, whose semantics is sketched with \Cref{tr:e-ifz-true-spec}, where $\omega$ is the size of the speculation window\MP{role of omega?}.
+$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics that is inspired by existing work~\cite{guarnieri2018spectector,fabian2022automatic}.
+After branching, speculation starts by pushing the current configuration into the speculation state ($\ird{S}$), and run subsequent code in a predetermined window (whose size is $\omega$) until a rollback of operational state is performed. 
+The window is set inside the speculation state.
+Within such windows, data may leak, marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant, in this case just SPECTRE-PHT~\cite{kocher2019spectre}, whose starting-point is \Cref{tr:e-ifz-true-spec}. % where $\omega$ is the size of the speculation window, i.e., a number of reduction steps to be taken under speculative semantics.
 Additionally, $\ird{\lock}$ may also carry a $\ird{NONE}$ annotation, to signal that this is a leak irrespective of speculation, i.e., as defined earlier (\Cref{subsec:lscct}).
-The semantics is kept general enough to allow for future extension to support different variants.
+The semantics is kept general enough to allow for future extension to support different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
 
 In terms of language features, $\Lspec$ supports a barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
-To facilitate speculative execution in a non-assembly-like language, a stack of operational state is used and speculation is active if that stack has a size greater than one, indicated by writing the operational states vertically.
+To facilitate speculative execution in a non-assembly-like language, a stack of operational state is used and speculation is active if that stack has a size greater than one.
 This is exploited in \Cref{tr:e-spec-eat} to consume any leftover speculation.
 
 \vspace{-.5em}
@@ -1061,7 +1053,7 @@ This is exploited in \Cref{tr:e-spec-eat} to consume any leftover speculation.
   \begin{array}{rrcl}
     \text{(Base-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
     \text{(Expressions)} & \ird{\expr} &:=& \dots \mid \ird{\lbarrier} \\
-    \text{(Speculation Register)} & \ird{S} &:=& \ird{\hole{\cdot}} \mid \left(\ird{\Omega};\ird{\expr}\right)
+    \text{(Speculation State)} & \ird{S} &:=& \ird{\Omega\triangleright\expr} \mid \ird{S},\left(\ird{\Omega};\ird{n};\ird{\expr}\right)
   \end{array}
 \]
 
@@ -1071,41 +1063,33 @@ This is exploited in \Cref{tr:e-spec-eat} to consume any leftover speculation.
 
   %
   \typerule{$e-\ird{ifz}-\ird{true}-\text{spec}$}{
-    \ird{\cfstate[']}.\ird{\operatorname{win}} = \omega &
-    \ird{\trace} = \ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag} \\
-    \ird{S} = ({\ird{\cfstate;\sandboxtag;D;\memstate}};{\ird{\expr[_2]}}),\ird{\hole{\cdot}}
+    \ird{S} = \rtt{(\ird{\cfstate['];\sandboxtag;D;\memstate});\ird{S}}{\ird{\expr[_1]}},({\ird{\cfstate;\sandboxtag;D;\memstate}};\omega;{\ird{\expr[_2]}})
   }{
-    \pstepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate});\ird{\hole{\cdot}}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\rtt{(\ird{\cfstate['];\sandboxtag;D;\memstate});\ird{S}}{\ird{\expr[_1]}}}{\ird{\trace}}
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag;D;\memstate}}{\ird{\lifz{0^{\securitytag}}{\expr[_1]}{\expr[_2]}}}}{\ird{S}}{\ird{\ev{Branch}\ 0;\sandboxtag;\securitytag}\cdot\ird{\ev{Spec};\sandboxtag;\securitytag}}
   }{e-ifz-true-spec}
   %
   \typerule{$e-\ird{spec}-\text{eat}$}{
-    \ird{\cfstate}.\ird{\operatorname{win}} > 0 &
-    \pstepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{\hole{\cdot}})}{\ird{\expr}}}{\rtt{(\ird{\cfstate['];\sandboxtag;D;\memstate};\ird{\hole{\cdot}})}{\ird{\expr[']}}}{\ird{\event}}
-    \\
-    \ird{\cfstate['']}.\ird{\operatorname{win}} = \ird{\cfstate[']}.\ird{\operatorname{win}}-1 &
-    \ird{S} \not=\ird{\hole{\cdot}}
+    \ird{n} > 0 &
+    \pstepto{\rtt{\ird{\Omega}}{\ird{\expr}}}{\rtt{\ird{\Omega'}}{\ird{\expr[']}}}{\ird{\event}}
   }{
-    \ghoststepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{S})}{\ird{\expr}}}{\rtt{(\ird{\cfstate[''];\sandboxtag;D;\memstate};\ird{S})}{\ird{\expr[']}}}{\ird{\event}}
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{n};\ird{\expr})}{\ird{S},(\ird{\Omega'};\ird{n}-1;\ird{\expr'})}{\ird{\event}}
   }{e-spec-eat}
   % 
   \typerule{$e-\ird{spec}-\text{eaten}$}{
-    \ird{\cfstate}.\ird{\operatorname{win}} = 0 &
-    \ird{S} = \left(\ird{\Omega};\ird{\expr[']}\right)
   }{
-    \ghoststepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{S})}{\ird{\expr}}}{\rtt{(\ird{\Omega};\ird{\hole{\cdot}})}{\ird{\expr[']}}}{\ird{\event}}
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{0};\ird{\expr})}{\ird{S}}{\ird{Rlb;\Omega.\sandboxtag;\unlock}}
   }{e-spec-eaten}
   %
   \typerule{$e-\ird{spec}-\text{barrier}$}{
-    \ird{\cfstate'} = \ird{\cfstate}[.\ird{\operatorname{win}} = 0] &
-    \ird{S} \not=\ird{\hole{\cdot}}
   }{
-    \ghoststepto{\rtt{(\ird{\cfstate;\sandboxtag;D;\memstate};\ird{S})}{\ird{\lbarrier}}}{\rtt{(\ird{\cfstate';\sandboxtag;D;\memstate};\ird{\hole{\cdot}})}{\ird{\lbarrier}}}{\ird{\event}}
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{n};\ird{\lbarrier})}{\ird{S},(\ird{\Omega};\ird{0};\ird{0})}{\ird{Barrier;\Omega.\sandboxtag;\unlock}}
   }{e-spec-barrier}
 \end{center}
 
 The trace model is extended with $\ird{\ev{Spec}}$, $\ird{\ev{Rlb}}$, and $\ird{\ev{Barrier}}$ events that signal the respective operational action. 
 A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{\ev{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode, e.g., \Cref{tr:e-spec-barrier}.%
 \footnote{In the rule, the notation $\cfstate' = \cfstate[.\text{win} = 0]$ means that $\cfstate'$ is a copy of $\cfstate$ up to field $\text{win}$, which should be set to $0$.}
+Lastly, $\ird{Rlb}$ is emitted when the speculation window is zero and the operationl state is rolled back (see \Cref{tr:e-spec-eaten}). 
 
 
 \section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
@@ -1211,8 +1195,7 @@ With the dynamic check, the compiler ensures that execution aborts in such cases
 %The compiler does not insert other checks and proceeds as the identity function (which in this paper amounts to a simple re-colouring of $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions).
 
 Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$, the compiler would in this case ensure that the arguments that are evaluated in the compiled \texttt{strncpy} are valid.
-This effectively has no influence on the resulting trace, so a corresponding cross-language trace relation $\sim^{\Ltms}_{\Ltrg}$ is just equality.
-\MPin{what's the point of this relation? where is it used? why define it here?}
+%This effectively has no influence on the resulting trace, so a corresponding cross-language trace relation $\sim^{\Ltms}_{\Ltrg}$ is just equality.
 
 $\cca$ is robustly preserving (\Cref{def:rtp}) \gls*{tms}:
 \begin{theorem}[$\cca$ secure w.r.t. \gls*{tms}]\label{thm:cca:rtp:tms}
@@ -1267,13 +1250,12 @@ void strncpy(size_t n, size_t dst_size, char *dst,
     \end{lstlisting}
 Consider context \texttt{strncpy(2, x, y)}, where \texttt{x} and \texttt{y} are pointers to valid regions of memory with allocated space for exactly two cells and do not contain the null-terminating character \texttt{'\textbackslash 0'}.
 % 
-When calling \texttt{strncpy} like this, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would not be emitted during execution, since the bounds check prevents the condition \texttt{src[i] != '\textbackslash 0'} from executing.
-\MP{what?}
+Without \gls*{sms} instrumentation, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would appear on the trace, which is an out-of-bounds access. 
+But, with \gls*{sms} mitigation in place, the use event would not appear during execution, since the bounds check prevents the condition \texttt{src[i] != '\textbackslash 0'} from executing.
 \end{exampleenv}
 
-Contrary to the previous compiler, $\ccb$ may change the trace of the original $\Ltrg$ program: \MP{make a uniformity check: always uppercase or always lowercase after :}if there is a memory access, it needs to be protected with a bounds check.
-The corresponding relation $\sim^{\Ltrg}_{\Lms}$ that describes this semantic effect of the compiler may be sketched as follows.
-\MPin{no sketching. rephrase / say that omitted things are omitted for a reason}
+Contrary to the previous compiler, $\ccb$ may change the trace of the original $\Ltrg$ program: if there is a memory access, it needs to be protected with a bounds check.
+The corresponding relation $\sim^{\Ltrg}_{\Lms}$ that describes this semantic effect of the compiler is partially as follows\footnote{In the interest of space, the full details are in the technical report.}:
 
 {
 \[
@@ -1284,7 +1266,7 @@ The corresponding relation $\sim^{\Ltrg}_{\Lms}$ that describes this semantic ef
 \]
 }
 
-Action $\trg{Set}$ is treated analogously; any other event is just a trivial re-colouring.\MPin{no explicit mentioning of colours. identity functions}
+Action $\trg{Set}$ is treated analogously; any other event is ,,the same''\footnote{Up to colours.}.
 % Note that neither $\Ltrg$ nor $\Lms$ expose branches on the trace.\MP{so what?}
 For simplicity, we elide the environment that this relation carries around in order to bind each location to its metadata (such as its size), and resolve the ``$\trg{n}$ in/out of bounds'' premise.
 % The bounds check mentioned in the premises of the rules above is left abstract for the sake of simplicity, the interested reader can find
@@ -1297,7 +1279,7 @@ Compiler $\ccb$ is robustly preserving \gls*{sms}.
 
 Let $\src{\trace}\sim^{\Ltms}_{\Lms}\irl{\trace}:=\src{\trace}\sim^{\Ltms}_{\Ltrg}\bullet\sim^{\Ltrg}_{\Lms}\irl{\trace}$.
 
-\Cref{corr:ccab:rtp:ms} states that the composition of $\cca$ and $\ccb$ is secure w.r.t. \gls*{ms} and \MP{it. many missing such subjects}follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtpsim:sig}.
+\Cref{corr:ccab:rtp:ms} states that the composition of $\cca$ and $\ccb$ is secure w.r.t. \gls*{ms} and it follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtpsim:sig}.
 
 \begin{corollary}[$\cca\circ\ccb$ secure w.r.t. \gls*{ms}]\label{corr:ccab:rtp:ms}
   $\;$ 
@@ -1392,9 +1374,6 @@ Given the fact that $\Lscct$ provides a \gls*{cct}-mode that can be turned on or
 %
 The context can overwrite the flag and exit the mode, but upon invoking a function that is part of the component, the flag would be set again.
 Because of this, the corresponding cross-language trace relation $\sim^{\Lms}_{\Lscct}$, only relates events without secrets:%
-\footnote{For context actions, the relation is arbitrary.
-\MPin{is it really?}
-}
 
 \begin{center} 
   \typerulenolabel{xrel:scct:noleak}{}{\irl{\preevent;\comp}\sim^{\Lms}_{\Lscct}\obj{\preevent;\comp;\unlock}}
@@ -1423,7 +1402,7 @@ To do so, $\ccspec$ inserts a speculation barrier after branches, which is suffi
 % \vspace{-2em}
 %
 
-Clearly, the corresponding cross-language trace relation $\sim^{\Lscct}_{\Lspec}$ has only one non-trivial case: For branches, only relate them where speculation is blocked by a barrier:
+Clearly, the corresponding cross-language trace relation $\sim^{\Lscct}_{\Lspec}$ has only one non-trivial case: for branches, only relate them where speculation is blocked by a barrier:
 
 \begin{center}
   \typerulenolabel{xrel:spec:if}{}{\obj{Branch\ n}\sim^{\Lscct}_{\Lspec}\ird{Branch\ n}\cdot\ird{Spec}\cdot\ird{Barrier}\cdot\ird{Rlb}}
@@ -1454,7 +1433,7 @@ Then, the following corollary holds.
 As with \Cref{corr:ccab:rtp:ms}, it is important to ensure that the respective cross language trace relations are well-formed (\Cref{def:wfc:sig:tracerel}).
 It is already known that $\sim^{\Ltms}_{\Lms}$ is well-formed with respect to $\mssafe$ (\Cref{lem:wf:ltmsltrg}).
 Next in the chain is $\sim^{\Lms}_{\Lscct}$, which has to be well-formed w.r.t. $\scctsafe$.
-This lemma holds, since a trace that was $\scctsafe$ is $\scctsafe$ even after applying $\sim^{\Lms}_{\Lscct}$: The relation enforces that $\Lscct$ traces related to $\Lms$ traces have no leaks of secrets whatsoever.
+This lemma holds, since a trace that was $\scctsafe$ is $\scctsafe$ even after applying $\sim^{\Lms}_{\Lscct}$: the relation enforces that $\Lscct$ traces related to $\Lms$ traces have no leaks of secrets whatsoever.
 
 \begin{lemma}[$\sim^{\Lms}_{\Lscct}$ well-formed w.r.t. $\scctsafe$]\label{lem:wf:lsmslscct}
   $\wfcsig{\sim^{\Lms}_{\Lscct}}{\scctsafe}$
@@ -1476,18 +1455,15 @@ Lastly, \Cref{subsec:formalities:maps} discusses a minor technicality related to
 
 \subsection{Security Properties}\label{subsec:formalities:props}
 
-When modeling some thing using formal methods, the intent is to do so faithfully. 
-That is why it is important to ensure that the properties considered in \Cref{sec:casestud:rtp} follow this ideal.
-It is relatively straightforward to see that, e.g., $\mssafe$ models a basic memory safety property. 
-But, what about $\sigma_{\sim^{\Ltms}_{\Lms}}\left(\mssafe\right)$?
-It is not immediately obvious that the resulting property after projecting it from $\Lms$-level to $\Ltms$-level is similar in spirit to the original $\mssafe$ property (\Cref{def:trace:msdef}) and this is what needs to be discussed when using the presented framework.
-Let us investigate the involved projections from the case study.
+Compiler designers need to be careful that their implementation preserves the original source language semantics. 
+Similar to this, it is important to consider the cross-language relation, which gives a semantic description of the compiler in terms of traces, and check that the original target (resp. source) property is properly translated using the universal (resp. existential) image.
+The following discusses this for relations presented in \Cref{sec:casestud:rtp}.
 
 \paragraph{$\sigma_{\sim^{\Ltms}_{\Lms}}\left(\mssafe\cap\scctsafe\cap\sssafe\right)$}
 Consider a trace $\irl{\trace}\in\mssafe$ and remember that $\sim^{\Ltms}_{\Lms}$ is the composition of $\sim^{\Ltms}_{\Ltrg}$ and $\sim^{\Ltrg}_{\Lms}$.
 {\em All} traces $\trg{\trace}$ with $\trg{\trace}\sim^{\Ltrg}_{\Lms}\irl{\trace}$ are almost identical to $\irl{\trace}$. 
-They differ in memory accesses and crashes, where $\irl{\lightning}$ can be related to a $\trg{\lightning}$ or a memory event, e.g., $\trg{Get\ \loc\ 2}$.
-In both cases, the memory access cannot be out of bounds. 
+They differ in memory accesses and crashes, where $\irl{\lightning}$ can be related to a $\trg{\lightning}$ or a memory event, e.g., $\trg{Get\ \loc\ 2}$, for an out-of-bounds access.
+In both cases, the translated event does not represent an out-of-bounds memory access. 
 
 Now, consider all $\src{\trace}$ with $\src{\trace}\sim^{\Ltms}_{\Ltrg}\trg{\trace}$, which is like equality\footnote{Both $\sim^{\Ltms}_{\Ltrg}$ and $\sim^{\Ltrg}_{\Lms}$ filter context actions.}.
 
@@ -1503,10 +1479,10 @@ Toggling data-independent timing mode has no impact on $\mssafe$ or $\sssafe$.
 
 The argument here is analogous to the previous one, introducing $\ird{barrier}$ never violates $\sssafe$ and has no effect on $\mssafe$ or $\scctsafe$.
 
-\MPin{
-	can this be made formal?
-	what's the point?
-}
+%\MPin{
+%	can this be made formal?
+%	what's the point?
+%}
 
 \subsection{Compatibility of Secure Compiler Passes}\label{subsec:compatsecpasses}
 
@@ -1530,7 +1506,7 @@ Since these optimisations have no significant semantic effect and source- and ta
 
 \subsection{Mapping Language-Specific to Property-Specific Traces}\label{subsec:formalities:maps}
 
-Previous sections disregarded a glaring but minor technical issue: Take $\tmssafe$ (\Cref{def:trace:tmsdef}) as an example.
+Previous sections disregarded a glaring but minor technical issue: take $\tmssafe$ (\Cref{def:trace:tmsdef}) as an example.
 It contains traces as specified in \Cref{subsec:basic:memsafety:tracemodel}.
 However, these are different from $\Ltms$ traces (\Cref{subsec:ltms}) which means that \Cref{thm:wt:tms} is ``ill-typed''.
 Similarly for the other theorems.
@@ -1603,11 +1579,11 @@ This can be realised by employing the FaCT~\cite{cauligi2019fact} compiler, whic
 
 With the advent of speculative execution in processors, it is possible to exploit this unusual paradigm leak secrets.
 This work has taken inspiration in the sematics of $\Lspec$ and in \Cref{def:trace:ss} from recent formalisations~\cite{guarnieri2018spectector,fabian2022automatic}.
-\MPin{
-  we take SS from exorcising.
-  we do not take SNI from spectector because it is a hypersafety.
-  other work defined similar props.d
-}
+% \MPin{
+%  we take SS from exorcising.
+%  we do not take SNI from spectector because it is a hypersafety.
+%  other work defined similar props. 
+% }
 % A subsequent line of work~\cite{fabian2022automatic} shows how to modularly define and compose formal semantics that models different speculative execution variants. 
 % Recent work~\cite{fabian2024lift} demonstrates how to lift existing secure compilation proofs for security properties related to speculative execution to more powerful properties, i.e., properties defined for languages with a trace model that enables more vulnerabilities, such as combinations of different speculative execution exploits. 
 % To this end, they define a lifting framework and demonstrate how a secure compilation proof for a weaker property can be lifted to a stronger one. 

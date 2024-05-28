@@ -28,6 +28,7 @@
 \usepackage{tikz}
 \usepackage{soul}
 \usepackage{bm}
+\usepackage{paralist}
 
 \hypersetup{
     colorlinks,
@@ -72,9 +73,14 @@
 \begin{document}
 \linenumbers
 
-\title{Secure Composition \\ of Robust and Optimising Compilers}
+\title{
+  Secure Composition 
+  \\ 
+  of Robust and Optimising Compilers
+  \vspace{-1.5em}
+}
 
-\author{\vspace*{-2em}\phantom{a}}
+% \author{
 % Matthis Kruse\orcidID{0000-0003-4062-9666}
 % \and
 % Michael Backes
@@ -113,7 +119,7 @@ From an engineering perspective, this is the desirable approach to building secu
 % 	% Specifically, it makes use of a $\src{blue}$, $\src{sans\text{-}serif}$ font for a $\src{source}$,
 % 	% a $\trg{red}$, $\trg{bold}$ font for an $\trg{intermediate}$,
 % 	% and a $\obj{green}$, $\obj{teletype}$ font for a $\obj{target}$ language.	
-	Please print or view in colours.
+	For a better experience, please print or view in colours.
 	}
 \end{center}
 \end{abstract}
@@ -153,12 +159,10 @@ Programs attaining \gls*{mssscct} do not leak sensitive data either through erro
 \Cref{ex:strncpy} below discusses how these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
 
 \begin{exampleenv}[strncpy]\label{ex:strncpy}
-Consider the \texttt{C} function \texttt{strncpy} that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n}.
-% Assume that the length of the array pointed by \texttt{dst} is at least \texttt{n}, and \texttt{src} is terminated by \texttt{'\textbackslash 0'}.
-% Even under these assumptions, there is a 
+Consider the following \texttt{C} function \texttt{strncpy} that copies a null-terminated string \texttt{src} into \texttt{dst} up to a length of \texttt{n} characters.
 This function is subject to a subtle \gls*{sms} vulnerability: the bounds check \texttt{i < n} should happen {\it before} the access to memory location \texttt{src[i]}: otherwise
 % If \texttt{n} is at least as large as the length of the array \texttt{src}, 
-the memory location past the last element will be leaked to an attacker.
+the memory location past the last element is leaked to an attacker.
 \begin{lstlisting}[language=c,basicstyle=\small\ttfamily,morekeywords={size_t}]
 void strncpy(size_t n, char *dst, char *src) {
   for(size_t i = 0; src[i] != '\0' && i < n; ++i) {
@@ -166,9 +170,10 @@ void strncpy(size_t n, char *dst, char *src) {
   }
 }
 \end{lstlisting}
-
+% Assume that the length of the array pointed by \texttt{dst} is at least \texttt{n}, and \texttt{src} is terminated by \texttt{'\textbackslash 0'}.
+% Even under these assumptions, there is a 
 To prevent this vulnerability, one can use a compilation pass that enforces \gls*{sms}, such as Softbounds~\cite{nagarakatte2009soft} or BaggyBounds~\cite{akritidis2009baggy}.
-The most naive solution in this case is to insert bounds-checks in front of every access to memory.
+The most na\"ive solution in this case is to insert bounds-checks in front of every access to memory.
 
 Because of timing attacks, addressing \gls*{sms} is not enough to make \texttt{strncpy} secure.
 In fact, the loop can terminate early, as soon as the string-terminating character \texttt{'\textbackslash 0'} is encountered, thus making program execution time proportional to the length of the array pointed by \texttt{src}, and violating the \gls*{cct} property.
@@ -176,7 +181,7 @@ In fact, the loop can terminate early, as soon as the string-terminating charact
 Also in this case there exist compiler passes that can rewrite such programs into \gls*{cct} ones~\cite{cauligi2019fact}.
  % so that they are no longer vulnerable to timing attacks.
 %
-Alas, code is not run in isolation, so a malicious attacker could supply code that interacts with \texttt{strncpy} and trigger a violation of either \gls*{ms} or \gls*{cct} by calling \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
+Finally, even with these precautions, code is not run in isolation, so a malicious attacker could supply code that interacts with \texttt{strncpy} and trigger a violation of either \gls*{ms} or \gls*{cct} by calling \texttt{strncpy} with an argument for \texttt{src} that points to uninitialised memory.
 This would, in turn, trigger a series of reads from uninitialised memory, which is an immediate \gls*{ms} violation with devastating real-world consequences~\cite{uninit-0,uninit-1,uninit-2,uninit-3,uninit-4}.
 % An easy fix to sidestep this is to use non-nullable pointers as parameters instead, e.g., as presented in Cyclone~\cite{jim2002cyclone}.
 \end{exampleenv}
@@ -190,21 +195,25 @@ Thus, robust compilers can be used to prevent vulnerabilities resulting from uni
 
 Unfortunately, given secure compiler passes that each preserve a possibly different security property, there is no way to tell what kind of security property will the composition of those secure compilers preserve.
 % Different kinds of compilation passes exist, e.g., there are usually several compilation passes that perform optimisations~\cite{lattner2004llvm,googlev8,androidstudio,kuepper2023cryptopt,manjikian1997fusion,wegman1991ccp} or source-code instrumentations~\cite{nagarakatte2009soft,nagarakatte2010cets,akritidis2009baggy,dhumbumroong2020boundwarden,jung2021pico,nam2019framer,shankaranarayana2023tailcheck,younan2010paricheck,zhou2023fatptrs,bond2017vale,almeida2017jasmin,kuepper2023cryptopt,cauligi2019fact} that enforce that the compiled program fulfils a property of interest.
-Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls*{ms} that is developed independently of another secure pass for \gls*{cct}, that is developed independently of other passes, such as optimisation passes.
+Worse, without a framework for composing secure compiler passes, it is not possible to enable separation of concerns, e.g., to have a secure compilation pass that ensures \gls*{ms} that is developed independently of another secure pass for \gls*{cct}, that is developed independently of other passes, such as optimisation ones.
 
 
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes %akin to those of \Cref{ex:strncpy}\MP{there aren't really passes there} 
 and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
 To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{cct} as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
 %Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
-The paper then defines several secure compiler passes, where each is either preserving a different security property (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) or performing a security-preserving optimisation, (e.g., applying \gls*{cf} or \gls*{dce}).
+The paper then defines several secure compiler passes, where each is either preserving a different security property from the list above
+% (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) 
+or performing a security-preserving optimisation.
+% , (e.g., applying \gls*{cf} or \gls*{dce}).
 Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end (robust) preservation of \gls*{mssscct}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes.
 % Crucially, this end-to-end security preservation is obtained by composing the security property preserved by each individual pass, as dictated by the framework of this paper.
 This result showcases how the framework allows the kind of formal security reasoning that compiler writers already want (and already do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
 %
 In summary, this paper makes the following contributions:
-\begin{itemize}
+% \begin{itemize}[leftmargin=0em,nosep,label=$\blacktriangleright$]
+\begin{asparaitem}[$\blacktriangleright$]
   \item %
         %\Cref{sec:sequential} studies different forms of secure compiler compositions.
         This paper takes the secure compilation framework of Abate et al.~\cite{abate2021extacc} and extends it for compositionality. (\Cref{sec:sequential}).
@@ -236,12 +245,13 @@ In summary, this paper makes the following contributions:
         % In doing so, the paper provides formal insights into some technicalities of the concrete proofs necessary as technical setup to reap the benefits of the presented compositionality framework.
 
   \item The key contributions of this paper are formalised in the Coq proof assistant and the paper indicates this with \CoqSymbol.
-\end{itemize}
+\end{asparaitem}
 % 
 This paper starts by introducing relevant notions of security properties and secure compilation (\Cref{sec:background}),
 and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:concl}).
 
-\contribution{Open Source \& Technical Report} A technical report with the omitted formal details, lemmas and proofs, as well as the Coq formalisation are available as supplementary material.
+% \contribution{Technical Report} 
+The omitted formal details, lemmas and proofs, as well as the Coq formalisation are available as supplementary material.
 % \MKin{cite/link}
 
 
@@ -256,7 +266,7 @@ and discusses related work (\Cref{sec:relwork}) before concluding (\Cref{sec:con
 
 
 
-\section{Background: Security Properties and Secure Compilers\pages{1}}\label{sec:background}
+\section{Background: Properties and Secure Compilers\pages{1}}\label{sec:background}
 
 To introduce the security argument of this paper, this section defines (security) properties, their satisfaction, and their robust satisfaction (i.e., satisfaction in the presence of an active attacker; \Cref{subsec:bg:tprop}).
 Then, borrowing from existing work~\cite{abate2019jour,abate2021extacc}, this section introduces secure compilers as compilers that preserve robust property satisfaction (\Cref{subsec:bg:rtp}).
@@ -595,7 +605,7 @@ This follows current non-formal-methods based compiler engineering, such as LLVM
 % no coq, because above definitions are non-formal. 
 %   How would you precisely define the lower compo compiler, given two compilers? 
 
-\section{Security Properties: Formalisation, Enforcement and Composition\pages{1.5}}\label{sec:compprop}
+\section{Security Properties Formalisation \& Composition\pages{1.5}}\label{sec:compprop}
 
 This section introduces trace properties of interest for this paper: \gls*{tms}, \gls*{sms}, \gls*{ms}, \gls*{scct}, and \gls*{ss}.
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study presented later (\Cref{sec:casestud:defs,sec:casestud:rtp}). 
@@ -1299,7 +1309,7 @@ This fact is easily established, since $\sim^{\Ltms}_{\Ltrg}$ is an equality.
 \subsection{Optimising Compilers}\label{subsec:cs:opts} 
 
 This section defines two optimising compiler passes from $\Lms$ to $\Lms$ which perform \gls*{dce} and \gls*{cf}, respectively.
-The \gls*{dce} pass applies a naive rewrite rule on conditionals.
+The \gls*{dce} pass applies a na\"ive rewrite rule on conditionals.
 The \gls*{cf} pass relies on an auxiliary function \texttt{mix} that uses a substitutions accumulator $\irl{\substlist}$ in order to rewrite constant binary operations, e.g., $\irl{{17}-1}$ to $\irl{16}$, and replace variables that are assigned to constants, e.g., $\irl{\llet{x}{7}{x}}$ to $\irl{7}$.
 
 \vspace{-1em}

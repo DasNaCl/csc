@@ -154,8 +154,8 @@ From an engineering perspective, this is the desirable approach to building secu
 
 \gls*{ms} is a security property obtained by composing \gls*{sms}, which ensures array accesses are all within bounds, and \gls*{tms}, which ensures pointers are only used when they are valid~\cite{azevedo2018meaningsofms,jim2002cyclone,necula2005ccured,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy,michael2023mswasm}.
 \gls*{cct} is a security property that ensures sensitive data is not leaked via timing side-channels~\cite{kocher1996timing} and \gls*{ss} is a security property that enforces the same but under a speculative semantics~\cite{guarnieri2018spectector,fabian2022automatic} that captures speculative execution attacks such as spectre~\cite{kocher2019spectre}.
-Together, \gls*{sms}, \gls*{tms}, \gls*{cct} and \gls*{ss}, yield \gls*{mssscct}, which is the gold standard of security properties for secure applications.
-Programs attaining \gls*{mssscct} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels, even under speculative execution.
+Together, \gls*{sms}, \gls*{tms}, \gls*{cct} and \gls*{ss}, yield \gls*{specms}, which is the gold standard of security properties for secure applications.
+Programs attaining \gls*{specms} do not leak sensitive data either through erroneous memory accesses, nor through timing side-channels, even under speculative execution.
 \Cref{ex:strncpy} below discusses how these security properties can be enforced by compiler passes~\cite{bond2017vale,almeida2017jasmin}, to ensure programmers need not be aware of the architectural details of where their code will run.
 
 \begin{exampleenv}[strncpy]\label{ex:strncpy}
@@ -200,13 +200,13 @@ Worse, without a framework for composing secure compiler passes, it is not possi
 
 This paper introduces a framework for reasoning about the composition of secure and optimising compiler passes %akin to those of \Cref{ex:strncpy}\MP{there aren't really passes there} 
 and it showcases the power of this framework by instantiating it on a multi-pass compilation chain.
-To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{cct} as well as \gls*{ss} into the mix to obtain \gls*{mssscct}.
+To this end, this paper first discusses how to compose security properties, such as \gls*{tms} and \gls*{sms} into \gls*{ms}, and then adds \gls*{cct} as well as \gls*{ss} into the mix to obtain \gls*{specms}.
 %Then, this paper defines compiler composition and formalises that given two passes that securely preserve two (possibly distinct) properties, their composition securely preserves the composition of those properties.
 The paper then defines several secure compiler passes, where each is either preserving a different security property from the list above
 % (\gls*{tms}, \gls*{sms}, \gls*{scct}, \gls*{ss}) 
 or performing a security-preserving optimisation.
 % , (e.g., applying \gls*{cf} or \gls*{dce}).
-Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end (robust) preservation of \gls*{mssscct}.
+Finally, this paper shows that composing these secure compiler passes into a multi-pass compilation chain results in the end-to-end (robust) preservation of \gls*{specms}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes.
 % Crucially, this end-to-end security preservation is obtained by composing the security property preserved by each individual pass, as dictated by the framework of this paper.
 This result showcases how the framework allows the kind of formal security reasoning that compiler writers already want (and already do), obtaining precise, compositional security reasoning while providing minimal (and modular) proof effort.
@@ -233,7 +233,7 @@ In summary, this paper makes the following contributions:
 
   \item %
         This paper presents a case-study with five programming languages showcasing the previous contribution (\Cref{sec:casestud:defs,sec:casestud:rtp}).
-        To this end, it presents a compilation chain consisting of six passes that ultimately preserve \gls*{mssscct} by means of composing four secure passes that \emph{individually} preserve \gls*{tms}, \gls*{sms}, \gls*{scct}---an enforceable version of \gls*{cct}---, and \gls*{ss}, and two passes which are well-known optimisations \gls*{dce} and \gls*{cf},.
+        To this end, it presents a compilation chain consisting of six passes that ultimately preserve \gls*{specms} by means of composing four secure passes that \emph{individually} preserve \gls*{tms}, \gls*{sms}, \gls*{scct}---an enforceable version of \gls*{cct}---, and \gls*{ss}, and two passes which are well-known optimisations \gls*{dce} and \gls*{cf},.
         %Furthermore, the chain includes two optimisation passes: one performs \gls*{dce} and the other \gls*{cf}.
         The formalisation of this case study showcases the power of the presented framework: the divide-and-conquer approach to software engineering is a viable strategy even for the development of secure compilers.
 %        This demonstrates that the usage of the presented framework is both simpler and more expressive compared to one monolithic security proof of the whole compilation chain.
@@ -1137,12 +1137,12 @@ This section defines several secure compilers, each of which robustly preserves 
 
     \draw[thick,dotted,->] ($(S) + (0.2,0.0)$) to ($(S) - (-0.2,1)$) to node[align=center] {\gls*{ms}\\ \Cref{corr:ccab:rtp:ms}} ($(M) - (0.0,1)$) to (M);
 
-    \draw[thick,dotted,->] (S) to ($(S) - (0.0,2.5)$) to node[align=center,pos=.65] {\gls*{mssscct}\\ \Cref{thm:ccall:rtp:mssscct}} ($(Z) - (0.0,2.5)$) to (Z);
+    \draw[thick,dotted,->] (S) to ($(S) - (0.0,2.5)$) to node[align=center,pos=.65] {\gls*{specms}\\ \Cref{thm:ccall:rtp:specms}} ($(Z) - (0.0,2.5)$) to (Z);
 
     % \draw[thick,dotted,->] (S) to[bend right=33,sloped] node[align=center] {\gls*{ms}\\ \Cref{corr:ccab:rtp:ms}} (M);
     \draw[thick,dotted,->] (M) to[bend right=0,sloped] node[align=center] {\gls*{ms}\\ \Cref{thm:cccfccdce:rtp:ms}} (E);
 %    \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped] node[align=center] {\gls*{ms}+\gls*{scct}\\ \Cref{thm:ccall:rtp:msscct}} (O);
-    % \draw[thick,dotted,->] (S) to[out=-40,in=210,sloped] node[align=center,pos=.8] {\gls*{mssscct}\\ \Cref{thm:ccall:rtp:mssscct}} (Z);
+    % \draw[thick,dotted,->] (S) to[out=-40,in=210,sloped] node[align=center,pos=.8] {\gls*{specms}\\ \Cref{thm:ccall:rtp:specms}} (Z);
 
     \draw[dashed] ($(S)-(0.0,-0.5)$) -- ($(S)-(0.0,-2.5)$);
     \draw[dashed] ($(T)-(0.0,-0.5)$) -- ($(T)-(0.0,-2.5)$);
@@ -1152,14 +1152,14 @@ This section defines several secure compilers, each of which robustly preserves 
     \draw[dashed] ($(Z)-(0.0,-0.5)$) -- ($(Z)-(0.0,-2.5)$);
   \end{tikzpicture}
   \vspace{-1em}
-  \caption{Visualisation of the optimising compilation pipeline that preserves \gls*{mssscct}. %
+  \caption{Visualisation of the optimising compilation pipeline that preserves \gls*{specms}. %
     Vertices in the graph are the programming languages from earlier sections (\Cref{sec:casestud:defs}). %
     Full edges are secure compilers passes.
     Dotted edges are composition of passes and use the presented framework (\Cref{sec:sequential}) to indicate the property they preserve. %
     The dashed lines partition the graph into the sections where the respective theorems are presented.
   }\label{fig:pipeline}
 \end{figure*}
-The section demonstrates the power of the framework (\Cref{sec:sequential}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls*{mssscct}.\MP{ replace with specms?}
+The section demonstrates the power of the framework (\Cref{sec:sequential}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls*{specms}.
 The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls*{tms} (\Cref{thm:cca:rtp:tms}).
 From here, another pass from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls*{sms} (\Cref{thm:ccb:rtp:sms}).
 Since these properties compose into \gls*{ms}, composing these passes yields a compiler that robustly preserves \gls*{ms} (\Cref{corr:ccab:rtp:ms}).
@@ -1167,7 +1167,7 @@ Then, the section presents two optimisation passes, namely \gls*{cf} and \gls*{d
 These passes can be freely ordered in the compilation chain without compromising memory safety (\Cref{thm:cccfccdce:rtp:ms}).
 The next step in the chain ensures that code stays \gls*{scct} (\Cref{thm:ccscct:rtp:scct}) when compiled from $\Lms$ to $\Lscct$, which is done by switching on a data-independent timing mode for the computation.
 Lastly, by introducing barriers immediately after branches, speculative leaks via SPECTRE-PHT are prevented when compiling $\Lscct$ to $\Lspec$.
-The final result is that the whole compilation chain robustly preserves \gls*{mssscct} (\Cref{thm:ccall:rtp:mssscct}).
+The final result is that the whole compilation chain robustly preserves \gls*{specms} (\Cref{thm:ccall:rtp:specms}).
 
 
 \subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
@@ -1452,12 +1452,12 @@ With this relation, we prove that $\ccspec$ is secure with respect to \gls*{ss}.
 
 \subsection{Robust Preservation of Memory Safety, Strict Cryptographic Constant Time, and Speculative Safety}
 
-Finally, this subsection combines all previous results into one compilation chain to get that it preserves full \gls*{mssscct}.
-Let $\ccmssscct$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, $\ccscct$, and $\ccspec$. 
+Finally, this subsection combines all previous results into one compilation chain to get that it preserves full \gls*{specms}.
+Let $\ccspecms$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, $\ccscct$, and $\ccspec$. 
 Let $\sim^{\Ltms}_{\Lspec}$ be the composition of $\sim^{\Ltms}_{\Lms}$, $\sim^{\Lms}_{\Lscct}$, and $\sim^{\Lscct}_{\Lspec}$.
 Then, the following corollary holds.
 
-\begin{corollary}[$\ccmssscct$ secure w.r.t. \gls*{mssscct}]\label{thm:ccall:rtp:mssscct}
+\begin{corollary}[$\ccspecms$ secure w.r.t. \gls*{specms}]\label{thm:ccall:rtp:specms}
   $\;$ 
 
   \begin{nscenter}
@@ -1637,7 +1637,7 @@ The paper proves that composing secure compilers that preserve certain propertie
 % While the presented security property composition relied on monitors that check only trace-properties, the composition of secure compilers does not make any restriction towards the kind of property involved in the composition. 
 % It is subject to future work to develop techniques to verify relational hyperproperties~\cite{abate2019jour}, while the composition of hyperproperties could be very similar to the composition of ordinary properties as presented in this paper, since hyperproperties can be checked with an automata-based model-checker~\cite{beutner23hyperltl}.
 % 
-Finally, this paper defines a multi-pass compiler and proves that it preserves \gls*{mssscct}.
+Finally, this paper defines a multi-pass compiler and proves that it preserves \gls*{specms}.
 Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
 % For future work, it is interesting to look at more sophisticated optimisation passes that, e.g., reorder events that appear on traces.
 

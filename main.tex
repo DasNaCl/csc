@@ -1036,6 +1036,168 @@ Here, any event whatsoever is considered bad, since this leaks information by me
   The proof follows with an induction on \Cref{asm:scctsafe-tracems:monstep}.
 \end{proof}
 
+\subsubsection{\gls*{ss} Monitor}
+
+\myfig{
+  \begin{gather*}
+    \begin{aligned}
+      \mi{Abstract\ Store}~\specmonitor =&\ \emptyset \\
+      \mi{Abstract\ SPECTRE\ Label}~\bm{vX} \bnfdef&\ \textbf{NONE} \mid \textbf{PHT} \\
+      \mi{Abstract\ Security\ Tag}~\bm{\sigma} \bnfdef&\ \lock_{\bm{vX}} \mid \unlock \\
+      \mi{Abstract\ Pre-Events}~\absevent_{b} \bnfdef&\ \textbf{Any} \\
+      \mi{Abstract\ Events}~\absevent \bnfdef&\ \bm{\varepsilon} \mid \absevent_{b};\bm{\sigma} \mid \abstermination
+    \end{aligned}
+  \end{gather*}
+}{spec-monitor}{\gls{ss} Monitor.}
+The spec monitor serves as an overapproximation for speculative non-interference.
+
+\begin{definition}[\glsfirst*{ss}]\label{def:trace:specdef}\label{def:spec}
+  \noindent
+
+  \[
+    \specsafe:=\left\{\trace[_{\mathghost}] \left|\begin{array}{l}
+      \trace[_{\mathghost}]=\hole{\cdot} \text{ or } \exists\trace[_{\mathghost}'].\\
+      \left(\trace[_{\mathghost}]=\event[_b^{\mathghost}];\unlock\cdot\trace[_{\mathghost}'] \text{or }\trace[_{\mathghost}]=\event[_b^{\mathghost}];\lock_{\text{NONE}}\cdot\trace[_{\mathghost}']\right)\\
+      \text{and }\ \trace[_{\mathghost}']\in\specsafe
+                                 \end{array}\right.\right\}
+  \]
+\end{definition}
+
+\myfig{
+  \begin{center}
+    \judgbox{\monitorcheck[]{\specmonitor}{\specmonitor[']}{\absevent}}{,,Given abstract state $\specmonitor$, step to abstract state $\specmonitor'$\\ emitting an abstract event $\absevent$.''}
+    \judgbox{\monitorcheck{\specmonitor}{\specmonitor[']}{\abstrace}}{,,Reflexive-Transitive closure of above judgement.\\$\abstrace$ is a list of abstract events.''}
+    %
+    \typerule{spec-None}{
+    }{
+      \monitorcheck[]{\specmonitor}{\specmonitor}{\bm{\varepsilon}}
+    }{spec-none}
+    %
+    \typerule{spec-Leak-None}{
+    }{
+      \monitorcheck[]{\specmonitor}{\specmonitor}{\absevent[_b];\lock_{\textbf{NONE}}}
+    }{spec-leak-none}
+    %
+    \typerule{spec-Abort}{
+    }{
+      \monitorcheck[]{\specmonitor}{\specmonitor}{\bm{\lightning};\bm{\unlock}}
+    }{spec-abort}
+    %
+    \typerule{spec-Refl}{
+    }{
+      \monitorcheck{\specmonitor}{\specmonitor}{\hole{\cdot}}
+    }{spec-refl}
+    %
+    \typerule{spec-Trans}{
+      \monitorcheck[]{\specmonitor}{\specmonitor[']}{\absevent}&
+      \monitorcheck{\specmonitor[']}{\specmonitor['']}{\abstrace}
+    }{
+      \monitorcheck{\specmonitor}{\specmonitor['']}{\absevent\cdot\abstrace}
+    }{spec-trans}
+  \end{center}
+}{spec-step}{Steps of \gls{ss} Monitor.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\specificev{\sigma}=\bm{\sigma}}{,,Equality of Security Tags.''}$\;$\\
+    %
+    \typerule{secure-eq}{
+    }{
+      \specificev{\lock}=\lock
+    }{secure-eq}
+    %
+    \typerule{insecure-eq}{
+    }{
+      \specificev{\unlock}=\unlock
+    }{insecure-eq}
+    %
+    \judgbox{\spectraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
+    %
+    \typerule{spec-Public-Authentic}{
+    }{
+      \spectraceagree{\msevent[_b];\sandboxtag;\specificev{\unlock}}{\bm{\varepsilon}}
+    }{spec-public-auth}
+    %
+    \typerule{spec-Use-Authentic}{
+    }{
+      \spectraceagree{\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\lock}}{\textbf{Any};\bm{\lock}}
+    }{spec-use-auth}
+    %
+    \typerule{spec-Abort-Authentic}{
+    }{
+      \spectraceagree{\specificev{\lightning}}{\bm{\lightning}}
+    }{spec-abort-auth}
+    %
+    \typerule{spec-None-Authentic}{
+    }{
+      \spectraceagree{\specificev{\varepsilon}}{\bm{\varepsilon}}
+    }{spec-none-auth}
+    %
+    \typerule{spec-Branch-Authentic}{
+    }{
+      \spectraceagree{\specificev{Branch\ n};\sandboxtag;\specificev{\lock}}{\textbf{Any};\bm{\lock}}
+    }{spec-branch-auth}
+    %
+    \typerule{spec-Binop-Authentic}{
+    }{
+      \spectraceagree{\specificev{Binop\ n};\sandboxtag;\specificev{\lock}}{\textbf{Any};\bm{\lock}}
+    }{spec-binop-auth}
+    %
+    \judgbox{\spectraceagree[^*]{\mstrace}{\abstrace}}{,,Memory-Safety specific trace $\mstrace$ describes same trace as $\abstrace$.''}
+    %
+    \typerule{spec-Refl-Authentic}{
+    }{
+      \spectraceagree[^*]{\hole{\cdot}}{\hole{\cdot}}
+    }{spec-refl-auth}
+    %
+    \typerule{spec-Trans-Authentic}{
+      \spectraceagree{\msevent}{\absevent} &
+      \spectraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \spectraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
+    }{spec-trans-auth}
+    %
+    \typerule{spec-Trans-Authentic-Lign}{
+      \spectraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \spectraceagree[^*]{\specificev{\emptyevent}\cdot\mstrace}{\abstrace}
+    }{spec-trans-auth-lign}
+    %
+    \typerule{spec-Trans-Authentic-Rign}{
+      \spectraceagree[^*]{\mstrace}{\abstrace}
+    }{
+      \spectraceagree[^*]{\mstrace}{\bm{\emptyevent}\cdot\abstrace}
+    }{spec-trans-auth-rign}
+  \end{center}
+}{spec-trace-agreement}{Trace Agreement.}
+
+\begin{definition}[Trace is strictly cryptographic constant time via monitor.]\label{def:src:trace:spec}
+  We say $\texttt{SPEC}(\mstrace)$ iff $\exists \abstrace\ \specmonitor$ such that:
+  \begin{itemize}
+    \item $\spectraceagree{\mstrace}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\specmonitor}{\abstrace}$
+  \end{itemize}
+\end{definition}
+
+\begin{lemma}[$\texttt{SPEC}(\mstrace)$ implies $\mstrace\in\operatorname{spec}$]\label{lem:specsafe-tracems}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:specsafe-tracems:ms} $\texttt{spec}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\mstrace\in\operatorname{spec}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:specsafe-tracems:ms}:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:specsafe-tracems:traceag} $\mstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:specsafe-tracems:monstep} $\monitorcheck{\emptyset}{\specmonitor}{\abstrace}$
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:specsafe-tracems:monstep}.
+\end{proof}
+
 \subsection{Source Language}
 \subsubsection{Syntax}
 

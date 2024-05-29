@@ -1,9 +1,10 @@
 
 $recorder = 1;
 $pdf_mode = 1;
-$pdflatex = "pdflatex -interaction=nonstopmode %O %S";
+$pdflatex = "ppdflatex -q -- -interaction=nonstopmode -shell-escape -synctex=1 %O %S";
 $out_dir = 'build';
 $bibtex_use = 2;
+$preview_continuous_mode = 1;
 $pdf_previewer = 'start evince %O %S';
 @default_files = ('main.tex', 'prisc.tex');
 

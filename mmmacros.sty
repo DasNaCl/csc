@@ -18,7 +18,7 @@
 \newenvironment{importantthm}[1][]{\textbf{Theorem~\refstepcounter{theoremcounter}~(#1).~}\begin{scontents}[store-env=buffer]}{\end{scontents}\getstored{buffer}\medskip}
 
 \newcommand*{\incompleteproofname}{Proof}
-\newenvironment{incompleteproof}[1][\incompleteproofname]{\begin{proof}[#1]\renewcommand*{\qedsymbol}{\fbox{.}}}{\end{proof}}
+\newenvironment{incompleteproof}[1][\incompleteproofname]{\begin{proof}[#1]\renewcommand*{\qedsymbol}{\fbox{}}}{\end{proof}}
 
 
 \newcommand{\mi}[1]{\ensuremath{\mathit{#1}}}
@@ -135,8 +135,10 @@
 \newcommand{\abstrace}[1][]{\bm{\overline{a}}#1}
 \newcommand{\mstrace}[1][]{\overline{a^{\text{\tiny ms}}#1}}
 \newcommand{\sccttrace}[1][]{\overline{a^{\text{\tiny scct}}#1}}
+\newcommand{\spectrace}[1][]{\overline{a^{\mathghost}#1}}
 \newcommand{\msevent}[1][]{a^{\text{\tiny ms}}#1}
 \newcommand{\scctevent}[1][]{a^{\text{\tiny scct}}#1}
+\newcommand{\specevent}[1][]{a^{\mathghost}#1}
 \newcommand{\mktrace}[2]{{#1}\leadsto{#2}}
 \newcommand{\prop}{\pi}
 \newcommand{\traces}{\text{Traces}}
@@ -196,6 +198,7 @@
 \newcommand{\irl}[1]{\ensuremath\mathit{\col{\irccol}{#1}}}
 \newcommand{\trg}[1]{\ensuremath\mathbf{\col{\ulccol}{#1}}}
 \newcommand{\obj}[1]{\ensuremath\mathtt{\col{\objcol}{#1}}}
+\newcommand{\ird}[1]{\ensuremath\mathsf{\col{\irdcol}{#1}}}
 \renewcommand{\S}{\src{S}}
 \newcommand{\I}{\irl{I}}
 \newcommand{\T}{\trg{T}}
@@ -276,12 +279,13 @@
 \newcommand{\Ltrg}{\ensuremath\trg{L}}
 \newcommand{\Lms}{\ensuremath\irl{L_{\mssafe}}}
 \newcommand{\Lscct}{\ensuremath\obj{L_{\scctsafe}}}
-
+\newcommand{\Lspec}{\ensuremath\ird{L_{\mathghost}}}
 
 \newcommand{\mmlAtmmlAtmscomp}[1]{\llbracket\trg{#1}\rrbracket^{\mmlAt\to\mmlAtms}\xspace}
 \newcommand{\dcecomp}[1]{\llbracket\irl{#1}\rrbracket_{dce}^{\mmlAtms\to\mmlAtms}\xspace}
-\newcommand{\cfcomp}[1]{\llbracket\irl{#1}\rrbracket_{cf}^{\mmlAtms\to\mmlAtms}\xspace}
+\newcommand{\cfcomp}[2][\overline{\rho}]{\llbracket\irl{#2},\irl{#1}\rrbracket_{cf}^{\mmlAtms\to\mmlAtms}\xspace}
 \newcommand{\mmlAtmsmmlAtscctcomp}[1]{\llbracket\irl{#1}\rrbracket^{\mmlAtms\to\mmlAtscct}\xspace}
+\newcommand{\mmlAtscctmmlAspeccomp}[1]{\llbracket\obj{#1}\rrbracket^{\mmlAtscct\to\mmlAspec}\xspace}
 \newcommand{\mmlAmmlAtcomp}[1]{\llbracket\src{#1}\rrbracket^{\mmlAs\to\mmlAt}\xspace}
 \newcommand{\mmlAmmlAtcompN}[1]{\llbracket{#1}\rrbracket^{\mmlAs\to\mmlAt}\xspace}
 
@@ -325,7 +329,7 @@
 \newcommand{\mmlAt}{\trg{\mmlA[ms]}}
 \newcommand{\mmlAtms}{\irl{\mmlA}}
 \newcommand{\mmlAtscct}{\obj{\mmlA[scct]}}
-\newcommand{\mmlAspec}{\obj{\mmlA[\mathghost]}}
+\newcommand{\mmlAspec}{\ird{\mmlA[$\mathghost$]}}
 \newcommand{\nospecASM}{\irl{ASM_{\not\mathghost}}}
 \newcommand{\ctASM}{\irl{ASM_{sCCT}}}
 \newcommand{\loc}{\ell}
@@ -395,6 +399,7 @@
 \newcommand{\exprevali}[5]{\expreval{\irl{#1}}{\irl{#2}}{\irl{#3}}{\irl{#4}}{\irl{#5}}}
 \newcommand{\exprevalt}[5]{\expreval{\trg{#1}}{\trg{#2}}{\trg{#3}}{\trg{#4}}{\trg{#5}}}
 \newcommand{\exprevalo}[5]{\expreval{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}}
+\newcommand{\exprevald}[5]{\expreval{\ird{#1}}{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}}
 \newcommand{\exec}[6][{\kern-11.5pt}^*\ \ ]{{#2}\triangleright\xspace {#3}\xrightarrow{#6}{}{\kern-3.5pt}_{\text{ctx}}\xspace{#1}\;\xspace{#4}\triangleright\xspace {#5}\xspace}
 \newcommand{\execN}[6][{\kern-11.5pt}^n\ \ ]{{#2}\triangleright\xspace {#3}\xrightarrow{#6}{}{\kern-3.5pt}_{\text{ctx}}\xspace{#1}\;\xspace{#4}\triangleright\xspace {#5}\xspace}
 \newcommand{\execn}[6][{\kern-11.5pt}^*\ \ ]{{#2}\triangleright\xspace {#3}\not\xrightarrow{#6}{}{\kern-3.5pt}_{\text{ctx}}\xspace{#1}\;\xspace{#4}\triangleright\xspace {#5}\xspace}
@@ -403,7 +408,9 @@
 \newcommand{\exect}[6][{\kern-11.5pt}^*\ \ ]{\exec[#1]{\trg{#2}}{\trg{#3}}{\trg{#4}}{\trg{#5}}{\trg{#6}}}
 \newcommand{\exectN}[6][{\kern-11.5pt}^n\ \ ]{\execN[#1]{\trg{#2}}{\trg{#3}}{\trg{#4}}{\trg{#5}}{\trg{#6}}}
 \newcommand{\execo}[6][{\kern-11.5pt}^*\ \ ]{\exec[#1]{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}{\obj{#6}}}
+\newcommand{\execd}[6][{\kern-11.5pt}^*\ \ ]{\exec[#1]{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}{\ird{#6}}}
 \newcommand{\execoN}[6][{\kern-11.5pt}^n\ \ ]{\execN[#1]{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}{\obj{#6}}}
+\newcommand{\execdN}[6][{\kern-11.5pt}^n\ \ ]{\execN[#1]{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}{\ird{#6}}}
 \newcommand{\execiN}[6][{\kern-11.5pt}^n\ \ ]{\execN[#1]{\irl{#2}}{\irl{#3}}{\irl{#4}}{\irl{#5}}{\irl{#6}}}
 \newcommand{\exectn}[6][{\kern-11.5pt}^*\ \ ]{\execn[#1]{\trg{#2}}{\trg{#3}}{\trg{#4}}{\trg{#5}}{\trg{#6}}}
 \newcommand{\exectms}[6][{\kern-11.5pt}^*\ \ ]{\exec[#1]{\irl{#2}}{\irl{#3}}{\irl{#4}}{\irl{#5}}{\irl{#6}}}
@@ -411,6 +418,7 @@
 \newcommand{\wexecs}[4]{\wexec{\src{#1}}{\src{#2}}{\src{#3}}{\src{#4}}}
 \newcommand{\wexect}[4]{\wexec{\trg{#1}}{\trg{#2}}{\trg{#3}}{\trg{#4}}}
 \newcommand{\wexeco}[4]{\wexec{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}}
+\newcommand{\wexecd}[4]{\wexec{\ird{#1}}{\ird{#2}}{\ird{#3}}{\ird{#4}}}
 
 \newcommand{\case}[1]{\item \textbf{Case} \ref{#1}\textbf{:}}
 

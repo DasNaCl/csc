@@ -5873,7 +5873,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
 \clearpage
 
-\subsection{Robust SMS Preserving Compiler}
+\subsection{Robust SMS Preserving Compiler}\label{subsec:rsms}
 
 For instrumented $\mmlAt$ code, we'll write $\mmlAtms$.
 The syntax and semantics are entirely identical.
@@ -6133,6 +6133,99 @@ The syntax and semantics are entirely identical.
     }{sms-subst-subset-xsize}
   \end{center}
 }{sms-substs-subsets}{Cross-Language Substitutions subset.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{\sCCT}(\irl{\loc})=\specificev{\loc}}{,,A map from $\mmlAtms$ memory locations $\irl{\loc}$ to specification locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevi[_{\delta_{\sCCT}}]{\event} = \scctevent}{,,Project an $\mmlAtms$ event to specification events.''}
+    %
+    \typerule{i-scct-filter-context}{
+      \irl{\event_b} \not= \irl{\lightning}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{i-scct-filter-context}
+    %
+    \typerule{i-scct-filter-comp-start}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Start;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-start}
+    %
+    \typerule{i-scct-filter-comp-end}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{End\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-end}
+    %
+    \typerule{i-scct-filter-comp-alloc}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n;\unlock}
+    }{i-scct-filter-comp-alloc}
+    %
+    \typerule{i-scct-filter-comp-dealloc}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc;\unlock}
+    }{i-scct-filter-comp-dealloc}
+    %
+    \typerule{i-scct-filter-comp-get-noleak}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Get\ \loc\ n;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-get-noleak}
+    %
+    \typerule{i-scct-filter-comp-set-noleak}{
+      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
+      \specificev{n}=\irl{n}
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-set-noleak}
+    %
+    \typerule{i-scct-filter-comp-call}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Call\ \comm\ foo\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-call}
+    %
+    \typerule{i-scct-filter-comp-ret}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{Ret\ \comm\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{i-scct-filter-comp-ret}
+    %
+    \typerule{i-scct-filter-abort}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\lightning;\sandboxtag} = \specificev{\lightning;\unlock}
+    }{i-scct-filter-abort}
+    %
+    \typerule{i-scct-filter-emptyevent}{
+    }{
+      \tospecificevi[_{\delta_{\sCCT}}]{\emptyevent} = \specificev{\emptyevent}
+    }{i-scct-filter-emptyevent}
+    %
+    \judgbox{\tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace}{,,Project an $\mmlAtms$ trace to specification traces.''}
+    %
+    \typerule{i-scct-filter-empty}{
+    }{
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{i-scct-filter-empty}
+    %
+    \typerule{i-scct-filter-cons-relevant}{
+      \tospecificevi[_{\delta_{\sCCT}}]{\event} = \specificev{\event} &
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace &
+      \specificev{\event} \not= \specificev{\emptyevent}
+    }{
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \specificev{\event}\cdot\sccttrace
+    }{i-scct-filter-cons-relevant}
+    %
+    \typerule{i-scct-filter-cons-relevant}{
+      \tospecificevi[_{\delta_{\sCCT}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace
+    }{
+      \tospecificevi[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \sccttrace
+    }{i-scct-filter-cons}
+  \end{center}
+}{wi-scct-events-project-to-specific}{Projection of $\mmlAtms$ events to specification events.}
+
 
 \begin{lemma}[Injective Compiler (for final expressions)]\label{lem:smscomp:inject}
   If
@@ -6747,22 +6840,29 @@ The syntax and semantics are entirely identical.
     $$
   \end{center}
 }{dce-compiler}{Compiler from $\mmlAtms$ to $\mmlAtms$, performing dead code elimination.}
+
+Since the traces do not change after compiling with $\dcecomp{\bullet}$, the security proof follows easily using a context-based backtranslation that is essentially just the identity. 
+Anything else is similar to \Cref{subsec:rsms}.
+
 \subsubsection{CF}
 
 \myfig{
   \begin{center}
     \begin{gather*}
     \judgbox{\cfcomp{e}=\irl{e'}}{,,Compile $\mmlAtms$ expression $\irl{e}$ to $\mmlAtms$ expression $\irl{e'}$.''}\\
-    \judgbox{\cfcomp{\left[\valueexpr / x\right]}=\irl{\left[\valueexpr / x\right]}}{,,Compile $\mmlAtms$ substitution to $\mmlAtms$ substitution.''} \\
     \judgbox{\cfcomp{\commlib}=\irl{\commlib'}}{,,Compile $\mmlAtms$ component library to $\mmlAtms$ component library.''} \\
     \end{gather*}
     $$
     \begin{array}{rll}
+      \cfcomp{x} &\ = & \irl{v}\text{\ \ \ \ \ if }\irl{[v\text{ for }x]}\in\irl{\overline{\rho}} \\
+      \cfcomp{x} &\ = & \irl{x}\text{\ \ \ \ \ if }\irl{[v\text{ for }x]}\not\in\irl{\overline{\rho}} \\
     \cfcomp{\finalexpr} &\ = & \irl{\finalexpr} \\
     \cfcomp{call\ foo\ e} &\ = & \irl{call\ }\cfcomp{foo}\ \cfcomp{e}\\
     \cfcomp{return\ e} &\ = & \irl{return\ }\cfcomp{e}\\
+    \cfcomp{n\oplus m} &\ = & \irl{k}\text{\ \ \ \ where }\irl{k}=\irl{n}\oplus\irl{m}\\
     \cfcomp{e_1\oplus e_2} &\ = & \cfcomp{e_1} \irl{\oplus} \cfcomp{e_2} \\
     \cfcomp{x[e]} &\ = & \irl{x[}\cfcomp{e}\irl{]}\\
+    \cfcomp{let\ x= v\ in\ e} &\ = & \cfcomp[\text{[}v\text{ for }x\text{]}\cdot\overline{\rho}]{e_2} \\
     \cfcomp{let\ x= e_1\ in\ e_2} &\ = & \irl{let\ x=} \cfcomp{e_1}\irl{\ in\ }\cfcomp{e_2} \\
     \cfcomp{x[e_1]\leftarrow e_2} &\ = & \irl{x[}\cfcomp{e_1}\irl{]\leftarrow }\cfcomp{e_2} \\
     \cfcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \irl{let\ x=new\ } \cfcomp{e_1}\irl{\ in\ }\cfcomp{e_2} \\
@@ -6777,14 +6877,15 @@ The syntax and semantics are entirely identical.
                                                         &&\irl{else\ }\cfcomp{e_3} \\[0.5cm]
 
     %
-    \cfcomp{\left[\valueexpr/x\right]}&\ = & \irl{\left[\right.}\cfcomp{v}\irl{/}\cfcomp{x}\irl{\left.\right]} \\[0.5cm]
-    %
     \cfcomp{\hole{\cdot}}&\ = & \irl{\hole{\cdot}} \\
     \cfcomp{foo,\commlib}&\ = & \irl{foo,}\cfcomp{\commlib} \\
     \end{array}
     $$
   \end{center}
 }{cf-compiler}{Compiler from $\mmlAtms$ to $\mmlAtms$, performing constant folding.}
+
+Since the traces do not change after compiling with $\cfcomp{\bullet}$, the security proof follows easily using a context-based backtranslation that is essentially just the identity. 
+Anything else is similar to \Cref{subsec:rsms}.
 
 \subsection{Object Language}
 
@@ -6896,7 +6997,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
   \mi{Base~Events}~\obj{\event_{b}} \bnfdef&\ \obj{Alloc\ \loc\ \valueexpr} \mid \obj{Dealloc\ \loc} \mid \obj{Get\ \loc\ \valueexpr} \mid \obj{Set\ \loc\ \valueexpr\ \valueexpr'} \mid \obj{\lightning}\\
                                            & \mid \obj{Call\ \comm\ foo\ \valueexpr} \mid \obj{Ret\ \comm\ \valueexpr} \mid \obj{Start} \mid \obj{End\ \valueexpr} \\
                                            & \mid \obj{Branch\ n} \mid \obj{Binop\ n\ m} \\
-    & \mid \obj{\widehat{Get}\ \loc\ \valueexpr} \mid \obj{\widehat{Set}\ \loc\ \valueexpr\ \valueexpr'} \\
+    & \mid \obj{{iGet}\ \loc\ \valueexpr} \mid \obj{{iSet}\ \loc\ \valueexpr\ \valueexpr'} \\
   \mi{Events}~\obj{\event} \bnfdef&\ \obj{\emptyevent} \mid \obj{\event_{b};\sandboxtag;\sigma}
   \end{aligned}
   \end{gather*}
@@ -6933,7 +7034,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
 }{to-security-meet}{Lattice operations for security labels.}
 
 \myfig{
-  \judgbox{\exprevalo{\Omega}{e}{\Omega'}{e'}{\event}}{,,Expression $\obj{e}$ evaluates under Configuration $\Omega$ to $\obj{e'}$ and\\new Configuration $\obj{\Omega'}$, emitting event $\obj{\event}$.''}
+  \judgbox{\exprevalo{\Omega}{e}{\Omega'}{e'}{\event}}{,,Expression $\obj{e}$ evaluates under Configuration $\obj{\Omega}$ to $\obj{e'}$ and\\new Configuration $\obj{\Omega'}$, emitting event $\obj{\event}$.''}
   %
   \typerule{$e-\obj{\oplus}-$noleak-op}{
     \obj{n_1}\oplus\obj{n_2}=\obj{n_3} &
@@ -6980,7 +7081,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag}} \\
     \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{\widehat{Get}\ \loc\ n;\sandboxtag;\sigma''}
+    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{{iGet}\ \loc\ n;\sandboxtag;\sigma''}
   }{to-e-get-in-noleak}
   %
   \typerule{$e-\obj{get}-\notin-$noleak}{
@@ -6988,7 +7089,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \obj{\loc}\notin\text{dom }\obj{H^{\sandboxtag}} \\
     \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{1729^{\unlock}}{\widehat{Get}\ \loc\ n;\sandboxtag;\sigma''}
+    \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{1729^{\unlock}}{{iGet}\ \loc\ n;\sandboxtag;\sigma''}
   }{to-e-get-notin-noleak}
   %
   \typerule{$e-\obj{set}-\ctx-$leak}{
@@ -7016,7 +7117,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \obj{\memstate'}=\obj{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
     \obj{\sigma'''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\ctx;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\ctx;m+1;\memstate'}{v^{\sigma''}}{\widehat{Set}\ \loc\ n\ v;\ctx;\sigma'''}
+    \exprevalo{\cfstate;\ctx;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\ctx;m+1;\memstate'}{v^{\sigma''}}{{iSet}\ \loc\ n\ v;\ctx;\sigma'''}
   }{to-e-set-ctx-noleak}
   %
   \typerule{$e-\obj{set}-\comp-$noleak}{
@@ -7025,7 +7126,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \obj{\memstate'}=\obj{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
     \obj{\sigma'''}=\obj{\sigma\sqcap\sigma'}
   }{
-    \exprevalo{\cfstate;\comp;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\comp;m+1;\memstate'}{v^{\sigma''}}{\widehat{Set}\ \loc\ n\ v;\comp;\sigma'''}
+    \exprevalo{\cfstate;\comp;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\comp;m+1;\memstate'}{v^{\sigma''}}{{iSet}\ \loc\ n\ v;\comp;\sigma'''}
   }{to-e-set-comp-noleak}
   %
   \typerule{$e-\obj{let}-\obj{\finalexprnoerr}$}{
@@ -7352,14 +7453,14 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{{iGet}\ \loc\ n;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-filter-comp-get-noleak}
     %
     \typerule{o-filter-comp-set-noleak}{
       \delta_{MS}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{MS}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n}
+      \tospecificevo[_{\delta_{MS}}]{{iSet}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{Use\ \loc\ n}
     }{o-filter-comp-set-noleak}
     %
     \typerule{o-filter-comp-get-leak}{
@@ -7424,99 +7525,6 @@ Final results are tagged with the respected taint and the semantics keeps track 
     }{o-filter-cons}
   \end{center}
 }{wo-ms-events-project-to-specific}{Projection of $\mmlAo$ events to specification events, but for memory safety. Since the security tag of specification events for memory safety doesn't play any role whatsoever, we leave them out for brevity.}
-
-\myfig{
-  \begin{center}
-    \judgbox{\delta_{\sCCT}(\irl{\loc})=\specificev{\loc}}{,,A map from $\mmlAtms$ memory locations $\irl{\loc}$ to specification locations $\specificev{\loc}$.''}
-    \judgbox{\tospecificevi[_{\delta_{\sCCT}}]{\event} = \scctevent}{,,Project an $\mmlAtms$ event to specification events.''}
-    %
-    \typerule{i-scct-filter-context}{
-      \irl{\event_b} \not= \irl{\lightning}
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{\event_b;\ctx} = \specificev{\emptyevent}
-    }{i-scct-filter-context}
-    %
-    \typerule{i-scct-filter-comp-start}{
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{Start;\comp} = \specificev{\emptyevent}
-    }{i-scct-filter-comp-start}
-    %
-    \typerule{i-scct-filter-comp-end}{
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{End\ \valueexpr;\comp} = \specificev{\emptyevent}
-    }{i-scct-filter-comp-end}
-    %
-    \typerule{i-scct-filter-comp-alloc}{
-      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
-      \specificev{n}=\irl{n}
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n;\unlock}
-    }{i-scct-filter-comp-alloc}
-    %
-    \typerule{i-scct-filter-comp-dealloc}{
-      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc}
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc;\unlock}
-    }{i-scct-filter-comp-dealloc}
-    %
-    \typerule{i-scct-filter-comp-get-noleak}{
-      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
-      \specificev{n}=\irl{n}
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{Get\ \loc\ n;\comp} = \specificev{\emptyevent}
-    }{i-scct-filter-comp-get-noleak}
-    %
-    \typerule{i-scct-filter-comp-set-noleak}{
-      \delta_{\sCCT}(\irl{\loc})=\specificev{\loc} &
-      \specificev{n}=\irl{n}
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{\emptyevent}
-    }{i-scct-filter-comp-set-noleak}
-    %
-    \typerule{i-scct-filter-comp-call}{
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{Call\ \comm\ foo\ \valueexpr;\comp} = \specificev{\emptyevent}
-    }{i-scct-filter-comp-call}
-    %
-    \typerule{i-scct-filter-comp-ret}{
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{Ret\ \comm\ \valueexpr;\comp} = \specificev{\emptyevent}
-    }{i-scct-filter-comp-ret}
-    %
-    \typerule{i-scct-filter-abort}{
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{\lightning;\sandboxtag} = \specificev{\lightning;\unlock}
-    }{i-scct-filter-abort}
-    %
-    \typerule{i-scct-filter-emptyevent}{
-    }{
-      \tospecificevi[_{\delta_{\sCCT}}]{\emptyevent} = \specificev{\emptyevent}
-    }{i-scct-filter-emptyevent}
-    %
-    \judgbox{\tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace}{,,Project an $\mmlAtms$ trace to specification traces.''}
-    %
-    \typerule{i-scct-filter-empty}{
-    }{
-      \tospecificevi[^*_{\delta_{\sCCT}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
-    }{i-scct-filter-empty}
-    %
-    \typerule{i-scct-filter-cons-relevant}{
-      \tospecificevi[_{\delta_{\sCCT}}]{\event} = \specificev{\event} &
-      \tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace &
-      \specificev{\event} \not= \specificev{\emptyevent}
-    }{
-      \tospecificevi[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \specificev{\event}\cdot\sccttrace
-    }{i-scct-filter-cons-relevant}
-    %
-    \typerule{i-scct-filter-cons-relevant}{
-      \tospecificevi[_{\delta_{\sCCT}}]{\event} = \specificev{\emptyevent} &
-      \tospecificevi[^*_{\delta_{\sCCT}}]{\trace} = \sccttrace
-    }{
-      \tospecificevi[^*_{\delta_{\sCCT}}]{\event\cdot\trace} = \sccttrace
-    }{i-scct-filter-cons}
-  \end{center}
-}{wi-scct-events-project-to-specific}{Projection of $\mmlAtms$ events to specification events.}
-
 \myfig{
   \begin{center}
     \judgbox{\delta_{\sCCT}(\obj{\loc})=\specificev{\loc}}{,,A map from $\mmlAo$ memory locations $\obj{\loc}$ to specification locations $\specificev{\loc}$.''}
@@ -7555,14 +7563,14 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{{iGet}\ \loc\ n;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-get-noleak}
     %
     \typerule{o-scct-filter-comp-set-noleak}{
       \delta_{\sCCT}(\obj{\loc})=\specificev{\loc} &
       \specificev{n}=\obj{n}
     }{
-      \tospecificevo[_{\delta_{\sCCT}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{\emptyevent}
+      \tospecificevo[_{\delta_{\sCCT}}]{{iSet}\ \loc\ n\ \valueexpr;\comp;\sigma} = \specificev{\emptyevent}
     }{o-scct-filter-comp-set-noleak}
     %
     \typerule{o-scct-filter-comp-get-leak}{
@@ -7680,7 +7688,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \mmlAtmsmmlAtscctcomp{n} = \obj{n} &
       \delta(\irl{\loc}) = \obj{\loc}
     }{
-      \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{\widehat{Get}\ \loc\ n}
+      \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{{iGet}\ \loc\ n}
     }{scct-get-event-eq-noleak}
     %
     \typerule{scct-get-event-eq-leak}{
@@ -7703,7 +7711,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \mmlAtmsmmlAtscctcomp{\valueexpr} = \obj{\valueexpr} &
       \delta(\irl{\loc}) = \obj{\loc}
     }{
-      \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{\widehat{Set}\ \loc\ n\ \valueexpr}
+      \xlangeventeqc{Set\ \loc\ n\ \valueexpr}{{iSet}\ \loc\ n\ \valueexpr}
     }{scct-set-event-eq-noleak}
     %
     \typerule{scct-call-event-eq}{
@@ -8273,8 +8281,8 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \obj{\event_b} = \obj{Set\ \loc\ n\ m} \vee\\
       \obj{\event_b} = \obj{Call\ \emptyset\ foo\ n} \vee
       \obj{\event_b} = \obj{Ret\ \emptyset\ n}\vee\\
-      \obj{\event_b} = \obj{\widehat{Get}\ \loc\ n} \vee
-      \obj{\event_b} = \obj{\widehat{Set}\ \loc\ n\ m} \vee\\
+      \obj{\event_b} = \obj{{iGet}\ \loc\ n} \vee
+      \obj{\event_b} = \obj{{iSet}\ \loc\ n\ m} \vee\\
       \obj{\event_b} = \obj{Branch\ n}\vee
       \obj{\event_b} = \obj{Binop\ n_1\ n_2}
     }{
@@ -8303,12 +8311,12 @@ Final results are tagged with the respected taint and the semantics keeps track 
     %
     \typerule{obj-filter-comp-get-noleak}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{\widehat{Get}\ \loc\ n;\comp;\sigma} = \obj{\widehat{Get}\ \loc\ n}
+      \tospecificevo[_{\obj{\bullet}}]{{iGet}\ \loc\ n;\comp;\sigma} = \obj{{iGet}\ \loc\ n}
     }{obj-filter-comp-get-noleak}
     %
     \typerule{obj-filter-comp-set-noleak}{
     }{
-      \tospecificevo[_{\obj{\bullet}}]{\widehat{Set}\ \loc\ n\ \valueexpr;\comp;\sigma} = \obj{\widehat{Set}\ \loc\ n\ \valueexpr}
+      \tospecificevo[_{\obj{\bullet}}]{{iSet}\ \loc\ n\ \valueexpr;\comp;\sigma} = \obj{{iSet}\ \loc\ n\ \valueexpr}
     }{obj-filter-comp-set-noleak}
     %
     \typerule{obj-filter-comp-get-leak}{
@@ -8873,6 +8881,585 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \item $\vdash\mmlAtmsmmlAtscctcomp{\color{black}\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\bullet}}}:\lceil\operatorname{msafe}\rceil\cap\lceil\operatorname{\sCCT}\rceil$
   \end{passumptions}
   This solves our goal.
+\end{proof}
+
+
+\subsection{Low-Level Language}
+
+The next language is ,,low-level'', because it extends the previous one with speculation.
+
+\myfig{
+	\vspace{-1em}
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Final\ Result}\ \ird{\finalexprnoerr} \bnfdef&\ \ird{\valueexpr^{\sigma}} \mid \ird{x^{\sigma}} \hspace{0.5cm}
+  \mi{May\ be\ a\ Result}\ \ird{\finalexpr} \bnfdef\ \ird{\finalexprnoerr} \mid \ird{stuck} \\
+  %
+  \mi{Expressions}~\ird{e} \bnfdef&\ \ird{\finalexpr} \mid \ird{e_{1} \oplus e_{2}} \mid \ird{x[e]} \mid \ird{getDIT\ x\ in\ e} \mid \ird{setDIT\ e} \\
+  & \mid \ird{let\ x = e_{1}\ in\ e_{2}} \mid \ird{x[e_{1}]\leftarrow e_{2}} \\
+  & \mid \ird{let\ x = new\ e_{1}\ in\ e_{2}} \mid \ird{delete\ x} \\
+  & \mid \ird{return\ e} \mid \ird{call\ foo\ e} \mid \ird{ifz\ e_{1}\ then\ e_{2}\ else\ e_{3}} \\
+  & \mid \ird{abort()} \mid \ird{x\ is\ \poisoned} \\
+  & \mid \ird{\langle e_{1},e_{2}\rangle} \mid \ird{\pi_{1} e} \mid \ird{\pi_{2} e} \mid \ird{e\ has\ \type} \\
+   &\text{where } \ird{\oplus}\in\{\ird{+},\ird{-},\ird{\times},\ird{<},\ird{/}\}\\
+  %
+  \mi{Functions}~\ird{\asymbol} \bnfdef&\ \ird{let\ foo\ x:= e} \hspace{0.25cm}
+  \mi{Types}~\ird{\type} \bnfdef\ \ird{\nat} \mid \ird{\nat\times\nat} \\
+  %
+  \mi{Values}~\ird{\valueexpr} \bnfdef&\ \ird{n}\in\ird{\nat} \hspace{0.25cm}
+  %
+  \mi{References}~\ird{\loc}\in\ird{\nat} \\
+  \mi{Eval. Ctx.}~\ird{K}\bnfdef &\ \ird{\hole{\cdot}}\mid \ird{K\oplus e}\mid \ird{v\oplus K}\mid \ird{x[K]}\mid \ird{let\ x=K\ in\ e}\\
+                     &\ \mid\ird{x[K]\leftarrow e}\mid \ird{x[v]\leftarrow K}\mid \ird{let\ x=new\ K\ in\ e} \\
+                     &\ \mid\ird{ifz\ K\ then\ e_1\ else\ e_2} \mid \ird{call\ foo\ K}\mid \ird{return\ K} \\
+                     &\ \mid\ird{\langle K, e\rangle} \mid \ird{\langle \valueexpr, K \rangle } \mid \ird{\pi_{1} K} \mid \ird{\pi_{2} K} \mid \ird{K\ has\ \type} \mid \ird{barrier} \\
+                     &\ \mid\ird{ifz\ K\ then\ e_{1}\ else\ e_{2}} \mid \ird{setDIT\ K} \\
+  %
+  \mi{Variables}~\ &\ird{x} \mid \ird{y} \mid \ird{foo} \mid \dots \hspace{0.5cm}
+  %
+  \mi{Poison}~\ \ird{\poison}~\bnfdef\ \ird{\poisonless} \mid \ird{\poisoned}\\
+  \mi{Sandbox\ Tag}~&\ \ird{\sandboxtag}~\bnfdef\ \ird{\ctx} \mid \ird{\comp}\\
+  %
+  \mi{Typing. Env.}~\ird{\Gamma} \bnfdef&\ \ird{\hole{\cdot}} \mid \ird{\Gamma,x:\type}\hspace{0.5cm}
+  \mi{Store}~\ird{\Delta} \bnfdef\ \ird{\hole{\cdot}} \mid \ird{x\mapsto(\loc;\sandboxtag;\poison;n),\Delta}\\
+  %
+  \mi{Communication}~\ird{\comm} \bnfdef&\ \ird{\ctxtocomp} \mid \ird{\comptoctx} \mid \ird{\nocomm} \hspace{0.5cm}
+  \mi{Heaps}~\ird{H} \bnfdef\ \ird{\hole{\cdot}} \mid \ird{H}::\ird{n} \\
+  %
+  \mi{Cont.\ Stack}~\ird{\kontstack} \bnfdef&\ \ird{\hole{\cdot}} \mid (\ird{K};\ird{foo}),\ird{\kontstack} \hspace{0.5cm}
+  \mi{Library}~\ird{\library} \bnfdef\ \ird{\hole{\cdot}} \mid \ird{\asymbol},\ird{\library} \\
+  \mi{Relevant}\ \ird{\commlib} \bnfdef& \ird{\hole{\cdot}} \mid \ird{foo},\ird{\commlib}\hspace{0.5cm}
+  \mi{State}~\ird{\Omega}\ \bnfdef\ \ird{\cfstate;\sandboxtag;n;\memstate}\\
+  \mi{Flow\ State}~\ird{\cfstate}\bnfdef&\ \ird{\commlib;\library;\kontstack}\hspace{0.5cm}
+  \mi{Memory\ State}~\ird{\memstate}\bnfdef\ \ird{H^{\ctx};H^{\comp};\Delta} \\
+  %
+  \mi{Programs}\ &\ird{prog\ \library_{ctx}\ \library_{comp}} \hspace{0.35cm}
+  \mi{Substitutions}~\ird{\gamma} \bnfdef \ird{[\valueexpr/x],\gamma}\ \vert\ \ird{\hole{\cdot}} \\
+  \mi{Security\ Tag}~\ird{\sigma} \bnfdef&\ \ird{\lock_{vX}} \mid \ird{\unlock} \\
+  \mi{Leak\ Tag}~\ird{vX} \bnfdef&\ \ird{NONE} \mid \ird{PHT} 
+  \end{aligned}
+  \end{gather*}
+}{mmlao-syntax}{Syntax of $\mmlAspec$}
+
+The only difference between $\mmlAtscct$ and $\mmlAspec$ is speculative semantics.
+
+\subsubsection{Dynamic Semantics}
+
+\myfig{
+  \judgbox{\operatorname{dom}\ \ird{\library}=\ird{foo},\dots,\ird{bar}}{,,Collect function names.''}$\;$\\
+  \begin{center}
+    \typerule{$\ird{\library}$-dom-$\ird{\hole{\cdot}}$}{
+    }{
+      \operatorname{dom}\ \ird{\hole{\cdot}} = \ird{\hole{\cdot}}
+    }{wo-lib-dom-empty}
+    %
+    \typerule{$\ird{\library}$-dom-cons}{
+      \operatorname{dom}\ \ird{\library} = \ird{D}
+    }{
+      \operatorname{dom}\ (\ird{let\ foo\ x : \type}_\lambda\ird{:= e})\ird{,\library} = \ird{foo},\ird{D}
+    }{wo-lib-dom-cons}
+  \end{center}
+  \begin{center}
+    \judgbox{\ird{\library}\equiv\ird{\library_1}\cup\ird{\library_2}}{,,Merging $\mmlAspec$ libraries.''}$\;$\\
+    \typerule{lib-merge-empty}{
+      \ird{\library}=\ird{\library_1}
+    }{
+      \ird{\library}\equiv\ird{\library_1}\cup\ird{\hole{\cdot}}
+    }{spec-lib-merge-empty}
+    %
+    \typerule{lib-merge-cons}{
+      \ird{\library}\equiv\ird{\library_1}\cup\ird{\library_2}
+    }{
+      \ird{\asymbol,\library}\equiv\ird{\library_1}\cup\ird{\asymbol,\library_2}
+    }{spec-lib-merge-cons}
+
+    \judgbox{\ird{\library_1\linker\library_2}=\ird{\library}}{,,Syntactically linking $\mmlAspec$ libraries.''}$\;$\\
+    \typerule{syntactic-plugging}{
+      \operatorname{dom}\ird{\library_1}\cap\operatorname{dom}\ird{\library_2} = \emptyset &
+      \ird{\library}\equiv\ird{\library_1}\cup\ird{\library_2}
+    }{
+      \ird{\library_1\linker\library_2} = \ird{\library}
+    }{spec-plugging}
+  \end{center}
+}{w-plugging-o}{$\mmlAspec$ plugging of libraries and collecting of function names.}
+
+
+\myfig{
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Base~Events}~\ird{\event_{b}} \bnfdef&\ \ird{Alloc\ \loc\ \valueexpr} \mid \ird{Dealloc\ \loc} \mid \ird{Get\ \loc\ \valueexpr} \mid \ird{Set\ \loc\ \valueexpr\ \valueexpr'} \mid \ird{\lightning}\\
+                                           & \mid \ird{Call\ \comm\ foo\ \valueexpr} \mid \ird{Ret\ \comm\ \valueexpr} \mid \ird{Start} \mid \ird{End\ \valueexpr} \\
+                                           & \mid \ird{Branch\ n} \mid \ird{Binop\ n\ m} \\
+    & \mid \ird{{iGet}\ \loc\ \valueexpr} \mid \ird{{iSet}\ \loc\ \valueexpr\ \valueexpr'} \\
+    & \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier} \\
+  \mi{Events}~\ird{\event} \bnfdef&\ \ird{\emptyevent} \mid \ird{\event_{b};\sandboxtag;\sigma}
+  \end{aligned}
+  \end{gather*}
+}{to-events}{Events of $\mmlAspec$.}
+
+% \myfig{
+%   \judgbox{\exprevald{\Omega}{e}{\Omega'}{e'}{\event}}{,,Expression $\ird{e}$ evaluates under Configuration $\ird{\Omega}$ to $\ird{e'}$ and\\new Configuration $\ird{\Omega'}$, emitting event $\ird{\event}$.''}
+%   %
+%   \typerule{$e-\ird{\oplus}-$noleak-op}{
+%     \ird{n_1}\oplus\ird{n_2}=\ird{n_3} &
+%     \ird{\oplus}\notin\{\ird{*},\ird{/},\ird{<}\} \\
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\Omega}{n_1^\sigma \oplus n_2^{\sigma'}}{\Omega}{n_3^{\sigma''}}{\emptyevent}
+%   }{to-e-oplus-noleak-op}
+%   %
+%   \typerule{$e-\ird{\oplus}-$leak}{
+%     \ird{n_1}\oplus\ird{n_2}=\ird{n_3} &
+%     \ird{\oplus}\in\{\ird{*},\ird{/},\ird{<}\} \\
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;0;\memstate}{n_1^\sigma\oplus n_2^{\sigma'}}{\cfstate;\sandboxtag;0;\memstate}{n_3^{\sigma''}}{Binop\ n_1\ n_2;\sandboxtag;\sigma''}
+%   }{to-e-oplus-leak}
+%   %
+%   \typerule{$e-\ird{\oplus}-$noleak-doit}{
+%     \ird{n_1}\oplus\ird{n_2}=\ird{n_3} &
+%     \ird{\oplus}\in\{\ird{*},\ird{/},\ird{<}\} \\
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;m+1;\memstate}{n_1^\sigma\oplus n_2^{\sigma'}}{\cfstate;\sandboxtag;m+1;\memstate}{n_3^{\sigma''}}{\emptyevent}
+%   }{to-e-oplus-leak-doit}
+%   %
+%   \typerule{$e-\ird{get}-\in-$leak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+%     \ird{\loc}+\ird{n}\in\text{dom }\ird{H^{\sandboxtag}} \\
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag';0;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';0;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{Get\ \loc\ n;\sandboxtag;\sigma''}
+%   }{to-e-get-in-leak}
+%   %
+%   \typerule{$e-\ird{get}-\notin-$leak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+%     \ird{\loc}\notin\text{dom }\ird{H^{\sandboxtag}} \\
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag';0;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';0;\memstate}{1729^{\unlock}}{Get\ \loc\ n;\sandboxtag;\sigma''}
+%   }{to-e-get-notin-leak}
+%   %
+%   \typerule{$e-\ird{get}-\in-$noleak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+%     \ird{\loc}+\ird{n}\in\text{dom }\ird{H^{\sandboxtag}} \\
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{(H^{\sandboxtag}(\loc+n))^{\sigma''}}{\widehat{Get}\ \loc\ n;\sandboxtag;\sigma''}
+%   }{to-e-get-in-noleak}
+%   %
+%   \typerule{$e-\ird{get}-\notin-$noleak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+%     \ird{\loc}\notin\text{dom }\ird{H^{\sandboxtag}} \\
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag';m+1;\memstate}{x^\sigma[n^{\sigma'}]}{\cfstate;\sandboxtag';m+1;\memstate}{1729^{\unlock}}{\widehat{Get}\ \loc\ n;\sandboxtag;\sigma''}
+%   }{to-e-get-notin-noleak}
+%   %
+%   \typerule{$e-\ird{set}-\ctx-$leak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+%     \ird{H^{\ctx'}} = \ird{H^{\ctx}}(\ird{\loc+n}\mapsto \ird{v}) \\
+%     \ird{\memstate'}=\ird{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+%     \ird{\sigma'''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\ctx;0;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\ctx;0;\memstate'}{v^{\sigma''}}{Set\ \loc\ n\ v;\ctx;\sigma'''}
+%   }{to-e-set-ctx-leak}
+%   %
+%   \typerule{$e-\ird{set}-\comp-$leak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+%     \ird{H^{\comp'}} = \ird{H^{\comp}}(\ird{\loc+n}\mapsto \ird{v}) \\
+%     \ird{\memstate'}=\ird{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+%     \ird{\sigma'''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\comp;0;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\comp;0;\memstate'}{v^{\sigma''}}{Set\ \loc\ n\ v;\comp;\sigma'''}
+%   }{to-e-set-comp-leak}
+% }{to-expr-eval-0}{Evaluation of $\mmlAtscct$ expressions.}
+% \myfig{
+%   \typerule{$e-\ird{set}-\ctx-$noleak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+%     \ird{H^{\ctx'}} = \ird{H^{\ctx}}(\ird{\loc+n}\mapsto \ird{v}) \\
+%     \ird{\memstate'}=\ird{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+%     \ird{\sigma'''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\ctx;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\ctx;m+1;\memstate'}{v^{\sigma''}}{\widehat{Set}\ \loc\ n\ v;\ctx;\sigma'''}
+%   }{to-e-set-ctx-noleak}
+%   %
+%   \typerule{$e-\ird{set}-\comp-$noleak}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+%     \ird{H^{\comp'}} = \ird{H^{\comp}}(\ird{\loc+n}\mapsto \ird{v}) \\
+%     \ird{\memstate'}=\ird{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+%     \ird{\sigma'''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\comp;m+1;\memstate}{x^\sigma[n^{\sigma'}]\leftarrow v^{\sigma''}}{\cfstate;\comp;m+1;\memstate'}{v^{\sigma''}}{\widehat{Set}\ \loc\ n\ v;\comp;\sigma'''}
+%   }{to-e-set-comp-noleak}
+%   %
+%   \typerule{$e-\ird{let}-\ird{\finalexprnoerr}$}{
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\Omega}{let\ x^\sigma=\finalexprnoerr^{\sigma'}\ in\ e}{\Omega}{e[\finalexprnoerr^{\sigma''}/x]}{\emptyevent}
+%   }{to-e-let-f}
+%   %
+%   \typerule{$e-\ird{delete}$}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;m;\memstate}{delete\ x^\sigma}{\cfstate;\sandboxtag;m;\memstate'}{0^\unlock}{Dealloc\ \loc;\sandboxtag;\sigma}
+%   }{to-e-delete}
+%   %
+%   \typerule{$e-\ird{new}-ctx$}{
+%     \fresh{\ird{\Delta}}{\ird{\loc}} &
+%     \fresh{\ird{\Delta}}{\ird{z}} &
+%     \ird{H^{\ctx'}} = \ird{H^{\ctx}} \ll \ird{n} \\
+%     \ird{\memstate} = \ird{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta} &
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\ctx;m;H^{\ctx};H^{\comp};\Delta}{let\ x^\sigma=new\ n^{\sigma'}\ in\ e}{\cfstate;\ctx;m;\memstate}{e[z^{\sigma''}/x]}{Alloc\ \loc\ n;\ctx;\sigma''}
+%   }{to-e-let-new-ctx}
+%   %
+%   \typerule{$e-\ird{new}-comp$}{
+%     \fresh{\ird{\Delta}}{\ird{\loc}} &
+%     \fresh{\ird{\Delta}}{\ird{z}} &
+%     \ird{H^{\comp'}} = \ird{H^{\comp}} \ll \ird{n} \\
+%     \ird{\memstate} = \ird{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta} &
+%     \ird{\sigma''}=\ird{\sigma\sqcap\sigma'}
+%   }{
+%     \exprevalo{\cfstate;\comp;m;H^{\ctx};H^{\comp};\Delta}{let\ x^\sigma=new\ n^{\sigma'}\ in\ e}{\cfstate;\comp;m;\memstate}{e[z^{\sigma''}/x]}{Alloc\ \loc\ n;\comp;\sigma''}
+%   }{to-e-let-new-comp}
+%   %
+%   \typerule{$e-\ird{ifz}-$true-noleak}{
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;0;\memstate}{ifz\ 0^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;0;\memstate}{e_1}{Branch\ 0;\sandboxtag;\sigma}
+%   }{to-e-if-true-noleak}
+%   %
+%   \typerule{$e-\ird{ifz}-$false-noleak}{
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;0;\memstate}{ifz\ (S\ n)^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;0;\memstate}{e_2}{Branch\ S(n);\sandboxtag;\sigma}
+%   }{to-e-if-false-noleak}
+%   %
+%   \typerule{$e-\ird{ifz}-$true-leak}{
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;m+1;\memstate}{ifz\ 0^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;m+1;\memstate}{e_1}{\emptyevent}
+%   }{to-e-if-true-leak}
+%   %
+%   \typerule{$e-\ird{ifz}-$false-leak}{
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;m+1;\memstate}{ifz\ (S\ n)^\sigma\ then\ e_1\ else\ e_2}{\cfstate;\sandboxtag;m+1;\memstate}{e_2}{\emptyevent}
+%   }{to-e-if-false-leak}
+%   %
+%   \typerule{$e-\ird{abort}$}{
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;m;\memstate}{abort()}{\cfstate;\sandboxtag;m;\memstate}{stuck}{\lightning;\sandboxtag;\unlock}
+%   }{to-e-abort}
+% }{to-expr-eval-1}{Evaluation of $\mmlAtscct$ expressions, continued.}
+
+% \myfig{
+%   \typerule{$e-\ird{\pi_1}$}{
+%   }{
+%     \exprevalo{\Omega}{\pi_1\langle n_1^\sigma;n_2^{\sigma'}\rangle}{\Omega}{n_1^\sigma}{\emptyevent}
+%   }{to-e-proj1}
+%   %
+%   \typerule{$e-\ird{\pi_2}$}{
+%   }{
+%     \exprevalo{\Omega}{\pi_2\langle n_1^\sigma;n_2^{\sigma'}\rangle}{\Omega}{n_2^{\sigma'}}{\emptyevent}
+%   }{to-e-proj2}
+%   %
+%   \typerule{$e-\ird{x\ is\ \poisoned}-$yes}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta} &
+%     \ird{\Delta}=\ird{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag';m;\memstate}{x^\sigma\ is\ \poisoned}{\cfstate;\sandboxtag';m;\memstate}{0^\unlock}{\emptyevent}
+%   }{to-e-x-is-poisoned-yes}
+%   %
+%   \typerule{$e-\ird{x\ is\ \poisoned}-$no}{
+%     \ird{\memstate}=\ird{H^{\ctx};H^{\comp};\Delta} &
+%     \ird{\Delta}=\ird{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2}
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag';m;\memstate}{x^\sigma\ is\ \poisoned}{\cfstate;\sandboxtag';m;\memstate}{1^\unlock}{\emptyevent}
+%   }{to-e-x-is-poisoned-no}
+%   %
+%   \typerule{$e-\ird{n\ has\ \nat}$}{
+%   }{
+%     \exprevalo{\Omega}{n^\sigma\ has\ \nat}{\Omega}{0^\unlock}{\emptyevent}
+%   }{to-e-n-hasnat}
+%   %
+%   \typerule{$e-pair-\ird{has\ \nat}$}{
+%   }{
+%     \exprevalo{\Omega}{\langle n_1^\sigma,n_2^{\sigma'}\rangle\ has\ \nat}{\Omega}{1^\unlock}{\emptyevent}
+%   }{to-e-pair-hasnat}
+%   %
+%   \typerule{$e-\ird{x\ has\ \nat}$}{
+%   }{
+%     \exprevalo{\Omega}{x^\sigma\ has\ \nat}{\Omega}{1^\unlock}{\emptyevent}
+%   }{to-e-x-hasnat}
+%   %
+%   \typerule{$e-\ird{n\ has\ \nat\times\nat}$}{
+%   }{
+%     \exprevalo{\Omega}{n^\sigma\ has\ \nat\times\nat}{\Omega}{1^\unlock}{\emptyevent}
+%   }{to-e-n-haspair}
+%   %
+%   \typerule{$e-pair-\ird{has\ \nat\times\nat}$}{
+%   }{
+%     \exprevalo{\Omega}{\langle n_1^\sigma,n_2^{\sigma'}\rangle\ has\ \nat\times\nat}{\Omega}{0^\unlock}{\emptyevent}
+%   }{to-e-pair-haspair}
+%   %
+%   \typerule{$e-\ird{x\ has\ \nat\times\nat}$}{
+%   }{
+%     \exprevalo{\Omega}{x^\sigma\ has\ \nat\times\nat}{\Omega}{1^\unlock}{\emptyevent}
+%   }{to-e-x-haspair}
+%   %
+%   \typerule{$e-\ird{setDIT\ n}$}{
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;m;\memstate}{setDIT\ n^\sigma}{\cfstate;\sandboxtag;n;\memstate}{n^\sigma}{\emptyevent}
+%   }{to-e-setDIT}
+%   %
+%   \typerule{$e-\ird{getDIT\ x\ in\ e}$}{
+%   }{
+%     \exprevalo{\cfstate;\sandboxtag;n;\memstate}{getDIT\ x^\sigma\ in\ e}{\cfstate;\sandboxtag;n;\memstate}{e[n^\sigma/x]}{\emptyevent}
+%   }{to-e-getDIT}
+% }{to-expr-eval-2}{Evaluation of $\mmlAo$ expressions, continued.}
+
+% \myfig{
+%   \begin{center}
+%     \judgbox{\execo[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}}{,,Given an evaluation context $\ird{K}$ and an expression\\ $\ird{e}$, it evaluates under configuration $\Omega$ to $\ird{e'}$ and new\\configuration $\ird{\Omega'}$ in context $\ird{K}$, emitting event $\ird{\event}$.''}
+%     %
+%     \typerule{$e-\text{ctx}$}{
+%       \exprevalo{\Omega}{e}{\Omega'}{e'}{\event}
+%     }{
+%       \execo[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
+%     }{to-e-ectx}
+%     %
+%     \typerule{$e-\text{ctx}-\ird{stuck}$}{
+%       \exprevalo{\Omega}{e}{\Omega'}{stuck}{\lightning}
+%     }{
+%       \execo[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
+%     }{to-e-ectx-stuck}
+%     %
+%     \typerule{$e-\text{ctx}-\ird{call}-$main}{
+%       \ird{\Omega}=\ird{\commlib;\library;\hole{\cdot};\comp;0;\memstate} &
+%       \ird{\library}=\ird{\library_1,}(\ird{let\ main\ x:\type}_\lambda\ird{:=e})\ird{,\library_2}\\
+%       \ird{\Omega'}=\ird{\commlib;\library;K^{main},\hole{\cdot};\ctx;0;\memstate}
+%     }{
+%       \execo[]{\Omega}{K[call\ main^\sigma\ \valueexpr^{\sigma'}]}{\Omega'}{e[\valueexpr^{\sigma'}/x]}{Start;\comp;\sigma'}
+%     }{to-e-ectx-call-main}
+%     %
+%     \typerule{$e-\text{ctx}-\ird{call}-\text{notsame}$}{
+%       \ird{\Omega}=\ird{\commlib;\library;\kontstack;\sandboxtag;m;\memstate} &
+%       \ird{\library}=\ird{\library_1,}(\ird{let\ foo\ x:\type}_\lambda\ird{:=e})\ird{,\library_2} \\
+%       %\rho_{\tiny call}(\ird{\commlib},\ird{foo},\ird{\kontstack},\ird{v}) = \ird{\event},\ird{\comm} &
+%       \ird{foo}\in_{\ird{\neg\sandboxtag}}\ird{\commlib} &
+%       \rho\left(\ird{\neg\sandboxtag}\right) = \ird{\comm} &
+%       \ird{\Omega'}=\ird{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;m;\memstate} \\
+%     }{
+%       \execo[]{\Omega}{K[call\ foo^\sigma\ \valueexpr^{\sigma'}]}{\Omega'}{e[\valueexpr^{\sigma'}/x]}{Call\ \comm\ foo\ \valueexpr;\sandboxtag;\sigma'}
+%     }{to-e-ectx-call-notsame}
+%     %
+%     \typerule{$e-\text{ctx}-\ird{call}-\text{same}$}{
+%       \ird{\Omega}=\ird{\commlib;\library;\kontstack;\sandboxtag;m;\memstate} &
+%       \ird{\library}=\ird{\library_1,}(\ird{let\ foo\ x:\type}_\lambda\ird{:=e})\ird{,\library_2} \\
+%       %\rho_{\tiny call}(\ird{\commlib},\ird{foo},\ird{\kontstack},\ird{v}) = \ird{\event},\ird{\comm} &
+%       \ird{foo}\in_{\ird{\sandboxtag}}\ird{\commlib} &
+%       \ird{\Omega'}=\ird{\commlib;\library;K^{foo},\kontstack;\sandboxtag;m;\memstate} \\
+%     }{
+%       \execo[]{\Omega}{K[call\ foo^\sigma\ \valueexpr^{\sigma'}]}{\Omega'}{e[\valueexpr^{\sigma'}/x]}{Call\ \nocomm\ foo\ \valueexpr;\sandboxtag;\sigma'}
+%     }{to-e-ectx-call-same}
+%     %
+%     \typerule{$e-\text{ctx}-\ird{return}-$main}{
+%     }{
+%       \exec[]{\ird{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;m;\memstate}}{\ird{K'[return\ \valueexpr^\sigma]}}{\ird{\commlib;\library;\hole{\cdot};\comp;1;\memstate}}{\ird{\valueexpr^\sigma}}{\ird{End\ \valueexpr;\sandboxtag;\sigma}}
+%     }{to-e-ectx-ret-main}
+%     %
+%     \typerule{$e-\text{ctx}-\ird{return}-\text{notsame}$}{
+%       \ird{foo}\in_{\ird{\neg\sandboxtag}}\ird{\commlib} &
+%       \rho\left(\ird{\neg\sandboxtag}\right) = \ird{\comm;\sandboxtag}
+%     }{
+%       \exec[]{\ird{\commlib;\library;K^{foo},\kontstack;\sandboxtag;m;\memstate}}{\ird{K'[return\ \valueexpr^\sigma]}}{\ird{\commlib;\library;\kontstack;\neg\sandboxtag;m;\memstate}}{\ird{K[\valueexpr^\sigma]}}{\ird{Ret\ \comm\ \valueexpr;\sandboxtag;\sigma}}
+%     }{to-e-ectx-ret-notsame}
+%     %
+%     \typerule{$e-\text{ctx}-\ird{return}-\text{same}$}{
+%       \ird{foo}\in_{\ird{\sandboxtag}}\ird{\commlib}
+%     }{
+%       \exec[]{\ird{\commlib;\library;K^{foo},\kontstack;\sandboxtag;m;\memstate}}{\ird{K'[return\ \valueexpr^\sigma]}}{\ird{\commlib;\library;\kontstack;\sandboxtag;m;\memstate}}{\ird{K[\valueexpr^\sigma]}}{\ird{Ret\ \nocomm\ \valueexpr;\sandboxtag;\sigma}}
+%     }{to-e-ectx-ret-same}
+%     %
+%     \judgbox{\rho(\ird{\sandboxtag})=\ird{\comm}}{,,Returns either $\ird{\ctxtocomp}$ or $\ird{\comptoctx}$ depending on $\ird{\sandboxtag}$.''}\\
+%     %
+%     \typerule{comm-ctxtocomp}{
+%     }{
+%       \rho(\ird{\ctx})=\ird{\ctxtocomp}
+%     }{to-comm-ctxtocomp}
+%     %
+%     \typerule{comm-comptoctx}{
+%     }{
+%       \rho(\ird{\comp})=\ird{\comptoctx}
+%     }{to-comm-comptoctx}\\[0.33cm]
+%     %
+%     \judgbox{\ird{\neg\sandboxtag}=\ird{\sandboxtag'}}{,,Negation of $\ird{\sandboxtag}$.''}\\
+%     %
+%     \typerule{neg-ctx}{
+%     }{
+%       \ird{\neg\ctx}=\ird{\comp}
+%     }{to-neg-ctx}
+%     %
+%     \typerule{neg-comp}{
+%     }{
+%       \ird{\neg\comp}=\ird{\ctx}
+%     }{to-neg-comp}
+%   \end{center}
+% }{w-o-expr-ctx-eval}{Contextual Evaluation of $\mmlAtscct$ expressions.}
+
+% \myfig{
+%   \begin{center}
+%     \judgbox{\execo{\Omega}{e}{\Omega'}{e'}{\trace}}{,,Expression $\ird{e}$ evaluates under configuration $\ird{\Omega}$ to $\ird{e'}$ and\\new configuration $\ird{\Omega'}$, emitting list of events $\ird{\trace}$.''}
+%     %
+%     \typerule{$et-\text{refl}$}{
+%     }{
+%       \execo{\Omega}{\finalexpr}{\Omega}{\finalexpr}{\hole{\cdot}}
+%     }{wo-e-refl}
+%     \typerule{$et-\text{trans}-$important}{
+%       \execo[]{\Omega}{e}{\Omega'}{e'}{\event}&
+%       \execo{\Omega'}{e'}{\Omega''}{e''}{\trace}&
+%       \ird{a}\not=\ird{\emptyevent}
+%     }{
+%       \execo{\Omega}{e}{\Omega''}{e''}{\event \cdot \trace}
+%     }{wo-e-trans-important}
+%     \typerule{$et-\text{trans}-$unimportant}{
+%       \execo[]{\Omega}{e}{\Omega'}{e'}{\emptyevent}&
+%       \execo{\Omega'}{e'}{\Omega''}{e''}{\trace}&
+%     }{
+%       \execo{\Omega}{e}{\Omega''}{e''}{\trace}
+%     }{wo-e-trans-unimportant}
+%     %
+%     %
+%     \judgbox{\execoN{\Omega}{e}{\Omega'}{e'}{\trace}}{,,Expression $\ird{e}$ evaluates in $n$ steps under configuration $\ird{\Omega}$ to\\$\ird{e'}$ and new configuration $\ird{\Omega'}$, emitting list of events $\ird{\trace}$.''}
+%     %
+%     \typerule{$en-\text{refl}$}{
+%     }{
+%       \execoN[^0]{\Omega}{e}{\Omega}{e}{\emptyevent}
+%     }{won-e-refl}
+%     %
+%     \typerule{$en-\text{trans}-$important}{
+%       \execo[]{\Omega}{e}{\Omega'}{e'}{\event} &
+%       \execoN[^n]{\Omega'}{e'}{\Omega''}{e''}{\trace} &
+%       \ird{\event}\not=\ird{\emptyevent}
+%     }{
+%       \execoN[^{(n+1)}]{\Omega}{e}{\Omega''}{e''}{\event\cdot\trace}
+%     }{won-e-trans-important}
+%     %
+%     \typerule{$en-\text{trans}-$unimportant}{
+%       \execo[]{\Omega}{e}{\Omega'}{e'}{\emptyevent} &
+%       \execoN[^n]{\Omega'}{e'}{\Omega''}{e''}{\trace} &
+%     }{
+%       \execoN[^{(n+1)}]{\Omega}{e}{\Omega''}{e''}{\trace}
+%     }{won-e-trans-unimportant}
+%   \end{center}
+% }{wo-steps}{Trace prefix generation given a $\mmlAtscct$ program using the reflexive-transitive closure.}
+
+% \myfig{
+%   \begin{center}
+%     \judgbox{\wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexprnoerr}{\trace}}{,,Run $\mmlAtscct$ program $\ird{prog\ \library_{ctx}\ \library_{comp}}$, giving\\dynamic state $\ird{\Omega}$ and emitting trace $\ird{\trace}$.''}
+%     \typerule{$e-\text{wprog}$}{
+%       \ird{\library}=\ird{\library_{ctx}\linker\library_{comp}} &
+%       \ird{main}\notin\ird{\commlib} &
+%       \ird{\commlib}=\operatorname{dom}\ \ird{\library_{comp}} \\
+%       \execo{\commlib;\library;\hole{\cdot};\sandboxtag;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+%     }{
+%       \wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}
+%     }{wo-e-prog}
+%     %
+%     \typerule{$e-\text{wprog}-\lightning$}{
+%       \ird{\library}=\ird{\library_{ctx}\linker\library_{comp}} &
+%       \ird{main}\notin\ird{\commlib} &
+%       \ird{\commlib}=\operatorname{dom}\ \ird{\library_{comp}} \\
+%       \execo{\commlib;\library;\hole{\cdot};\sandboxtag;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+%     }{
+%       \wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+%     }{wo-e-prog-crash}
+%   \end{center}
+% }{toprog-run}{Running a whole $\mmlAtscct$ program.}
+ Rest similar to \cite{exorcisingSpectres}.
+
+\subsection{Robustly Preserving $\specsafe$}
+
+\subsubsection{Compiler}
+
+\myfig{
+  \begin{center}
+    \begin{gather*}
+    \judgbox{\mmlAtscctmmlAspeccomp{e}=\ird{e'}}{,,Compile $\mmlAtscct$ expression $\obj{e}$ to $\mmlAspec$ expression $\ird{e'}$.''}\\
+    \judgbox{\mmlAtscctmmlAspeccomp{\left[\valueexpr / x\right]}=\ird{\left[\valueexpr / x\right]}}{,,Compile $\mmlAtscct$ substitution to $\mmlAspec$ substitution.''} \\
+    \judgbox{\mmlAtscctmmlAspeccomp{\commlib}=\ird{\commlib'}}{,,Compile $\mmlAtscct$ component library to $\mmlAspec$ component library.''} \\
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+    \mmlAtscctmmlAspeccomp{\finalexpr} &\ = & \ird{\finalexpr} \\
+    \mmlAtscctmmlAspeccomp{call\ foo\ e} &\ = & \ird{call\ }\mmlAtscctmmlAspeccomp{foo}\ \mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{return\ e} &\ = & \ird{return\ }\mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{e_1\oplus e_2} &\ = & \mmlAtscctmmlAspeccomp{e_1} \ird{\oplus} \mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{x[e]} &\ = & \ird{x[}\mmlAtscctmmlAspeccomp{e}\ird{]} \\
+    \mmlAtscctmmlAspeccomp{let\ x= e_1\ in\ e_2} &\ = & \ird{let\ x=} \mmlAtscctmmlAspeccomp{e_1}\ird{\ in\ }\mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{x[e_1]\leftarrow e_2} &\ = & \ird{x[}\mmlAtscctmmlAspeccomp{e_1}\ird{]\leftarrow} \mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{let\ x=new\ e_1\ in\ e_2} &\ = & \ird{let\ x=new\ }\mmlAtscctmmlAspeccomp{e_1}\ird{\ in\ }\mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{delete\ x} &\ = & \ird{delete\ x} \\
+    \mmlAtscctmmlAspeccomp{x\ is\ \poisoned} &\ = & \ird{x\ is\ \poisoned} \\
+    \mmlAtscctmmlAspeccomp{\lparen e_1;e_2\rparen} &\ = & \ird{\lparen}\mmlAtscctmmlAspeccomp{e_1}\ird{;}\mmlAtscctmmlAspeccomp{e_2}\ird{\rparen}\\
+    \mmlAtscctmmlAspeccomp{\pi_1\ e} &\ = & \ird{\pi_1\ }\mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{\pi_2\ e} &\ = & \ird{\pi_2\ }\mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{e\ has\ \type} &\ = & \mmlAtscctmmlAspeccomp{e}\ \ird{has\ \type}\\
+    \mmlAtscctmmlAspeccomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \ird{ifz\ }\mmlAtscctmmlAspeccomp{e_1}\\
+                                                        &&\ird{then\ barrier;}\mmlAtscctmmlAspeccomp{e_2} \\
+                                                        &&\ird{else\ barrier;}\mmlAtscctmmlAspeccomp{e_3} \\[0.5cm]
+    %
+    \mmlAtscctmmlAspeccomp{\left[\valueexpr/x\right]}&\ = & \ird{\left[\right.}\mmlAtscctmmlAspeccomp{v}\ird{/}\mmlAtscctmmlAspeccomp{x}\ird{\left.\right]} \\[0.5cm]
+    %
+    \mmlAtscctmmlAspeccomp{\hole{\cdot}}&\ = & \ird{\hole{\cdot}} \\
+    \mmlAtscctmmlAspeccomp{foo,\commlib}&\ = & \ird{foo,}\mmlAtscctmmlAspeccomp{\commlib} \\
+    \end{array}
+    $$
+  \end{center}
+}{scct-pres-compiler}{Compiler from $\mmlAtscct$ to $\mmlAspec$.}
+\myfig{
+  \begin{center}
+    \begin{gather*}
+    \judgbox{\mmlAtscctmmlAspeccomp{F}=\ird{F}}{,,Compile $\mmlAtscct$ procedures to $\mmlAspec$ procedures.''}
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+    %
+      \mmlAtscctmmlAspeccomp{let\ foo\ x := e}&\ = & \mmlAtscctmmlAspeccomp{e}\\
+    \end{array}
+    $$
+    \begin{gather*}
+    \judgbox{\mmlAtscctmmlAspeccomp{\library}=\ird{\library}}{,,Compile $\mmlAtscct$ libraries to $\mmlAspec$ libraries.''}
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+      \mmlAtscctmmlAspeccomp{\hole{\cdot}}&\ = & \ird{\hole{\cdot}} \\
+      \mmlAtscctmmlAspeccomp{F,\library}&\ = & \mmlAtscctmmlAspeccomp{F}\obj{,}\mmlAtscctmmlAspeccomp{\library} \\
+    \end{array}
+    $$
+  \end{center}
+}{scct-pres-compiler-comp}{Compiler from $\mmlAtscct$ components to $\mmlAspec$ components.}
+
+\begin{scontents}[store-env=buffer]
+  $\;$\\
+  \begin{goals}
+    \item $\vdash\mmlAtscctmmlAspeccomp{\bullet}:\lceil\specsafe\rceil$
+  \end{goals}
+\end{scontents}
+\realthm{thm:rssp}{9}{Robust Speculative Safety Preservation}
+\begin{incompleteproof}
+  Analogous to \Cref{thm:rscctp}.
+\end{incompleteproof}
+
+\begin{scontents}[store-env=buffer]
+  $\;$\\
+  \begin{goals}
+  \item $\vdash\mmlAtscctmmlAspeccomp{\color{black}\mmlAtmsmmlAtscctcomp{\color{black}\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\bullet}}}}:\lceil\operatorname{msafe}\rceil\cap\lceil\operatorname{sCCT}\rceil\cap\lceil\specsafe\rceil$
+  \end{goals}
+\end{scontents}
+\realthm{thm:rmsscctssp}{10}{Robust Memory Safety, Strict Cryptographic Constant Time, and Speculation Safety Preservation}
+\begin{proof}
+  By \Thmref{lem:seqcompo}, \Thmref{thm:rmsp}, \Thmref{thm:rscctp}, and \Thmref{thm:rssp}.
 \end{proof}
 
 \clearpage

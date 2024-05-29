@@ -87,12 +87,12 @@ Record Language := {
 Definition behav {L : Language} (C : Contexts L) (p : Partials L) : Behavior (Event L) :=
   fun (t : Trace (Event L)) => step _ C p t
 .
-Definition psat {L : Language} (C : Contexts L) (p : Partials L) (Π : Hyperproperty (Event L)) :=
-  hsat (Event L) (behav C p) Π
+Definition psat {L : Language} (C : Contexts L) (p : Partials L) (Π : Property (Event L)) :=
+  bsat (Event L) (behav C p) Π
 .
 (** Robust satisfaction *)
-Definition rsat {L : Language} (p : Partials L) (Π : Hyperproperty (Event L)) :=
-  forall (C : Contexts L), hsat (Event L) (behav C p) Π
+Definition rsat {L : Language} (p : Partials L) (Π : Property (Event L)) :=
+  forall (C : Contexts L), bsat (Event L) (behav C p) Π
 .
 
 (** Existential image *)
@@ -128,21 +128,21 @@ Definition Compiler (S T : Language) := Partials S -> Partials T.
 Definition prsat__τ {S T : Language}
     (rel : Trace (Event S) -> Trace (Event T) -> Prop)
     (cc : Compiler S T) (C : Class (Event S)) :=
-  forall (Π : Hyperproperty (Event S)),
-    belongs_to (Event S) Π C ->
+  forall (Π : Property (Event S)),
+    C Π ->
     forall (p : Partials S),
       rsat p Π ->
-      rsat (cc p) (τ~ rel Π)
+      rsat (cc p) (τ rel Π)
 .
 Notation "'[presτ|-' cc ':' rel ',' C ']'" := (prsat__τ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
 
 Definition prsat__σ {S T : Language}
     (rel : Trace (Event S) -> Trace (Event T) -> Prop)
     (cc : Compiler S T) (C : Class (Event T)) :=
-  forall (Π : Hyperproperty (Event T)),
-    belongs_to (Event T) Π C ->
+  forall (Π : Property (Event T)),
+    C Π ->
     forall (p : Partials S),
-      rsat p (σ~ rel Π) ->
+      rsat p (σ rel Π) ->
       rsat (cc p) Π 
 .
 Notation "'[presσ|-' cc ':' rel ',' C ']'" := (prsat__σ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
@@ -154,27 +154,28 @@ Infix "∩" := (intersect _) (at level 81, left associativity).
 
 Notation "a '∈' b" := (hsat _ a b) (at level 89, no associativity, b at next level).
 
-Lemma rsat_trim_inducedτ' {S I T : Language} 
+Lemma rsat_trim_τ {S I T : Language} 
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
   (π : Property (Event S)) :
-  set_eq (tau (rel1 ◘ rel2) π) (tau rel2 (tau rel1 π))
+  (tau (rel1 ◘ rel2) π) = (tau rel2 (tau rel1 π))
 .
 Proof.
+  apply set_eq_equiv_eq.
   split; intros x Hx. 
   - destruct Hx as [s [[i [Hx1 Hx2]] Hs]]. unfold tau in *.
     exists i; split; trivial; exists s; firstorder.
   - destruct Hx as [i [Hi [s [Hs Hx]]]].
     exists s; split; trivial; exists i; firstorder.
 Qed.
-Lemma rsat_trim_inducedτ'' {S I T : Language} 
+Lemma rsat_trim_τ' {S I T : Language} 
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
   (π : Property (Event S)) :
   set_eq (tau rel2 (tau rel1 π)) (tau (rel1 ◘ rel2) π) 
 .
 Proof.
-  apply set_eq_equiv_eq; symmetry; apply set_eq_equiv_eq; eauto using rsat_trim_inducedτ'.
+  apply set_eq_equiv_eq; symmetry; eauto using rsat_trim_τ.
 Qed.
 Lemma rsat_trim_inducedτ {S I T : Language} 
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
@@ -185,11 +186,10 @@ Lemma rsat_trim_inducedτ {S I T : Language}
 Proof.
   apply set_eq_equiv_eq; split; intros πt Hx. 
   - intros πi Heq%set_eq_equiv_eq πs Heq'%set_eq_equiv_eq; subst.
-    eapply Hx; eauto using rsat_trim_inducedτ'.
+    eapply Hx, set_eq_equiv_eq; eauto using rsat_trim_τ.
   - intros πs Heq%set_eq_equiv_eq; subst.
     specialize (Hx (τ rel1 πs)).
-    eapply Hx; eauto using rsat_trim_inducedτ''.
-    apply set_eq_equiv_eq; reflexivity.
+    eapply Hx, set_eq_equiv_eq; eauto using rsat_trim_τ'.
 Qed.
 
 Lemma rsat_trim_σ {S I T : Language} 
@@ -249,52 +249,17 @@ Theorem seqcompoτ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
 .
 Proof.
   intros H__wf H1 H2 Π HΠ p Hsat Ct.
-  assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
+  destruct HΠ as [HΠa HΠb].
   unfold prsat__τ in H2.
-  rewrite rsat_trim_inducedτ.
+  rewrite rsat_trim_τ.
   eapply H2.
-  intros bI HΠbI πs Heq%set_eq_equiv_eq; subst.
-  specialize (HΠbI πs).
-  eapply H__wf; try now eapply HΠb, HΠbI.
-  apply set_eq_equiv_eq; reflexivity.
+  intros πs Heq%set_eq_equiv_eq; subst.
+  eapply H__wf; try eassumption. now apply set_eq_equiv_eq.
   eapply H1; try exact HΠa.
   exact Hsat.
 Qed.
-Definition nwfτ {S I : Language}
-  (rel : Trace (Event S) -> Trace (Event I) -> Prop)
-  (Π : Hyperproperty (Event S)) :=
-    exists (π : Property (Event S)),
-      Π π /\ ~((τ~ rel Π) (tau rel π))
-.
-Notation "'¬|-wfτ' rel ':' Π" := ((nwfτ rel Π)) (at level 81, rel at next level, Π at next level).
 
-Lemma tau_eq {S I : Language} (rel : Trace (Event S) -> Trace (Event I) -> Prop)
-  (πs πs' : Property (Event S)) :
-  τ rel πs = τ rel πs' ->
-  πs = πs'
-.
-Proof.
-Admitted.
-
-Theorem empty_compo {S I T : Language} 
-  (C : Class (Event S))
-  (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
-  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
-  (H__wf : |-wfτ rel1 : C)
-  (H__nwf : ¬|-wfτ rel2 : τ~ rel1 C)
-  :
-    τ~ (rel1 ◘ rel2) C = ∅
-.
-Proof.
-  apply set_eq_equiv_eq; split; intros πt Ht; (try now cbv in Ht); cbv.
-  destruct H__nwf as [πi [Hπi Hn]].
-  eapply Hn; clear Hn.
-  intros πi' Heq%set_eq_equiv_eq πs Heq'%set_eq_equiv_eq; subst.
-  eapply tau_eq in Heq; subst.
-  eapply Hπi; now apply set_eq_equiv_eq.
-Qed.
-
-Corollary swappable {I : Language} (cc1 cc2 : Compiler I I)
+Corollary swappableτ {I : Language} (cc1 cc2 : Compiler I I)
   (C1 C2 : Class (Event I))
   (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
@@ -322,39 +287,6 @@ Definition wfσ {S I : Language}
 .
 Notation "'|-wfσ' rel ':' Π" := (wfσ rel Π) (at level 81, rel at next level, Π at next level).
 
-Definition wfrel {S I : Language} (rel : Trace (Event S) -> Trace (Event I) -> Prop) := forall As At At',
-  rel As At ->
-  rel As At' ->
-  At = At'
-.
-Goal forall {S I : Language} (rel : Trace (Event S) -> Trace (Event I) -> Prop)
-  (πi : Property (Event I)) As Ai,
-  wfrel rel ->
-  πi Ai ->
-  rel As Ai ->
-  σ rel πi As
-.
-Proof.
-  intros. intros Ai' Hrel.
-  eapply (H _ _ _ H1) in Hrel. now subst.
-Qed.
-Definition wfrel' {S I : Language} (rel : Trace (Event S) -> Trace (Event I) -> Prop) := forall As As' At,
-  rel As At ->
-  rel As' At ->
-  As = As'
-.
-Goal forall {S I : Language} (rel : Trace (Event S) -> Trace (Event I) -> Prop)
-  (πs : Property (Event S)) As Ai,
-  wfrel' rel ->
-  τ rel πs Ai ->
-  rel As Ai ->
-  πs As
-.
-Proof.
-  intros. destruct H0 as [As' [Hrel Hs]].
-  eapply (H _ _ _ H1) in Hrel. now subst.
-Qed.
-
 Theorem seqcompoσ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
   (C1 C2 : Class (Event T))
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
@@ -366,67 +298,30 @@ Theorem seqcompoσ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
 .
 Proof.
   intros H__wf H1 H2 Π HΠ p Hsat Ct.
-  assert (HΠ':=HΠ); apply belongs_to_commute in HΠ' as [HΠa HΠb].
-  unfold prsat__σ in H1, H2.
-  rewrite rsat_trim_inducedσ in Hsat.
-  eapply H2; try exact HΠb.
-  eapply H1; try exact Hsat.
-
-  intros bI HbI πt Heq%set_eq_equiv_eq; subst. 
-  eapply HΠa, HbI. now apply set_eq_equiv_eq.
+  destruct HΠ as [HΠa HΠb].
+  unfold prsat__σ in H2.
+  eapply H2; trivial.
+  eapply H1.
+  eapply H__wf; assumption.
+  now rewrite <- rsat_trim_σ.
 Qed.
 
-
-(** Case Study *)
-Variant SecurityTag : Type :=
-| Secure
-| v1
-| v2
-| v4
-| v5
+Corollary swappableσ {I : Language} (cc1 cc2 : Compiler I I)
+  (C1 C2 : Class (Event I))
+  (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
+    (|-wfσ rel2 : C1) ->
+    (|-wfσ rel1 : C2) ->
+    [presσ|- cc1 : rel1, σ~ rel2 C1] ->
+    [presσ|- cc2 : rel2, C2] ->
+    [presσ|- cc1 : rel1, C1] ->
+    [presσ|- cc2 : rel2, σ~ rel1 C2] ->
+    [presσ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+ /\ [presσ|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
 .
-Variant PreEvent : Type :=
-| Eif
-| Eget
-| Ebarrier
-| Erlb
-.
-Definition event : Type := PreEvent * SecurityTag.
-
-Axiom partials contexts : Type.
-Axiom dostep : forall (Event : Type), contexts -> partials -> Trace Event -> Prop.
-
-Definition S : Language := {|
-  Partials := partials ;
-  Contexts := contexts ;
-  Event := event ;
-  step := dostep event ;
-|}.
-Definition T : Language := {|
-  Partials := partials ;
-  Contexts := contexts ;
-  Event := event ;
-  step := dostep event ;
-|}.
-Inductive msrrel (As : Trace (Event S)) : Trace (Event T) -> Prop :=
-  | msrrelc : forall b c Bs',
-      c <> Secure ->
-      c <> v1 ->
-      msrrel As Bs' ->
-      msrrel As (STcons _ (Some(b,c)) Bs')
-.
-Inductive πss (variant : SecurityTag) : Trace (Event T) -> Prop :=
-  | pissc : forall b c Bs',
-      c <> variant ->
-      πss variant Bs' ->
-      πss variant (STcons _ (Some(b,c)) Bs')
-.
-Definition powerset (π : Trace (Event T) -> Prop) : (Trace (Event T) -> Prop) -> Prop :=
-  fun (π' : Trace (Event T) -> Prop) =>
-  subsets π' π
-.
-Goal forall v, |-wfσ msrrel : powerset(πss v).
 Proof.
-  intros v πt Hπt πt' Heq%set_eq_equiv_eq At HAt; subst. 
-  eapply Hπt.
-Admitted.
+  split; intros.
+  - apply seqcompoσ; auto.
+  - apply seqcompoσ; auto.
+Qed.
+

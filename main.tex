@@ -1098,15 +1098,15 @@ The spec monitor serves as an overapproximation for speculative non-interference
   \begin{center}
     \judgbox{\specificev{\sigma}=\bm{\sigma}}{,,Equality of Security Tags.''}$\;$\\
     %
-    \typerule{secure-eq}{
+    \typerule{spec-secure-eq}{
     }{
-      \specificev{\lock}=\lock
-    }{secure-eq}
+      \specificev{\lock}=\lock_{\bm{vX}}
+    }{spec-secure-eq}
     %
-    \typerule{insecure-eq}{
+    \typerule{spec-insecure-eq}{
     }{
       \specificev{\unlock}=\unlock
-    }{insecure-eq}
+    }{spec-insecure-eq}
     %
     \judgbox{\spectraceagree{\msevent}{\absevent}}{,,Memory-Safety specific event $\msevent$ describes same action as $\absevent$.''}
     %
@@ -3503,7 +3503,7 @@ $\trg{\gamma}$ acts as postfix and binds anything before it up to $\trianglerigh
 \begin{lemma}[Determinism of $n$-Steps]\label{lem:determ:nsteps}
   If
   \begin{assumptions}
-  \item\label[ass]{asm:determ:steps:a} $\exectN{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\trace[_{1}]}$
+  \item\label[ass]{asm:determ:nsteps:a} $\exectN{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\trace[_{1}]}$
   \item $\exectN{\Omega}{e\gamma}{\Omega''}{e_2\gamma''}{\trace[_{2}]}$
   \end{assumptions}
   Then
@@ -3515,7 +3515,7 @@ $\trg{\gamma}$ acts as postfix and binds anything before it up to $\trianglerigh
   \end{goals}
 \end{lemma}
 \begin{proof}
-  By induction on \Cref{asm:determ:steps:a} making use of \Thmref{lem:determ:ctxstep}.
+  By induction on \Cref{asm:determ:nsteps:a} making use of \Thmref{lem:determ:ctxstep}.
 \end{proof}
 
 \begin{lemma}[Determinism of Steps]\label{lem:determ:steps}
@@ -5422,7 +5422,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item\label[ass]{asm:backtranscorr:nonint0} $\vdash\trg{\trace[_{0}]}\operatorname{non-int-\trg{\trace}}$
     \item\label[ass]{asm:backtranscorr:backtrans:start0} $\mmlAmmlAtbackcomptoctx[\emptyset;\emptyset;\trg{\hole{\cdot}}]{Start} = \trg{\overline{\loc_{0}}}; \src{e_{0}}$
     \item\label[ass]{asm:backtranscorr:backtrans:mid0} $\mmlAmmlAtbackdetail[]{\trace[_{0}]} = \src{e_{0}'}$
-    \item\label[ass]{asm:backtranscorr:backtrans:call0} $\mmlAmmlAtbackctxtocomp[\emptyset;\emptyset;\trg{\overline{\loc_{0}}}]{Call\ \ctxtocomp\ foo\ \valueexpr_{0}} = \Game;\delta;\trg{\overline{\loc}}, \src{let\ x_{0}=new\ n_{0}\ in\ e_{0}''}$
+    \item\label[ass]{asm:backtranscorr:backtrans:call09} $\mmlAmmlAtbackctxtocomp[\emptyset;\emptyset;\trg{\overline{\loc_{0}}}]{Call\ \ctxtocomp\ foo\ \valueexpr_{0}} = \Game;\delta;\trg{\overline{\loc}}, \src{let\ x_{0}=new\ n_{0}\ in\ e_{0}''}$
   \end{passumptions}
   Inverting \Cref{asm:backtrans:correct:subtop2}:
   \begin{passumptions}{H}
@@ -6159,7 +6159,7 @@ The syntax and semantics are entirely identical.
   Induction on $\trg{e}$.
 \end{proof}
 
-\begin{lemma}[Prim. Forward Simulation]\label{lem:sms:ctxforwardsim}
+\begin{lemma}[Prim. Forward Simulation]\label{lem:sms:primforwardsim}
   If
   \begin{assumptions}
     \item\label[ass]{asm:sms:ctxforwardsim:evalt} $\exprevalt{\Omega}{e\gamma}{\Omega'}{e'\gamma'}{\event}$
@@ -6248,7 +6248,7 @@ The syntax and semantics are entirely identical.
 
           Induce on \Cref{asm:sms:primforwardsim:explicitsubst:get}. The base case is spurious, since we have at least $\irl{x\mapsto(\loc;\comp;\poison;m)}$ in $\irl{\Omega.\Delta}$.
           The inductive case splits into two other cases: Either we have a substitution with $\irl{x_{SIZE}}$ or not.
-          If not, make use of the inductive hypothesis and \Cref{tr:tw-e-subst}.
+          If not, make use of the inductive hypothesis. %and \Cref{tr:tw-e-subst}.
           If yes, then we know by definition that $\irl{x_{SIZE}=m}$.
 
           Thus, we can execute to the desired state $\irl{\Omega}$ with just $\irl{Get\ \loc\ n;\comp}$.
@@ -6320,7 +6320,8 @@ The syntax and semantics are entirely identical.
           Note that $\begin{array}{ll}\mmlAtmmlAtmscomp{x[n]\leftarrow\valueexpr}=\irl{let\ x_{ACCESS}=}&\mmlAtmmlAtmscomp{n}\irl{\ in\ ifz\ 0\le x_{ACCESS}\le x_{SIZE}\ then}\\&\irl{\ x[x_{ACCESS}]\leftarrow}\mmlAtmmlAtmscomp{\valueexpr}\irl{\ else\ abort()}\end{array}$.
 
           Induce on \Cref{asm:sms:primforwardsim:storeagree:subst}. The base case is spurious, since we have at least $\irl{x\mapsto(\loc;\comp;\poison;m)}$ in $\irl{\Omega.\Delta}$.
-          The inductive case splits into two other cases: Either we have a substitution with $\irl{x_{SIZE}}$ or not. If not, make use of the inductive hypothesis and \Cref{tr:tw-e-subst}. If yes, then we know by definition that $\irl{x_{SIZE}=m}$.
+          The inductive case splits into two other cases: Either we have a substitution with $\irl{x_{SIZE}}$ or not. If not, make use of the inductive hypothesis.% and \Cref{tr:tw-e-subst}.
+          If yes, then we know by definition that $\irl{x_{SIZE}=m}$.
 
           Thus, we can execute to the desired state $\irl{\Omega}$ with just $\irl{Set\ \loc\ n\ \valueexpr;\comp}$.
           The other goals follow by assumption or are an immediate consequence.
@@ -6406,7 +6407,7 @@ The syntax and semantics are entirely identical.
           \end{goals}
           Just pick $\irl{\gamma'}=\irl{\hole{\cdot}}$.
 
-          Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial up to an induction on \Cref{asm:sms:primforwardsim:subst:del}, applying \Cref{tr:tw-e-subst} in the inductive case.
+          Since $\mmlAtmmlAtmscomp{delete\ x}=\irl{delete\ x}$, this case is entirely trivial up to an induction on \Cref{asm:sms:primforwardsim:subst:del}.% applying \Cref{tr:tw-e-subst} in the inductive case.
 
     \case{tr:tw-e-let-f}
           If
@@ -6436,7 +6437,7 @@ The syntax and semantics are entirely identical.
 
           Induce on \Cref{asm:sms:primforwardsim:subst:let}.
           In the base-case, we can immediately step to the desired term and all goals go through trivially.
-          In the inductive case, make use of \Cref{tr:tw-e-subst}, the other goals also go through easily.
+          The inductive cases go through easily. %, make use of \Cref{tr:tw-e-subst}, the other goals also go through easily.
 
 
       \case{tr:tw-e-abort} \MK{maybe do this case}
@@ -6476,6 +6477,7 @@ The syntax and semantics are entirely identical.
   \end{goals}
 \end{lemma}
 \begin{incompleteproof}
+  Unfolding and using \Cref{lem:sms:primforwardsim}.
 \end{incompleteproof}
 
 \begin{lemma}[Forward Simulation]\label{lem:sms:forwardsim}
@@ -6955,7 +6957,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
     \obj{\sigma''}=\obj{\sigma\sqcap\sigma'}
   }{
     \exprevalo{\cfstate;\sandboxtag;m+1;\memstate}{n_1^\sigma\oplus n_2^{\sigma'}}{\cfstate;\sandboxtag;m+1;\memstate}{n_3^{\sigma''}}{\emptyevent}
-  }{to-e-oplus-leak}
+  }{to-e-oplus-leak-doit}
   %
   \typerule{$e-\obj{get}-\in-$leak}{
     \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
@@ -7148,7 +7150,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
   \typerule{$e-\obj{getDIT\ x\ in\ e}$}{
   }{
     \exprevalo{\cfstate;\sandboxtag;n;\memstate}{getDIT\ x^\sigma\ in\ e}{\cfstate;\sandboxtag;n;\memstate}{e[n^\sigma/x]}{\emptyevent}
-  }{to-e-setDIT}
+  }{to-e-getDIT}
 }{to-expr-eval-2}{Evaluation of $\mmlAo$ expressions, continued.}
 
 \myfig{
@@ -7297,7 +7299,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \execo{\commlib;\library;\hole{\cdot};\sandboxtag;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
     }{
       \wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}
-    }{wt-e-prog}
+    }{wo-e-prog}
     %
     \typerule{$e-\text{wprog}-\lightning$}{
       \obj{\library}=\obj{\library_{ctx}\linker\library_{comp}} &
@@ -7306,7 +7308,7 @@ Final results are tagged with the respected taint and the semantics keeps track 
       \execo{\commlib;\library;\hole{\cdot};\sandboxtag;1;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
     }{
       \wexeco{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
-    }{wt-e-prog-crash}
+    }{wo-e-prog-crash}
   \end{center}
 }{toprog-run}{Running a whole $\mmlAtscct$ program.}
 
@@ -8087,11 +8089,11 @@ Final results are tagged with the respected taint and the semantics keeps track 
 
         \case{tr:scct-alloc-event-eq}
           Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{Any;\unlock}$.
-          Note \Cref{tr:i-scct-filter-comp-alloc}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-alloc-auth}.
+          Note \Cref{tr:i-scct-filter-comp-alloc}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-public-auth}.
 
         \case{tr:scct-dealloc-event-eq}
           Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{Any;\unlock}$.
-          Note \Cref{tr:i-scct-filter-comp-dealloc}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-dealloc-auth}.
+          Note \Cref{tr:i-scct-filter-comp-dealloc}, so \Cref{goal:scctfiltereq:irltoabsev} follows from \Cref{tr:scct-public-auth}.
 
         \case{tr:scct-get-event-eq-noleak}
           Invert \Cref{asm:scctfiltereq:objtoabsev} to get $\absevent=\bm{\varepsilon}$.

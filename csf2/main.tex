@@ -382,7 +382,7 @@ With this projection function, we define a more general version of robust preser
 %   % \end{nscenter}
 % \end{definition}
 % 
-A \bul{compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves a class of target properties $\trg{\class}$}, if for any \rul{property $\trg{\pi}$ of class $\trg{\class}$ and programs $\src{p}$}, where \iul{$\src{\progvar}$ robustly satisfies $\sigma_\sim\left(\trg{\pi}\right)$}, \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, robustly satisfies $\trg{\pi}$}.
+A \bul{compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves a class of target properties $\trg{\class}$}, if for any \rul{property $\trg{\pi}$ of class $\trg{\class}$ and programs $\src{p}$}, where \iul{$\src{\progvar}$ robustly satisfies $\sigma_\sim\left(\trg{\pi}\right)$}, \oul{the compilation of $\src{\progvar}$, we have that $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$ robustly satisfies $\trg{\pi}$}.
 
 \begin{definition}[Robust Preservation with $\sigma_\sim$]\label{def:rtp:sigma}
   % $\;$\\
@@ -619,9 +619,9 @@ This follows current non-formal-methods based compiler engineering, such as LLVM
 
 This section introduces trace properties of interest for this paper: \gls*{tms}, \gls*{sms}, \gls*{ms}, \gls*{scct}, and \gls*{ss}.
 These properties are of practical importance (as mentioned in \Cref{sec:introduction}) and also of interest in the case study presented later (\Cref{sec:casestud:defs,sec:casestud:rtp}). 
-For clarity, this section presents all of them, despite the fact that only property \gls*{scct} is novel, while the other ones are inspired by existing work.
+This section presents all of them, despite the fact that only property \gls*{scct} is novel and the others are inspired by existing work, in order to showcase all that is required for a formal proof of security for a realistic compilation toolchain.
 % , none of the properties is novel, for self-containment of the paper, their definition is necessary for the case study.
-For each of the presented properties, the technical appendix accompanying the paper defines corresponding monitors, which refine a given property and have a key role in the proofs of this paper. 
+For each of the presented properties, the technical appendix defines corresponding monitors, which refine a given property and have a key role in the proofs of this paper. 
 
 \subsection{A Trace Model for Memory Safety}\label{subsec:basic:memsafety:tracemodel}
 
@@ -639,7 +639,7 @@ Base-events describe the actual kind of event that happened.
 For the basic memory-safety properties, these are three variants:
 First, the allocation event ($\ev{Alloc\ \loc\ n}$) that fires whenever a program claims $n$ cells of memory and stores them at address $\loc$, where addresses are assumed to be unique.
 Second, deallocation ($\ev{Dealloc\ \loc}$) announces that the object at location $\loc$ is freed.
-Third, an event to describe reads from and writes to memory ($\ev{Use\ \loc\ n}$).
+Third, an event to describe reads from and writes to the $n$-th memory cell from address $\loc$ ($\ev{Use\ \loc\ n}$).
 
 \subsubsection{Temporal Memory Safety}
 
@@ -868,11 +868,19 @@ All presented programming languages share a common fragment which is partially p
                          &&&\mid \src{\ldelete{x}} \mid \src{\lget{x}{\expr}} \mid \src{\lset{x}{\expr[_1]}{\expr[]}} \mid \src{stuck}\\
                          &&&\mid \src{\lcall{f}{\expr}} \mid \src{\lreturn{\expr}} \\
     \text{(Functions)} & \src{F} &:=& (\src{x};\src{\expr}) \\
-    \text{(Libraries)} &&& \src{\library_{\ctx}} : \src{Vars} \to \src{F} \hspace{2em}
-    \src{\library_{\comp}} : \src{Vars} \to \src{F} \\
-    \text{(Heaps)} & \src{H} &:=& \src{\hole{\cdot}} \mid \src{n},\src{H}\hspace{0.5cm}    \text{(Pointer Maps)}\ \ \ \src{\Delta} \\
+    \text{(Libraries)} &&&\hspace{-3.8em} \src{\library_{\ctx}},\src{\library_{\comp}} : \src{Vars} \to \src{F} 
+    % \hspace{2em}
+    %  : \src{Vars} \to \src{F} 
+     \\
+    \text{(Heaps)} & \src{H} &:=& \src{\hole{\cdot}} \mid \src{n},\src{H}
+    % \hspace{0.5cm}    
+    \\
+    \text{(Pointer Maps)} & \src{\Delta} && \text{ omitted for simplicity}
+    \\
     \text{(Memory States)} & \src{\memstate} &:=& \left(\src{H^{\ctx}};\src{H^{\comp}};\src{\Delta}\right)\\
-  \text{(Control States)} & \src{\cfstate} & & \text{(States)}\ \ \ \src{\Omega}\ :=\ \left(\src{\cfstate};\src{\sandboxtag{}};\src{\memstate}\right)\\
+    \text{(Control States)} & \src{\cfstate} & & \text{ omitted for simplicity} 
+    \\
+    \text{(States)} &\src{\Omega} &:=& \left(\src{\cfstate};\src{\sandboxtag{}};\src{\memstate}\right)\\
   \end{array}
 \]
 }
@@ -982,7 +990,8 @@ For the other languages seen earlier, the mode is intuitively always-on, i.e., t
 \end{center}
 
 The language also adds user annotations $\obj{\securitytag{}}$ for the secrecy of variables, which can be either private (high secrecy) $\obj{\lock}$ or public (low secrecy) $\obj{\unlock}$.
-Security tags $\obj{\securitytag{}}$ are arranged in the usual secrecy lattice~\cite{zdancewicphd}, where $\obj{\lock}\sqsubseteq\obj{\securitytag{}}$ and $\obj{\securitytag{}}\sqsubseteq\obj{\unlock}$.
+Security tags $\obj{\securitytag{}}$ are arranged in the usual secrecy lattice~\cite{zdancewicphd}, where $\obj{\unlock}\sqsubseteq\obj{\lock}$.
+% $\obj{\lock}\sqsubseteq\obj{\securitytag{}}$ and $\obj{\securitytag{}}\sqsubseteq\obj{\unlock}$.
 
 Memory accesses to secret data need to be present to reason about memory safety, even when execution is in data-independent timing mode, e.g, \Cref{tr:to-e-get-in-noleak}.
 $\Lscct$ extends base-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$ (for data $\obj{i}$ndependent get and set) to prevent secrets from leaking but still enable reasoning about memory safety. 
@@ -1010,7 +1019,7 @@ Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyeven
   But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory is related to a specification trace with \colorbox{lightgray}{no exposed secrets}.
 \end{exampleenv}
 \begin{figure}[!htb]
-	\vspace{-1em}
+	\vspace{-1em}\small
   $$
   % {
   \begin{array}{ccc}
@@ -1573,7 +1582,7 @@ Since $\sim^{\Ltms}_{\Ltrg}$ is an equality, this relation trivially preserves t
 
 Finally, let us consider a trace $\irl{\trace}\in\mssafe$ and understand what is that is related to via $\sim^{\Ltrg}_{\Lms}$.
 % 
-{\em All} traces $\trg{\trace}$ with $\trg{\trace}\sim^{\Ltrg}_{\Lms}\irl{\trace}$ are identical to $\irl{\trace}$ except for get and set actions, which require for in-bound accesses: this clearly respect $\mssafe$.
+{\em All} traces $\trg{\trace}$ with $\trg{\trace}\sim^{\Ltrg}_{\Lms}\irl{\trace}$ are identical to $\irl{\trace}$ except for get and set actions, which require for in-bound accesses (as stated in \Cref{subsec:cs:ms}): this clearly respect $\mssafe$.
 % 
 
 % In both cases, the translated event does not represent an out-of-bounds memory access. 

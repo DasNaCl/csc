@@ -106,6 +106,20 @@ Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
 \noindent
 We assume $\lightning$ to occur in traces representing terminating programs such that it occurs infinitely often in a one-by-one sequence.
 
+\begin{definition}[Once]
+  Given an event $\event$ and a trace $\trace$, we say $\event$ appears exactly once in the trace, written $\event\in_{!}\trace$, iff
+
+  If $n\in\nat$ such that $\trace{[n]}=\event$, then for any $m\in\nat$ such that $\trace{[m]}=\event$ we have $n = m$.
+\end{definition}
+
+\begin{definition}[Before]
+  Given two events $\event[_0],\event[_1]$ and a trace $\trace$, event $\event[_0]$ occurs before $\event[_1]$ in $\trace$, written
+  $\event{_0}\le_{\trace}\event{_1}$, iff
+
+  If $n\in\nat$ such that $\trace{[n]} = \event[_{0}]$, then $\exists m\in\nat, \trace{[m]} = \event[_1] \wedge n< m$
+\end{definition}
+
+
 \begin{definition}[Finite Trace Prefixes]
   A finite sequence of events $m$ is a finite trace prefix of $\trace$ iff it satisfies the following judgement.
 
@@ -251,7 +265,7 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   % $$
 
   \[
-    \wfctau{\sim}{\tau{\cC}} := \forall \src{\pi}\in\src{\cC}, \tau_{\sim}(\src{\pi})\in\tau_{\sim}(\src{\cC})
+    \wfctau{\sim}{\src{\cC}} := \forall \src{\pi}\in\src{\cC}, \tau_{\sim}(\src{\pi})\in\tau_{\sim}(\src{\cC})
   \]
   % $$
 \end{definition}
@@ -278,10 +292,6 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
   $$
 \end{definition}
 
-\begin{lemma}[Safety is entailed in Hypersafety]
-  $\cSafety\subseteq\cHSafety$.
-\end{lemma}
-
 \begin{definition}[Subset Closed Hyperproperties]
   The class of hyperproperties that are closed with respect to the subset relation is
   $$
@@ -292,22 +302,13 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 \begin{lemma}[Hypersafety is entailed in SSC]
   $\cHSafety\subseteq\cSS$.
 \end{lemma}
+\begin{proof}
+  \cite{clarkson08}
+\end{proof}
 
 \begin{definition}[K-Hypersafety]
   Exactly the same as \Cref{def:hsafety}, but the observations $o$ are restricted to cardinality $k$.
   2-Hypersafety is simply $k=2$. \Cref{def:ni} gives an example instance of a classic 2-hypersafe property.
-\end{definition}
-
-\begin{definition}[Nontermination]
-  Nontermination is a safety property: Any finite trace prefix with $\terminationevent$ violates this property.
-\end{definition}
-
-\begin{definition}[Mutual Exclusion]
-  Mutual Exclusion (MutEx) means that no two processes during a program execution enter the same critical section.
-\end{definition}
-
-\begin{definition}[Determinism]
-  Determinism is a 2-hypersafety property, since any two program executions with the same input must yield the same output.
 \end{definition}
 
 \begin{definition}[Non-Interference ($\Ni$)]\label{def:ni}
@@ -318,71 +319,33 @@ However, it does not work for any hyperproperty~\cite{clarkson08}.
 \end{definition}
 Note that $=$ may not be strict equality, but some suitable trace equivalence that checks both public and private actions, instead of just public.
 
-\begin{definition}[Average Response Time (ART)]
-  The average response time over all executions less than some arbitrary constant~\cite{clarkson08} is a practically useful hyperproperty that is not subset closed.
-\end{definition}
-Consider the behavior $\{\trace_{1},\trace_{2},\trace_{3}\}$ where $\trace_{1},\trace_{2}$ each take 1 second and $\trace_{3}$ 4 seconds to run.
-If the chosen constant is 2, the hyperproperty would be fulfilled. However, the subset behavior $\{\trace_{3}\}$ has an average time of 4, double the bound set by the property.
-
-\begin{lemma}[Classes Lattice]
-  Classes with $\subseteq$ form a lattice.
-\end{lemma}
-\begin{proof}
-  The class with all hyperproperties is the top element $\top=\powerset{\traces}$, while the class with no hyperproperties whatsoever is $\bot=\{\}$.
-  Obviously, a partial order due to set inclusion.
-  $\cap$ is least upper and $\cup$ greatest lower bound of any given pair of subsets of a given class.
-\end{proof}
-
-\begin{figure}[h]
-  \centering
-  \begin{tikzpicture}[node distance=4mm,every node/.style={align=center}]
-    \node (top) {$\top$};
-    \node[below = of top.south] (SSC) {$\cSS$};
-    \node[below = of SSC.south] (HSafe) {$\cHSafety$};
-    \node[below = of HSafe.south] (HKSafe) {$\cKHSafety$};
-    \node[below = of HKSafe.south] (H2Safe) {$\cTwoHSafety$};
-    \node[below = of H2Safe.south] (Safe) {$\cSafety$};
-
-    % Specialized classes
-    \node[below right = of Safe.south] (Mutex) {$\mutex$};
-    \node[below left = of Safe.south,xshift = 0.75em] (NonTerm) {$\nonterm$};
-
-    \node[below left = of H2Safe.south west] (Determ) {$\determ$};
-    \node[below right = of H2Safe.south east] (NI) {$\Ni$};
-
-    \node[below = of Safe.south] (emptyspace) {};
-    \node[below = of emptyspace.south] (Bot) {$\bot$};
-
-    % edges
-    \draw[-] (top.south) -- (SSC.north);
-    \draw[-] (SSC.south) -- (HSafe.north);
-    \draw[-] (HSafe.south) -- (HKSafe.north);
-    \draw[-] (HKSafe.south) -- (H2Safe.north);
-    \draw[-] (H2Safe.south) -- (Safe.north);
-    \draw[-] (H2Safe.south) -- (Determ.north);
-    \draw[-] (H2Safe.south) -- (NI.north);
-    \draw[-] (Safe.south) -- (Mutex.north);
-    \draw[-] (Safe.south) -- (NonTerm.north);
-    \draw[-] (Determ.south) |- (Bot.west);
-    \draw[-] (NI.south) |- (Bot.east);
-    \draw[-] (Mutex.south) -- (Bot.north);
-    \draw[-] (NonTerm.south) -- (Bot.north);
-  \end{tikzpicture}
-  \caption{Sketch of a fraction of the infinitely sized lattice of classes. The diagram should be read from top to bottom. A connecting edge between two nodes means that the bottom one is a subset of the top one.}
-\end{figure}
-
 \section{Composition of Previous Results}
+
+\begin{lemma}[Sequential Composition with RTP$\tau$]\label{lem:seqcompo:tau}
+  Given $\wfctau{\sim_1}{\src{\cC_2}}$, $\rtptau[\sim_1]{\sicomp{\bullet}}{\src{\cC_{1}}}$, and $\rtptau[\sim_2]{\itcomp{\bullet}}{\tau_{\sim_1}(\src{\cC_{2}})}$, then $\rtptau[\sim_1\circ\sim_2]{\sitcomp{\bullet}}{\src{\cC_{1}}\cap\src{\cC_{2}}}$.
+\end{lemma}
+\begin{proof} 
+  We need to show $\rtptau[\sim_1\circ\sim_2]{\sitcomp{\bullet}}{\src{\cC_{1}}\cap\src{\cC_{2}}}$.
+  By definition, assume $\src{\pi}\in\src{\cC_{1}}\cap\src{\cC_{2}}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\src{\pi}}$.
+  What is left to show is $\rsat{\sitcomp{\src{p}}}{\tau_{\sim_1\circ\sim_2}(\src{\pi})}$.
+  Note that $\src{\pi}\in\src{\cC_{1}}$ as well as $\src{\pi}\in\src{\cC_2}$. 
+  Also, $\sicomp{\src{p}}\in\irl{\partials}$ and $\tau_{\sim_1\circ\sim_2}(\src{\pi})=\tau_{\sim_2}(\tau_{\sim_1}(\src{\pi}))$. 
+  Since $\sim_1$ is well-formed with respect to $\src{\cC_2}$, we can apply $\rtptau[\sim_2]{\itcomp{\bullet}}{\tau_{\sim_1}(\src{\cC_{2}})}$, changing our goal to $\rsat{\sicomp{\src{p}}}{\tau_{\sim_1}(\src{\pi})}$.
+  Since $\src{\pi}\in\src{\cC_{1}}$ also holds, we can this time apply $\rtptau[\sim_1]{\stcomp{\bullet}}{\src{\cC_{1}}}$.
+  What is left to show is $\rsat{\src{p}}{\src{\pi}}$, which is an assumption of ours.
+\end{proof}
+\begin{lemma}[Sequential Composition with RTP$\sigma$]\label{lem:seqcompo:sigma}
+  Given $\wfcsig{\sim_2}{\trg{\cC_1}}$, $\rtpsigma[\sim_1]{\sicomp{\bullet}}{\sigma_{\sim_2}(\trg{\cC_{1}})}$, and $\rtpsigma[\sim_2]{\itcomp{\bullet}}{\trg{\cC_{2}}}$, then $\rtpsigma[\sim_1\circ\sim_2]{\sitcomp{\bullet}}{\trg{\cC_{1}}\cap\trg{\cC_{2}}}$.
+\end{lemma}
+\begin{proof} 
+  Dual to \Cref{lem:seqcompo:tau}.
+\end{proof}
 
 \begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
   Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \begin{proof}
-  We need to show $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
-  By definition, assume $\Pi\in\cC_{1}\cap\cC_{2}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$.
-  What is left to show is $\rsat{\sitcomp{\src{p}}}{\prop}$.
-  Note that $\Pi\in\cC_{2}$ and that $\sicomp{\src{p}}\in\irl{\partials}$, allowing us to apply $\rtp{\itcomp{\bullet}}{\cC_{2}}$ changing our goal to $\rsat{\sicomp{\src{p}}}{\Pi}$.
-  Since $\Pi\in\cC_{1}$ also holds, we can this time apply $\rtp{\stcomp{\bullet}}{\cC_{1}}$.
-  What is left to show is $\rsat{\src{p}}{\Pi}$, which is an assumption of ours.
+  Simple consequence from either \Cref{lem:seqcompo:tau} or \Cref{lem:seqcompo:sigma} by setting the cross-language trace relations to =.
 \end{proof}
 
 \begin{definition}[Upper Composition]
@@ -427,108 +390,20 @@ If the chosen constant is 2, the hyperproperty would be fulfilled. However, the 
   Both follow from \Thmref{lem:seqcompo}.
 \end{proof}
 
-\begin{lemma}[Mingle]
-  Given
-  \begin{assumptions}
-  \item\label[ass]{lem:sandwich:ass:a} $\forall\Pi\in\cC_{2}.\forall\src{p}\in\src{\partials}.\rsat{\src{p}}{\Pi}\implies \Pi\in\cC_{1}$
-  \item\label[ass]{lem:sandwich:ass:b} $\forall\Pi\in\cC_{1}.\forall\trg{p}\in\trg{\partials}.\rsat{\trg{p}}{\Pi}\implies \Pi\in\cC_{2}$ (not needed)
-  \item\label[ass]{lem:sandwich:ass:c} $\rtp{\stcomp{\bullet}}{\cC_{1}}$
-  \end{assumptions}
-  we have
-  \begin{goals}
-  \item\label[goal]{lem:sandwich:goal:i} $\rtp{\stcomp{\bullet}}{\cC_{2}}$
-  \end{goals}
+\begin{lemma}[Swappable$\sigma$]\label{lem:swappable:sigma}
+  Given $\wfcsig{\sim_2}{\trg{\cC_1}}$, $\wfcsig{\sim_1}{\trg{\cC_2}}$, $\rtpsigma[\sim_1]{\ttcomp{\bullet}_{(1)}}{\trg{\cC_{1}}}$, $\rtpsigma[\sim_1]{\ttcomp{\bullet}_{(1)}}{\sigma_{\sim_2}(\trg{\cC_1})}$, $\rtpsigma[\sim_2]{\ttcomp{\bullet}_{(2)}}{\sigma_{\sim_1}(\trg{\cC_{2}})}$, and $\rtpsigma[\sim_2]{\ttcomp{\bullet}_{(2)}}{\trg{\cC_{2}}}$, then $\rtpsigma[\sim_1\circ\sim_2]{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{2}\cap\cC_{1}}$ and $\rtpsigma[\sim_2\circ\sim_1]{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \begin{proof}
-  Unfolding \Cref{lem:sandwich:goal:i}; Let $\Pi\in\cC_{2}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\Pi}$, leaving us with $\rsat{\stcomp{\src{p}}}{\Pi}$ to prove.
-
-  Apply \Cref{lem:sandwich:ass:c}, giving us as new goals $\Pi\in\cC_{1}$ and $\rsat{\src{p}}{\Pi}$, the latter following easily by the exact same assumption made before.
-
-  However, we still need to argue that $\Pi\in\cC_{1}$.
-
-  Instatiate the universal quantifications in \Cref{lem:sandwich:ass:a} with $\Pi$ and $\src{p}$. Apply that to our goal.
-  What is left to show is $\rsat{\src{p}}{\Pi}$, which we've proven before already.
+  Easy from \Thmref{lem:seqcompo:sigma}.
 \end{proof}
-
-\begin{lemma}[RSP may imply k-RSHP]
-  Given
-  \begin{assumptions}
-  \item\label[ass]{lem:rspimplkrshp:ass:a} $\S$ and $\T$ have $\loweq{}{}$ and $\selfcompo{}{}$ operators
-  \item\label[ass]{lem:rspimplkrshp:ass:b} $\Pi\in\cSafety$
-  \item\label[ass]{lem:rspimplkrshp:ass:c} $\src{p}\in\src{\partials}$ with $\rsat{\src{p}}{\Pi}$
-  \item\label[ass]{lem:rspimplkrshp:ass:d} $\rtp{\stcomp{\bullet}}{\cSafety}$
-  \end{assumptions}
-  Then
-  \begin{goals}
-  \item\label[goal]{lem:rspimplkrshp:goal:i} $\exists\stcomp{\bullet}.\sat{\stcomp{\src{p}}}{\text{k-RSHP}}$
-  \end{goals}
+\begin{lemma}[Swappable$\tau$]\label{lem:swappable:tau}
+  Given $\wfctau{\sim_2}{\trg{\cC_1}}$, $\wfctau{\sim_1}{\trg{\cC_2}}$, $\rtptau[\sim_1]{\ttcomp{\bullet}_{(1)}}{\trg{\cC_{1}}}$, $\rtptau[\sim_1]{\ttcomp{\bullet}_{(1)}}{\tau_{\sim_2}(\trg{\cC_1})}$, $\rtptau[\sim_2]{\ttcomp{\bullet}_{(2)}}{\tau_{\sim_1}(\trg{\cC_{2}})}$, and $\rtptau[\sim_2]{\ttcomp{\bullet}_{(2)}}{\trg{\cC_{2}}}$, then $\rtptau[\sim_1\circ\sim_2]{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{2}\cap\cC_{1}}$ and $\rtptau[\sim_2\circ\sim_1]{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
 \end{lemma}
 \begin{proof}
-  (intuition)
-
-  Take $\src{p}\in\src{\partials}$ and construct the k-product program according to \citet{barthe11}.
-  Feed the input into the compiler from \Cref{lem:rspimplkrshp:ass:d}.
-  Instantiate the existential in \Cref{lem:rspimplkrshp:goal:i} with the modified compiler.
-  Since the product program reflects the behavior of $\src{p}$, the transformation does not interfere with robust property satisfaction.
-  Furthermore, \Cref{lem:rspimplkrshp:ass:d} guarantees us that the compiled k-product program of $\src{p}$ is safe.
-  Since the k-product construction soundly embeds $k-RSHP$ properties into $\cSafety$, the claim follows.
+  Easy from \Thmref{lem:seqcompo:tau}.
 \end{proof}
 
 \section{Case Study}
-
-\phantom{
-\gls{tms},
-\gls{sms},
-\gls{ms},
-\gls{dce},
-\gls{cf}, and
-\gls{scct}.}
-
-\myfig{
-  \begin{center}
-    \begin{tikzpicture}
-      \node (S) {$\src{L_{\tmssafe}}$};
-      \node[right=1.5 of S] (T) {$\trg{L}$};
-      \node[right=1.5 of T] (M) {$\irl{L_{\mssafe}}$};
-      \node[below right=0.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
-      \node[above right=0.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
-      \node[right=3.0 of M] (E) {$\irl{L_{\mssafe}}$};
-      \node[right=1.5 of E] (O) {$\obj{L_{\scctsafe}}$};
-
-      \draw[->] (S) to[sloped,above] node[align=center,font=\scriptsize] (tmsedge) {\gls{tms}} (T);
-      \draw[->] (T) to[sloped,above] node[align=center,font=\scriptsize] {\gls{sms}} (M);
-      \draw[->] (M) to[sloped,below] node[align=center,font=\scriptsize] {\gls{dce}} (D0);
-      \draw[->] (M) to[sloped,above] node[align=center,font=\scriptsize] {\gls{cf}} (C0);
-      \draw[->] (D0) to[sloped,below] node[align=center,font=\scriptsize] {\gls{cf}} (E);
-      \draw[->] (C0) to[sloped,above] node[align=center,font=\scriptsize] {\gls{dce}} (E);
-      \draw[->] (E) to[sloped,above] node[align=center,font=\scriptsize] {\gls{scct}} (O);
-
-      % Sections
-%     \node[above=1.0 of tmsedge] (sectms) {{\scriptsize\Cref{subsec:cs:tms}}};
-%     \node[right=0.5 of sectms] (secsms) {{\scriptsize\Cref{subsec:cs:ms}}};
-%     \node[right=1.75 of secsms] (secopts) {{\scriptsize\Cref{subsec:cs:opts}}};
-%     \node[right=1.75 of secopts] (secscct) {{\scriptsize\Cref{subsec:cs:scct}}};
-
-      \draw[thick,dotted,->] (S) to[bend right=33,sloped,above] node[align=center,font=\scriptsize] {\gls{ms}} (M);
-      \draw[thick,dotted,->] (M) to[bend right=0,sloped,above] node[align=center,font=\scriptsize] {\gls{ms}} (E);
-      \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped,above] node[align=center,font=\scriptsize] {\gls{ms}+\gls{scct}} (O);
-
-%     \draw[dashed] ($(sectms)-(0.8,0)$) -- ($(sectms)-(0.8,1.25)$);
-%     \draw[dashed] ($(sectms)-(-0.9,0)$) -- ($(sectms)-(-0.9,1.25)$);
-%     \draw[dashed] ($(secsms)-(-1.2,0)$) -- ($(secsms)-(-1.2,1.25)$);
-%     \draw[dashed] ($(secscct)-(1.2,0)$) -- ($(secscct)-(1.2,1.25)$);
-%     \draw[dashed] ($(secscct)-(-1.1,0)$) -- ($(secscct)-(-1.1,1.25)$);
-    \end{tikzpicture}
-  \end{center}
-}{outline-sketch}{Compilation Pipeline with
-\gls{tms},
-\gls{sms},
-\gls{ms},
-\gls{dce},
-\gls{cf}, and
-\gls{scct}.
-}
-
 
 \subsection{Specification Language}
 
@@ -544,6 +419,18 @@ We introduce a set of actions that allows us to describe properties abstractly i
   \end{aligned}
   \end{gather*}
 }{w-specific-events}{Specification Events.}
+
+
+\begin{definition}[\glsfirst*{tms}]\label{def:tms}\label{def:tempmemsafe}
+  $$
+  \text{tms}:=\left\{\trace[_{\mssafe}] \left| \begin{array}{rcl}
+    \specificev{Alloc\ \loc\ n}&\le_{\trace[_{\mssafe}]}&\specificev{Dealloc\ \loc} \\
+    \specificev{Use\ \loc\ n}&\le_{\trace[_{\mssafe}]}&\specificev{Dealloc\ \loc} \\
+    \specificev{Dealloc\ \loc}&\in_{!}&\trace[_{\mssafe}] \\
+    \specificev{Alloc\ \loc\ n}&\in_{!}&\trace[_{\mssafe}] \\
+  \end{array}\right.\right\}
+  $$
+\end{definition}
 
 \subsubsection{\gls*{tms} Monitor}
 In order to just talk about temporal memory safety, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
@@ -687,6 +574,33 @@ As before, we need a way to translate one set of actions to another:
   \end{center}
 }{tms-trace-agreement}{Trace Agreement.}
 
+\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
+  We say $\texttt{TMS}(\mstrace)$ iff $\exists \delta_{\text{tms}}\ \abstrace\ \tmsmonitor$ such that:
+  \begin{itemize}
+    \item $\tmstraceagree{\mstrace}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
+  \end{itemize}
+\end{definition}
+
+\begin{lemma}[$\texttt{TMS}(\mstrace)$ implies $\mstrace\in\operatorname{tmsafe}$]\label{lem:tmssafe-tracetms}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:tmssafe-tracetms:tms} $\texttt{TMS}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\mstrace\in\operatorname{tmsafe}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:tmssafe-tracetms:tms}:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:tmssafe-tracetms:traceag} $\tmstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:tmssafe-tracetms:monstep} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:tmssafe-tracetms:monstep}.
+\end{proof}
+
 \subsubsection{\gls*{sms} Monitor}
 
 \myfig{
@@ -697,6 +611,19 @@ As before, we need a way to translate one set of actions to another:
     \end{aligned}
   \end{gather*}
 }{sms-monitor}{\gls{sms} Monitor.}
+
+\begin{definition}[\glsfirst*{sms}]\label{def:trace:smsdef}\label{def:sms}\label{def:spatmemsafe}
+% \small
+  % \begin{nscenter}
+
+  \noindent
+  \[
+  \smssafe:=\left\{\trace[_{\mssafe}] \left|\begin{array}{rcl}
+      \text{If }\specificev{Alloc\ \loc\ n}\le_{\trace_{\mssafe}}\specificev{Use\ \loc\ m}, \text{ then }m<n
+  \end{array}\right.\right\}
+  \]
+  % \end{nscenter}
+\end{definition}
 
 \myfig{
   \begin{center}
@@ -807,6 +734,33 @@ As before, we need a way to translate one set of actions to another:
   \end{center}
 }{sms-trace-agreement}{Trace Agreement.}
 
+\begin{definition}[Trace is spatial memory safe via monitor.]\label{def:src:trace:sms}
+  We say $\texttt{SMS}(\mstrace)$ iff $\exists \abstrace\ \smsmonitor$ such that:
+  \begin{itemize}
+    \item $\smstraceagree{\mstrace}{\abstrace}$
+    \item and $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
+  \end{itemize}
+\end{definition}
+
+\begin{lemma}[$\texttt{SMS}(\mstrace)$ implies $\mstrace\in\operatorname{smsafe}$]\label{lem:smssafe-tracesms}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:smssafe-tracesms:sms} $\texttt{SMS}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\mstrace\in\operatorname{smsafe}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:smssafe-tracesms:sms}:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:smssafe-tracesms:traceag} $\smstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:smssafe-tracesms:monstep} $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:smssafe-tracesms:monstep}.
+\end{proof}
+
 \subsubsection{\gls*{ms} Monitor}
 
 \myfig{
@@ -816,7 +770,13 @@ As before, we need a way to translate one set of actions to another:
       \mi{Abstract\ Events}~\absevent \bnfdef&\ \absevent_{\tmssafe}\times\absevent_{\smssafe}\\
     \end{aligned}
   \end{gather*}
-}{sms-monitor}{\gls{ms} Monitor.}
+}{ms-monitor}{\gls{ms} Monitor.}
+
+\begin{definition}[\glsfirst*{ms}]\label{def:trace:msdef}\label{def:memsafe}
+  $
+  \mssafe:=\tmssafe \cap \smssafe
+  $
+\end{definition}
 
 \myfig{
   \begin{center}
@@ -874,81 +834,6 @@ As before, we need a way to translate one set of actions to another:
 }{ms-trace-agreement}{Trace Agreement.}
 
 
-We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
-
-\begin{definition}[Once]
-  Given an event $\msevent$ and a trace $\mstrace$, we say $\msevent$ appears exactly once in the trace, written $\msevent\in_{!}\mstrace$, iff
-
-  If $n\in\nat$ such that $\trace{[n]}=\msevent$, then for any $m\in\nat$ such that $\trace{[m]}=\msevent$ we have $n = m$.
-\end{definition}
-
-\begin{definition}[Before]
-  Given two events $\msevent[_0],\msevent[_1]$ and a trace $\mstrace$, event $\msevent[_0]$ occurs before $\msevent[_1]$ in $\mstrace$, written
-  $\event{_0}\le_{\trace}\event{_1}$, iff
-
-  If $n\in\nat$ such that $\mstrace{[n]} = \msevent[_{0}]$, then $\exists m\in\nat, \mstrace{[m]} = \msevent[_1] \wedge n< m$
-\end{definition}
-
-\begin{definition}[\gls{tms} on Traces]\label{def:tempmemsafe}
-  We define the property $\operatorname{tmsafe}$ as a conjunction of the following conditions for any given $\mstrace$:
-  \begin{itemize}
-    \item $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\le_{{\mstrace}}\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma'}$
-    \item $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\le_{{\mstrace}}\specificev{Use\ \loc\ s};\sandboxtag;\specificev{\sigma'}$
-    \item $\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\sigma}\le_{{\mstrace}}\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma'}$
-    \item $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\in_{!}\mstrace$
-    \item $\specificev{Dealloc\ \loc};\sandboxtag;\specificev{\sigma}\in_{!}\mstrace$
-  \end{itemize}
-\end{definition}
-
-\begin{definition}[Spatial Memory Safety]\label{def:spatmemsafe}
-  We define the property $\operatorname{smsafe}$ as follows for any given $\mstrace$:
-  \begin{itemize}
-    \item If $\specificev{Alloc\ \loc\ s};\sandboxtag;\specificev{\sigma}\in{\mstrace}$ and $\specificev{Use\ \loc\ n};\sandboxtag;\specificev{\sigma}\in{\mstrace}$, then ${n}<{s}$
-  \end{itemize}
-\end{definition}
-
-\begin{definition}[Memory Safety]\label{def:memsafe}
-  We define the property $\operatorname{msafe}$ as follows for any given $\mstrace$
-  \begin{itemize}
-    \item $\mstrace\in\operatorname{tmsafe}$
-    \item $\mstrace\in\operatorname{smsafe}$
-  \end{itemize}
-\end{definition}
-
-\begin{definition}[Trace is temporal memory safe via monitor.]\label{def:src:trace:tms}
-  We say $\texttt{TMS}(\mstrace)$ iff $\exists \delta_{\text{tms}}\ \abstrace\ \tmsmonitor$ such that:
-  \begin{itemize}
-    \item $\tmstraceagree{\mstrace}{\abstrace}$
-    \item and $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
-  \end{itemize}
-\end{definition}
-
-\begin{lemma}[$\texttt{TMS}(\mstrace)$ implies $\mstrace\in\operatorname{tmsafe}$]\label{lem:tmssafe-tracetms}
-  If
-  \begin{assumptions}
-    \item\label[ass]{asm:tmssafe-tracetms:tms} $\texttt{TMS}(\mstrace)$
-  \end{assumptions}
-  Then
-  \begin{goals}
-    \item $\mstrace\in\operatorname{tmsafe}$
-  \end{goals}
-\end{lemma}
-\begin{proof}
-  Invert \Cref{asm:tmssafe-tracetms:tms}:
-  \begin{passumptions}{H}
-    \item\label[ass]{asm:tmssafe-tracetms:traceag} $\tmstraceagree{\mstrace}{\abstrace}$
-    \item\label[ass]{asm:tmssafe-tracetms:monstep} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
-  \end{passumptions}
-  The proof follows with an induction on \Cref{asm:tmssafe-tracetms:monstep}.
-\end{proof}
-
-\begin{definition}[Trace is spatial memory safe via monitor.]\label{def:src:trace:sms}
-  We say $\texttt{SMS}(\mstrace)$ iff $\exists \abstrace\ \smsmonitor$ such that:
-  \begin{itemize}
-    \item $\smstraceagree{\mstrace}{\abstrace}$
-    \item and $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
-  \end{itemize}
-\end{definition}
 
 \begin{definition}[Trace is memory safe via monitor.]\label{def:src:trace:ms}
   We say $\texttt{MS}(\mstrace)$ iff $\exists \abstrace\ \msmonitor$ such that:
@@ -958,23 +843,23 @@ We now define temporal and spatial memory safety in terms of $\mstrace$ traces.
   \end{itemize}
 \end{definition}
 
-\begin{lemma}[$\texttt{SMS}(\mstrace)$ implies $\mstrace\in\operatorname{smsafe}$]\label{lem:smssafe-tracesms}
+\begin{lemma}[$\texttt{MS}(\mstrace)$ implies $\mstrace\in\operatorname{msafe}$]\label{lem:mssafe-tracems}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:smssafe-tracesms:sms} $\texttt{SMS}(\mstrace)$
+    \item\label[ass]{asm:mssafe-tracems:ms} $\texttt{MS}(\mstrace)$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\mstrace\in\operatorname{smsafe}$
+    \item $\mstrace\in\operatorname{msafe}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Invert \Cref{asm:smssafe-tracesms:sms}:
+  Invert \Cref{asm:mssafe-tracems:ms}:
   \begin{passumptions}{H}
-    \item\label[ass]{asm:smssafe-tracesms:traceag} $\smstraceagree{\mstrace}{\abstrace}$
-    \item\label[ass]{asm:smssafe-tracesms:monstep} $\monitorcheck{\emptyset}{\smsmonitor}{\abstrace}$
+    \item\label[ass]{asm:mssafe-tracems:traceag} $\mstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:mssafe-tracems:monstep} $\monitorcheck{\emptyset}{\msmonitor}{\abstrace}$
   \end{passumptions}
-  The proof follows with an induction on \Cref{asm:smssafe-tracesms:monstep}.
+  The proof follows with \Cref{lem:tmssafe-tracetms,lem:smssafe-tracesms}.
 \end{proof}
 
 \subsubsection{\gls*{scct} Monitor}
@@ -1008,6 +893,18 @@ The underlying assumption the programmer does in any other language we've seen b
 }{scct-monitor}{\gls{scct} Monitor.}
 The \sCCT monitor serves as an overapproximation for cryptographic constant-time code.
 Here, any event whatsoever is considered bad, since this leaks information by means of a sidechannel.
+
+
+\begin{definition}[\glsfirst*{scct}]\label{def:trace:scctdef}\label{def:scct}
+% \begin{nscenter}
+  
+  \noindent\[
+  \scctsafe:=\left\{\trace[_{\ctsafe}] \left|\begin{array}{l}
+      \trace[_{\ctsafe}]=\hole{\cdot} \text{ or } \exists\trace[_{\ctsafe}'],\trace[_{\ctsafe}]=\event[_b^{\ctsafe}];\unlock\cdot\trace[_{\ctsafe}'] \wedge \trace[_{\ctsafe}']\in\scctsafe
+    \end{array}\right.\right\}
+  \]
+% \end{nscenter}
+\end{definition}
 
 \myfig{
   \begin{center}
@@ -1098,42 +995,19 @@ Here, any event whatsoever is considered bad, since this leaks information by me
       \sccttraceagree[^*]{\msevent\cdot\mstrace}{\absevent\cdot\abstrace}
     }{scct-trans-auth}
     %
-    \typerule{MS-Trans-Authentic-Lign}{
-      \mstraceagree[^*]{\mstrace}{\abstrace}
+    \typerule{\sCCT-Trans-Authentic-Lign}{
+      \sccttraceagree[^*]{\mstrace}{\abstrace}
     }{
-      \mstraceagree[^*]{\specificev{\emptyevent}\cdot\mstrace}{\abstrace}
-    }{ms-trans-auth-lign}
+      \sccttraceagree[^*]{\specificev{\emptyevent}\cdot\sccttrace}{\abstrace}
+    }{scct-trans-auth-lign}
     %
-    \typerule{MS-Trans-Authentic-Rign}{
-      \mstraceagree[^*]{\mstrace}{\abstrace}
+    \typerule{\sCCT-Trans-Authentic-Rign}{
+      \sccttraceagree[^*]{\mstrace}{\abstrace}
     }{
-      \mstraceagree[^*]{\mstrace}{\bm{\emptyevent}\cdot\abstrace}
-    }{ms-trans-auth-rign}
+      \sccttraceagree[^*]{\mstrace}{\bm{\emptyevent}\cdot\abstrace}
+    }{scct-trans-auth-rign}
   \end{center}
 }{scct-trace-agreement}{Trace Agreement.}
-
-\myfig{
-  \begin{center}
-    \typerule{make-low-high}{
-      \downarrow_{\lock}\mstrace[_1]=\mstrace[_2]
-    }{
-      \downarrow_{\lock}(\msevent[_{b}];\specificev{\lock}\cdot\mstrace[_1]) = \mstrace[_2]
-    }{make-low-high}
-    %
-    \typerule{make-low-low}{
-      \downarrow_{\lock}\mstrace[_1] = \mstrace[_2]
-    }{
-      \downarrow_{\lock}(\msevent[_{b}];\specificev{\unlock}\cdot\mstrace[_1]) = \msevent[_{b}];\specificev{\unlock}\cdot\mstrace[_2]
-    }{make-low-low}
-  \end{center}
-}{mstrace-make-low}{Projection removing secrets from a trace.}
-
-\begin{definition}[Strict Cryptographic Constant Time]\label{def:scct}
-  We define the property $\operatorname{\sCCT}$ as follows for any given $\mstrace$:
-  \begin{itemize}
-    \item $\mstrace=\downarrow_{\lock}\mstrace$
-  \end{itemize}
-\end{definition}
 
 \begin{definition}[Trace is strictly cryptographic constant time via monitor.]\label{def:src:trace:scct}
   We say $\texttt{\sCCT}(\mstrace)$ iff $\exists \abstrace\ \scctmonitor$ such that:
@@ -1142,6 +1016,25 @@ Here, any event whatsoever is considered bad, since this leaks information by me
     \item and $\monitorcheck{\emptyset}{\scctmonitor}{\abstrace}$
   \end{itemize}
 \end{definition}
+
+\begin{lemma}[$\texttt{SCCT}(\mstrace)$ implies $\mstrace\in\operatorname{scct}$]\label{lem:scctsafe-tracems}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:scctsafe-tracems:ms} $\texttt{SCCT}(\mstrace)$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\mstrace\in\operatorname{scct}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Invert \Cref{asm:scctsafe-tracems:ms}:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:scctsafe-tracems:traceag} $\mstraceagree{\mstrace}{\abstrace}$
+    \item\label[ass]{asm:scctsafe-tracems:monstep} $\monitorcheck{\emptyset}{\scctmonitor}{\abstrace}$
+  \end{passumptions}
+  The proof follows with an induction on \Cref{asm:scctsafe-tracems:monstep}.
+\end{proof}
 
 \subsection{Source Language}
 \subsubsection{Syntax}

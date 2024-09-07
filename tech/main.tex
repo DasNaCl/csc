@@ -51,6 +51,15 @@ From an engineering perspective, this is the desirable approach to building secu
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Preliminaries}
+
+\begin{definition}{\definitionlabel[Function Composition]{function-composition}}
+  $\fncompo{f}{g}\isdef \lambda x.f(g\;x)$
+\end{definition}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Satisfaction}
 \bul{A whole program $\varWholeProg$ satisfies a property $\varProperty$} iff \iul{$\varWholeProg$ yields a trace $\varTrace$} such that \oul{$\varTrace$ satisfies $\varProperty$}.
 
@@ -80,6 +89,8 @@ With this, \definitionref{prop-sat} can be extended as follows: for \bul{a compo
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Property Mappings}
 
+This work relies on property mappings introduced in related work~\cite{abate2021extacc}.
+
 \begin{definition}{\definitionlabel[Universal Image]{universal-image}}
   $ 
     \mapUniversal{\sim}{\trgProperty} := 
@@ -105,6 +116,8 @@ The lifting of \definitionref{existential-image} and \definitionref{universal-im
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \subsection{Robust Preservation}
+
+The following definitions for secure compilers are standard~\cite{abate2019jour,abate2021extacc}.
 
 \subsubsection{Differing Trace Models}
 
@@ -146,7 +159,114 @@ A \bul{compiler $\ccST$ for languages $\src{S}$ and $\trg{T}$ robustly preserves
   \end{center}
 \end{definition}
 
+\section{Composition of Secure Compilers}\label{sec:rtpc}
 
+This section presents the composition framework.
+
+\subsection{Same Trace Models}\label{subsec:rtpc-same-trace-models}
+
+In the setting of same trace models, composition of secure compilers (as in \defref{rtp}) is simple:
+
+\begin{lemma}{\lemmalabel[Composition of RTP]{rtp-compo}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-compo-comp1}{\rtp{\ccSI}{\varClass[_1]}}
+    \asm{rtp-compo-comp2}{\rtp{\ccIT}{\varClass[_2]}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-compo}{\rtp{\fncompo{\ccSI}{\ccIT}}{\varClass[_1]\cap\varClass[_2]}}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+The following corollary is a nice consequence of \lemref{rtp-compo}.
+\begin{corollary}{\corollarylabel[Commutativity of RTP]{rtp-swappable}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-swappable-comp1}{\rtp{\ccII}{\varClass[_1]}}
+    \asm{rtp-swappable-comp2}{\rtp{\ccII[\delta]}{\varClass[_2]}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-swappable1}{\rtp{\fncompo{\ccII}{\ccII[\delta]}}{\varClass[_1]\cap\varClass[_2]}}
+    \goal{rtp-swappable2}{\rtp{\fncompo{\ccII[\delta]}{\ccII}}{\varClass[_1]\cap\varClass[_2]}}
+  \end{goals}
+\end{corollary}
+\begin{proof}
+  \goalref{rtp-swappable1} and \goalref{rtp-swappable2} are an immediate consequence based on \lemmaref{rtp-compo} with \asmref{rtp-swappable-comp1} and \asmref{rtp-swappable-comp2}, noting the commutativity of set intersection.
+\end{proof}
+
+\subsection{Different Trace Models}\label{subsec:rtpc-different-trace-models}
+
+The situation in \Cref{subsec:rtpc-same-trace-models} is idealistic in the sense that a somewhat realistic robustly preserving compiler will likely have to insert checks for when control switches from context to component.
+For example, compiling from a statically typed language into a dynamically typed one, where the static language enforces functions to only accept numbers, the compiler has to insert appropriate checks to make sure that well-typedness is robustly preserved.
+Without such checks, a context could simply supply, e.g., a pair, violating the contract that a function can only receive numbers.
+
+These checks yield a mismatch between the source-level trace and the target-level trace, rendering \definitionref{rtp} not provable.
+Instead, one would have to use \definitionref{rtp-universal} or \definitionref{rtp-existential} and use an appropriate, cross-language trace relation that precisely describes the semantic effect on traces when compiling.
+For the type-checking function interfaces example, parts of this cross-language trace relation may be sketched as:
+
+\begin{center}
+  \typerule{ex-rel-interfaces-agree}{
+    \trg{v}\text{ is a number} \rulesep
+    \src{v}\approx\trg{v}
+  }{
+    \xrelTraces{\src{Call\;\ctxtocomp\;v}}{\trg{Call\;\ctxtocomp\;v}}
+  }{ex-rel-interfaces-agree}
+  \typerule{ex-rel-interfaces-disagree}{
+    \trg{v}\text{ not a number}
+  }{
+    \xrelTraces{\src{Abort}}{\trg{Call\;\ctxtocomp\;v}\cdot\trg{Abort}}
+  }{ex-rel-interfaces-disagree}
+\end{center}
+\trref{ex-rel-interfaces-agree} ensures that both in the source and target-level execution, when the context calls into the component, the values agree and are numerical.
+
+\trref{ex-rel-interfaces-disagree} handles the case where the target-level context supplied a $\trg{v}$ that is not a number.
+Here, the backtranslation cannot construct a context that gives a well-typed program {\em and} produces the same trace as the target, since the behavior is ill-defined to begin with.
+So, the only option for the backtranslation is to immediately crash.
+This, however, is a mismatch with the target-level trace, which only aborts in the wrapper that the compiler inserted.
+
+\begin{lemma}{\lemmalabel[Composition of RTP-Universal]{rtp-universal-compo}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-universal-compo-comp1}{\rtpUniversal{\ccSI}{\mapUniversal{\sim_2}{\trgClass[_1]}}{\sim_1}}
+    \asm{rtp-universal-compo-comp2}{\rtpUniversal{\ccIT}{\trgClass[_2]}{\sim_2}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-universal-compo}{\rtpUniversal{\fncompo{\ccSI}{\ccIT}}{\trgClass[_1]\cap\trgClass[_2]}{\fncompo{\sim_1}{\sim_2}}}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+
+\begin{lemma}{\lemmalabel[Composition of RTP-Existential]{rtp-existential-compo}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-existential-compo-comp1}{\rtpExistential{\ccSI}{\srcClass[_1]}{\sim_1}}
+    \asm{rtp-existential-compo-comp2}{\rtpExistential{\ccIT}{\mapExistential{\sim_1}{\srcClass[_2]}}{\sim_2}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-universal-compo}{\rtpExistential{\fncompo{\ccSI}{\ccIT}}{\srcClass[_1]\cap\srcClass[_2]}{\fncompo{\sim_1}{\sim_2}}}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+
+While compiler passes can be incompatible with each other in the sense that the resulting, mapped property is useless/not what is desired, it is enough to reason about compatibility of compilers at the level of traces.
+This is what this work refers to as ,,semantic effect of a compiler''.
+Instead of having to do syntactic arguments for the interaction of several compilation passes, one only has to do them for the semantic notion, i.e., the cross-language trace relations, which are much simpler proofs by an order of magnitude. 
+\MKin{
+  cite section backing up this claim 
+}
+
+
+\clearpage
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{main}
 

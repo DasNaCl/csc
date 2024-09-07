@@ -97,10 +97,11 @@
 
 %% theorem stuff
 \newenvironment{proof}[1][\textbf{Proof}]%
-{\everypar={{\setbox0=\lastbox}\everypar{}}\restartlist{passumptionslist}\par\noindent\ignorespaces\mbox{\textsc{#1}.}$\;$\\\noindent\everypar={{\setbox0=\lastbox}\everypar{}}}
+{\everypar={{\setbox0=\lastbox}\everypar{}}\restartlist{passumptionslist}\mbox{\textsc{#1}.}$\;$\\\noindent\everypar={{\setbox0=\lastbox}\everypar{}}}
 {$\;$\hfill$\square$\\\ignorespacesafterend%
 \ifx\paslistend\undefined\else\global\let\paslistend\undefined\fi%
 }
+\newcommand{\incompleteProof}[1][]{\begin{center}todo #1\end{center}}
 % Theorem environments
 \Crefname{exampleenv}{Example}{Examples}
 \Crefname{definitionenv}{Definition}{Definitions}
@@ -181,13 +182,210 @@
 \newcommand{\axiomref}[1]{\Cref{axiom:#1}~(\ref{t@axiom:#1})}
 \makeatother
 
-% referencing a rule
-\newcommand{\trref}[1]{\Cref{tr:#1}}
+% proofs
+\crefname{asm}{assumption}{assumptions}
+\crefname{goal}{goal}{goals}
+
+%%% stack of passumptions 
+\newtoks\passumptionsliststack
+\passumptionsliststack={\empty}
+
+\def\pushpassumptionsliststack#1#2{%
+  \edef\tmp{{#1}\the#2}%
+  #2=\expandafter{\tmp}%
+}
+
+\def\poppassumptionsliststack#1#2{%
+  \expandafter\splitpassumptionsliststack\the#1\stop{#1}{#2}%
+}
+
+\def\splitpassumptionsliststack#1#2\stop#3#4{% 
+  \def\tmp{#1}%
+  \ifx\tmp\empty
+  \else
+    \def#4{#1}\global#3={#2}%
+  \fi
+} 
+%%% stack of passumptions
+
+\newlist{passumptionslist}{enumerate}{1}
+\setlist[passumptionslist]{label=(\alph*)}
+
+\newenvironment{assumptions}
+    {\ifx\paslistend\undefined\else\global\let\paslistend\undefined\fi%
+      \begin{passumptionslist}[start=1]
+    }
+    {
+    \end{passumptionslist}
+  }
+\NoIndentAfterEnv{assumptions}
+\newenvironment{goals}
+    {\begin{enumerate}[label=(\roman*)]
+    }
+    {
+  \end{enumerate}
+  }
+\NoIndentAfterEnv{goals}
+
+\newcommand{\IH}[1][]{I{\kern-1.5pt}H#1}
+\newenvironment{passumptions}[1][H]
+  {%\thepassumptionslisti
+  \ifx\paslistend\undefined%
+    %{\color{red}\Large \thepassumptionslisti}
+  \begin{passumptionslist}[resume*,label={$\left(#1_{\arabic*}\right)$}]%
+  \else%
+    %{\color{red}\Large \thepassumptionslisti === \paslistend}
+  \begin{passumptionslist}[resume*,label={$\left(#1_{\arabic*}\right)$},start=\paslistend]%
+  \global\let\paslistend\undefined%
+  \fi%
+  }
+  {%
+  \end{passumptionslist}%
+  }
+\NoIndentAfterEnv{passumptions}
+% individual cases
+\newcommand{\asm}[2]{\item\label[asm]{asm:#1} {$#2$}}
+\newcommand{\goal}[2]{\item\label[goal]{goal:#1} {$#2$}}
+\newcommand{\asmref}[1]{\Cref{asm:#1}}
+\newcommand{\goalref}[1]{\Cref{goal:#1}}
+% case environment
+\makeatletter
+\newenvironment{proofcase}[2][Case ]{%
+    \global\edef\passumptionsliststackname{\thepassumptionslisti}%
+    \pushpassumptionsliststack{\passumptionsliststackname}{\passumptionsliststack}%
+    \par\noindent\ignorespaces%
+    {\fbox{\textbf{#1}{$ #2 $}\textbf{:}}} %
+    \begin{mdframed}[%
+        topline=false,%
+        rightline=false,%
+        bottomline=false,%
+        innertopmargin=0.2em,%
+        innerbottommargin=0.4em,%
+        innerrightmargin=0.7em,%
+        rightmargin=0.7em,%
+        innerleftmargin=0.7em,%
+        leftmargin=0.7em,%
+        linewidth=.15em,%
+    ]\@ifpackageloaded{lineno}{\internallinenumbers}{}%
+    \setlength{\parindent}{0pt} %
+}{%
+    \end{mdframed}\ignorespacesafterend%
+    \poppassumptionsliststack{\passumptionsliststack}{\passumptionsliststackname}%
+    \ifx\paslistend\undefined%
+    \global\def\paslistend{\passumptionsliststackname+1}%
+    \else%
+    \global\def\paslistend{\passumptionsliststackname+1}%
+    \fi%
+    \setcounter{passumptionslisti}{\passumptionsliststackname}%
+    %{\color{red}\Large\paslistend}
+}
+\makeatother
+\NoIndentAfterEnv{proofcase}
+
+
 
 % some cool operators
 \newcommand{\isdef}[0]{\ensuremath{\mathrel{\overset{\makebox[0pt]{\mbox{\normalfont\tiny\sffamily def}}}{=}}}}
 
-
+%% PL typesetting stuff 
+% Lists
+\newcommand{\mklist}[1]{\ensuremath\overline{#1}}
+% Box explaining judgement
+\newcommand{\textgraybox}[1]{\boxed{#1}}
+\newdimen\zzfontsz
+\newcommand{\fontsz}[2]{\zzfontsz=#1%
+{\fontsize{\zzfontsz}{1.2\zzfontsz}\selectfont{#2}}}
+\newcommand{\mathsz}[2]{\text{\fontsz{#1}{$#2$}}}
+\newcommand{\instsymColon}{%
+     \raisebox{-0.09ex}{\text{\normalfont{:}}}}
+\newcommand{\judgboxfontsize}[1]{%
+        \mathsz{11pt}{#1}%
+}
+\newcommand{\judgbox}[2]{%
+      {\raggedright \textgraybox{\ensuremath{\judgboxfontsize{#1}}}\!\;%
+        \fontsz{9pt}{\begin{tabular}[c]{l} #2 \end{tabular}} %
+}}
+\newcommand{\judgboxb}[2]{%
+  \judgbox{#1}{#2}\hspace{1ex}\hrulefill%
+}
+\mdfdefinestyle{judgframe}{%
+  topline=false, %
+  innertopmargin=-2.84ex, %
+  innerleftmargin=-.1ex, %
+  innerrightmargin=0ex, %
+  linewidth=.5pt %
+}
+\newcounter{judgements}
+\crefname{judgements}{judgement}{judgements}
+\newcommand{\judgementsref}[1]{\Cref{judgements:#1}}
+\newenvironment{judgframe}[4][-2.84ex]
+    {\begin{mdframed}[style=judgframe,innertopmargin=#1]\noindent%
+      \judgbox{#3}{,,#4''}\def\thejudgements{\ensuremath{#3}}\refstepcounter{judgements}\label[judgements]{judgements:#2}\hrulefill\\[-0.9mm]%
+      \begin{center}
+    }
+  {\end{center}%
+   \end{mdframed}%
+   \noindent%
+  }
+% Typerules
+\newcounter{typerule}
+\crefname{typerule}{rule}{rules}
+% separator (may be different depending on used package, so its a macro)
+\newcommand{\rulesep}{\qquad\\\xspace}
+\newcommand{\rulenewline}{\ensuremath \\\\}
+% inductive predicates
+\newcommand{\typeruleInt}[5]{%
+	\def\thetyperule{#1}%
+	\refstepcounter{typerule}%
+	\label{tr:#4}%
+	%
+  %\ensuremath{\begin{array}{c}#5 \inference{#2}{#3}\end{array}}
+  \ensuremath{\inferrule{ #2 }{ #3 }\quad #5}
+}
+\newcommand{\typerule}[4]{%
+  \typeruleInt{#1}{#2}{#3}{#4}{\textsf{\scriptsize ({#1})}  }
+}
+\newcommand{\typerulenolabel}[2]{%
+  \ensuremath{\inferrule{ #1 }{ #2 }}
+}
+\newcommand{\typederivX}[4][Right]{%
+  %\ensuremath{\begin{array}{c} \inference{#2}{#3} #1\end{array}}
+  \ensuremath{\inferrule*[#1=\textsc{\scriptsize(#2)}]{ #3 }{ #4 }}
+}
+\newcommand{\typederiv}[4][Right]{\typederivX[#1]{\trref{#2}}{#3}{#4}}
+\newcommand{\asmderiv}[4][Right]{%
+  %\ensuremath{\begin{array}{c} \inference{#2}{#3} #1\end{array}}
+  \ensuremath{\inferrule*[#1=\textsc{\scriptsize(\asmref{#2})}]{ #3 }{ #4 }}
+}
+\newcommand{\lemderiv}[3]{%
+  %\ensuremath{\begin{array}{c} \inference{#2}{#3} #1\end{array}}
+  \ensuremath{\inferrule*[Right=\textsc{\scriptsize(\lemref{#1})}]{ #2 }{ #3 }}
+}
+%%%%%%%
+% coinductive predicates
+\newcommand{\cotyperuleInt}[5]{%
+	\def\thetyperule{#1}%
+	\refstepcounter{typerule}%
+	\label{tr:#4}%
+	%
+  %\ensuremath{\begin{array}{c}#5 \inference{#2}{#3}\end{array}}
+  \ensuremath{\mprset{fraction={===}}\inferrule{ #2 }{ #3 }~#5}
+}
+\newcommand{\cotyperule}[4]{%
+  \cotyperuleInt{#1}{#2}{#3}{#4}{\textsf{\scriptsize ({#1})}  }
+}
+\newcommand{\cotyperulenolabel}[3]{%
+	\def\thetyperule{#1}%
+	\refstepcounter{typerule}%
+  %\ensuremath{\begin{array}{c} \inference{#2}{#3}\end{array}}
+  \ensuremath{\coinferrrule{ #2 }{ #3 }}
+}
+\newcommand{\cotyperulederiv}[3]{%
+  %\ensuremath{\begin{array}{c} \inference{#2}{#3} #1\end{array}}
+  \ensuremath{\mprset{fraction={===}}\inferrule{ #2 }{ #3 }~\textsc{(#1)}}
+}
+% referencing a rule
+\newcommand{\trref}[1]{\Cref{tr:#1}}
 % sandwiching
 \newcommand{\lift}[1]{\ensuremath\lfloor\xspace{#1}\xspace\rfloor}
 \newcommand{\hole}[1]{\ensuremath{\left[#1\right]}}
@@ -199,11 +397,15 @@
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Language-Specific
+\newcommand{\ctxtocomp}{\xspace ? \xspace}
+\newcommand{\comptoctx}{\xspace ! \xspace}
+
 \newcommand{\varWholeProg}[1][]{\ensuremath w_{#1}}
 \newcommand{\varComponent}[1][]{\ensuremath p_{#1}}
 \newcommand{\varContext}[1][]{\ensuremath C_{#1}}
 \newcommand{\varRuntimeTerm}[1][]{\ensuremath r_{#1}}
 
+\newcommand{\varEvent}[1][]{\ensuremath a_{#1}}
 \newcommand{\varTrace}[1][]{\ensuremath \overline{a_{#1}}}
 \newcommand{\varProperty}[1][]{\ensuremath \pi_{#1}}
 \newcommand{\varHyperProperty}[1][]{\ensuremath \Pi_{#1}}
@@ -216,6 +418,7 @@
 \newcommand{\srcContext}[1][]{\ensuremath \src{\varContext[#1]}}
 \newcommand{\srcRuntimeTerm}[1][]{\ensuremath \src{\varRuntimeTerm[#1]}}
 
+\newcommand{\srcEvent}[1][]{\ensuremath \src{\varEvent[#1]}}
 \newcommand{\srcTrace}[1][]{\ensuremath \src{\varTrace[#1]}}
 \newcommand{\srcProperty}[1][]{\ensuremath \src{\varProperty[#1]}}
 \newcommand{\srcHyperProperty}[1][]{\ensuremath \src{\varHyperProperty[#1]}}
@@ -226,12 +429,15 @@
 \newcommand{\trgContext}[1][]{\ensuremath \trg{\varContext[#1]}}
 \newcommand{\trgRuntimeTerm}[1][]{\ensuremath \trg{\varRuntimeTerm[#1]}}
 
+\newcommand{\trgEvent}[1][]{\ensuremath \trg{\varEvent[#1]}}
 \newcommand{\trgTrace}[1][]{\ensuremath \trg{\varTrace[#1]}}
 \newcommand{\trgProperty}[1][]{\ensuremath \trg{\varProperty[#1]}}
 \newcommand{\trgHyperProperty}[1][]{\ensuremath \trg{\varHyperProperty[#1]}}
 \newcommand{\trgClass}[1][]{\ensuremath \trg{\varClass[#1]}}
 
+% bops
 \newcommand{\bopLink}[2]{\ensuremath {#1}\bowtie{#2}}
+\newcommand{\fncompo}[2]{\ensuremath {#1}\circ{#2}}
 
 % different kinds of satifsaction
 \newcommand{\sat}[2]{\ensuremath \vdash {#1} : {#2}}
@@ -245,8 +451,11 @@
 \newcommand{\progstepto}[3]{\ensuremath{#1}\xRightarrow{#3}{#2}}
 
 
-\newcommand{\cc}[2]{\ensuremath \gamma^{#1}_{#2}}
-\newcommand{\ccST}{\ensuremath \cc{\src{S}}{\trg{T}}}
+\newcommand{\cc}[3][\gamma]{\ensuremath {#1}^{#2}_{#3}}
+\newcommand{\ccST}[1][\gamma]{\ensuremath \cc[#1]{\src{S}}{\trg{T}}}
+\newcommand{\ccSI}[1][\gamma]{\ensuremath \cc[#1]{\src{S}}{\irl{I}}}
+\newcommand{\ccIT}[1][\gamma]{\ensuremath \cc[#1]{\irl{I}}{\trg{T}}}
+\newcommand{\ccII}[1][\gamma]{\ensuremath \cc[#1]{\irl{I}}{\irl{I}}}
 
 
 \newcommand{\mapUniversal}[2]{\ensuremath \overset{#1}{\varsigma}\left({#2}\right)}

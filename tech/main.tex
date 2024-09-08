@@ -1,29 +1,13 @@
 % Fixing: Too many math alphabets used in version normal.
 \newcommand\hmmax{0}
 \newcommand\bmmax{0}
-\documentclass[utf8,acmsmall,review,screen,dvipsnames]{acmart}
-
-\usepackage[colorinlistoftodos]{todonotes}
-\usepackage[inference]{semantic}
-\usepackage{fontawesome5}
-\usepackage{listofitems}
-\usepackage{glossaries}
-\usepackage{cleveref}
-\usepackage{stmaryrd}
-\usepackage{marvosym}
-\usepackage{listings}
-\usepackage{xspace}
-\usepackage{xfrac}
-\usepackage{tikz}
-\usepackage{soul}
-\usepackage{bm}
-
-\setul{0.95ex}{0.3ex}
+\documentclass[a4paper,12pt]{article}
+\usepackage[left=1.5cm,top=1.5cm,right=1.5cm,bottom=1.5cm]{geometry}
+\usepackage{parskip}
 
 % https://tex.stackexchange.com/questions/648845/sans-serif-uppercase-greek-no-longer-showing-in-acmart
 \DeclareMathAlphabet{\mathsf}{OT1}{LibertinusSans-LF}{m}{n}
 \SetMathAlphabet{\mathsf}{bold}{OT1}{LibertinusSans-LF}{bx}{n}
-
 \DeclareMathAlphabet{\mathtt}{OT1}{lmtt}{m}{n}
 \SetMathAlphabet{\mathtt}{bold}{OT1}{lmtt}{bx}{n}
 
@@ -32,1085 +16,281 @@
 \loadglsentries{acronyms}
 \makeglossaries
 
-%% NOTE that a single column version may be required for 
-%% submission and peer review. This can be done by changing
-%% the \doucmentclass[...]{acmart} in this template to 
-%% \documentclass[manuscript,screen]{acmart}
-%% 
-%% To ensure 100% compatibility, please check the white list of
-%% approved LaTeX packages to be used with the Master Article Template at
-%% https://www.acm.org/publications/taps/whitelist-of-latex-packages 
-%% before creating your document. The white list page provides 
-%% information on how to submit additional LaTeX packages for 
-%% review and adoption.
-%% Fonts used in the template cannot be substituted; margin 
-%% adjustments are not allowed.
-%%
-%%
-%% \BibTeX command to typeset BibTeX logo in the docs
-\AtBeginDocument{%
-  \providecommand\BibTeX{{%
-    \normalfont B\kern-0.5em{\scshape i\kern-0.25em b}\kern-0.8em\TeX}}}
-
-\citestyle{acmauthoryear}
-
-\begin{document}
-
 \title{Secure Composition of Robust and Optimising Compilers}
-\begin{abstract}
-\begin{center}\small\it
-	{This paper uses syntax highlighting accessible to both colourblind and black \& white readers.
-	% ~\citep{patrignani2020use}.
-% 	% Specifically, it makes use of a $\src{blue}$, $\src{sans\text{-}serif}$ font for a $\src{source}$,
-% 	% a $\trg{red}$, $\trg{bold}$ font for an $\trg{intermediate}$,
-% 	% and a $\obj{green}$, $\obj{teletype}$ font for a $\obj{target}$ language.
-	}
-\end{center}
-\end{abstract}
+\begin{document}
 
 \maketitle
 
+\begin{abstract}
+% context
+To ensure that secure applications do not leak their secrets, they are required to uphold several security properties such as spatial and temporal memory safety, cryptographic constant time, as well as speculative safety.
+% need
+Existing work shows how to enforce these properties individually, in an architecture-independent way, by using secure compiler passes that each focus on an individual property.
+% task
+Unfortunately, given two secure compiler passes that each preserve a possibly different security property, it is unclear what kind of security property is preserved by the composition of those secure compiler passes.
+%there is no way to tell what kind of security property will the composition of those secure compilers preserve.
+
+% object
+This paper is the first to study what security properties are preserved across the composition of different secure compiler passes.
+% findings
+Starting from a general theory of property composition for security-relevant properties (such as the aforementioned ones), this paper formalises a theory of composition of secure compilers.
+Then, it showcases this theory on a secure multi-pass compiler that preserves the aforementioned security-relevant properties.
+% conclusion
+Crucially, this paper derives the security of the multi-pass compiler from the composition of the security properties preserved by its individual passes, which include security-preserving as well as optimisation passes.
+% 
+From an engineering perspective, this is the desirable approach to building secure compilers.
+\begin{center}\small\it
+	{This paper uses syntax highlighting accessible to both colourblind and black \& white readers.}
+\end{center}
+\end{abstract}
+
 \appendix
 
-\section{General Trace Model}\label{ap:sec:gtm}
+\section{Background}
 
-\begin{gather*}
-  \begin{aligned}
-  \mi{(Security\ Tag)}~\sigma\bnfdef&\ \lock \mid \unlock\hspace{0.5cm}
-  \mi{(Control\ Tag)}~\sandboxtag\bnfdef \ctx\mid\comp\hspace{0.5cm}
-  \mi{(Event)}~\event\bnfdef\ \emptyevent \mid \lightning \mid \event[_{b}];\sandboxtag;\sigma \\
-  \mi{(Pre\text{-}event)}&~\event[_{b}]\bnfdef\ \ev{Alloc\ \loc\ n} \mid \ev{Dealloc\ \loc} \mid \ev{Use\ \loc\ n} \mid \ev{Branch\ n} \mid \ev{Binop\ n} \\
-  \end{aligned}
-\end{gather*}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Preliminaries}
 
-Throughout the paper, sequences are indicated with an overbar (i.e., $\trace$), empty sequences with $\hole{\cdot}$, and concatenation of sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
-Prepending elements to sequences uses the same notation: $\event\cdot\trace$.
-
-\begin{definition}\label{ap:def:property}
-  A property $\pi$ is a set of traces $\trace$.
-\end{definition}
-\begin{definition}\label{ap:def:propclass}
-  A class $\class$ is a set of properties $\pi$.
-\end{definition}
-\begin{definition}\label{ap:def:lifting:properties}
-  The lifting $\lift{\pi}$ of property $\pi$ is its powerset.
+\begin{definition}{\definitionlabel[Function Composition]{function-composition}}
+  $\fncompo{f}{g}\isdef \lambda x.g(f\;x)$
 \end{definition}
 
-\section{Properties and Monitors}\label{ap:sec:propmon}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Satisfaction}
+\bul{A whole program $\varWholeProg$ satisfies a property $\varProperty$} iff \iul{$\varWholeProg$ yields a trace $\varTrace$} such that \oul{$\varTrace$ satisfies $\varProperty$}.
 
-In the following, $\traceagree[]{\pi}{\event}{\absevent}$ and the structure of $\abstrace$ are left abstract.
-These are monitor-specific definitions, which are defined in \Cref{ap:subsec:tms,ap:subsec:sms,ap:subsec:ms,ap:subsec:scct,ap:subsec:msscct}.
-
-\begin{figure}[!ht]
-  \judgbox{\traceagree{\pi}{\trace}{\abstrace}}{,,Specification-level trace $\trace$ agrees with monitor-level trace $\abstrace$ with respect to property $\pi$.''}
-  %
-  \typerule{traceagree-empty}{}{
-    \traceagree{\pi}{\hole{\cdot}}{\hole{\cdot}}
-  }{traceagree-empty}
-  %
-  \typerule{traceagree-ign-L}{
-    \traceagree{\pi}{\trace}{\abstrace}
-  }{
-    \traceagree{\pi}{\emptyevent\cdot\trace}{\abstrace}
-  }{traceagree-ign-L}
-  %
-  \typerule{traceagree-ign-R}{
-    \traceagree{\pi}{\trace}{\abstrace}
-  }{
-    \traceagree{\pi}{\trace}{\absev{\emptyevent}\cdot\abstrace}
-  }{traceagree-ign-R}
-  %
-  \typerule{traceagree-cons}{
-    \traceagree[]{\pi}{\event}{\absevent} &
-    \traceagree{\pi}{\trace}{\abstrace}
-  }{
-    \traceagree{\pi}{\event\cdot\trace}{\absevent\cdot\abstrace}
-  }{traceagree-cons}
-  \caption{Trace-Agreement relation that equates specification-level traces with monitor-level traces.}\label{fig:stuttereq}
-\end{figure}
-
-\bul{A specification trace $\trace$ monitor-satisfies property $\pi$} iff there exists a (final) monitor state $\monitor$ and an abstract trace $\abstrace$ such that the \iul{specification trace $\trace$ agrees with abstract trace $\abstrace$} and \oul{the initial monitor can step to the (final) monitor state $\monitor$ with abstract trace $\abstrace$}.
-
-\begin{definition}[Monitor Satisfaction]\label{def:monsat}
-  \bul{$\monsafe{\trace}{\pi}$} $\isdef$ $\exists \abstrace\ \monitor$, \iul{$\traceagree{\pi}{\trace}{\abstrace}$} and \oul{$\monitorcheck{\emptyset}{\monitor}{\abstrace}$}.
+\begin{definition}{\definitionlabel[Property Satisfaction]{prop-sat}}
+    \bul{$\sat{\varWholeProg}{\varProperty}$}
+    $\isdef$
+    if \iul{$\forall\varRuntimeTerm\ \varTrace, %
+      \progstepto{\varWholeProg}{\varRuntimeTerm}{\varTrace}$
+    },
+    then \oul{$\varTrace\in\varProperty$}.
 \end{definition}
 
-\subsection{Temporal Memory Safety}\label{ap:subsec:tms}
+With this, \definitionref{prop-sat} can be extended as follows: for \bul{a component $\varComponent$ to robustly satisfy a property $\varProperty$}, take an \iul{attacker context $\varContext$ and link it with $\varComponent$}, \oul{the resulting whole program must satisfy $\varProperty$}.
 
-\begin{definition}[\glsfirst*{tms}]\label{ap:def:trace:tmsdef}
-  \begin{displaymath}
-  \tmssafe:=\left\{\trace \left| \begin{array}{rcl}
-                              \ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
-                              \ev{Use\ \loc\ n;\sandboxtag;\securitytag}&\le_{\trace}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'} \\
-                              \text{if }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\text{ in }\trace&\text{then}&\ev{Dealloc\ \loc;\sandboxtag;\securitytag'}\text{ in }\trace \\
-                              \text{at most one }\ev{Dealloc\ \loc;\sandboxtag;\securitytag}&\text{in}&\trace \\
-                              \text{at most one }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}&\text{in}&\trace \\
-                            \end{array}\right.\right\}
-  \end{displaymath}
+\begin{definition}{\definitionlabel[Robust Property Satisfaction]{prop-rsat}}
+  \bul{$\rsat{\varComponent}{\varProperty}$} %
+  $\isdef$ %
+  \iul{$\forall \varContext\ \varWholeProg$, %
+    if $\bopLink{\varContext}{\varComponent} = \varWholeProg$}, %
+    then \oul{$\sat{\varWholeProg}{\varProperty}$%
+  }.
 \end{definition}
-Hereby, the notation $\event[_{1}]\le_{\trace}\event[_{2}]$ means that if $\event[_{1}]$ is in $\trace$ and if $\event[_{2}]$ is in $\trace$, then $\event[_{1}]$ appears before $\event[_{2}]$.
 
-$$\;$$
-\hrule
-$$\;$$
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Abstract\ Store)}~\tmsmonitor\bnfdef&\ \left\{\text{allocated}:L\times\sandboxtag,\text{freed}:L\times\sandboxtag\right\} \\
-    \mi{(Initial\ Abstract\ Store)}~\emptytmsmon:=&\ \left\{\text{allocated}:\emptyset,\text{freed}:\emptyset\right\}\\
-    \mi{(Abstract\ Events)}~\tmsevent\bnfdef&\ \absev{\emptyevent} \mid \absev{Alloc\ }\loc\ \sandboxtag \mid \absev{Dealloc\ }\loc\ \sandboxtag \mid \absev{Use\ }\loc\ \sandboxtag \mid \absterm\\
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \judgbox{\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\tmsevent}}{,,Monitor $\tmsmonitor$ does one step to $\tmsmonitor[']$ given event $\tmsevent$.''}$\;$\\
-  %
-  \typerule{tms-uninteresting}{
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{\emptyevent}}
-  }{ap:tms-uninteresting}
-  %
-  \typerule{tms-abort}{
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absterm}
-  }{ap:tms-abort}
-  %
-  \typerule{tms-use}{
-    (\loc;\sandboxtag)\in\tmsmonitor.\text{allocated} &
-    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed}
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\absev{Use\ }\loc\ \sandboxtag}
-  }{ap:tms-use}
-  %
-  \typerule{tms-alloc}{
-    (\loc;\sandboxtag)\notin\tmsmonitor.\text{allocated} &
-    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed} \\
-    \tmsmonitor[']=\left\{\text{allocated}: \tmsmonitor.\text{allocated}\cup\left\{(\loc;\sandboxtag)\right\},\text{freed}: \tmsmonitor.\text{freed}\right\}
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Alloc\ }\loc\ \sandboxtag}
-  }{ap:tms-alloc}
-  %
-  \typerule{tms-dealloc}{
-    (\loc;\sandboxtag)\in\tmsmonitor.\text{allocated} &
-    (\loc;\sandboxtag)\notin\tmsmonitor.\text{freed} \\
-    \tmsmonitor[']=\left\{\text{allocated}: \tmsmonitor.\text{allocated}\setminus\left\{(\loc;\sandboxtag)\right\},\text{freed}: \tmsmonitor.\text{freed}\cup\left\{(\loc;\sandboxtag)\right\}\right\}
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{Dealloc\ }\loc\ \sandboxtag}
-  }{ap:tms-dealloc}
-\end{center}
-\begin{center}
-  \judgbox{\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\tmstrace}}{,,Monitor $\tmsmonitor$ multi-steps to $\tmsmonitor[']$ given trace $\tmstrace$.''}$\;$\\
-  %
-  \typerule{tms-refl}{
-    \tmsmonitor.\text{allocated}=\emptyset
-  }{
-    \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}}
-  }{ap:tms-refl}
-  %
-  \typerule{tms-ign-trans}{
-    \monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\tmstrace}
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absev{\emptyevent}\cdot\tmstrace}
-  }{ap:tms-ign-trans}
-  %
-  \typerule{tms-trans}{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\tmsevent} &
-    \monitorcheck{\tmsmonitor[']}{\tmsmonitor['']}{\tmstrace}
-  }{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor['']}{\tmsevent\cdot\tmstrace}
-  }{ap:tms-trans}
-\end{center}
-\begin{center}
-  \judgbox{\tmstraceagree[]{\event}{\tmsevent}}{,,Abstract event $\tmsevent$ is equivalent to $\event$ with respect to \gls*{tms}.''}$\;$\\
-  %
-  \typerule{tms-alloc-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc\ \sandboxtag}
-  }{ap:tms-alloc-authentic}
-  %
-  \typerule{tms-dealloc-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
-  }{ap:tms-dealloc-authentic}
-  %
-  \typerule{tms-use-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc}
-  }{ap:tms-use-authentic}
-  %
-  \typerule{tms-branch-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Branch\ }n}{\absev{\emptyevent}}
-  }{ap:tms-branch-authentic}
-  %
-  \typerule{tms-binop-authentic}{
-  }{
-    \tmstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
-  }{ap:tms-binop-authentic}
-  %
-  \typerule{tms-empty-authentic}{
-  }{
-    \tmstraceagree[]{\emptyevent}{\absev{\emptyevent}}
-  }{ap:tms-empty-authentic}
-  %
-  \typerule{tms-abort-authentic}{
-  }{
-    \tmstraceagree[]{\lightning}{\absterm}
-  }{ap:tms-abort-authentic}
-\end{center}
 
-\begin{lemma}[Traces with Monitor Satisfaction are $\tmssafe$]\label{ap:lem:mon:tmssafe}
-  If $\montmssafe{\trace}$, then $\trace\in\tmssafe$. %\Coqed
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Property Mappings}
 
-\subsection{Spatial Memory Safety}\label{ap:subsec:sms}
+This work relies on property mappings introduced in related work~\cite{abate2021extacc}.
 
-\begin{definition}[\glsfirst*{sms}]\label{ap:def:trace:smsdef}
-  \begin{displaymath}
-  \smssafe:=\left\{\trace \left|\begin{array}{rcl}
-                                  \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}, \text{ then }m<n
-                                \end{array}\right.\right\}
-  \end{displaymath}
+\begin{definition}{\definitionlabel[Universal Image]{universal-image}}
+  $ 
+    \mapUniversal{\sim}{\trgProperty} := 
+      \lrbraces{\srcTrace \mid %
+        \forall \trgTrace\ldotp \text{if }\xrelTraces{\srcTrace}{\trgTrace}, \text{ then }%
+        \trgTrace\in\trgProperty
+      }
+  $
 \end{definition}
-$$\;$$
-\hrule
-$$\;$$
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Abstract\ Store)}~\smsmonitor:=&\ L\times\sandboxtag\times\mb{N}\mid\emptysmsmon\\
-    \mi{(Abstract\ Events)}~\smsevent\bnfdef&\ \absev{\varepsilon} \mid \absev{Alloc\ }\loc\ \sandboxtag\ n \mid \absev{Use\ }\loc\ \sandboxtag\ n \\
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \judgbox{\monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\smsevent}}{,,Monitor $\smsmonitor$ does one step to $\smsmonitor[']$ given event $\smsevent$.''}$\;$\\
-  %
-  \typerule{sms-uninteresting}{
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{\emptyevent}}
-  }{ap:sms-uninteresting}
-  %
-  \typerule{sms-abort}{
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absterm}
-  }{ap:sms-abort}
-  %
-  \typerule{sms-use}{
-    (\loc;\sandboxtag;m)\in\smsmonitor &
-    n<m
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor}{\absev{Use\ }\loc\ \sandboxtag\ n}
-  }{ap:sms-use}
-  %
-  \typerule{sms-alloc}{
-    (\loc;\sandboxtag;m)\notin\smsmonitor
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor\cup\left\{(\loc;\sandboxtag;n)\right\}}{\absev{Alloc\ }\loc\ \sandboxtag\ n}
-  }{ap:sms-alloc}
-\end{center}
-\begin{center}
-  \judgbox{\monitorcheck{\smsmonitor}{\smsmonitor[']}{\smstrace}}{,,Monitor $\smsmonitor$ multi-steps to $\smsmonitor[']$ given trace $\smstrace$.''}$\;$\\
-  %
-  \typerule{sms-refl}{
-  }{
-    \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
-  }{ap:sms-refl}
-  %
-  \typerule{sms-ign-trans}{
-    \monitorcheck{\smsmonitor}{\smsmonitor[']}{\smstrace}
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\absev{\emptyevent}\cdot\smstrace}
-  }{ap:sms-ign-trans}
-  %
-  \typerule{sms-trans}{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\smsevent} &
-    \monitorcheck{\smsmonitor[']}{\smsmonitor['']}{\smstrace}
-  }{
-    \monitorcheck[]{\smsmonitor}{\smsmonitor['']}{\smsevent\cdot\smstrace}
-  }{ap:sms-trans}
-\end{center}
-\begin{center}
-  \judgbox{\smstraceagree[]{\event}{\smsevent}}{,,Abstract event $\smsevent$ is equivalent to $\event$ with respect to \gls*{sms}.''}$\;$\\
-  %
-  \typerule{sms-alloc-authentic}{
-  }{
-    \smstraceagree[]{\ev{Alloc}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Alloc\ }\loc\ n}
-  }{ap:sms-alloc-authentic}
-  %
-  \typerule{sms-dealloc-authentic}{
-  }{
-    \smstraceagree[]{\ev{Dealloc}\ \loc;\sandboxtag;\securitytag}{\absev{Dealloc\ }\loc}
-  }{ap:sms-dealloc-authentic}
-  %
-  \typerule{sms-use-authentic}{
-  }{
-    \smstraceagree[]{\ev{Use}\ \loc\ n;\sandboxtag;\securitytag}{\absev{Use\ }\loc\ n}
-  }{ap:sms-use-authentic}
-  %
-  \typerule{sms-branch-authentic}{
-  }{
-    \smstraceagree[]{\ev{Branch\ }n}{\absev{\emptyevent}}
-  }{ap:sms-branch-authentic}
-  %
-  \typerule{sms-binop-authentic}{
-  }{
-    \smstraceagree[]{\ev{Binop\ }n}{\absev{\emptyevent}}
-  }{ap:sms-binop-authentic}
-  %
-  \typerule{sms-empty-authentic}{
-  }{
-    \smstraceagree[]{\emptyevent}{\absev{\emptyevent}}
-  }{ap:sms-empty-authentic}
-  %
-  \typerule{sms-abort-authentic}{
-  }{
-    \smstraceagree[]{\lightning}{\absterm}
-  }{ap:sms-abort-authentic}
-\end{center}
-\begin{lemma}[Traces with Monitor Satisfaction are $\smssafe$]\label{ap:lem:mon:smssafe}
-  If $\monsmssafe{\trace}$, then $\trace\in\smssafe$.\Coqed
+\begin{definition}{\definitionlabel[Existential Image]{existential-image}}
+  $ 
+    \mapExistential{\sim}{\srcProperty} := 
+      \lrbraces{\trgTrace \mid %
+        \exists \srcTrace\ldotp \xrelTraces{\srcTrace}{\trgTrace} \text{ and }%
+        \srcTrace\in\srcProperty
+      }
+  $
+\end{definition}
+
+The lifting of \definitionref{existential-image} and \definitionref{universal-image} to classes of properties is standard, i.e., simply element-wise.
+
+\begin{lemma}{\lemmalabel[Trace Relation distributes on Universal Image]{xtrace-distribute-universal}}
+  Let $X$ be either a trace-property or a class. Then:
+  \begin{goals}
+    \goal{xtrace-distribute-universal}{\mapUniversal{\fncompo{\sim_1}{\sim_2}}{X} = \mapUniversal{\sim_2}{\mapUniversal{\sim_1}{X}}}
+  \end{goals}
 \end{lemma}
 \begin{proof}
-  First, generalize \Cref{ap:def:trace:smsdef} as follows:
-  \begin{displaymath}
-    \gsmssafe:=\left\{\trace \left|\begin{array}{rcl}
-                                    \text{If }\ev{Alloc\ \loc\ n;\sandboxtag;\securitytag}\le_{\trace}\ev{Use\ \loc\ m;\sandboxtag;\securitytag'}\\
-                                    \text{or }(\ev{Use\ \loc\ m;\sandboxtag;\securitytag}\text{ in }\trace\text{ and }(\loc,\sandboxtag,n)\in\smsmonitor),\\
-                                    \text{ then }m<n
-                                  \end{array}\right.\right\}
-  \end{displaymath}
-  Then, show ,,If $\mongsmssafe{\trace}$, then $\trace\in\gsmssafe$.'' by inducing on the monitor steps.
-
-  Now specialize this generalization to $\smsmonitor=\emptyset$ and the claim follows as a corollary.
+  Straightforward unfolding of \definitionref{universal-image} and \definitionref{function-composition} in \goalref{xtrace-distribute-universal}.
 \end{proof}
-
-\subsection{Memory Safety}\label{ap:subsec:ms}
-
-\begin{definition}[\glsfirst*{ms}]\label{ap:def:trace:msdef}
-  \begin{displaymath}
-    \mssafe:=\tmssafe \cap \smssafe
-  \end{displaymath}
-\end{definition}
-$$\;$$
-\hrule
-$$\;$$
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Abstract\ Store)}~\msmonitor:=&\ \tmsmonitor\times\smsmonitor\\
-    \mi{(Initial\ Abstract\ Store)}~\emptymsmon:=&\ (\emptytmsmon, \emptysmsmon) \\
-    \mi{(Abstract\ Events)}~\msevent:=&\ \tmsevent\times\smsevent \mid \absev{\emptyevent}\\
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \judgbox{\monitorcheck[]{\msmonitor}{\msmonitor[']}{\msevent}}{,,Monitor $\msmonitor$ does one step to $\msmonitor[']$ given event $\msevent$.''}$\;$\\
-  %
-  \typerule{ms-step}{
-    \monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\tmsevent} &
-    \monitorcheck[]{\smsmonitor}{\smsmonitor[']}{\smsevent}
-  }{
-    \monitorcheck[]{(\tmsmonitor,\smsmonitor)}{(\tmsmonitor['],\smsmonitor['])}{(\tmsevent,\smsevent)}
-  }{ap:ms-step}
-\end{center}
-\begin{center}
-  \judgbox{\monitorcheck{\msmonitor}{\msmonitor[']}{\mstrace}}{,,Monitor $\msmonitor$ multi-steps to $\msmonitor[']$ given trace $\mstrace$.''}$\;$\\
-  %
-  \typerule{ms-refl}{
-    \monitorcheck{\tmsmonitor}{\tmsmonitor}{\hole{\cdot}} &
-    \monitorcheck{\smsmonitor}{\smsmonitor}{\hole{\cdot}}
-  }{
-    \monitorcheck{(\tmsmonitor,\smsmonitor)}{(\tmsmonitor,\smsmonitor)}{\hole{\cdot}}
-  }{ap:ms-refl}
-  %
-  \typerule{ms-ign-trans}{
-    \monitorcheck{\msmonitor}{\msmonitor[']}{\mstrace}
-  }{
-    \monitorcheck[]{\msmonitor}{\msmonitor[']}{\absev{\emptyevent}\cdot\mstrace}
-  }{ap:ms-ign-trans}
-  %
-  \typerule{ms-trans}{
-    \monitorcheck[]{\msmonitor}{\msmonitor[']}{\msevent} &
-    \monitorcheck{\msmonitor[']}{\msmonitor['']}{\mstrace}
-  }{
-    \monitorcheck[]{\msmonitor}{\msmonitor['']}{\msevent\cdot\mstrace}
-  }{ap:ms-trans}
-\end{center}
-\begin{center}
-  \judgbox{\mstraceagree[]{\event}{\msevent}}{,,Abstract event $\msevent$ is equivalent to $\event$ with respect to \gls*{ms}.''}$\;$\\
-  %
-  \typerule{ms-some-authentic}{
-    \tmstraceagree[]{\event}{\tmsevent} &
-    \smstraceagree[]{\event}{\smsevent}
-  }{
-    \mstraceagree[]{\event}{(\tmsevent,\smsevent)}
-  }{ap:ms-some-authentic}
-  %
-  \typerule{ms-none-authentic}{
-    \tmstraceagree[]{\event}{\absev{\emptyevent}} &
-    \smstraceagree[]{\event}{\absev{\emptyevent}}
-  }{
-    \mstraceagree[]{\event}{\absev{\emptyevent}}
-  }{ap:ms-none-authentic}
-\end{center}
-
-\begin{lemma}[Traces with Monitor Satisfaction are $\mssafe$]\label{ap:lem:mon:mssafe}
-  If $\monmssafe{\trace}$, then $\trace\in\mssafe$.\Coqed
+\begin{lemma}{\lemmalabel[Trace Relation distributes on Existential Image]{xtrace-distribute-existential}}
+  Let $X$ be either a trace-property or a class. Then:
+  \begin{goals}
+    \goal{xtrace-distribute-existential}{\mapExistential{\fncompo{\sim_1}{\sim_2}}{X} = \mapExistential{\sim_2}{\mapExistential{\sim_1}{X}}}
+  \end{goals}
 \end{lemma}
 \begin{proof}
-  Corollary of \Cref{ap:lem:mon:tmssafe,ap:lem:mon:smssafe}.
+  Straightforward unfolding of \definitionref{existential-image} and \definitionref{function-composition} in \goalref{xtrace-distribute-existential}.
 \end{proof}
 
-\subsection{Strict Cryptographic Constant Time}\label{ap:subsec:scct}
 
-\begin{definition}[\glsfirst*{scct}]\label{ap:def:trace:scctdef}
-  \begin{displaymath}
-    \scctsafe:=\left\{\trace \left|\begin{array}{rcl}
-                                     \trace=\hole{\cdot} & \text{ or } & \trace=\event[_{b}];\sandboxtag;\unlock\cdot\trace['] \wedge \trace[']\in\scctsafe
-                                   \end{array}\right.\right\}
-  \end{displaymath}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{Robust Preservation}
+
+The following definitions for secure compilers are standard~\cite{abate2019jour,abate2021extacc}.
+
+\subsubsection{Differing Trace Models}
+
+A \bul{compiler $\ccST$ for languages $\src{S}$ and $\trg{T}$ robustly preserves a $\trg{T}$-level class $\trgClass$}, if for any \rul{property $\trgProperty$ of class $\trgClass$ and programs $\srcComponent$}, where \iul{$\srcComponent$ robustly satisfies $\mapUniversal{\sim}{\trgProperty}$}, \oul{the compilation of $\srcComponent$, we have that $\ccST\lrpars{\srcComponent}$ robustly satisfies $\trgProperty$}.
+
+\begin{definition}{\definitionlabel[Robust Preservation with $\mapUniversal{\sim}{\cdot}$]{rtp-universal}}
+  \begin{center}
+    \bul{$\rtpUniversal{\ccST}{\trgClass}{\sim}$}
+    %, iff 
+    $\isdef$
+    \rul{$\forall \trgProperty\in\trgClass, \srcComponent\in\src{S},$} %
+    if \iul{$\rsat{\srcComponent}{\mapUniversal{\sim}{\trgProperty}}$},
+    then \oul{$\rsat{\ccST\lrpars{\srcComponent}}{\trgProperty}$}.
+  \end{center}
 \end{definition}
-$$\;$$
-\hrule
-$$\;$$
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Abstract\ Store)}~\scctmonitor:=&\ \emptyscctmon\\
-    \mi{(Abstract\ Events)}~\scctevent:=&\ \absev{\emptyevent} \mid \absev{\lightning} \mid \absev{Any} \\
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \judgbox{\monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\scctevent}}{,,Monitor $\scctmonitor$ does one step to $\scctmonitor[']$ given event $\scctevent$.''}$\;$\\
-  %
-  \typerule{scct-none}{
-  }{
-    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absev{\emptyevent}}
-  }{ap:scct-none}
-  %
-  \typerule{scct-abort}{
-  }{
-    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absev{\lightning}}
-  }{ap:scct-abort}
-\end{center}
-\begin{center}
-  \judgbox{\monitorcheck{\scctmonitor}{\scctmonitor[']}{\sccttrace}}{,,Monitor $\scctmonitor$ multi-steps to $\scctmonitor[']$ given trace $\sccttrace$.''}$\;$\\
-  %
-  \typerule{scct-refl}{
-  }{
-    \monitorcheck{\scctmonitor}{\scctmonitor}{\hole{\cdot}}
-  }{ap:scct-refl}
-  %
-  \typerule{scct-ign-trans}{
-    \monitorcheck{\scctmonitor}{\scctmonitor[']}{\sccttrace}
-  }{
-    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\absev{\emptyevent}\cdot\sccttrace}
-  }{ap:scct-ign-trans}
-  %
-  \typerule{scct-trans}{
-    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\scctevent} &
-    \monitorcheck{\scctmonitor[']}{\scctmonitor['']}{\sccttrace}
-  }{
-    \monitorcheck[]{\scctmonitor}{\scctmonitor['']}{\scctevent\cdot\sccttrace}
-  }{ap:scct-trans}
-\end{center}
-\begin{center}
-  \judgbox{\sccttraceagree[]{\event}{\absevent}}{,,Abstract event $\absevent$ is equivalent to $\event$ with respect to \gls*{cct}.''}$\;$\\
-  %
-  \typerule{scct-low-authentic}{
-  }{
-    \sccttraceagree[]{\event[_b];\sandboxtag;\unlock}{\absev{\emptyevent}}
-  }{ap:scct-low-authentic}
-  %
-  \typerule{scct-high-authentic}{
-  }{
-    \sccttraceagree[]{\event[_b];\sandboxtag;\lock}{\absev{Any}}
-  }{ap:scct-high-authentic}
-  %
-  \typerule{scct-empty-authentic}{
-  }{
-    \sccttraceagree[]{\emptyevent}{\absev{\emptyevent}}
-  }{ap:scct-empty-authentic}
-  %
-  \typerule{scct-abort-authentic}{
-  }{
-    \sccttraceagree[]{\lightning}{\absterm}
-  }{ap:scct-abort-authentic}
-\end{center}
-\begin{lemma}[Monitor Traces are $\scctsafe$]\label{lem:mon:scctsafe}
-  If $\monscctsafe{\trace}$, then $\trace\in\scctsafe$. %\Coqed
-\end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+A \bul{compiler $\ccST$ for languages $\src{S}$ and $\trg{T}$ robustly preserves a $\src{S}$-level class $\srcClass$}, if for any \rul{property $\srcProperty$ of class $\srcClass$ and programs $\srcComponent$}, where \iul{$\srcComponent$ robustly satisfies $\srcProperty$}, \oul{the compilation of $\srcComponent$, we have that $\ccST\lrpars{\srcComponent}$ robustly satisfies $\mapExistential{\sim}{\srcProperty}$}.
 
-\subsection{Memory Safety and Strict Cryptographic Constant Time}\label{ap:subsec:msscct}
-\begin{definition}[\glsfirst*{msscct}]\label{ap:def:trace:msscctdef}
-  \begin{displaymath}
-    \msscctsafe:=\mssafe\cap\scctsafe
-  \end{displaymath}
+\begin{definition}{\definitionlabel[Robust Preservation with $\mapExistential{\sim}{\cdot}$]{rtp-existential}}
+  \begin{center}
+    \bul{$\rtpExistential{\ccST}{\srcClass}{\sim}$}
+    %, iff 
+    $\isdef$
+    \rul{$\forall \srcProperty\in\srcClass, \srcComponent\in\src{S},$} %
+    if \iul{$\rsat{\srcComponent}{\srcProperty}$},
+    then \oul{$\rsat{\ccST\lrpars{\srcComponent}}{\mapExistential{\sim}{\srcProperty}}$}.
+  \end{center}
 \end{definition}
-$$\;$$
-\hrule
-$$\;$$
 
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Abstract\ Store)}~\msscctmonitor:=&\ \msmonitor\times\scctmonitor\\
-    \mi{(Initial\ Abstract\ Store)}~\emptymsscctmon:=&\ (\emptymsscctmon, \emptyscctmon) \\
-    \mi{(Abstract\ Events)}~\msscctevent:=&\ \msscctevent\times\scctevent \mid \absev{\emptyevent}\\
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \judgbox{\monitorcheck[]{\msscctmonitor}{\msscctmonitor[']}{\msscctevent}}{,,Monitor $\msscctmonitor$ does one step to $\msscctmonitor[']$ given event $\msscctevent$.''}$\;$\\
-  %
-  \typerule{msscct-step}{
-    \monitorcheck[]{\msmonitor}{\msmonitor[']}{\msevent} &
-    \monitorcheck[]{\scctmonitor}{\scctmonitor[']}{\scctevent}
-  }{
-    \monitorcheck[]{(\msmonitor,\scctmonitor)}{(\msmonitor['],\scctmonitor['])}{(\msevent,\scctevent)}
-  }{ap:msscct-step}
-\end{center}
-\begin{center}
-  \judgbox{\monitorcheck{\msscctmonitor}{\msscctmonitor[']}{\mssccttrace}}{,,Monitor $\msscctmonitor$ multi-steps to $\msscctmonitor[']$ given trace $\mssccttrace$.''}$\;$\\
-  %
-  \typerule{msscct-refl}{
-    \monitorcheck{\msmonitor}{\msmonitor}{\hole{\cdot}} &
-    \monitorcheck{\scctmonitor}{\scctmonitor}{\hole{\cdot}}
-  }{
-    \monitorcheck{(\msmonitor,\scctmonitor)}{(\msmonitor,\scctmonitor)}{\hole{\cdot}}
-  }{ap:msscct-refl}
-  %
-  \typerule{msscct-ign-trans}{
-    \monitorcheck{\msscctmonitor}{\msscctmonitor[']}{\mssccttrace}
-  }{
-    \monitorcheck[]{\msscctmonitor}{\msscctmonitor[']}{\absev{\emptyevent}\cdot\mssccttrace}
-  }{ap:msscct-ign-trans}
-  %
-  \typerule{msscct-trans}{
-    \monitorcheck[]{\msscctmonitor}{\msscctmonitor[']}{\msscctevent} &
-    \monitorcheck{\msscctmonitor[']}{\msscctmonitor['']}{\mssccttrace}
-  }{
-    \monitorcheck[]{\msscctmonitor}{\msscctmonitor['']}{\msscctevent\cdot\mssccttrace}
-  }{ap:msscct-trans}
-\end{center}
-\begin{center}
-  \judgbox{\mssccttraceagree[]{\event}{\msscctevent}}{,,Abstract event $\msscctevent$ is equivalent to $\event$ with respect to \gls*{ms}.''}$\;$\\
-  %
-  \typerule{msscct-some-authentic}{
-    \mstraceagree[]{\event}{\msevent} &
-    \sccttraceagree[]{\event}{\scctevent}
-  }{
-    \mssccttraceagree[]{\event}{(\msevent,\scctevent)}
-  }{ap:msscct-some-authentic}
-  %
-  \typerule{msscct-none-authentic}{
-    \mstraceagree[]{\event}{\absev{\emptyevent}} &
-    \sccttraceagree[]{\event}{\absev{\emptyevent}}
-  }{
-    \mssccttraceagree[]{\event}{\absev{\emptyevent}}
-  }{ap:msscct-none-authentic}
-\end{center}
+\subsubsection{Same Trace Models}
 
-\begin{lemma}[Traces with Monitor Satisfaction are $\msscctsafe$]\label{ap:lem:mon:msscctsafe}
-  If $\monmsscctsafe{\trace}$, then $\trace\in\msscctsafe$.\Coqed
+\begin{definition}{\definitionlabel[Robust Preservation]{rtp}}
+  \begin{center}
+    $\rtp{\ccST}{\varClass}$
+    %, iff 
+    $\isdef$
+    $\forall \varProperty\in\varClass, \srcComponent\in\src{S},$ %
+    if $\rsat{\srcComponent}{\varProperty}$,
+    then $\rsat{\ccST\lrpars{\srcComponent}}{\varProperty}$.
+  \end{center}
+\end{definition}
+
+\section{Composition of Secure Compilers}\label{sec:rtpc}
+
+This section presents the composition framework.
+
+\subsection{Same Trace Models}\label{subsec:rtpc-same-trace-models}
+
+In the setting of same trace models, composition of secure compilers (as in \defref{rtp}) is simple:
+
+\begin{lemma}{\lemmalabel[Composition of RTP]{rtp-compo}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-compo-comp1}{\rtp{\ccSI}{\varClass[_1]}}
+    \asm{rtp-compo-comp2}{\rtp{\ccIT}{\varClass[_2]}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-compo}{\rtp{\fncompo{\ccSI}{\ccIT}}{\varClass[_1]\cap\varClass[_2]}}
+  \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+The following corollary is a nice consequence of \lemref{rtp-compo}.
+\begin{corollary}{\corollarylabel[Commutativity of RTP]{rtp-swappable}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-swappable-comp1}{\rtp{\ccII}{\varClass[_1]}}
+    \asm{rtp-swappable-comp2}{\rtp{\ccII[\delta]}{\varClass[_2]}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-swappable1}{\rtp{\fncompo{\ccII}{\ccII[\delta]}}{\varClass[_1]\cap\varClass[_2]}}
+    \goal{rtp-swappable2}{\rtp{\fncompo{\ccII[\delta]}{\ccII}}{\varClass[_1]\cap\varClass[_2]}}
+  \end{goals}
+\end{corollary}
+\begin{proof}
+  \goalref{rtp-swappable1} and \goalref{rtp-swappable2} are an immediate consequence based on \lemmaref{rtp-compo} with \asmref{rtp-swappable-comp1} and \asmref{rtp-swappable-comp2}, noting the commutativity of set intersection.
+\end{proof}
 
-\section{Programming Languages}\label{ap:sec:proglangs}
+\subsection{Different Trace Models}\label{subsec:rtpc-different-trace-models}
 
-\subsection{$\Ltms$: Statically Typed, Temporal Memory Safe, Strict Cryptographic Constant Time}
+The situation in \Cref{subsec:rtpc-same-trace-models} is idealistic in the sense that a somewhat realistic robustly preserving compiler will likely have to insert checks for when control switches from context to component.
+For example, compiling from a statically typed language into a dynamically typed one, where the static language enforces functions to only accept numbers, the compiler has to insert appropriate checks to make sure that well-typedness is robustly preserved.
+Without such checks, a context could simply supply, e.g., a pair, violating the contract that a function can only receive numbers.
 
-$\Ltms$ trivially satisfies \gls*{scct}, because all variables/values are private ($\lock$) by default.
-This is ,,enforced'' when projecting $\src{\Ltms}$ events to the general trace model presented in \Cref{ap:sec:gtm}.
-
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Expressions)}~&\src{\expr}\bnfdef\ \src{x} \mid \src{\valueexpr} \mid \src{\lbinop{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lget{x}{\expr}} \mid \src{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}{\expr[_{3}]}} \mid \src{\ldelete{x}} \mid \src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}} \\
-                       & \mid \src{\lpair{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lproja{\expr}} \mid \src{\lprojb{\expr}} \mid \src{\llet{x}{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\lreturn{\expr}} \mid \src{\lcall{g}{\expr}} \mid \src{\lifz{\expr}{\expr[_{1}]}{\expr[_{2}]}} \mid \src{\labort}
-  \end{aligned}
-  \\
-  \begin{aligned}
-  \mi{(Types)}~&\src{\type}\bnfdef\src{\natt} \mid \src{\ptr} \mid \src{\wptr} \mid \src{\type[_{1}] \times \type[_{2}]}
-  &
-  \mi{(Type~Enviroments)}~&\src{\typenv}\bnfdef\src{\hole{\cdot}} \mid \src{x:\type,\typenv} \mid \src{x:\type[_1]\to\type[_2],\typenv}
-  \end{aligned}\\
-  \begin{aligned}
-  \mi{(Functions)}~&\src{\function}\bnfdef\ \src{\lfunction{\textit{foo}}{x}{e}}
-  &
-\mi{(Libraries)}~&\src{\library}\bnfdef\ \src{\hole{\cdot}} \mid \src{\function},\src{\library}
-  \end{aligned}\\
-  \begin{aligned}
-  \mi{(Component~Names)}~&\src{\commlib}\bnfdef\ \src{\hole{\cdot}} \mid \src{\text{foo}},\src{\commlib}
-  &
-  \mi{(Programs)}~&\src{\prog{\library_{\ctx}}{\library_{\comp}}}
-  \end{aligned}
-\end{gather*}
-
-Variables are referred to as $x,y,z,a,b,c,\ldots$ while functions may be referred to as multi-character words, such as $\texttt{foo}$, as well as short-forms like $f,g,h$.
-
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Control~Tags)}~&\src{\sandboxtag}\bnfdef\src{\ctx} \mid \src{comp}
-    &
-    \mi{(Communication~Tags)}~&\src{\comm}\bnfdef\ \src{\ctxtocomp} \mid\ \src{\comptoctx} \mid \src{\nocomm}
-    &
-    \mi{(Poison~Tags)}~&\src{\poison}\bnfdef \src{\poisoned} \mid \src{\poisonless}
-  \end{aligned}\\
-  \begin{aligned}
-    \mi{(Continuation~Stacks)}~&\src{\ectxstack}\bnfdef\src{\hole{\cdot}} \mid \src{\tup{K}{g}},\src{\ectxstack}
-    &
-    \mi{(Control~Flow~States)}~&\src{\cfstate}\bnfdef\src{\tup{\library}{\ectxstack}}
-  	\\
-    \mi{(Locations)}~&\src{\loc}\in\nat
-    &
-    \mi{(Substitutions)}~&\src{\substvar}\bnfdef \src{\hole{\cdot}} \mid \src{\subst{\valueexpr}{x}},\src{\gamma}
-  	\\
-    \mi{(Stores)}~&\src{\Delta}\bnfdef\src{\hole{\cdot}} \mid \src{x\mapsto\tup{\loc}{\sandboxtag,\poison,n}},\src{\Delta}
-    &
-    \mi{(Heaps)}~&\src{H}\bnfdef\src{\hole{\cdot}} | \src{\valueexpr},\src{H}
-  \end{aligned}\\
-  \begin{aligned}
-    \mi{(Memory~States)}~&\src{\memstate}\bnfdef\src{\tup{H^{\ctx}}{H^{\comp};\Delta}}
-    &
-    \mi{(States)}~&\src{\statevar}\bnfdef\src{\tup{\cfstate}{\sandboxtag,\memstate}}
-    &
-    \mi{(Runtime~Terms)}~&\src{\runtimetermvar}\bnfdef\src{\rtt{\statevar}{\expr}} \mid \src{\lightning}
-  \end{aligned}
-\end{gather*}
-Throughout the paper, the substitution notation is also used to update entries in states $\statevar$.
+These checks yield a mismatch between the source-level trace and the target-level trace, rendering \definitionref{rtp} not provable.
+Instead, one would have to use \definitionref{rtp-universal} or \definitionref{rtp-existential} and use an appropriate, cross-language trace relation that precisely describes the semantic effect on traces when compiling.
+For the type-checking function interfaces example, parts of this cross-language trace relation may be sketched as:
 
 \begin{center}
-  \judgbox{\noownedptr{\src{\type}}}{,,Type $\src{\type}$ does not entail an owned pointer.''}
-  %
-  \typerule{$\src{\Ltms}-\text{noownedptr}-\src{\natt}$}{
+  \typerule{ex-rel-interfaces-agree}{
+    \trg{v}\text{ is a number} \rulesep
+    \src{v}\approx\trg{v}
   }{
-    \noownedptr{\src{\natt}}
-  }{ap:ltms-noownedptr-natt}
-  %
-  \typerule{$\src{\Ltms}-\text{noownedptr}-\src{\wptr}$}{
+    \xrelTraces{\src{Call\;\ctxtocomp\;v}}{\trg{Call\;\ctxtocomp\;v}}
+  }{ex-rel-interfaces-agree}
+  \typerule{ex-rel-interfaces-disagree}{
+    \trg{v}\text{ not a number}
   }{
-    \noownedptr{\src{\wptr}}
-  }{ap:ltms-noownedptr-wptr}
-  %
-  \typerule{$\src{\Ltms}-\text{noownedptr}-\text{pair}$}{
-    \noownedptr{\src{\type[_1]}} &
-    \noownedptr{\src{\type[_2]}}
-  }{
-    \noownedptr{\src{\type[_1]\times\type[_2]}}
-  }{ap:ltms-noownedptr-pair}
+    \xrelTraces{\src{Abort}}{\trg{Call\;\ctxtocomp\;v}\cdot\trg{Abort}}
+  }{ex-rel-interfaces-disagree}
 \end{center}
-\begin{center}
-  \judgbox{\noownedptr{\src{\typenv}}}{,,$\src{\typenv}$ does not contain any owned pointers.''}
-  %
-  \typerule{$\src{\Ltms}-\text{noownedptr}-\text{empty}$}{
-  }{
-    \noownedptr{\src{\hole{\cdot}}}
-  }{ap:ltms-noownedptr-empty}
-  %
-  \typerule{$\src{\Ltms}-\text{noownedptr}-\text{cons}$}{
-    \noownedptr{\src{\type}} &
-    \noownedptr{\src{\typenv}}
-  }{
-    \noownedptr{\src{x:\type,\typenv}}
-  }{ap:ltms-noownedptr-cons}
-\end{center}
-\begin{center}
-  \judgbox{\src{\typenv}\equiv\typenvsplit{\src{\typenv[']}}{\src{\typenv['']}}}{,,Split environment $\src{\typenv}$ into $\src{\typenv[']}$ and $\src{\typenv['']}$.''}
-  %
-  \typerule{$\src{\Ltms}-$split-empty}{
-  }{
-    \src{\hole{\cdot}} \equiv \typenvsplit{\src{\hole{\cdot}}}{\src{\hole{\cdot}}}
-  }{ap:ltms-split-empty}
-  %
-  \typerule{$\src{\Ltms}-$split-emptyL}{
-  }{
-    \src{\typenv} \equiv \typenvsplit{\src{\hole{\cdot}}}{\src{\typenv}}
-  }{ap:ltms-split-emptyL}
-  %
-  \typerule{$\src{\Ltms}-$split-emptyR}{
-  }{
-    \src{\typenv} \equiv \typenvsplit{\src{\typenv}}{\src{\hole{\cdot}}}
-  }{ap:ltms-split-emptyR}
-  %
-  \typerule{$\src{\Ltms}$-split-$\natt$}{
-    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
-  }{
-    \src{x:\natt},\src{\typenv} \equiv \typenvsplit{\src{x:\natt},\src{\typenv[_1]}}{\src{x:\natt},\src{\typenv[_2]}}
-  }{ap:ltms-split-natt}
-  %
-  \typerule{$\src{\Ltms}$-split-wptr}{
-    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
-  }{
-    \src{x:\wptr},\src{\typenv} \equiv \typenvsplit{\src{x:\wptr},\src{\typenv[_1]}}{\src{x:\wptr},\src{\typenv[_2]}}
-  }{ap:ltms-split-wptr}
-  %
-  \typerule{$\src{\Ltms}$-split-pair}{
-    \noownedptr{\src{\type[_1]\times\type[_2]}} &
-    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
-  }{
-    \src{x:\type[_1]\times\type[_2]},\src{\typenv} \equiv \typenvsplit{\src{x:\type[_1]},\src{\typenv[_1]}}{\src{x:\type[_2]},\src{\typenv[_2]}}
-  }{ap:ltms-split-pair}
-  %
-  \typerule{$\src{\Ltms}$-split-ptrL}{
-    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
-  }{
-    \src{x:\ptr},\src{\typenv} \equiv \typenvsplit{\src{x:\ptr},\src{\typenv[_1]}}{\src{\typenv[_2]}}
-  }{ap:ltms-split-ptrL}
-  %
-  \typerule{$\src{\Ltms}$-split-ptrR}{
-    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
-  }{
-    \src{x:\ptr},\src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{x:\ptr},\src{\typenv[_2]}}
-  }{ap:ltms-split-ptrR}
-  %
-  \typerule{$\src{\Ltms}$-split-arrow}{
-    \noownedptr{\src{\type[_1]}} &
-    \noownedptr{\src{\type[_2]}} &
-    \src{\typenv} \equiv \typenvsplit{\src{\typenv[_1]}}{\src{\typenv[_2]}}
-  }{
-  \src{foo:\type[_1]\to\type[_2]},\src{\typenv} \equiv \typenvsplit{\src{foo:\type[_1]\to\type[_2]},\src{\Gamma_1}}{\src{foo:\type[_1]\to\type[_2]},\src{\Gamma_2}}
-  }{ap:ltms-split-arrow}
-\end{center}
-\begin{align*}
-  \mi{(All~Types)}~\src{\type[_e]}\bnfdef \src{\type\to\bot} \mid \src{\type[_1]\to\type[_2]} \mid \src{\type}
-\end{align*}
-\begin{center}
-  \judgbox{\typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_e]}}}{,,Expression $\src{\expr}$ has type $\src{\type[_e]}$ under environment $\src{\typenv}$.''}
-  %
-  \typerule{$\src{\Ltms}-t-\text{var}$}{
-    \noownedptr{\src{\typenv[_1],\typenv[_2]}}
-  }{
-    \typecheck{\src{\typenv[_1],x:\type[_e],\typenv[_2]}}{\src{x}}{\src{\type[_e]}}
-  }{ap:ltms-t-var}
-  %
-  \typerule{$\src{\Ltms}-t-\src{\natt}$}{
-    \noownedptr{\src{\typenv}}
-  }{
-    \typecheck{\src{\typenv}}{\src{n}}{\src{\natt}}
-  }{ap:ltms-t-natt}
-  %
-  \typerule{$\src{\Ltms}-t-\text{binop}$}{
-    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\natt}} &
-    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\natt}}
-  }{
-    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lbinop{\expr[_1]}{\expr[_2]}}}{\src{\natt}}
-  }{ap:ltms-t-binop}
-  %
-  \typerule{$\src{\Ltms}-t-\text{pair}$}{
-    \typecheck{\src{\typenv[_2]}}{\src{\expr[_1]}}{\src{\type[_1]}} &
-    \typecheck{\src{\typenv[_1]}}{\src{\expr[_2]}}{\src{\type[_2]}}
-  }{
-    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lpair{\expr[_1]}{\expr[_2]}}}{\src{\type[_1]\times\type[_2]}}
-  }{ap:ltms-t-pair}
-  %
-  \typerule{$\src{\Ltms}-t-\text{proj}-a$}{
-    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_1]\times\type[_2]}} &
-    \noownedptr{\src{\type[_2]}}
-  }{
-    \typecheck{\src{\typenv}}{\src{\lproja{\expr}}}{\src{\type[_1]}}
-  }{ap:ltms-t-proj-a}
-  %
-  \typerule{$\src{\Ltms}-t-\text{proj}-b$}{
-    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_1]\times\type[_2]}} &
-    \noownedptr{\src{\type[_1]}}
-  }{
-    \typecheck{\src{\typenv}}{\src{\lprojb{\expr}}}{\src{\type[_2]}}
-  }{ap:ltms-t-proj-b}
-  %
-  \typerule{$\src{\Ltms}-t-\text{get}$}{
-    \typecheck{\src{\typenv[_2]}}{\src{x}}{\src{\wptr}} &
-    \typecheck{\src{\typenv[_1]}}{\src{\expr}}{\src{\natt}}
-  }{
-    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lget{x}{\expr}}}{\src{\natt}}
-  }{ap:ltms-t-get}
-  %
-  \typerule{$\src{\Ltms}-t-\text{set}$}{
-    \typecheck{\src{\typenv[_3]}}{\src{x}}{\src{\wptr}} &
-    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\natt}} &
-    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\natt}}
-  }{
-    \typecheck{\src{\typenvsplit{(\typenvsplit{\typenv[_1]}{\typenv[_2]})}{\typenv[_3]}}}{\src{\lset{x}{\expr[_1]}{\expr[_2]}}}{\src{\natt}}
-  }{ap:ltms-t-set}
-  %
-  \typerule{$\src{\Ltms}-t-\text{let}$}{
-    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\type}} &
-    \typecheck{\src{x:\type,\typenv[_2]}}{\src{\expr[_2]}}{\src{\type[_e]}}
-  }{
-    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\llet{x}{\expr[_1]}{\expr[_2]}}}{\src{\type[_e]}}
-  }{ap:ltms-t-let}
-  %
-  \typerule{$\src{\Ltms}-t-\text{new}$}{
-    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\nat}} &
-    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\nat}} &
-    \typecheck{\src{x:\ptr,\typenv[_3]}}{\src{\expr[_3]}}{\src{\type[_e]}}
-  }{
-    \typecheck{\src{\typenvsplit{(\typenvsplit{\typenv[_1]}{\typenv[_2]})}{\typenv[_3]}}}{\src{\lnew{x}{\expr[_1]}{\expr[_2]}{\expr[_3]}}}{\src{\type[_e]}}
-  }{ap:ltms-t-new}
-  %
-  \typerule{$\src{\Ltms}-t-\text{delete}$}{
-    \noownedptr{\src{\typenv[_1],\typenv[_2]}}
-  }{
-    \typecheck{\src{\typenv[_1],x:\ptr,\typenv[_2]}}{\src{\ldelete{x}}}{\src{\nat}}
-  }{ap:ltms-t-delete}
-  %
-  \typerule{$\src{\Ltms}-t-\text{call}$}{
-    \noownedptr{\src{\type[_1]}} &
-    \noownedptr{\src{\type[_2]}} \\
-    \typecheck{\src{\typenv}}{\src{foo}}{\src{\type[_1]\to\type[_2]}} &
-    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type[_1]}}
-  }{
-    \typecheck{\src{\typenv}}{\src{\lcall{foo}{\expr}}}{\src{\type[_2]}}
-  }{ap:ltms-t-call}
-  %
-  \typerule{$\src{\Ltms}-t-\text{return}$}{
-    \typecheck{\src{\typenv}}{\src{\expr}}{\src{\type}}
-  }{
-    \typecheck{\src{\typenv}}{\src{\lreturn{\expr}}}{\src{\type\to\bot}}
-  }{ap:ltms-t-return}
-  %
-  \typerule{$\src{\Ltms}-t-\text{ifz}$}{
-    \typecheck{\src{\typenv[_1]}}{\src{\expr[_1]}}{\src{\natt}} &
-    \typecheck{\src{\typenv[_2]}}{\src{\expr[_2]}}{\src{\type[_e]}} &
-    \typecheck{\src{\typenv[_2]}}{\src{\expr[_3]}}{\src{\type[_e]}}
-  }{
-    \typecheck{\src{\typenvsplit{\typenv[_1]}{\typenv[_2]}}}{\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}}{\src{\type[_e]}}
-  }{ap:ltms-t-ifz}
-  %
-  \typerule{$\src{\Ltms}-t-\text{abort}$}{
-    \noownedptr{\src{\typenv}}
-  }{
-    \typecheck{\src{\typenv}}{\src{\labort}}{\src{\type}}
-  }{ap:ltms-t-abort}
-\end{center}
+\trref{ex-rel-interfaces-agree} ensures that both in the source and target-level execution, when the context calls into the component, the values agree and are numerical.
 
-\begin{gather*}
-  \begin{aligned}
-    \mi{(Pre\text{-}Events)}~\src{\event[_{b}]}&\bnfdef \src{\ev{Alloc}\ \loc\ \valueexpr} \mid \src{\ev{Dealloc}\ \loc} \mid \src{\ev{Get}\ \loc\ \valueexpr} \mid \src{\ev{Set}\ \loc\ \valueexpr\ \valueexpr[']} \mid \src{\ev{Call}\ \comm\ g\ \valueexpr} \mid \src{\ev{Ret}\ \comm\ \valueexpr} \mid \src{\ev{Start}} \mid \src{\ev{End}\ \valueexpr}\\
-  \end{aligned}\\
-  \begin{aligned}
-    \mi{(Events)}~\src{\event}&\bnfdef \src{\emptyevent} \mid \src{\lightning} \mid \src{\tup{\event[_{b}]}{\sandboxtag}} \\
-  \end{aligned}
-\end{gather*}
-\begin{center}
-  \judgbox{\pstepto{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}}}{,,$\src{\runtimetermvar}$ does one primitive step to $\src{\runtimetermvar[']}$ emitting event $\src{\event}$.''}
-  %
-  \typerule{$\src{\Ltms}-e-\text{binop}$}{
-    \src{\lbinop{\expr[_1]}{\expr[_2]}}=\src{\expr[_3]}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lbinop{\expr[_1]}{\expr[_2]}}}}{\src{\rtt{\statevar}{\expr[_3]}}}{\src{\emptyevent}}
-  }{ap:ltms-e-binop}
-  %
-  \typerule{$\src{\Ltms}-e-\text{get}-\in$}{
-    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
-    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
-    \src{\loc}+\src{n}\in\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}](\loc+n)}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{\statevar.\heap[^{\sandboxtag}](\loc+n)}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}}
-  }{ap:ltms-e-get-in}
-  %
-  \typerule{$\src{\Ltms}-e-\text{get}-\notin$}{
-    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
-    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
-    \src{\loc}+\src{n}\notin\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}](\loc+n)}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lget{x}{n}}}}{\src{\rtt{\statevar}{1729}}}{\src{\tup{\ev{Get}\ \loc\ n}{\sandboxtag}}}
-  }{ap:ltms-e-get-notin}
-  %
-  \typerule{$\src{\Ltms}-e-\text{set}-\in$}{
-    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
-    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
-    \src{\loc}+\src{n}\in\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}]} &
-    \src{\heap[']}=\seth{\src{\statevar.\heap[^{\sandboxtag}]}}{\src{\loc}+\src{n}}{\src{\valueexpr}}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[']}}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag}}}
-  }{ap:ltms-e-set-in}
-  %
-  \typerule{$\src{\Ltms}-e-\text{set}-\notin$}{
-    \src{\sandboxtag}=\src{\statevar.\sandboxtag} &
-    \src{\statevar.\store(x)}=\src{\tup{\loc}{\sandboxtag,\poison,m}} \\
-    \src{\loc}+\src{n}\notin\operatorname{dom}\src{\statevar.\heap[^{\sandboxtag}]}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lset{x}{n}{\valueexpr}}}}{\src{\rtt{\statevar}{\valueexpr}}}{\src{\tup{\ev{Set}\ \loc\ n\ \valueexpr}{\sandboxtag}}}
-  }{ap:ltms-e-set-notin}
-  %
-  \typerule{$\src{\Ltms}-e-\text{new}$}{
-    \fresh{\src{\statevar}}{\src{z}} &
-    \fresh{\src{\statevar}}{\src{\loc}} &
-    \src{\heap[^{\sandboxtag}_1]}=\growh{\src{\statevar.\heap[^{\sandboxtag}]}}{\src{n}}{\src{\valueexpr}} &
-    \src{\store[_1]}=\src{\storeel{z}{\loc}{\statevar.\sandboxtag}{\poisonless}{n},\statevar.\store}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lnew{x}{\valueexpr}{n}{\expr}}}}{\src{\rtt{\statevar\subst{\heap[^{\sandboxtag}]}{\heap[^{\sandboxtag}_1]}\subst{\store}{\store[_1]}}{\expr\subst{z}{x}}}}{\src{\tup{\ev{Alloc}\ \loc\ n}{\statevar.\sandboxtag}}}
-  }{ap:ltms-e-new}
-  %
-  \typerule{$\src{\Ltms}-e-\text{dealloc}$}{
-    \src{\statevar.\store(x)} = \src{\tup{\loc}{\statevar.\sandboxtag,\poison,n}} &
-    \src{\store[_1]}=\seth{\src{\statevar.\store}}{\src{x}}{\src{\tup{\loc}{\statevar.\sandboxtag,\poisoned,n}}}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\ldelete{x}}}}{\src{\rtt{\statevar\subst{\store}{\store[_1]}}{0}}}{\src{\tup{\ev{Dealloc}\ \loc}{\statevar.\sandboxtag}}}
-  }{ap:ltms-e-dealloc}
-  %
-  \typerule{$\src{\Ltms}-e-\text{let}$}{
-  }{
-    \pstepto{\src{\rtt{\statevar}{\llet{x}{\valueexpr}{\expr}}}}{\src{\rtt{\statevar}{\expr\subst{x}{\valueexpr}}}}{\src{\emptyevent}}
-  }{ap:ltms-e-let}
-  %
-  \typerule{$\src{\Ltms}-e-\text{ifz}-yes$}{
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lifz{0}{\expr[_1]}{\expr[_2]}}}}{\src{\rtt{\statevar}{\expr[_1]}}}{\src{\emptyevent}}
-  }{ap:ltms-e-ifz-yes}
-  %
-  \typerule{$\src{\Ltms}-e-\text{ifz}-no$}{
-    \src{n}\not=\src{0}
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lifz{n}{\expr[_1]}{\expr[_2]}}}}{\src{\rtt{\statevar}{\expr[_2]}}}{\src{\emptyevent}}
-  }{ap:ltms-e-ifz-no}
-  %
-  \typerule{$\src{\Ltms}-e-\text{proj}-a$}{
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lproja{\lpair{\valueexpr[_1]}{\valueexpr[_2]}}}}}{\src{\rtt{\statevar}{\valueexpr[_1]}}}{\src{\emptyevent}}
-  }{ap:ltms-e-proj-a}
-  %
-  \typerule{$\src{\Ltms}-e-\text{proj}-b$}{
-  }{
-    \pstepto{\src{\rtt{\statevar}{\lprojb{\lpair{\valueexpr[_1]}{\valueexpr[_2]}}}}}{\src{\rtt{\statevar}{\valueexpr[_2]}}}{\src{\emptyevent}}
-  }{ap:ltms-e-proj-b}
-  %
-  \typerule{$\src{\Ltms}-e-\text{abort}$}{
-  }{
-    \pstepto{\src{\rtt{\statevar}{\labort}}}{\src{\lightning}}{\src{\lightning}}
-  }{ap:ltms-e-abort}
-\end{center}
-\begin{center}
-  \judgbox{\src{\commlib}\vdash\src{foo}:\src{\sandboxtag}\dashv\src{\comm},\src{\sandboxtag'}}{,,Determine communication tag $\src{\comm}$ and control tag $\src{\sandboxtag'}$ by checking the current control $\src{\sandboxtag}$,\\the called function $\src{foo}$, and list of component names $\src{\commlib}$.''}
-  %
-  \typerule{$\src{\Ltms}-\text{switch}-\ctx-\text{to}-\comp$}{
-    \src{foo}\in\src{\commlib}
-  }{
-    \src{\commlib}\vdash\src{foo}:\src{\ctx}\dashv\src{\ctxtocomp},\src{\comp}
-  }{ap:ltms-switch-ctx-to-comp}
-  %
-  \typerule{$\src{\Ltms}-\text{switch}-\comp-\text{to}-\ctx$}{
-    \src{foo}\notin\src{\commlib}
-  }{
-    \src{\commlib}\vdash\src{foo}:\src{\comp}\dashv\src{\comptoctx},\src{\ctx}
-  }{ap:ltms-switch-comp-to-ctx}
-  %
-  \typerule{$\src{\Ltms}-\text{noswitch}-\ctx$}{
-    \src{foo}\notin\src{\commlib}
-  }{
-    \src{\commlib}\vdash\src{foo}:\src{\ctx}\dashv\src{\nocomm},\src{\ctx}
-  }{ap:ltms-noswitch-ctx}
-  %
-  \typerule{$\src{\Ltms}-\text{noswitch}-\comp$}{
-    \src{foo}\in\src{\commlib}
-  }{
-    \src{\commlib}\vdash\src{foo}:\src{\comp}\dashv\src{\nocomm},\src{\comp}
-  }{ap:ltms-noswitch-comp}
-\end{center}
-\begin{center}
-  \judgbox{\estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}}}{,,$\src{\runtimetermvar}$ does one contextual step to $\src{\runtimetermvar[']}$ emitting event $\src{\event}$.''}
-  %
-  \typerule{$\src{\Ltms}-e-\text{ectx}$}{
-    \pstepto{\src{\rtt{\statevar}{\expr}}}{\src{\rtt{\statevar[']}{\expr[']}}}{\src{\event}}
-  }{
-    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\expr}}}}{\src{\rtt{\statevar[']}{\ectx\hole{\expr[']}}}}{\src{\event}}
-  }{ap:ltms-e-ectx}
-  %
-  \typerule{$\src{\Ltms}-e-\text{stuck}$}{
-    \pstepto{\src{\rtt{\statevar}{\expr}}}{\src{\lightning}}{\src{\lightning}}
-  }{
-    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\expr}}}}{\src{\lightning}}{\src{\lightning}}
-  }{ap:ltms-e-stuck}
-  %
-  \typerule{$\src{\Ltms}-e-\text{start}$}{
-    \src{\lfunction{\text{main}}{x}{e}} \in \src{\statevar.\library} &
-    \src{\statevar.\ectxstack}=\src{\hole{\cdot}}
-  }{
-    \estepto[]{\src{\rtt{\statevar}{\lcall{\text{main}}{0}}}}{\src{\rtt{\statevar\subst{\ctx}{\sandboxtag}\subst{\tup{\hole{\cdot}}{\text{main}},\hole{\cdot}}{\ectxstack}}{\expr\subst{0}{x}}}}{\src{\tup{\ev{Start}}{\comp}}}
-  }{ap:ltms-e-start}
-  %
-  \typerule{$\src{\Ltms}-e-\text{ret}$}{
-    \src{\statevar.\ectxstack}=\src{\tup{\ectx}{\text{foo}}},\src{\ectxstack[']} &
-    \src{\commlib}\vdash\src{\text{foo}}:\src{\statevar.\sandboxtag}\dashv\src{\comm}
-  }{
-    \estepto[]{\src{\rtt{\statevar}{\ectx[']\hole{\lreturn{\valueexpr}}}}}{\src{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\ectxstack[']}{\ectxstack}}{\ectx\hole{\valueexpr}}}}{\src{\tup{\ev{Ret}\ \comm\ \valueexpr}{\statevar.\sandboxtag}}}
-  }{ap:ltms-e-ret}
-  %
-  \typerule{$\src{\Ltms}-e-\text{call}$}{
-    \src{\lfunction{\text{foo}}{x}{e}} \in \src{\statevar.\library} &
-    \src{\commlib}\vdash\src{\text{foo}}:\src{\statevar.\sandboxtag}\dashv\src{\comm}
-  }{
-    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\lcall{\text{foo}}{\valueexpr}}}}}{\src{\rtt{\statevar\subst{\neg\statevar.\sandboxtag}{\sandboxtag}\subst{\tup{\ectx}{\text{foo}},\statevar.\ectxstack}{\ectxstack}}{\expr\subst{\valueexpr}{x}}}}{\src{\tup{\ev{Call}\ \comm\ \text{foo}\ \valueexpr}{\statevar.\sandboxtag}}}
-  }{ap:ltms-e-call}
-  %
-  \typerule{$\src{\Ltms}-e-\text{end}$}{
-    \src{\statevar.\ectxstack}=\src{(\hole{\cdot},main),\hole{\cdot}}
-  }{
-    \estepto[]{\src{\rtt{\statevar}{\ectx\hole{\lreturn{\valueexpr}}}}}{\src{\rtt{\statevar\subst{\comp}{\sandboxtag}\subst{\tup{\hole{\cdot}}{\text{main}},\hole{\cdot}}{\ectxstack}}{\valueexpr}}}{\src{\tup{\ev{End}\ \valueexpr}{\ctx}}}
-  }{ap:ltms-e-end}
-\end{center}
-\begin{center}
-  \judgbox{\estepton{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\trace}}}{,,$\src{\runtimetermvar}$ performs $n$ steps to $\src{\runtimetermvar[']}$ emitting trace $\src{\trace}$.''}
-  %
-  \typerule{$\src{\Ltms}-\text{estepn}-\text{refl}$}{
-  }{
-    \estepton[0]{\src{\runtimetermvar}}{\src{\runtimetermvar}}{\src{\hole{\cdot}}}
-  }{ap:ltms-estepn-refl}
-  %
-  \typerule{$\src{\Ltms}-\text{estepn}-\text{trans}-\text{important}$}{
-    \src{\event}\not=\src{\emptyevent} &
-    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}} &
-    \estepton[n]{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
-  }{
-    \estepton[n+1]{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\event\cdot\trace}}
-  }{ap:ltms-estepn-trans-important}
-  %
-  \typerule{$\src{\Ltms}-\text{estepn}-\text{trans}-\text{unimportant}$}{
-    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\emptyevent}} &
-    \estepton[n]{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
-  }{
-    \estepton[n+1]{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\trace}}
-  }{ap:ltms-estepn-trans-unimportant}
-\end{center}
-\begin{center}
-  \judgbox{\isfinal{\src{\runtimetermvar}}}{,,Runtime term $\src{\runtimetermvar}$ represents a final state.''}
-  %
-  \typerule{$\src{\Ltms}-\src{\lightning}-\text{is}-\text{final}$}{
-  }{
-    \isfinal{\src{\lightning}}
-  }{ap:ltms-stuck-is-final}
-  %
-  \typerule{$\src{\Ltms}-\src{\valueexpr}-\text{is}-\text{final}$}{
-  }{
-    \isfinal{\src{\rtt{\statevar}{\valueexpr}}}
-  }{ap:ltms-value-is-final}
-\end{center}
-\begin{center}
-  \judgbox{\estepto{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\trace}}}{,,$\src{\runtimetermvar}$ steps to final $\src{\runtimetermvar[']}$ emitting trace $\src{\trace}$.''}
-  %
-  \typerule{$\src{\Ltms}-\text{esteps}-\text{refl}$}{
-    \isfinal{\src{\runtimetermvar}}
-  }{
-    \estepto{\src{\runtimetermvar}}{\src{\runtimetermvar}}{\src{\hole{\cdot}}}
-  }{ap:ltms-esteps-refl}
-  %
-  \typerule{$\src{\Ltms}-\text{esteps}-\text{trans}-\text{important}$}{
-    \src{\event}\not=\src{\emptyevent} &
-    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\event}} &
-    \estepto{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
-  }{
-    \estepto{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\event\cdot\trace}}
-  }{ap:ltms-esteps-trans-important}
-  %
-  \typerule{$\src{\Ltms}-\text{esteps}-\text{trans}-\text{unimportant}$}{
-    \estepto[]{\src{\runtimetermvar}}{\src{\runtimetermvar[']}}{\src{\emptyevent}} &
-    \estepto{\src{\runtimetermvar[']}}{\src{\runtimetermvar['']}}{\src{\trace}}
-  }{
-    \estepto{\src{\runtimetermvar}}{\src{\runtimetermvar['']}}{\src{\trace}}
-  }{ap:ltms-esteps-trans-unimportant}
-\end{center}
+\trref{ex-rel-interfaces-disagree} handles the case where the target-level context supplied a $\trg{v}$ that is not a number.
+Here, the backtranslation cannot construct a context that gives a well-typed program {\em and} produces the same trace as the target, since the behavior is ill-defined to begin with.
+So, the only option for the backtranslation is to immediately crash.
+This, however, is a mismatch with the target-level trace, which only aborts in the wrapper that the compiler inserted.
 
+\begin{lemma}{\lemmalabel[Composition of RTP-Universal]{rtp-universal-compo}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-universal-compo-comp1}{\rtpUniversal{\ccSI}{\mapUniversal{\sim_2}{\trgClass[_1]}}{\sim_1}}
+    \asm{rtp-universal-compo-comp2}{\rtpUniversal{\ccIT}{\trgClass[_2]}{\sim_2}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-universal-compo}{\rtpUniversal{\fncompo{\ccSI}{\ccIT}}{\trgClass[_1]\cap\trgClass[_2]}{\fncompo{\sim_1}{\sim_2}}}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+
+\begin{lemma}{\lemmalabel[Composition of RTP-Existential]{rtp-existential-compo}}
+  If 
+  \begin{assumptions}
+    \asm{rtp-existential-compo-comp1}{\rtpExistential{\ccSI}{\srcClass[_1]}{\sim_1}}
+    \asm{rtp-existential-compo-comp2}{\rtpExistential{\ccIT}{\mapExistential{\sim_1}{\srcClass[_2]}}{\sim_2}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{rtp-universal-compo}{\rtpExistential{\fncompo{\ccSI}{\ccIT}}{\srcClass[_1]\cap\srcClass[_2]}{\fncompo{\sim_1}{\sim_2}}}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+
+While compiler passes can be incompatible with each other in the sense that the resulting, mapped property is useless/not what is desired, it is enough to reason about compatibility of compilers at the level of traces.
+This is what this work refers to as ,,semantic effect of a compiler''.
+Instead of having to do syntactic arguments for the interaction of several compilation passes, one only has to do them for the semantic notion, i.e., the cross-language trace relations, which are much simpler proofs by an order of magnitude. 
+\MKin{
+  cite section backing up this claim 
+}
+
+
+\clearpage
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{main}
 
+\printglossary
+
 \end{document}
 \endinput
-%%
-%% End of file `sample-sigconf.tex'.

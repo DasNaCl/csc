@@ -325,3 +325,24 @@ Proof.
   - apply seqcompoσ; auto.
 Qed.
 
+Class PartialOrder {A : Type} (ord : A -> A -> Prop) := {
+  Reflexive : forall (a : A), ord a a ;
+  Transitive : forall (a b c : A), ord a b -> ord b c -> ord a c ;
+  AntiSymmetric : forall (a b : A), ord a b /\ ord b a -> a = b ;
+}.
+Instance PartialOrder__Eq {A : Type} : @PartialOrder A Logic.eq.
+Proof.
+  split; intros; subst; firstorder eauto.
+Qed.
+
+(** What if the relations form a galois connection? *)
+Definition monotone {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B) :=
+  forall A1 A2, orderA A1 A2 -> orderB (f A1) (f A2)
+.
+Definition approx {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B) (g : B -> A) :=
+  (forall (X : A), orderA X ((f ∘ g) X)) /\
+  (forall (X : B), orderB ((g ∘ f) X) X)
+.
+Definition galois_conn {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B) (g : B -> A) :=
+  monotone orderA orderB f /\ monotone orderB orderA g /\ approx orderA orderB f g
+.

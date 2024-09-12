@@ -325,6 +325,25 @@ Proof.
   - apply seqcompoσ; auto.
 Qed.
 
+Corollary better_swappableσ {I : Language} (cc1 cc2 : Compiler I I)
+  (C1 C2 : Class (Event I))
+  (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
+    (|-wfσ rel2 : C1) ->
+    (|-wfσ rel1 : C2) ->
+    (σ~ rel2 C1 = C1) ->
+    (σ~ rel1 C2 = C2) ->
+    [presσ|- cc1 : rel1, C1] ->
+    [presσ|- cc2 : rel2, C2] ->
+    [presσ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+ /\ [presσ|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
+.
+Proof.
+  intros Hwf1 Hwf2 H1 H2 ? ?; split; subst.
+  - apply seqcompoσ; auto; now rewrite H1. 
+  - apply seqcompoσ; auto; now rewrite H2.
+Qed.
+
 Class PartialOrder {A : Type} (ord : A -> A -> Prop) := {
   Reflexive : forall (a : A), ord a a ;
   Transitive : forall (a b c : A), ord a b -> ord b c -> ord a c ;

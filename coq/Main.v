@@ -42,16 +42,16 @@ Section NoExplicitEvent.
   Definition Hyperproperty := Property -> Prop.
 
   (** Renamings of same concept. *)
-  Definition Class := Hyperproperty.
+  Definition Class := Hyperproperty -> Prop.
   Definition Behavior := Property.
 
-  (** Hyperproperty belonging to a class, i.e., must be a subset *)
+  (** Hyperproperty belonging to a class *)
   Definition belongs_to (Π : Hyperproperty) (C : Class) :=
-    forall (π : Behavior), Π π -> C π
+    C Π
   .
   (** Intersection of Casses *)
   Definition intersect (C1 C2 : Class) : Class :=
-    fun (π : Behavior) => C1 π /\ C2 π
+    fun π => C1 π /\ C2 π
   .
   Infix "∩" := (intersect) (at level 81, left associativity).
   Lemma belongs_to_commute (Π : Hyperproperty) (C1 C2 : Class) :
@@ -59,14 +59,7 @@ Section NoExplicitEvent.
     belongs_to Π C1 /\ belongs_to Π C2
   .
   Proof.
-    intros H; split; intros b H1; now apply H.
-  Qed.
-  Lemma always_belongs_to (C : Class) :
-    exists Π, belongs_to Π C
-  .
-  Proof.
-    (* the empty set is always a subset *)
-    exists (fun _ => False); easy.
+    firstorder.
   Qed.
 
   (** Standard trace satisfaction. *)
@@ -91,8 +84,8 @@ Definition psat {L : Language} (C : Contexts L) (p : Partials L) (Π : Property 
   bsat (Event L) (behav C p) Π
 .
 (** Robust satisfaction *)
-Definition rsat {L : Language} (p : Partials L) (Π : Property (Event L)) :=
-  forall (C : Contexts L), bsat (Event L) (behav C p) Π
+Definition rsat {L : Language} (p : Partials L) (Π : Hyperproperty (Event L)) :=
+  forall (C : Contexts L), hsat (Event L) (behav C p) Π
 .
 
 (** Existential image *)
@@ -106,8 +99,15 @@ Definition induced_tau {S T : Language} (rel : Trace (Event S) -> Trace (Event T
     set_eq (tau rel πs) πt ->
     Π πs
 .
+Definition class_induced_tau {S T : Language} (rel : Trace (Event S) -> Trace (Event T) -> Prop) (C : Class (Event S)) : Class (Event T) :=
+  fun (Πt : Hyperproperty (Event T)) =>
+    forall (Πs : Hyperproperty (Event S)),
+      set_eq (induced_tau rel Πs) Πt ->
+      C Πs
+.
 Notation "'τ'" := tau.
 Notation "'τ~'" := induced_tau.
+Notation "'τ~~'" := class_induced_tau.
 (** Universal image *)
 Definition sigma {S T : Language} (rel : Trace (Event S) -> Trace (Event T) -> Prop) (π : Property (Event T)) : Property (Event S) :=
   fun (s : Trace (Event S)) =>
@@ -119,8 +119,15 @@ Definition induced_sigma {S T : Language} (rel : Trace (Event S) -> Trace (Event
       set_eq πs (sigma rel πt) ->
       Π πt
 .
+Definition class_induced_sigma {S T : Language} (rel : Trace (Event S) -> Trace (Event T) -> Prop) (C : Class (Event T)) : Class (Event S) :=
+  fun (Πs : Hyperproperty (Event S)) =>
+    forall (Πt : Hyperproperty (Event T)),
+      set_eq Πs (induced_sigma rel Πt) ->
+      C Πt
+.
 Notation "'σ'" := sigma.
 Notation "'σ~'" := induced_sigma.
+Notation "'σ~~'" := class_induced_sigma.
 (** Compilers *)
 Definition Compiler (S T : Language) := Partials S -> Partials T.
 
@@ -128,21 +135,21 @@ Definition Compiler (S T : Language) := Partials S -> Partials T.
 Definition prsat__τ {S T : Language}
     (rel : Trace (Event S) -> Trace (Event T) -> Prop)
     (cc : Compiler S T) (C : Class (Event S)) :=
-  forall (Π : Property (Event S)),
+  forall (Π : Hyperproperty (Event S)),
     C Π ->
     forall (p : Partials S),
       rsat p Π ->
-      rsat (cc p) (τ rel Π)
+      rsat (cc p) (τ~ rel Π)
 .
 Notation "'[presτ|-' cc ':' rel ',' C ']'" := (prsat__τ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
 
 Definition prsat__σ {S T : Language}
     (rel : Trace (Event S) -> Trace (Event T) -> Prop)
     (cc : Compiler S T) (C : Class (Event T)) :=
-  forall (Π : Property (Event T)),
+  forall (Π : Hyperproperty (Event T)),
     C Π ->
     forall (p : Partials S),
-      rsat p (σ rel Π) ->
+      rsat p (σ~ rel Π) ->
       rsat (cc p) Π 
 .
 Notation "'[presσ|-' cc ':' rel ',' C ']'" := (prsat__σ rel cc C) (at level 11, cc at next level, rel at next level, C at next level).
@@ -231,30 +238,28 @@ Qed.
 
 Definition wfτ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
-  (Π : Hyperproperty (Event S)) :=
-    forall (π : Property (Event S)),
-      Π π ->
-      (τ~ rel Π) (tau rel π)
+   (C : Class (Event S)) :=
+    forall (Π : Hyperproperty (Event S)),
+      C Π ->
+      (τ~~ rel C) (τ~ rel Π)
 .
-Notation "'|-wfτ' rel ':' Π" := (wfτ rel Π) (at level 81, rel at next level, Π at next level).
-
+Notation "'|-wfτ' rel ':' C" := (wfτ rel C) (at level 81, rel at next level, C at next level).
 Theorem seqcompoτ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
   (C1 C2 : Class (Event S))
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
-    (|-wfτ rel1 : C2) ->
+    |-wfτ rel1 : C2 ->
     [presτ|- cc1 : rel1, C1] ->
-    [presτ|- cc2 : rel2, τ~ rel1 C2] ->
+    [presτ|- cc2 : rel2, τ~~ rel1 C2] ->
     [presτ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
 .
 Proof.
   intros H__wf H1 H2 Π HΠ p Hsat Ct.
   destruct HΠ as [HΠa HΠb].
   unfold prsat__τ in H2.
-  rewrite rsat_trim_τ.
+  rewrite rsat_trim_inducedτ.
   eapply H2.
-  intros πs Heq%set_eq_equiv_eq; subst.
-  eapply H__wf; try eassumption. now apply set_eq_equiv_eq.
+  eapply H__wf; exact HΠb.
   eapply H1; try exact HΠa.
   exact Hsat.
 Qed.
@@ -265,10 +270,10 @@ Corollary swappableτ {I : Language} (cc1 cc2 : Compiler I I)
   (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
     (|-wfτ rel2 : C1) ->
     (|-wfτ rel1 : C2) ->
-    [presτ|- cc1 : rel1, τ~ rel2 C1] ->
+    [presτ|- cc1 : rel1, τ~~ rel2 C1] ->
     [presτ|- cc2 : rel2, C2] ->
     [presτ|- cc1 : rel1, C1] ->
-    [presτ|- cc2 : rel2, τ~ rel1 C2] ->
+    [presτ|- cc2 : rel2, τ~~ rel1 C2] ->
     [presτ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
  /\ [presτ|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
 .
@@ -284,8 +289,8 @@ Corollary better_swappableτ {I : Language} (cc1 cc2 : Compiler I I)
   (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
     (|-wfτ rel2 : C1) ->
     (|-wfτ rel1 : C2) ->
-    (τ~ rel2 C1 = C1) ->
-    (τ~ rel1 C2 = C2) ->
+    (τ~~ rel2 C1 = C1) ->
+    (τ~~ rel1 C2 = C2) ->
     [presτ|- cc1 : rel1, C1] ->
     [presτ|- cc2 : rel2, C2] ->
     [presτ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
@@ -299,10 +304,10 @@ Qed.
 
 Definition wfσ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
-  (Π : Hyperproperty (Event I)) :=
-    forall (π : Property (Event I)),
-      Π π ->
-      (σ~ rel Π) (σ rel π)
+  (C : Class (Event I)) :=
+    forall (Π : Hyperproperty (Event I)),
+      C Π ->
+      (σ~~ rel C) (σ~ rel Π)
 .
 Notation "'|-wfσ' rel ':' Π" := (wfσ rel Π) (at level 81, rel at next level, Π at next level).
 
@@ -311,7 +316,7 @@ Theorem seqcompoσ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
   (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
     (|-wfσ rel2 : C1) ->
-    [presσ|- cc1 : rel1, σ~ rel2 C1] ->
+    [presσ|- cc1 : rel1, σ~~ rel2 C1] ->
     [presσ|- cc2 : rel2, C2] ->
     [presσ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
 .
@@ -322,7 +327,7 @@ Proof.
   eapply H2; trivial.
   eapply H1.
   eapply H__wf; assumption.
-  now rewrite <- rsat_trim_σ.
+  now rewrite <- rsat_trim_inducedσ.
 Qed.
 
 Corollary swappableσ {I : Language} (cc1 cc2 : Compiler I I)
@@ -331,10 +336,10 @@ Corollary swappableσ {I : Language} (cc1 cc2 : Compiler I I)
   (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
     (|-wfσ rel2 : C1) ->
     (|-wfσ rel1 : C2) ->
-    [presσ|- cc1 : rel1, σ~ rel2 C1] ->
+    [presσ|- cc1 : rel1, σ~~ rel2 C1] ->
     [presσ|- cc2 : rel2, C2] ->
     [presσ|- cc1 : rel1, C1] ->
-    [presσ|- cc2 : rel2, σ~ rel1 C2] ->
+    [presσ|- cc2 : rel2, σ~~ rel1 C2] ->
     [presσ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
  /\ [presσ|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
 .
@@ -350,8 +355,8 @@ Corollary better_swappableσ {I : Language} (cc1 cc2 : Compiler I I)
   (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
     (|-wfσ rel2 : C1) ->
     (|-wfσ rel1 : C2) ->
-    (σ~ rel2 C1 = C1) ->
-    (σ~ rel1 C2 = C2) ->
+    (σ~~ rel2 C1 = C1) ->
+    (σ~~ rel1 C2 = C2) ->
     [presσ|- cc1 : rel1, C1] ->
     [presσ|- cc2 : rel2, C2] ->
     [presσ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
@@ -374,13 +379,13 @@ Proof.
 Qed.
 
 (** What if the relations form a galois connection? *)
-Definition monotone {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B) :=
-  forall A1 A2, orderA A1 A2 -> orderB (f A1) (f A2)
+Definition monotone {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B -> Prop) :=
+  forall A1 A2 B1 B2, orderA A1 A2 -> f A1 B1 -> f A2 B2 -> orderB B1 B2
 .
-Definition approx {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B) (g : B -> A) :=
-  (forall (X : A), orderA X ((f ∘ g) X)) /\
-  (forall (X : B), orderB ((g ∘ f) X) X)
+Definition approx {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B -> Prop) (g : B -> A -> Prop) :=
+  (forall (X X' : A) (Y : B), f X Y -> g Y X' -> orderA X X') /\
+  (forall (X X' : B) (Y : A), g X Y -> f Y X' -> orderB X' X)
 .
-Definition galois_conn {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B) (g : B -> A) :=
+Definition galois_conn {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B -> Prop) (g : B -> A -> Prop) :=
   monotone orderA orderB f /\ monotone orderB orderA g /\ approx orderA orderB f g
 .

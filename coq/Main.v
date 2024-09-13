@@ -278,6 +278,25 @@ Proof.
   - apply seqcompoτ; auto.
 Qed.
 
+Corollary better_swappableτ {I : Language} (cc1 cc2 : Compiler I I)
+  (C1 C2 : Class (Event I))
+  (rel1 : Trace (Event I) -> Trace (Event I) -> Prop)
+  (rel2 : Trace (Event I) -> Trace (Event I) -> Prop) :
+    (|-wfτ rel2 : C1) ->
+    (|-wfτ rel1 : C2) ->
+    (τ~ rel2 C1 = C1) ->
+    (τ~ rel1 C2 = C2) ->
+    [presτ|- cc1 : rel1, C1] ->
+    [presτ|- cc2 : rel2, C2] ->
+    [presτ|- (cc1 ∘ cc2) : rel1 ◘ rel2, C1 ∩ C2 ]
+ /\ [presτ|- (cc2 ∘ cc1) : rel2 ◘ rel1, C2 ∩ C1 ]
+.
+Proof.
+  intros Hwf1 Hwf2 H1 H2 ? ?; split; subst.
+  - apply seqcompoτ; auto; now rewrite H2. 
+  - apply seqcompoτ; auto; now rewrite H1.
+Qed.
+
 Definition wfσ {S I : Language}
   (rel : Trace (Event S) -> Trace (Event I) -> Prop)
   (Π : Hyperproperty (Event I)) :=

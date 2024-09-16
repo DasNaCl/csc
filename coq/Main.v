@@ -1,4 +1,4 @@
-Require Import Coq.Logic.FunctionalExtensionality.
+Require Import Coq.Logic.FunctionalExtensionality PeanoNat List.
 
 (** Emptyset *)
 Definition emptyset {A : Type} := fun (_ : A) => False.
@@ -32,8 +32,37 @@ Proof.
 Qed.
 
 CoInductive Trace (Event : Type) : Type :=
+| STnil : Trace Event
 | STcons : option Event -> Trace Event -> Trace Event
 .
+Fixpoint get_finite_prefix { Event : Type} (n : nat) (tr : Trace Event) : list (option Event) :=
+  match n, tr with
+  | 0, _ => nil
+  | S n, STnil _ => nil
+  | S n, STcons _ a tr => cons a (get_finite_prefix n tr)
+  end
+.
+Fixpoint index_of {A : Type} (a_dec : forall (a a': A), {a = a'} + {a <> a'}) 
+  (a : A) (As : list A) : option nat :=
+  match As with
+  | nil => None
+  | cons a' As => 
+    if a_dec a a' then
+      Some (List.length As)
+    else
+      match index_of a_dec a As with
+      | None => None
+      | Some x => Some(S x)
+      end
+  end
+.
+Lemma option_dec {A : Type} (a_dec : forall (a a': A), {a = a'} + {a <> a'}) :
+  forall (o o' : option A), {o = o'} + {o <> o'} 
+.
+Proof.
+  destruct o as [a|],o' as [a'|]; (try destruct (a_dec a a'));
+  subst; (left; reflexivity) + (right; congruence).
+Qed.
 Section NoExplicitEvent.
   Variable Event : Type.
 
@@ -69,6 +98,7 @@ Section NoExplicitEvent.
   .
 End NoExplicitEvent.
 
+Section Composition.
 (** Abstract representation of programming Languages. *)
 Record Language := {
   Partials : Type ;
@@ -367,25 +397,325 @@ Proof.
   - apply seqcompoσ; auto; now rewrite H1. 
   - apply seqcompoσ; auto; now rewrite H2.
 Qed.
+End Composition.
 
-Class PartialOrder {A : Type} (ord : A -> A -> Prop) := {
-  Reflexive : forall (a : A), ord a a ;
-  Transitive : forall (a b c : A), ord a b -> ord b c -> ord a c ;
-  AntiSymmetric : forall (a b : A), ord a b /\ ord b a -> a = b ;
-}.
-Instance PartialOrder__Eq {A : Type} : @PartialOrder A Logic.eq.
+Section TraceRelations.
+
+Axiom LTMS LSMS LMS LSCCT LSPEC Specification : Type.
+Axiom PartialsGenerator ContextsGenerator : Type -> Type.
+Axiom loc symbol : Type.
+Axiom loc_dec : forall (l l' : loc), { l = l' } + { l <> l' }.
+Axiom symbol_dec : forall (f g : symbol), { f = g } + { f <> g }.
+
+Inductive Communication : Type :=
+| CtxToComp
+| CompToCtx
+| Internal
+.
+Lemma Communication_dec (c c' : Communication) : { c = c' } + { c <> c' }.
+Proof. destruct c,c'; try now (left + right). Qed.
+Inductive SecurityTagCCT : Type :=
+| CCTLeak
+| CCTNoLeak
+.
+Lemma SecurityTagCCT_dec (q q' : SecurityTagCCT) : { q = q' } + { q <> q' }.
+Proof. destruct q,q'; try now (left + right). Qed.
+Inductive SecurityTagSPEC : Type :=
+| SPECLeak (version : nat) 
+| SPECNoLeak
+.
+Lemma SecurityTagSPEC_dec (q q' : SecurityTagSPEC) : { q = q' } + { q <> q' }.
 Proof.
-  split; intros; subst; firstorder eauto.
+  destruct q as [v|],q' as [v'|]; (try now (left + right));
+  destruct (Nat.eq_dec v v'); subst; (now left + right; congruence).
 Qed.
 
-(** What if the relations form a galois connection? *)
-Definition monotone {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B -> Prop) :=
-  forall A1 A2 B1 B2, orderA A1 A2 -> f A1 B1 -> f A2 B2 -> orderB B1 B2
+(** ** Language-Specific Events *)
+Inductive LTMSEv : Type :=
+| LTMSEvStart 
+| LTMSEvEnd
+| LTMSEvCall : Communication -> symbol -> LTMSEv
+| LTMSEvRet : Communication -> LTMSEv
+| LTMSEvAlloc : loc -> nat -> LTMSEv
+| LTMSEvDealloc : loc -> LTMSEv
+| LTMSEvGet : loc -> nat -> LTMSEv
+| LTMSEvSet : loc -> nat -> nat -> LTMSEv
 .
-Definition approx {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B -> Prop) (g : B -> A -> Prop) :=
-  (forall (X X' : A) (Y : B), f X Y -> g Y X' -> orderA X X') /\
-  (forall (X X' : B) (Y : A), g X Y -> f Y X' -> orderB X' X)
+Lemma LTMSEv_dec (e e' : LTMSEv) : { e = e' } + { e <> e' }.
+Proof.
+  destruct e as [| |q f|q|l n|l|l n|l n m],e' as [| |q' f'|q'|l' n'|l'|l' n'|l' n' m'];
+  (try now (left + right)).
+  1,2: destruct (Communication_dec q q'); subst; try (now left + (right; congruence)).
+  destruct (symbol_dec f f'); subst; now left + (right; congruence).
+  all: destruct (loc_dec l l'); subst; try (now left + (right; congruence)).
+  all: destruct (Nat.eq_dec n n'); subst; try (now left + (right; congruence)).
+  destruct (Nat.eq_dec m m'); subst; try (now left + (right; congruence)).
+Qed.
+Inductive LSMSEv : Type :=
+| LSMSEvStart 
+| LSMSEvEnd
+| LSMSEvCall : Communication -> symbol -> LSMSEv
+| LSMSEvRet : Communication -> LSMSEv
+| LSMSEvAlloc : loc -> nat -> LSMSEv
+| LSMSEvDealloc : loc -> LSMSEv
+| LSMSEvGet : loc -> nat -> LSMSEv
+| LSMSEvSet : loc -> nat -> nat -> LSMSEv
 .
-Definition galois_conn {A B : Type} (orderA : A -> A -> Prop) (orderB : B -> B -> Prop) (f : A -> B -> Prop) (g : B -> A -> Prop) :=
-  monotone orderA orderB f /\ monotone orderB orderA g /\ approx orderA orderB f g
+Lemma LSMSEv_dec (e e' : LTMSEv) : { e = e' } + { e <> e' }.
+Proof.
+  destruct e as [| |q f|q|l n|l|l n|l n m],e' as [| |q' f'|q'|l' n'|l'|l' n'|l' n' m'];
+  (try now (left + right)).
+  1,2: destruct (Communication_dec q q'); subst; try (now left + (right; congruence)).
+  destruct (symbol_dec f f'); subst; now left + (right; congruence).
+  all: destruct (loc_dec l l'); subst; try (now left + (right; congruence)).
+  all: destruct (Nat.eq_dec n n'); subst; try (now left + (right; congruence)).
+  destruct (Nat.eq_dec m m'); subst; try (now left + (right; congruence)).
+Qed.
+Inductive LMSEv : Type :=
+| LMSEvStart 
+| LMSEvEnd
+| LMSEvCall : Communication -> symbol -> LMSEv
+| LMSEvRet : Communication -> LMSEv
+| LMSEvAlloc : loc -> nat -> LMSEv
+| LMSEvDealloc : loc -> LMSEv
+| LMSEvGet : loc -> nat -> LMSEv
+| LMSEvSet : loc -> nat -> nat -> LMSEv
 .
+Inductive LSCCTEv : Type :=
+| LSCCTEvStart 
+| LSCCTEvEnd
+| LSCCTEvCall : Communication -> symbol -> LSCCTEv
+| LSCCTEvRet : Communication -> LSCCTEv
+| LSCCTEvAlloc : loc -> nat -> LSCCTEv
+| LSCCTEvDealloc : loc -> LSCCTEv
+| LSCCTEvGet : loc -> nat -> LSCCTEv
+| LSCCTEvSet : loc -> nat -> nat -> LSCCTEv
+.
+Inductive LSPECEv : Type :=
+| LSPECEvStart 
+| LSPECEvEnd
+| LSPECEvCall : Communication -> symbol -> LSPECEv
+| LSPECEvRet : Communication -> LSPECEv
+| LSPECEvAlloc : loc -> nat -> LSPECEv
+| LSPECEvDealloc : loc -> LSPECEv
+| LSPECEvGet : loc -> nat -> LSPECEv
+| LSPECEvSet : loc -> nat -> nat -> LSPECEv
+.
+(** ** Monitor Trace Models *)
+Inductive TMSMonEv : Type :=
+| TMSMonAlloc : loc -> TMSMonEv
+| TMSMonDealloc : loc -> TMSMonEv
+| TMSMonUse : loc -> TMSMonEv
+.
+Lemma TMSMonEv_dec (e e' : TMSMonEv) : { e = e' } + { e <> e' }.
+Proof.
+  destruct e as [l|l|l],e' as [l'|l'|l']; destruct (loc_dec l l'); subst;
+  (left; reflexivity) + (right; congruence).
+Qed.
+Inductive SMSMonEv : Type :=
+| SMSMonAlloc : loc -> nat -> SMSMonEv
+| SMSMonUse : loc -> nat -> SMSMonEv
+.
+Lemma SMSMonEv_dec (e e' : SMSMonEv) : { e = e' } + { e <> e' }.
+Proof.
+  destruct e as [l n|l n],e' as [l' n'|l' n']; destruct (loc_dec l l'); subst;
+  destruct (Nat.eq_dec n n'); subst; (left; reflexivity) + (right; congruence).
+Qed.
+Definition MSMonEv : Type := (option TMSMonEv) * (option SMSMonEv).
+Lemma MSMonEv_dec (e e' : MSMonEv) : { e = e' } + { e <> e' }.
+Proof.
+  destruct e as [[eTMS|] [eSMS|]], e' as [[eTMS'|] [eSMS'|]];
+  (try destruct (TMSMonEv_dec eTMS eTMS')); (try destruct (SMSMonEv_dec eSMS eSMS'));
+  subst; (left; reflexivity) + (right; congruence).
+Qed.
+Inductive SCCTMonEv : Type :=
+| SCCTMonAny : SecurityTagCCT -> SCCTMonEv
+.
+Inductive SPECMonEv : Type :=
+| SPECMonAny : SecurityTagSPEC -> SPECMonEv 
+.
+(** ** Projections to monitor traces *)
+Inductive LTMSEvtoTMSMonEv : option LTMSEv -> option TMSMonEv -> Prop :=
+  | LTMSEvtoTMSMonEv_Alloc : forall l n, LTMSEvtoTMSMonEv (Some (LTMSEvAlloc l n)) (Some (TMSMonAlloc l))
+  | LTMSEvtoTMSMonEv_Dealloc : forall l, LTMSEvtoTMSMonEv (Some (LTMSEvDealloc l)) (Some (TMSMonDealloc l))
+  | LTMSEvtoTMSMonEv_Get : forall l n, LTMSEvtoTMSMonEv (Some (LTMSEvGet l n)) (Some (TMSMonUse l))
+  | LTMSEvtoTMSMonEv_Set : forall l n m, LTMSEvtoTMSMonEv (Some (LTMSEvSet l n m)) (Some (TMSMonUse l))
+  (*nonsense*)
+  | LTMSEvToTMSMonEv_Start : LTMSEvtoTMSMonEv (Some LTMSEvStart) None
+  | LTMSEvToTMSMonEv_End : LTMSEvtoTMSMonEv (Some LTMSEvEnd) None
+  | LTMSEvToTMSMonEv_Call : forall c f, LTMSEvtoTMSMonEv (Some (LTMSEvCall c f)) None
+  | LTMSEvToTMSMonEv_Ret : forall c, LTMSEvtoTMSMonEv (Some (LTMSEvRet c)) None
+  | LTMSEvToTMSMonEv_None : LTMSEvtoTMSMonEv None None
+.
+Inductive LSMSEvtoTMSMonEv : option LSMSEv -> option TMSMonEv -> Prop :=
+  | LSMSEvtoTMSMonEv_Alloc : forall l n, LSMSEvtoTMSMonEv (Some (LSMSEvAlloc l n)) (Some (TMSMonAlloc l))
+  | LSMSEvtoTMSMonEv_Dealloc : forall l, LSMSEvtoTMSMonEv (Some (LSMSEvDealloc l)) (Some (TMSMonDealloc l))
+  | LSMSEvtoTMSMonEv_Get : forall l n, LSMSEvtoTMSMonEv (Some (LSMSEvGet l n)) (Some (TMSMonUse l))
+  | LSMSEvtoTMSMonEv_Set : forall l n m, LSMSEvtoTMSMonEv (Some (LSMSEvSet l n m)) (Some (TMSMonUse l))
+  (*nonsense*)
+  | LSMSEvToTMSMonEv_Start : LSMSEvtoTMSMonEv (Some LSMSEvStart) None
+  | LSMSEvToTMSMonEv_End : LSMSEvtoTMSMonEv (Some LSMSEvEnd) None
+  | LSMSEvToTMSMonEv_Call : forall c f, LSMSEvtoTMSMonEv (Some (LSMSEvCall c f)) None
+  | LSMSEvToTMSMonEv_Ret : forall c, LSMSEvtoTMSMonEv (Some (LSMSEvRet c)) None
+  | LSMSEvToTMSMonEv_None : LSMSEvtoTMSMonEv None None
+.
+Inductive LSMSEvtoSMSMonEv : option LSMSEv -> option SMSMonEv -> Prop :=
+  | LSMSEvtoSMSMonEv_Alloc : forall l n, LSMSEvtoSMSMonEv (Some (LSMSEvAlloc l n)) (Some (SMSMonAlloc l n))
+  | LSMSEvtoSMSMonEv_Get : forall l n, LSMSEvtoSMSMonEv (Some (LSMSEvGet l n)) (Some (SMSMonUse l n))
+  | LSMSEvtoSMSMonEv_Set : forall l n m, LSMSEvtoSMSMonEv (Some (LSMSEvSet l n m)) (Some (SMSMonUse l n))
+  (*nonsense*)
+  | LSMSEvtoSMSMonEv_Dealloc : forall l, LSMSEvtoSMSMonEv (Some (LSMSEvDealloc l)) None 
+  | LSMSEvToSMSMonEv_Start : LSMSEvtoSMSMonEv (Some LSMSEvStart) None
+  | LSMSEvToSMSMonEv_End : LSMSEvtoSMSMonEv (Some LSMSEvEnd) None
+  | LSMSEvToSMSMonEv_Call : forall c f, LSMSEvtoSMSMonEv (Some (LSMSEvCall c f)) None
+  | LSMSEvToSMSMonEv_Ret : forall c, LSMSEvtoSMSMonEv (Some (LSMSEvRet c)) None
+  | LSMSEvToSMSMonEv_None : LSMSEvtoSMSMonEv None None
+.
+Inductive LMSEvtoMSMonEv : option LMSEv -> option MSMonEv -> Prop :=
+  | LMSEvtoMSMonEv_Alloc : forall l n, LMSEvtoMSMonEv (Some (LMSEvAlloc l n)) (Some (Some(TMSMonAlloc l),Some(SMSMonAlloc l n)))
+  | LMSEvtoMSMonEv_Dealloc : forall l, LMSEvtoMSMonEv (Some (LMSEvDealloc l)) (Some (Some(TMSMonDealloc l),None)) 
+  | LMSEvtoMSMonEv_Get : forall l n, LMSEvtoMSMonEv (Some (LMSEvGet l n)) (Some (Some(TMSMonUse l),Some(SMSMonUse l n)))
+  | LMSEvtoMSMonEv_Set : forall l n m, LMSEvtoMSMonEv (Some (LMSEvSet l n m)) (Some (Some(TMSMonUse l),Some(SMSMonUse l n)))
+  (*nonsense*)
+  | LMSEvToMSMonEv_Start : LMSEvtoMSMonEv (Some LMSEvStart) None
+  | LMSEvToMSMonEv_End : LMSEvtoMSMonEv (Some LMSEvEnd) None
+  | LMSEvToMSMonEv_Call : forall c f, LMSEvtoMSMonEv (Some (LMSEvCall c f)) None
+  | LMSEvToMSMonEv_Ret : forall c, LMSEvtoMSMonEv (Some (LMSEvRet c)) None
+  | LMSEvToMSMonEv_None : LMSEvtoMSMonEv None None
+.
+
+(** Compilation xlang *)
+Inductive LTMSEvtoLSMSEv : option LTMSEv -> option LSMSEv -> Prop :=
+  | LTMSEvtoLSMSEv_Alloc : forall l n, LTMSEvtoLSMSEv (Some (LTMSEvAlloc l n)) (Some (LSMSEvAlloc l n))
+  | LTMSEvtoLSMSEv_Dealloc : forall l, LTMSEvtoLSMSEv (Some (LTMSEvDealloc l)) (Some (LSMSEvDealloc l))
+  | LTMSEvtoLSMSEv_Get : forall l n, LTMSEvtoLSMSEv (Some (LTMSEvGet l n)) (Some (LSMSEvGet l n))
+  | LTMSEvtoLSMSEv_Set : forall l n m, LTMSEvtoLSMSEv (Some (LTMSEvSet l n m)) (Some (LSMSEvSet l n m))
+  | LTMSEvToLSMSEv_Start : LTMSEvtoLSMSEv (Some LTMSEvStart) (Some LSMSEvStart)
+  | LTMSEvToLSMSEv_End : LTMSEvtoLSMSEv (Some LTMSEvEnd) (Some LSMSEvEnd)
+  | LTMSEvToLSMSEv_Call : forall c f, LTMSEvtoLSMSEv (Some (LTMSEvCall c f)) (Some (LSMSEvCall c f))
+  | LTMSEvToLSMSEv_Ret : forall c, LTMSEvtoLSMSEv (Some (LTMSEvRet c)) (Some (LSMSEvRet c))
+  | LTMSEvToLSMSEv_None : LTMSEvtoLSMSEv None None
+.
+
+Arguments STnil {_}.
+Arguments STcons {_} _ _.
+Inductive xtrace_rel {E1 E2 : Type} 
+    (E1E2rel : option E1 -> option E2 -> Prop) : Trace E1 -> Trace E2 -> Prop :=
+  | xtrace_rel_empty : xtrace_rel E1E2rel STnil STnil
+  | xtrace_rel_consL : forall (a : E1) (As : Trace E1) (Bs : Trace E2),
+      E1E2rel (Some a) None ->
+      xtrace_rel E1E2rel As Bs ->
+      xtrace_rel E1E2rel (STcons (Some a) As) Bs
+  | xtrace_rel_consR : forall (As : Trace E1) (b : E2) (Bs : Trace E2),
+      E1E2rel None (Some b) ->
+      xtrace_rel E1E2rel As Bs ->
+      xtrace_rel E1E2rel As (STcons (Some b) Bs)
+  | xtrace_rel_cons : forall (a : E1) (As : Trace E1) (b : E2) (Bs : Trace E2),
+      E1E2rel (Some a) (Some b) ->
+      xtrace_rel E1E2rel As Bs ->
+      xtrace_rel E1E2rel (STcons (Some a) As) (STcons (Some b) Bs)
+.
+
+
+(* Step relations *)
+Axiom LTMSstep : ContextsGenerator LTMS -> PartialsGenerator LTMS -> Trace LTMSEv -> Prop.
+Axiom LSMSstep : ContextsGenerator LSMS -> PartialsGenerator LSMS -> Trace LSMSEv -> Prop.
+Axiom LMSstep : ContextsGenerator LMS -> PartialsGenerator LMS -> Trace LMSEv -> Prop.
+Axiom LSCCTstep : ContextsGenerator LSCCT -> PartialsGenerator LSCCT -> Trace LSCCTEv -> Prop.
+Axiom LSPECstep : ContextsGenerator LSPEC -> PartialsGenerator LSPEC -> Trace LSPECEv -> Prop.
+
+Axiom TMSMonstep : ContextsGenerator TMSMonEv -> PartialsGenerator TMSMonEv -> Trace TMSMonEv -> Prop.
+Axiom SMSMonstep : ContextsGenerator SMSMonEv -> PartialsGenerator SMSMonEv -> Trace SMSMonEv -> Prop.
+Axiom MSMonstep : ContextsGenerator MSMonEv -> PartialsGenerator MSMonEv -> Trace MSMonEv -> Prop.
+Axiom SCCTMonstep : ContextsGenerator SCCTMonEv -> PartialsGenerator SCCTMonEv -> Trace SCCTMonEv -> Prop.
+Axiom SPECMonstep : ContextsGenerator SPECMonEv -> PartialsGenerator SPECMonEv -> Trace SPECMonEv -> Prop.
+
+(** Concrete language definitions *)
+Definition LTMSLanguage : Language := {|
+  Partials := PartialsGenerator LTMS ;
+  Contexts := ContextsGenerator LTMS ;
+  Event := LTMSEv ;
+  step := LTMSstep ;
+|}.
+Definition LSMSLanguage : Language := {|
+  Partials := PartialsGenerator LSMS ;
+  Contexts := ContextsGenerator LSMS ;
+  Event := LSMSEv ;
+  step := LSMSstep ;
+|}.
+Definition LMSLanguage : Language := {|
+  Partials := PartialsGenerator LMS ;
+  Contexts := ContextsGenerator LMS ;
+  Event := LMSEv ;
+  step := LMSstep ;
+|}.
+Definition TMSMonLanguage : Language := {|
+  Partials := PartialsGenerator TMSMonEv ;
+  Contexts := ContextsGenerator TMSMonEv ;
+  Event := TMSMonEv ;
+  step := TMSMonstep ;
+|}.
+Definition SMSMonLanguage : Language := {|
+  Partials := PartialsGenerator SMSMonEv ;
+  Contexts := ContextsGenerator SMSMonEv ;
+  Event := SMSMonEv ;
+  step := SMSMonstep ;
+|}.
+Definition MSMonLanguage : Language := {|
+  Partials := PartialsGenerator MSMonEv ;
+  Contexts := ContextsGenerator MSMonEv ;
+  Event := MSMonEv ;
+  step := MSMonstep ;
+|}.
+
+
+Definition tms : Property (TMSMonEv).
+Proof.
+  Require Import List.
+  intros tr; refine (forall (n:nat) As, As = get_finite_prefix n tr -> _ /\ _ /\ _ /\ _).
+  - (* Alloc before Dealloc *)
+    refine (forall m l, index_of (option_dec TMSMonEv_dec) (Some(TMSMonAlloc l)) As = Some m -> _).
+    refine (forall m', index_of (option_dec TMSMonEv_dec) (Some(TMSMonDealloc l)) As = Some m' -> _).
+    exact (m < m').
+  - (* Use before Dealloc *)
+    refine (forall m l, index_of (option_dec TMSMonEv_dec) (Some(TMSMonUse l)) As = Some m -> _).
+    refine (forall m', index_of (option_dec TMSMonEv_dec) (Some(TMSMonDealloc l)) As = Some m' -> _).
+    exact (m < m').
+  - (* at most one Dealloc *)
+    exact True.
+  - (* at most one Alloc *)
+    exact True.
+Defined.
+
+Definition xtrace_rel_properties {E1 E2 : Type} 
+    (E1E2rel : option E1 -> option E2 -> Prop) : Property E1 -> Property E2 -> Prop :=
+  fun π1 π2 => forall tr1 tr2, π1 tr1 -> π2 tr2 -> xtrace_rel E1E2rel tr1 tr2
+.
+
+Check (@sigma LSMSLanguage TMSMonLanguage (xtrace_rel LSMSEvtoTMSMonEv) tms).
+
+(** Theorem VII.1 *)
+Theorem properties_relation_correctness_tms :
+  let redπ := (@sigma LSMSLanguage TMSMonLanguage (xtrace_rel LSMSEvtoTMSMonEv) tms) in
+  let blueπ := (@sigma LTMSLanguage LSMSLanguage (xtrace_rel LTMSEvtoLSMSEv) redπ) in
+  xtrace_rel_properties LSMSEvtoTMSMonEv
+    redπ
+    tms
+  ->
+  xtrace_rel_properties LTMSEvtoLSMSEv 
+    blueπ
+    redπ
+  ->
+  xtrace_rel_properties LTMSEvtoTMSMonEv 
+    blueπ
+    tms
+.
+Proof.
+  cbn; intros H0 H1 tr1 tr2 Hin1 Hin2.
+  specialize (H1 tr1).
+Admitted.
+
+
+End TraceRelations.
+
+

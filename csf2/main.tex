@@ -816,7 +816,7 @@ All presented programming languages share a common fragment which is partially p
 \vspace{-.5em}
 {
   \renewcommand{\src}[1]{\mathsf{#1}}
-% \small
+ \small
 \[
   \begin{array}{rrcl}
     \text{(Base-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
@@ -1500,17 +1500,20 @@ One key insight of these relations is that they all omit context-made actions fo
 
 
 \subsection{Security Properties and Their Meaning}\label{subsec:formalities:props}
-Each of the presented compilers use a cross-language trace relation, which is also used to translate the property from one language to the other one (via the universal image).
+Each of the presented compilers use a cross-language trace relation, which is also used to translate the property from one language to the other one (via the existential or universal images).
 % 
-Whenever such translations occur, it is important to check whether there has been a change of meaning.
+%Whenever such translations occur, it is important to check whether there has been a change of meaning.
+%Secure compiler engineers need to ensure that such translations of properties do not change meaning in a fundamental wrong way. 
+% lifting or lowering reasoning from target- to source-level or vice-versa,
+While the meaning of projected properties does change with a translation, the change should not allow for a flawed compilation pipeline.
 % 
-That is, we could be using a trace relation that translates a property in a language to a different one in another language.
+For example, we could be using a trace relation that translates a property in a language to a totally different one in another language.
 % 
-To ensure such a bad translation of properties does not occur, \Cref{thm:prop-rel-corr} states (in a general fashion) that that each security property is properly translated using the universal image according to the cross-language trace relation used by the compiler.
+To raise the trust into the translation of properties, \Cref{thm:prop-rel-corr} states (in a general fashion) that each security property is faithfully translated using the universal image according to the cross-language trace relation induced by the compiler.
 
 \begin{theorem}[Properties Relation Correctness]\label{thm:prop-rel-corr}
   \begin{align*}
-    \forall& \pi \in \{\tmssafe,\smssafe,\scctsafe,\sssafe\}, 
+    \forall& \pi \in 2^{\{\tmssafe,\smssafe,\scctsafe,\sssafe\}}\setminus\{\emptyset\}, 
     \\
     \text{ for each }& \text{pair of languages } \src{L} \text{ and } \trg{L} \text{ used by the compilers},
     \\
@@ -1528,9 +1531,11 @@ To ensure such a bad translation of properties does not occur, \Cref{thm:prop-re
 \end{theorem}
 The complexity of this theorem is that the relation in the conclusion cannot be obtained by composing the two relations in the premises.
 % 
-What happens in practice is that programmers are given the relations from each language to \ev{L} and they need to build a compiler that induces a relation $\sim^{\src{L}}_{\trg{L}}$ that respects this theorem.
+%% MK: the following does not say anything about the theorem, only about the syntactic compiler
+%What happens in practice is that compiler engineers are given the relations from each language to \ev{L} and they need to build a compiler that induces a relation $\sim^{\src{L}}_{\trg{L}}$ that respects this theorem.
 % 
-% We now informally argue why this theorem holds in all of its specialised cases.
+
+We now informally argue why this theorem holds for the composition of all considered properties from \Cref{sec:compprop}.
 
 \paragraph{$\sigma_{\sim^{\Ltms}_{\Lms}}\left(\tmssafe\cap\smssafe\cap\scctsafe\cap\sssafe\right)$}
 
@@ -1598,6 +1603,8 @@ For the $\ccspec\cdot\ccb$ case, the class is $\sigma_{\sim_{\ird{\mathghost}}\b
 Since $\ev{Use\ \loc\ n}\sim_{\irl{ms}}\irl{Branch\ n}\cdot\irl{Spec}\cdots$, where $\cdots$ does not contain a $\ev{{Barrier}}$ event, the resulting class is \emph{not} the original $\sssafe$ that is intended and it would break the corresponding \Cref{thm:prop-rel-corr}.
 % Because of this, it is crucial to analyse the precise shape of the class of properties after mapping a target-level property to a source-level property\footnote{Dito for mapping a source-level property to a target-level property.}.
 
+However, the composition is still technically possible and it is the job of the compiler engineers to ensure that the secure compilation pipeline happens in an order that ensures that the mapped security property is the intended one.
+
 \subsection{Secure Compilation Proofs}\label{subsec:seccompproofs}
 
 Our secure compilation proofs rely on backtranslations~\cite{abate2019jour,patrignani2021rsc}, which let one construct a source context starting from either target traces (aka trace-based backtranslations) or target contexts (aka context-based backtranslations).
@@ -1606,20 +1613,6 @@ These backtranslations also require setting up cross-language relations between 
 % For the universally quantified target context, a technique known as backtranslation is well-established, which constructs a source-level context either by backtranslating the target-level context, amounting to a ``decompilation'', or by constructing it using the target-level trace, so that the source-context emits parts of the whole execution trace that are related to the parts emitted by the target-level context. 
 All backtranslations in the case-study are trace based except for those required by $\ccdce$ and $\cccf$, which are context-based (and they are an identity function). 
 % Since these optimisations have no significant semantic effect and source- and target-language are equal, the backtranslation amounts to an identity translation. 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 \section{Related Work\pages{2}}\label{sec:relwork}
 
@@ -1634,11 +1627,11 @@ This section discusses robust compilation, other secure compilation criteria and
 \paragraph*{Secure Compilation as Robust Preservation}\label{subsec:relw:seccomprtp}
 
 The robust preservation of properties as a compiler-level criterion has been analysed extensively~\cite{abate2019jour,patrignani2021rsc,abate2021extacc,patrignani2019survey} and thus we build on that framework.
-No existing work is concerned with composing robustly safe compilers.
+No existing work is concerned with composing secure compilers, however, existing work~\cite{abate2021extacc} sketches composition of trace-relating compiler correctness in a similar way to what has been presented here.
 %Parts of these works consider languages with different trace models and our technical setup can handle this. 
 The work relating robust preservation with universal composability~\cite{patrignani2022universal} is closest to what this paper presents.
 The authors demonstrate a similar compositionality theorem to what is presented here (\Cref{sec:sequential}) but use it in the context of protocols.
-The work does not consider the generality to support different trace models.
+The work does not consider the generality to support different trace models or composition of compilers which robustly preserve different classes.
 % The authors demonstrate a similar compositionality theorem to what is presented here (\Cref{sec:sequential}) as well as in an earlier version of this work~\cite{kruse2022csc}.
 % However, they do not demonstrate the scalability of the approach by means of a case study.
 

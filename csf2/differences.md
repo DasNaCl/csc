@@ -7,6 +7,7 @@
 - Emphasize at that the composition framework works with hyperproperties. To this end,
     - Added an example at end of section II.B of robustly preserving compilers that preserve a property and a hyperproperty, respectively.
     - Show that these two compilers compose (on a high level) in section III
+- Typo fix on quantification in VII.1 
 - Minor rewordings of sentences (as seen in `latexdiff.pdf`)
 
 

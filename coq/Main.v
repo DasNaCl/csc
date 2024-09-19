@@ -596,7 +596,18 @@ Inductive LTMSEvtoLSMSEv : option LTMSEv -> option LSMSEv -> Prop :=
   | LTMSEvToLSMSEv_Ret : forall c, LTMSEvtoLSMSEv (Some (LTMSEvRet c)) (Some (LSMSEvRet c))
   | LTMSEvToLSMSEv_None : LTMSEvtoLSMSEv None None
 .
-
+Axiom InBoundsCheck : loc -> nat -> Prop.
+Inductive LSMSEvtoLMSEv : option LSMSEv -> option LMSEv -> Prop :=
+  | LSMSEvtoLMSEv_Alloc : forall l n, LSMSEvtoLMSEv (Some (LSMSEvAlloc l n)) (Some (LMSEvAlloc l n))
+  | LSMSEvtoLMSEv_Dealloc : forall l, LSMSEvtoLMSEv (Some (LSMSEvDealloc l)) (Some (LMSEvDealloc l))
+  | LSMSEvtoLMSEv_GetOk : forall l n, InBoundsCheck l n -> LSMSEvtoLMSEv (Some (LSMSEvGet l n)) (Some (LMSEvGet l n))
+  | LSMSEvtoLMSEv_SetOk : forall l n m, InBoundsCheck l n -> LSMSEvtoLMSEv (Some (LSMSEvSet l n m)) (Some (LMSEvSet l n m))
+  | LSMSEvToLMSEv_Start : LSMSEvtoLMSEv (Some LSMSEvStart) (Some LMSEvStart)
+  | LSMSEvToLMSEv_End : LSMSEvtoLMSEv (Some LSMSEvEnd) (Some LMSEvEnd)
+  | LSMSEvToLMSEv_Call : forall c f, LSMSEvtoLMSEv (Some (LSMSEvCall c f)) (Some (LMSEvCall c f))
+  | LSMSEvToLMSEv_Ret : forall c, LSMSEvtoLMSEv (Some (LSMSEvRet c)) (Some (LMSEvRet c))
+  | LSMSEvToLMSEv_None : LSMSEvtoLMSEv None None
+.
 Arguments STnil {_}.
 Arguments STcons {_} _ _.
 Inductive xtrace_rel {E1 E2 : Type} 
@@ -693,6 +704,22 @@ Definition xtrace_rel_properties {E1 E2 : Type}
 .
 
 Check (@sigma LSMSLanguage TMSMonLanguage (xtrace_rel LSMSEvtoTMSMonEv) tms).
+
+Definition lifter (p : Property TMSMonEv) : Class TMSMonEv :=
+  fun x => forall y, x y -> subsets y p 
+.
+
+Theorem wfc_sms_tmstosms :
+    (@wfσ LSMSLanguage TMSMonLanguage (xtrace_rel LSMSEvtoTMSMonEv) (lifter tms))
+.
+Proof.
+  intros ? ? ? ? ? ? ? ?. destruct a.
+  - intros ? ? ?; repeat split; intros; eauto. admit. admit.
+  - destruct o as [[]|].
+    + intros ? ?; repeat split; intros.
+      destruct (loc_dec l l0); subst.
+      * cbn in *.
+Admitted.
 
 (** Theorem VII.1 *)
 Theorem properties_relation_correctness_tms :

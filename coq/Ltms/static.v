@@ -1,4 +1,4 @@
-(* Set Implicit Arguments.
+Set Implicit Arguments.
 Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
 Require Import CSC.Util.Sets CSC.Shared.Props CSC.Util.Convenience CSC.Util.HasEquality.
 
@@ -1550,4 +1550,4 @@ Proof.
   eapply link_check_is_init_check in Ha; deex; eauto.
   eapply steps_tms_via_monitor; eauto.
   repeat constructor.
-Qed. *)
+Qed.

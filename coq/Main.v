@@ -161,6 +161,13 @@ Notation "'σ~~'" := class_induced_sigma.
 (** Compilers *)
 Definition Compiler (S T : Language) := Partials S -> Partials T.
 
+Definition injective {A B : Type} (f : A -> B) : Prop :=
+  forall a1 a2, f a1 = f a2 -> a1 = a2
+.
+Definition surjective {A B : Type} (f : A -> B) : Prop :=
+  forall b, exists a, f a = b
+.
+
 (** Preservation of robust satisfaction. *)
 Definition prsat__τ {S T : Language}
     (rel : Trace (Event S) -> Trace (Event T) -> Prop)
@@ -277,7 +284,7 @@ Notation "'|-wfτ' rel ':' C" := (wfτ rel C) (at level 81, rel at next level, C
 Theorem seqcompoτ {S I T : Language} (cc1 : Compiler S I) (cc2 : Compiler I T)
   (C1 C2 : Class (Event S))
   (rel1 : Trace (Event S) -> Trace (Event I) -> Prop)
-  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop) :
+  (rel2 : Trace (Event I) -> Trace (Event T) -> Prop)
     |-wfτ rel1 : C2 ->
     [presτ|- cc1 : rel1, C1] ->
     [presτ|- cc2 : rel2, τ~~ rel1 C2] ->
@@ -358,6 +365,18 @@ Proof.
   eapply H1.
   eapply H__wf; assumption.
   now rewrite <- rsat_trim_inducedσ.
+Qed.
+
+Axiom S I : Language.
+Axiom rel : Trace (Event S) -> Trace (Event I) -> Prop.
+Axiom C : Class (Event I).
+
+Lemma wfrelr :
+  |-wfσ rel : C
+.
+Proof.
+  intros ? ? ? ?%set_eq_equiv_eq.
+  H0.
 Qed.
 
 Corollary swappableσ {I : Language} (cc1 cc2 : Compiler I I)

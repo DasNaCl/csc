@@ -2,7 +2,7 @@
 \newcommand\hmmax{0}
 \newcommand\bmmax{0}
 \documentclass[a4paper,12pt]{article}
-\usepackage[left=1.5cm,top=1.5cm,right=1.5cm,bottom=1.5cm]{geometry}
+\usepackage[left=1.0cm,top=1.5cm,right=1.0cm,bottom=1.5cm]{geometry}
 \usepackage{parskip}
 
 % https://tex.stackexchange.com/questions/648845/sans-serif-uppercase-greek-no-longer-showing-in-acmart
@@ -383,7 +383,194 @@ Then, it is possible to derive the following consequences:
 %%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%
-\section{Case Study}
+\section{Case Study}\label{sec-cs}
+This part instantiates the previously presented theory. 
+\Cref{subsec-cs-properties} presents all properties. 
+
+\subsection{Properties}\label{subsec-cs-properties}
+
+The properties considered in this case-study are a mixture of trace-properties as welll as hyperproperties.
+However, to carry out proofs, all properties are overapproximated by a monitor.
+
+\subsubsection{Formal Definition}\label{subsubsec-cs-properties-formaldef}
+
+\paragraph{Temporal Memory Safety}
+
+\gls*{tms}~\cite{nagarakatte2010cets} is a safety property that describes that an unallocated object must not be (re-)used.
+
+\begin{definition}{\definitionlabel[\glsfirst{tms}]{def-trace-tmsdef}}
+  \[
+  \tmssafe:=\left\{\varTrace[_{\mssafe}]
+    \left| 
+      \begin{array}{rcl}
+        \ev{Alloc\ \varLoc\ n}&\le_{\varTrace[_{\mssafe}]}&\ev{Dealloc\ \varLoc} \\
+        \ev{Use\ \varLoc\ n}&\le_{\varTrace[_{\mssafe}]}&\ev{Dealloc\ \varLoc} \\
+        \text{at most one }\ev{Dealloc\ \varLoc}&\text{in}&\varTrace[_{\mssafe}] \\
+        \text{at most one }\ev{Alloc\ \varLoc\ n}&\text{in}&\varTrace[_{\mssafe}] \\
+      \end{array}
+    \right.
+  \right\}
+  \]
+\end{definition}
+Hereby, the notation $\varEvent[_{1}]\le_{\varTrace}\varEvent[_{2}]$ means that if $\varEvent[_{1}]$ is in $\varTrace$ and if $\varEvent[_{2}]$ is in $\varTrace$, then $\varEvent[_{1}]$ appears before $\varEvent[_{2}]$.
+
+\paragraph{Spatial Memory Safety}
+\gls*{sms}~\cite{nagarakatte2009soft} is a safety property that prohibits out-of-bounds accesses.
+
+\begin{definition}{\definitionlabel[\glsfirst{sms}]{def-trace-smsdef}}
+  \[
+  \smssafe:=\left\{\varTrace[_{\mssafe}] \left|\begin{array}{rcl}
+      \text{If }\ev{Alloc\ \varLoc\ n}\le_{\varTrace_{\mssafe}}\ev{Use\ \varLoc\ m}, \text{ then }m<n
+  \end{array}\right.\right\}
+  \]
+\end{definition}
+
+\paragraph{Memory Safety}
+
+In spirit of earlier work~\cite{nagarakatte2009soft,nagarakatte2010cets,jim2002cyclone,necula2005ccured,michael2023mswasm}, full \gls*{ms} is the intersection of \Cref{def:trace:tmsdef,def:trace:smsdef}.
+
+\begin{definition}{\definitionlabel[\glsfirst{ms}]{def-trace-msdef}}
+  \[
+  \mssafe:=\tmssafe \cap \smssafe
+  \]
+\end{definition}
+
+Note that \Cref{def:trace:msdef} ignores data isolation, so there may still be memory-safety issues introduced by side-channels.
+
+\subsubsection{Strict Cryptographic Constant Time}
+
+\gls*{cct} is a hypersafety property~\cite{barthe2018sec} and, thus, difficult to check with monitors.
+This is because, intuitively, hypersafety properties can relate multiple execution traces with each other, but monitors work on a single execution.
+It is a common trick to sidestep this issue by means of overapproximation: this section defines the property \gls*{scct}, a stricter variant of \gls*{cct} (inspired by earlier work~\cite{almeida2017jasmin}) that enforces the policy that no secret appears on a trace.
+Programs that satisfy \gls*{scct} also satisfy \gls*{cct}, but programs that satisfy \gls*{cct} may not satisfy \gls*{scct}.
+
+\begin{definition}{\definitionlabel[\glsfirst{scct}]{def-trace-scctdef}}
+  \noindent\[
+  \scctsafe:=\left\{\varTrace[_{\ctsafe}] 
+      \left|
+        \begin{array}{l}
+          \varTrace[_{\ctsafe}]=\hole{\cdot} \text{ or } \\
+          \exists\varTrace[_{\ctsafe}'],\varTrace[_{\ctsafe}]=\varEvent[_{\ctsafe}];\unlock\cdot\varTrace[_{\ctsafe}'] \wedge \varTrace[_{\ctsafe}']\in\scctsafe
+        \end{array}
+      \right.
+    \right\}
+  \]
+\end{definition}
+
+\gls*{scct} may appear overly strict, since it seems that secrets must not occur on a trace (since $\varSecuritytag$ is forced to be $\unlock$). 
+However, this is considered standard practice in terms of coding guidelines~\cite{ctguidelines}.
+Moreover, programs that have been compiled with FaCT~\cite{cauligi2019fact} and run with a ``data independent timing mode''~\cite{arm-refman,intel-refman} enabled do not leak secrets. 
+
+\paragraph{\gls*{ms}, Strict Cryptographic Constant Time}
+
+The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
+However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
+To remedy this issue, we introduce $\sim_{\ctsafe}: \preevent[_{\ctsafe}] \times \preevent[_{\mssafe}] $, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
+\[
+  \typerulenolabel{}{\varEvent[_{\mssafe}]\sim_{\ctsafe}\varEvent[_{\mssafe}];\unlock{}}
+  \hspace{2ex}
+  \typerulenolabel{}{\lightning\sim_{\ctsafe}\lightning}
+  \hspace{2ex}
+  \typerulenolabel{}{\emptyevent\sim_{\ctsafe}\ev{Branch\;n};\varSecuritytag{}}
+  \hspace{2ex}
+  \typerulenolabel{}{\emptyevent\sim_{\ctsafe}\ev{Binop\;n};\varSecuritytag{}}
+\]
+
+Essentially, $\sim_{\ctsafe}$ ignores both the new $\ev{Branch\ n}$ and $\ev{Binop\ n}$ base-events as it relates security-insensitive actions ($\unlock$) to their equivalent counterparts.
+Thus, \gls*{ms} traces trivially satisfy \gls*{scct}.
+% 
+The above relation is extended point-wise to traces, skipping the empty event $\emptyevent$ on either side, and it is now possible to define \gls*{msscct} using the universal image:
+
+\begin{definition}{\definitionlabel[\glsfirst{ms} and \glsfirst{scct}]{def-trace-msscctdef}}
+  \[
+  \msscctsafe:=\mssafe\cap\sigma_{\sim_{\ctsafe}}\left(\scctsafe\right)
+  \]
+\end{definition}
+
+\paragraph{Extending the Trace Model with Speculation}
+
+So far, the considered trace models do not let us express speculative execution attacks such as Spectre~\cite{kocher2019spectre}. 
+For this, we extend the earlier trace model so that the security tags ($\varSecuritytag{}$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
+Moreover, we add base-events signalling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
+
+\vspace{-1em}
+{
+\[
+  \begin{array}{rrcl}
+    (\text{Base-Events}) & \varEvent[_{\mathghost}] &:=& \varEvent[_{\ctsafe}] \\
+    (\text{Spectre Variants}) & vX &:=& \operatorname{NONE} \mid \operatorname{PHT} \\
+    (\text{Security Tags}) & \varSecuritytag{} &:=& \lock_{vX} \mid \unlock\\ 
+    (\text{Events}) & \varEvent[_{\mathghost}] &:=& \varEvent[_{\mathghost}];\varSecuritytag{} \mid \emptyevent \mid \lightning \mid \ev{Spec} \mid \ev{Rlb} \mid \ev{Barrier}\\ 
+  \end{array}
+\]
+}
+
+Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
+%For sake of readability, this paper just uses the notation $\lock$ in place of $\lock_{\text{PHT}}$.
+
+\subsubsection{Speculative Safety}
+
+\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is a sound overapproximation of a variant of noninterference.
+
+\begin{definition}{\definitionlabel[\glsfirst{ss}]{def-trace-ssdef}}
+  \noindent
+
+  \begin{nscenter}
+    \[
+      \sssafe := \left\{
+        \varTrace[_{\mathghost}] 
+          \left|
+            \begin{array}{l}
+              \varTrace[_{\mathghost}]=\hole{\cdot} 
+                \text{ or } 
+              \exists\varTrace[_{\mathghost}'].\\
+              %
+              \left(\varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\unlock\cdot\varTrace[_{\mathghost}'] 
+                \text{or }
+              \varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\lock_{\text{NONE}}\cdot\varTrace[_{\mathghost}']\right)\\
+              %
+              \text{and }%
+              \ \varTrace[_{\mathghost}']\in\sssafe
+            \end{array}
+          \right.
+        \right\}
+    \] 
+  \end{nscenter}
+\end{definition}
+The technical setup so far leads to the above definition, where only locks annotated with $\text{SPECTRE-PHT}$ are disallowed to occur on the trace.
+That way, programs attaining \gls*{ss} do not necessarily attain \gls*{scct}.
+
+\subsubsection{Speculation Memory Safety}\label{sec:spec-ms-rel}
+
+As before, we need to relate the different trace models with each other, so that the memory safety property without speculation can be lifted to speculation. 
+To this end, let $\sim_{\mathghost}: \varEvent[_{\mathghost}] \times \varEvent[_{\ctsafe}]$ be a cross-language trace relation whose key cases are below.
+The intuition is that \gls*{ss} is trivially satisfied in \gls*{scct}, since speculation is inexpressible there, which amounts to dropping events $\ev{Spec}$, $\ev{Rlb}$, or $\ev{Barrier}$, as well as all base events tagged with $\lock_{\text{PHT}}$. 
+
+\[
+  \typerulenolabel{}{\varEvent[_{\ctsafe}];\lock\sim_{\mathghost}\varEvent[_{\ctsafe}];\lock_{\text{NONE}}}
+  \hspace{2ex}
+  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\varEvent[_{\mathghost}];\lock_{\text{PHT}}}
+  \hspace{2ex}
+  \typerulenolabel{}{\varEvent[_{\ctsafe}];\unlock\sim_{\mathghost}\varEvent[_{\ctsafe}];\unlock}
+  \hspace{2ex}
+  \typerulenolabel{}{\lightning\sim_{\mathghost}\lightning}
+  \hspace{2ex}
+  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\ev{Spec}}
+  \hspace{2ex}
+  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\ev{Rlb}}
+  \hspace{2ex}
+  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\ev{Barrier}}
+\]
+
+We conclude by defining the ultimate property of interest for secure compilers: \gls*{specms}.
+\begin{definition}{\definitionlabel[\glsfirst{specms}]{def-trace-specmsdef}}
+  \[
+  \specmssafe := \msscctsafe\cap\sigma_{\sim_{\mathghost}}\left(\sssafe\right)
+  \]
+\end{definition}
+
+
+\subsubsection{Monitors}\label{subsubsec-cs-properties-monitors}
 
 \clearpage
 \bibliographystyle{ACM-Reference-Format}

@@ -3,12 +3,14 @@
 \usepackage{halloweenmath}
 \usepackage{fontawesome5}
 \usepackage{listofitems}
+\usepackage{breakcites}
 \usepackage{mathpartir}
 \usepackage{glossaries}
 \usepackage{mathtools}
 \usepackage{tcolorbox}
 \usepackage{graphicx}
 \usepackage{stmaryrd}
+\usepackage{marvosym}
 \usepackage{enumitem}
 \usepackage{listings}
 \usepackage{hyperref}
@@ -18,6 +20,7 @@
 \usepackage{amssymb} %uncomment for ieee
 \usepackage{nameref}
 \usepackage{xspace}
+\usepackage{xfrac}
 \usepackage{array}
 \usepackage{tikz}
 \usepackage{soul}
@@ -98,10 +101,10 @@
 
 %% theorem stuff
 \newenvironment{proof}[1][\textbf{Proof}]%
-{\everypar={{\setbox0=\lastbox}\everypar{}}\restartlist{passumptionslist}\mbox{\textsc{#1}.}$\;$\\\vspace{-2ex}\hline\noindent\everypar={{\setbox0=\lastbox}\everypar{}}}
+{\everypar={{\setbox0=\lastbox}\everypar{}}\restartlist{passumptionslist}\mbox{\textsc{#1}.}$\;$\\\vspace{-2ex}\hrule\noindent\everypar={{\setbox0=\lastbox}\everypar{}}}
 {$\;$\hfill$\square$\\\ignorespacesafterend%
 \ifx\paslistend\undefined\else\global\let\paslistend\undefined\fi%
-\vspace{-2ex}\hline%
+\vspace{-2ex}\hrule%
 }
 \newcommand{\incompleteProof}[1][]{\begin{center}todo #1\end{center}}
 % Theorem environments
@@ -309,8 +312,8 @@
         \mathsz{11pt}{#1}%
 }
 \newcommand{\judgbox}[2]{%
-      {\raggedright \textgraybox{\ensuremath{\judgboxfontsize{#1}}}\!\;%
-        \fontsz{9pt}{\begin{tabular}[c]{l} #2 \end{tabular}} %
+      {\hrulefill\raggedright \textgraybox{\ensuremath{\judgboxfontsize{#1}}}\!\;%
+        \fontsz{9pt}{\begin{tabular}[c]{l} #2 \end{tabular}\hrulefill} %
 }}
 \newcommand{\judgboxb}[2]{%
   \judgbox{#1}{#2}\hspace{1ex}\hrulefill%
@@ -402,23 +405,58 @@
 \newcommand{\lrbraces}[1]{\ensuremath\left\{#1\right\}\xspace}
 \newcommand{\lrbbraces}[1]{\ensuremath\left\llbracket{#1}\right\rrbracket\xspace}
 
+%\newcommand{\tup}[2]{\ensuremath (#1 %
+%  \readlist\myterms{#2}%
+%  \foreachitem\x\in\myterms{;\x}%
+%  )%
+%}
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Properties Names
-\newcommand{\tmssafe}{\text{tmssafe}}
-\newcommand{\smssafe}{\text{smssafe}}
-\newcommand{\mssafe}{\text{mssafe}}
-\newcommand{\ctsafe}{\text{ctsafe}}
-\newcommand{\scctsafe}{\text{sctsafe}}
-\newcommand{\msscctsafe}{\text{mssctsafe}}
-\newcommand{\sssafe}{\text{sssafe}}
-\newcommand{\specmssafe}{\text{specmssafe}}
+\newcommand{\tmssafe}{\text{tms}}
+\newcommand{\smssafe}{\text{sms}}
+\newcommand{\mssafe}{\text{ms}}
+\newcommand{\ctsafe}{\text{ct}}
+\newcommand{\scctsafe}{\text{sct}}
+\newcommand{\msscctsafe}{\text{mssct}}
+\newcommand{\sssafe}{\text{ss}}
+\newcommand{\specmssafe}{\text{specms}}
 
 
 %%
-\newcommand{\emptyevent}{\varepsilon}
-\newcommand{\ev}[#1]{\text{#1}}
+\newcommand{\emptyevent}{\ensuremath \varepsilon}
+\newcommand{\ev}[1]{\ensuremath\ulcorner #1 \urcorner}
+\newcommand{\tmsev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\tmssafe}}}
+\newcommand{\smsev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\smssafe}}}
+\newcommand{\msev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\mssafe}}}
 \newcommand{\lock}{\ensuremath\text{\scriptsize\faIcon{lock}}}
 \newcommand{\unlock}{\ensuremath\text{\scriptsize\faIcon{lock-open}}}
+
+\newcommand{\emptyTrace}{\ensuremath\hole{\cdot}}
+\newcommand{\consTrace}[2]{\ensuremath{#1},{#2}}
+
+\newcommand{\xlangrel}[2]{\ensuremath\sim^{#1}_{#2}}
+
+%% Language-Specific events
+\newcommand{\makeConcreteEvent}[3]{\ensuremath\ev{\textnormal{#1}\;\lrpars{#2}}\;^{\kern-3pt{#3}}}
+
+\newcommand{\msEvent}[1][]{\ensuremath \varEvent[_{\mssafe}]}
+\newcommand{\msTrace}[1][]{\ensuremath \varTrace[_{\mssafe}]}
+\newcommand{\msAlloc}[1][\varLoc;n]{\ensuremath\makeConcreteEvent{Alloc}{#1}{\mssafe}}
+\newcommand{\msDealloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Dealloc}{#1}{\mssafe}}
+\newcommand{\msUse}[1][\varLoc;n]{\ensuremath\makeConcreteEvent{Use}{#1}{\mssafe}}
+
+\newcommand{\smsEvent}[1][]{\ensuremath \varEvent[_{\smssafe}]}
+\newcommand{\smsTrace}[1][]{\ensuremath \varTrace[_{\smssafe}]}
+\newcommand{\smsAlloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Alloc}{#1}{\smssafe}}
+\newcommand{\smsDealloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Dealloc}{#1}{\smssafe}}
+\newcommand{\smsUse}[1][\varLoc]{\ensuremath\makeConcreteEvent{Use}{#1}{\smssafe}}
+
+\newcommand{\tmsEvent}[1][]{\ensuremath \varEvent[_{\tmssafe}]}
+\newcommand{\tmsTrace}[1][]{\ensuremath \varTrace[_{\tmssafe}]}
+\newcommand{\tmsAlloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Alloc}{#1}{\tmssafe}}
+\newcommand{\tmsDealloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Dealloc}{#1}{\tmssafe}}
+\newcommand{\tmsUse}[1][\varLoc]{\ensuremath\makeConcreteEvent{Use}{#1}{\tmssafe}}
 
 %% Language-Specific
 \newcommand{\ctxtocomp}{\xspace ? \xspace}

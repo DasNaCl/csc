@@ -394,19 +394,44 @@ However, to carry out proofs, all properties are overapproximated by a monitor.
 
 \subsubsection{Formal Definition}\label{subsubsec-cs-properties-formaldef}
 
+For simple memory safety composed of temporal and spatial memory safety, the trace model defines events ($\varEvent[_{\mssafe}]$) as either the empty event ($\emptyevent$), a crash ($\lightning$), or a base-event ($\varEvent[_{\mssafe}]$).
+
+\begin{definition}{\definitionlabel[\glsfirst{ms} Trace Model]{mstraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Base-Events)}&\varEvent[_{\mssafe}] &:=& \msAlloc \mid \msDealloc \mid \msUse \\
+    \text{(Events)}&\varEvent[_{\mssafe}] &:=& \varEvent[_{\mssafe}] \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
+
+Base-events describe the actual kind of event that happened.
+For the basic memory-safety properties, these are three variants:
+First, the allocation event ($\msAlloc$) that fires whenever a program claims $n$ cells of memory and stores them at address $\varLoc$, where addresses are assumed to be unique.
+Second, deallocation ($\msDealloc$) announces that the object at location $\varLoc$ is freed.
+Third, an event to describe reads from and writes to the $n$-th memory cell from address $\varLoc$ ($\msUse$).
+
 \paragraph{Temporal Memory Safety}
 
 \gls*{tms}~\cite{nagarakatte2010cets} is a safety property that describes that an unallocated object must not be (re-)used.
+Since it does not care about bounds of an object in memory, we emphasize this fact by deviating from the unified, memory-safety trace model and instead introduce traces for temporal memory safety:
+\begin{definition}{\definitionlabel[\glsfirst{tms} Traces]{tmstraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Base-Events)}&\tmsEvent &:=& \tmsAlloc \mid \tmsDealloc \mid \tmsUse \\
+    \text{(Events)}&\tmsEvent &:=& \tmsEvent \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
 
-\begin{definition}{\definitionlabel[\glsfirst{tms}]{def-trace-tmsdef}}
+With this, \gls*{tms} is defined as follows.
+\begin{definition}{\definitionlabel[\glsfirst{tms}]{tmsdef}}
   \[
-  \tmssafe:=\left\{\varTrace[_{\mssafe}]
+  \tmssafe:=\left\{\tmsTrace
     \left| 
       \begin{array}{rcl}
-        \ev{Alloc\ \varLoc\ n}&\le_{\varTrace[_{\mssafe}]}&\ev{Dealloc\ \varLoc} \\
-        \ev{Use\ \varLoc\ n}&\le_{\varTrace[_{\mssafe}]}&\ev{Dealloc\ \varLoc} \\
-        \text{at most one }\ev{Dealloc\ \varLoc}&\text{in}&\varTrace[_{\mssafe}] \\
-        \text{at most one }\ev{Alloc\ \varLoc\ n}&\text{in}&\varTrace[_{\mssafe}] \\
+        \tmsAlloc&\le_{\tmsTrace}&\tmsDealloc \\
+        \tmsUse&\le_{\tmsTrace}&\tmsDealloc \\
       \end{array}
     \right.
   \right\}
@@ -416,26 +441,112 @@ Hereby, the notation $\varEvent[_{1}]\le_{\varTrace}\varEvent[_{2}]$ means that 
 
 \paragraph{Spatial Memory Safety}
 \gls*{sms}~\cite{nagarakatte2009soft} is a safety property that prohibits out-of-bounds accesses.
+For emphasis, we also use a custom trace-model for spatial memory safety.
+\begin{definition}{\definitionlabel[\glsfirst{sms} Traces]{smstraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Base-Events)}&\smsEvent &:=& \smsAlloc \mid \smsDealloc \mid \smsUse \\
+    \text{(Events)}&\smsEvent &:=& \smsEvent \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
 
-\begin{definition}{\definitionlabel[\glsfirst{sms}]{def-trace-smsdef}}
+With this, \gls*{sms} is defined as follows.
+\begin{definition}{\definitionlabel[\glsfirst{sms}]{smsdef}}
   \[
-  \smssafe:=\left\{\varTrace[_{\mssafe}] \left|\begin{array}{rcl}
-      \text{If }\ev{Alloc\ \varLoc\ n}\le_{\varTrace_{\mssafe}}\ev{Use\ \varLoc\ m}, \text{ then }m<n
+  \smssafe:=\left\{\smsTrace \left|\begin{array}{rcl}
+      \text{If }\smsAlloc\le_{\smsTrace}\smsUse, \text{ then }m<n
   \end{array}\right.\right\}
   \]
 \end{definition}
 
 \paragraph{Memory Safety}
 
-In spirit of earlier work~\cite{nagarakatte2009soft,nagarakatte2010cets,jim2002cyclone,necula2005ccured,michael2023mswasm}, full \gls*{ms} is the intersection of \Cref{def:trace:tmsdef,def:trace:smsdef}.
+In spirit of earlier work~\cite{nagarakatte2009soft,nagarakatte2010cets,jim2002cyclone,necula2005ccured,michael2023mswasm}, full \gls*{ms} is the intersection of \definitionref{tmsdef} and \definitionref{smsdef}.
+However, both properties use a different trace model, so intersecting them alone would trivially yield the empty set.
+To remedy this, we define cross-language trace relations that lift both \definitionref{tmstraces} and \definitionref{smstraces} to \definitionref{mstraces}.
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{tms}]{mapping-tms-ms}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\tmssafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\tmsEvent}}{,,Translate \gls*{ms}-events to \gls*{tms}-events.''}
 
-\begin{definition}{\definitionlabel[\glsfirst{ms}]{def-trace-msdef}}
+    \typerule{mapping-ms-tms-empty}{}{
+      \mmap{\msev{\emptyevent}}{\tmsev{\emptyevent}}
+    }{mapping-ms-tms-empty}
+    %
+    \typerule{mapping-ms-tms-crash}{}{
+      \mmap{\msev{\lightning}}{\tmsev{\lightning}}
+    }{mapping-ms-tms-crash}
+    %
+    \typerule{mapping-ms-tms-alloc}{}{
+      \mmap{\msAlloc}{\tmsAlloc}
+    }{mapping-ms-tms-alloc}
+    %
+    \typerule{mapping-ms-tms-dealloc}{}{
+      \mmap{\msDealloc}{\tmsDealloc}
+    }{mapping-ms-tms-dealloc}
+    %
+    \typerule{mapping-ms-tms-use}{}{
+      \mmap{\msUse}{\tmsUse}
+    }{mapping-ms-tms-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\tmsTrace}}{,,Translate \gls*{ms}-traces to \gls*{tms}-traces.''}
+    
+    \typerule{mapping-ms-tms-empty}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-tms-empty}
+    %
+    \typerule{mapping-ms-tms-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\tmsEvent}{\tmsTrace}}
+    }{mapping-ms-tms-cons}
+  \end{center}
+\end{definition}
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{sms}]{mapping-sms-ms}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\smssafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\smsEvent}}{,,Translate \gls*{ms}-events to \gls*{sms}-events.''}
+
+    \typerule{mapping-ms-sms-empty}{}{
+      \mmap{\msev{\emptyevent}}{\smsev{\emptyevent}}
+    }{mapping-ms-sms-empty}
+    %
+    \typerule{mapping-ms-sms-crash}{}{
+      \mmap{\msev{\lightning}}{\smsev{\lightning}}
+    }{mapping-ms-sms-crash}
+    %
+    \typerule{mapping-ms-sms-alloc}{}{
+      \mmap{\msAlloc}{\smsAlloc}
+    }{mapping-ms-sms-alloc}
+    %
+    \typerule{mapping-ms-sms-dealloc}{}{
+      \mmap{\msDealloc}{\smsDealloc}
+    }{mapping-ms-sms-dealloc}
+    %
+    \typerule{mapping-ms-sms-use}{}{
+      \mmap{\msUse}{\smsUse}
+    }{mapping-ms-sms-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\smsTrace}}{,,Translate \gls*{ms}-traces to \gls*{sms}-traces.''}
+    
+    \typerule{mapping-ms-sms-empty}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-sms-empty}
+    %
+    \typerule{mapping-ms-sms-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\smsEvent}{\smsTrace}}
+    }{mapping-ms-sms-cons}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[\glsfirst{ms}]{msdef}}
   \[
-  \mssafe:=\tmssafe \cap \smssafe
+    \mssafe:=\mapUniversal{\xlangrel{\mssafe}{\tmssafe}}{\tmssafe} \cap \mapUniversal{\xlangrel{\mssafe}{\smssafe}}{\smssafe}
   \]
 \end{definition}
 
-Note that \Cref{def:trace:msdef} ignores data isolation, so there may still be memory-safety issues introduced by side-channels.
+Note that \definitionref{msdef} ignores data isolation, so there may still be memory-safety issues introduced by side-channels.
 
 \subsubsection{Strict Cryptographic Constant Time}
 
@@ -465,7 +576,7 @@ Moreover, programs that have been compiled with FaCT~\cite{cauligi2019fact} and 
 
 The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
 However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
-To remedy this issue, we introduce $\sim_{\ctsafe}: \preevent[_{\ctsafe}] \times \preevent[_{\mssafe}] $, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
+To remedy this issue, we introduce $\sim_{\ctsafe}: \varEvent[_{\ctsafe}] \times \varEvent[_{\mssafe}] $, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
 \[
   \typerulenolabel{}{\varEvent[_{\mssafe}]\sim_{\ctsafe}\varEvent[_{\mssafe}];\unlock{}}
   \hspace{2ex}
@@ -513,29 +624,25 @@ Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher201
 \gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is a sound overapproximation of a variant of noninterference.
 
 \begin{definition}{\definitionlabel[\glsfirst{ss}]{def-trace-ssdef}}
-  \noindent
-
-  \begin{nscenter}
-    \[
-      \sssafe := \left\{
-        \varTrace[_{\mathghost}] 
-          \left|
-            \begin{array}{l}
-              \varTrace[_{\mathghost}]=\hole{\cdot} 
-                \text{ or } 
-              \exists\varTrace[_{\mathghost}'].\\
-              %
-              \left(\varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\unlock\cdot\varTrace[_{\mathghost}'] 
-                \text{or }
-              \varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\lock_{\text{NONE}}\cdot\varTrace[_{\mathghost}']\right)\\
-              %
-              \text{and }%
-              \ \varTrace[_{\mathghost}']\in\sssafe
-            \end{array}
-          \right.
-        \right\}
-    \] 
-  \end{nscenter}
+  \[
+    \sssafe := \left\{
+      \varTrace[_{\mathghost}] 
+        \left|
+          \begin{array}{l}
+            \varTrace[_{\mathghost}]=\hole{\cdot} 
+              \text{ or } 
+            \exists\varTrace[_{\mathghost}'].\\
+            %
+            \left(\varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\unlock\cdot\varTrace[_{\mathghost}'] 
+              \text{or }
+            \varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\lock_{\text{NONE}}\cdot\varTrace[_{\mathghost}']\right)\\
+            %
+            \text{and }%
+            \ \varTrace[_{\mathghost}']\in\sssafe
+          \end{array}
+        \right.
+      \right\}
+  \] 
 \end{definition}
 The technical setup so far leads to the above definition, where only locks annotated with $\text{SPECTRE-PHT}$ are disallowed to occur on the trace.
 That way, programs attaining \gls*{ss} do not necessarily attain \gls*{scct}.

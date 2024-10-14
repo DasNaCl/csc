@@ -445,7 +445,7 @@ For emphasis, we also use a custom trace-model for spatial memory safety.
 \begin{definition}{\definitionlabel[\glsfirst{sms} Traces]{smstraces}}
 \[
   \begin{array}{rcll}
-    \text{(Base-Events)}&\smsEvent &:=& \smsAlloc \mid \smsDealloc \mid \smsUse \\
+    \text{(Base-Events)}&\smsEvent &:=& \smsAlloc \mid \smsUse \\
     \text{(Events)}&\smsEvent &:=& \smsEvent \mid \emptyevent \mid \lightning \\ 
   \end{array}
 \]
@@ -520,10 +520,12 @@ To remedy this, we define cross-language trace relations that lift both \definit
     }{mapping-ms-sms-alloc}
     %
     \typerule{mapping-ms-sms-dealloc}{}{
-      \mmap{\msDealloc}{\smsDealloc}
+      \mmap{\msDealloc}{\emptyevent}
     }{mapping-ms-sms-dealloc}
     %
-    \typerule{mapping-ms-sms-use}{}{
+    \typerule{mapping-ms-sms-use}{
+      n=m
+    }{
       \mmap{\msUse}{\smsUse}
     }{mapping-ms-sms-use}
   \end{center}
@@ -731,7 +733,7 @@ In turn, all base events tagged with $\lock_{\text{PHT}}$ are simply dropped.
     }{mapping-ms-spec-use}
   \end{center}
   \begin{center}
-    \judgbox{\mmap{\msTrace}{\specTrace}}{,,Translate \gls*{ms}-traces to \gls*{spec}-traces.''}
+    \judgbox{\mmap{\msTrace}{\specTrace}}{,,Translate \gls*{ms}-traces to \gls*{ss}-traces.''}
     
     \typerule{mapping-ms-spec-empty}{}{
       \mmap{\emptyTrace}{\emptyTrace}
@@ -757,7 +759,6 @@ This part presents monitors for the properties presented in \Cref{subsec-cs-prop
 Since all properties are safety properties, it is enough to consider trace-prefixes, i.e., finite lists of events.
 
 \subsubsection{\gls*{tms} Monitor}\label{subsubsec-mon-tms}
-In order to check \gls*{tms} on traces mechanically, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
 
 \begin{definition}{\definitionlabel[\gls*{tms} Monitor]{monitor-tms}}
   \begin{gather*}
@@ -810,8 +811,8 @@ The reductions are defined as follows:
     }{tmsmon-refl}
     %
     \typerule{tmsmon-trans}{
-      \monitorcheck[]{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent}&
-      \monitorcheck{\tmsMonitor[']}{\tmsMonitor['']}{\tmsTrace}&
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent} \rulesep
+      \monitorcheck{\tmsMonitor[']}{\tmsMonitor['']}{\tmsTrace}
     }{
       \monitorcheck{\tmsMonitor}{\tmsMonitor['']}{\tmsEvent\cdot\tmsTrace}
     }{tms-trans}
@@ -838,10 +839,163 @@ The reductions are defined as follows:
   \incompleteProof
 \end{proof}
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
 \subsubsection{\gls*{sms} Monitor}\label{subsubsec-mon-sms}
-placeholder
+\begin{definition}{\definitionlabel[\gls*{sms} Monitor]{monitor-sms}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract Store)}~\smsMonitor &\isdef \mi{Locs}\times\mathbb{N} \\
+      \operatorname{dom}\lrpars{\smsMonitor}&=\{\varLoc \mid \forall n, \lrpars{\varLoc;n}\in\smsMonitor\}
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[\gls*{sms} Monitor Reductions]{monitor-sms-steps}}
+  \begin{center}
+    \judgbox{\monitorcheck[]{\smsMonitor}{\smsMonitor[']}{\smsEvent}}{,,Given abstract state $\smsMonitor$, step to abstract state $\smsMonitor'$\\ emitting an abstract event $\smsEvent$.''}
+
+    \typerule{smsmon-empty}{}{
+      \monitorcheck[]{\smsMonitor}{\smsMonitor}{\emptyevent}
+    }{smsmon-empty}
+    \typerule{smsmon-alloc}{
+      \varLoc\not\in\operatorname{dom}\lrpars{\smsMonitor}
+    }{
+      \monitorcheck[]{\smsMonitor}{\{\varLoc\}\cup\smsMonitor}{\smsAlloc}
+    }{smsmon-alloc}
+    \typerule{smsmon-use}{
+      \lrpars{\varLoc;n}\in\smsMonitor \rulesep
+      m<n
+    }{
+      \monitorcheck[]{\smsMonitor}{\smsMonitor}{\smsUse}
+    }{smsmon-use}
+    \typerule{smsmon-crash}{}{
+      \monitorcheck[]{\smsMonitor}{\smsMonitor}{\lightning}
+    }{smsmon-crash}
+  \end{center}
+  \begin{center}
+    \judgbox{\monitorcheck{\smsMonitor}{\smsMonitor[']}{\smsEvent}}{,,Reflexive-Transitive closure of above judgement.\\$\smsTrace$ is a list of events.''}
+
+    \typerule{smsmon-refl}{
+      \smsMonitor=\emptyset
+    }{
+      \monitorcheck{\smsMonitor}{\smsMonitor}{\hole{\cdot}}
+    }{smsmon-refl}
+    %
+    \typerule{smsmon-trans}{
+      \monitorcheck[]{\smsMonitor}{\smsMonitor[']}{\smsEvent} \rulesep
+      \monitorcheck{\smsMonitor[']}{\smsMonitor['']}{\smsTrace}
+    }{
+      \monitorcheck{\smsMonitor}{\smsMonitor['']}{\smsEvent\cdot\smsTrace}
+    }{smsmon-trans}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[Trace is \gls*{sms} via Monitor]{trace-is-sms-via-mon}}
+  \begin{align*}
+    \smssafe\vdash\smsTrace &\isdef \exists\smsMonitor,\monitorcheck{\emptyset}{\smsMonitor}{\smsTrace}
+  \end{align*}
+\end{definition}
+
+\begin{lemma}{\lemmalabel[Monitor \gls*{sms} is $\smssafe$]{monitor-sms-is-sms}}
+  If
+  \begin{assumptions}
+    \asm{monitor-sms-is-sms}{\smssafe\vdash\smsTrace}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{monitor-sms-is-sms}{\smsTrace\in\smssafe}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+
+\subsubsection{Dual-Monitor}\label{subsubsec-mon-dual}
+
+\begingroup
+  \newcommand{\aM}[1][]{\varMonitor[A]#1}
+  \newcommand{\bM}[1][]{\varMonitor[B]#1}
+  \newcommand{\aE}[1][]{\varEvent[A]#1}
+  \newcommand{\bE}[1][]{\varEvent[B]#1}
+
+For sake of this section, let $A,B$ be monitors with respective monitor states $\aM$ and $\bM$.
+Then, both monitor states can be combined as follows:
+
+\begin{definition}{\definitionlabel[Dual-Monitor State]{monitor-dual}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract State)}~\dualMonitor &\isdef \aM \times \bM\\
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[Dual-Monitor Reductions]{monitor-dual-steps}}
+  \begin{center}
+    \typerule{dualmon-refl}{}{
+      \monitorcheck{\lrpars{\emptyset_A;\emptyset_B}}{\lrpars{\emptyset_A;\emptyset_B}}{\hole{\cdot}}
+    }{dualmon-refl}
+    %
+    \typerule{dualmon-trans-emptyA}{
+      \dualMonitor=\lrpars{\aM;\bM} \rulesep
+      \monitorcheck[]{\bM}{\bM}{\bE} \rulesep
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\varTrace[_{A;B}]}
+    }{
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\lrpars{\emptyevent;\bE}\cdot\varTrace[_{A;B}]}
+    }{dualmon-trans-emptyA}
+    %
+    \typerule{dualmon-trans-emptyB}{
+      \dualMonitor=\lrpars{\aM;\bM} \rulesep
+      \aE\not=\emptyevent \rulesep
+      \monitorcheck[]{\aM}{\aM}{\aE} \rulesep
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\varTrace[_{A;B}]}
+    }{
+      \monitorcheck{\dualMonitor}{\dualMonitor}{\lrpars{\aE;\emptyevent}\cdot\varTrace[_{A;B}]}
+    }{dualmon-trans-emptyB}
+    %
+    \typerule{dualmon-trans}{
+      \lrpars{\aE;\bE}\not=\lrpars{\emptyevent;\emptyevent} \rulesep
+      \monitorcheck[]{\aM}{\aM[']}{\aE} \rulesep
+      \monitorcheck[]{\bM}{\bM[']}{\bE} \rulesep
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\varTrace[_{A;B}]}
+    }{
+      \monitorcheck{\dualMonitor}{\dualMonitor}{\lrpars{\aE;\bE}\cdot\varTrace[_{A;B}]}
+    }{dualmon-trans}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[Dual-Trace Satisfaction via Monitor]{trace-is-ab-via-mon}}
+  Let $A,B$ monitors and $\varProperty$ a property,
+  \begin{align*}
+    \varProperty\vdash\varTrace[A;B] &\isdef \exists\aM\;\bM,\monitorcheck{\emptyset}{\lrpars{\aM;\bM}}{\varTrace[A;B]}
+  \end{align*}
+\end{definition}
+
+% \begin{lemma}{\lemmalabel[Monitor \gls*{sms} is $\smssafe$]{monitor-sms-is-sms}}
+%   If
+%   \begin{assumptions}
+%     \asm{monitor-sms-is-sms}{\smssafe\vdash\smsTrace}
+%   \end{assumptions}
+%   then
+%   \begin{goals}
+%     \goal{monitor-sms-is-sms}{\smsTrace\in\smssafe}
+%   \end{goals}
+% \end{lemma}
+% \begin{proof}
+%   \incompleteProof
+% \end{proof}
+\endgroup
+
 \subsubsection{\gls*{ms} Monitor}\label{subsubsec-mon-ms}
-placeholder
+Instantiate \Cref{subsubsec-mon-dual} with \Cref{subsubsec-mon-tms,subsubsec-mon-sms}. 
+What is left to give is a translation from traces $\msTrace$ to traces $\varTrace[\tmssafe;\smssafe]$.
+This translation is done as follows:
+\begin{definition}{\definitionlabel[\gls*{ms} to \gls*{tms} and \gls*{sms}]{traces-ms-to-tmssms}}
+  ...
+\end{definition}
+
 \subsubsection{\gls*{scct} Monitor}\label{subsubsec-mon-scct}
 placeholder
 \subsubsection{\gls*{msscct} Monitor}\label{subsubsec-mon-msscct}

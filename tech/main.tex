@@ -550,18 +550,29 @@ Note that \definitionref{msdef} ignores data isolation, so there may still be me
 
 \subsubsection{Strict Cryptographic Constant Time}
 
+\begin{definition}{\definitionlabel[\glsfirst{scct} Traces]{sccttraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Secrecy Tags)}&\varSecuritytag &:=& \unlock \mid \lock \\
+    \text{(Events)}&\tmsEvent &:=& \scctAny \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
+
 \gls*{cct} is a hypersafety property~\cite{barthe2018sec} and, thus, difficult to check with monitors.
 This is because, intuitively, hypersafety properties can relate multiple execution traces with each other, but monitors work on a single execution.
 It is a common trick to sidestep this issue by means of overapproximation: this section defines the property \gls*{scct}, a stricter variant of \gls*{cct} (inspired by earlier work~\cite{almeida2017jasmin}) that enforces the policy that no secret appears on a trace.
 Programs that satisfy \gls*{scct} also satisfy \gls*{cct}, but programs that satisfy \gls*{cct} may not satisfy \gls*{scct}.
 
-\begin{definition}{\definitionlabel[\glsfirst{scct}]{def-trace-scctdef}}
+\begin{definition}{\definitionlabel[\glsfirst{scct}]{scctdef}}
   \noindent\[
-  \scctsafe:=\left\{\varTrace[_{\ctsafe}] 
+  \scctsafe:=\left\{\scctTrace 
       \left|
         \begin{array}{l}
-          \varTrace[_{\ctsafe}]=\hole{\cdot} \text{ or } \\
-          \exists\varTrace[_{\ctsafe}'],\varTrace[_{\ctsafe}]=\varEvent[_{\ctsafe}];\unlock\cdot\varTrace[_{\ctsafe}'] \wedge \varTrace[_{\ctsafe}']\in\scctsafe
+          \scctTrace=\hole{\cdot} \text{ or } \scctTrace=\lightning \\
+          \exists\scctTrace['],\left(\scctTrace=\scctAny[\unlock]\cdot\varTrace[_{\ctsafe}'] \text{ or } \right.\\
+          \hspace{2.8em}\left.\scctTrace=\emptyevent\cdot\scctTrace[']
+          \wedge \varTrace[_{\ctsafe}']\in\scctsafe \right)
         \end{array}
       \right.
     \right\}
@@ -571,71 +582,111 @@ Programs that satisfy \gls*{scct} also satisfy \gls*{cct}, but programs that sat
 \gls*{scct} may appear overly strict, since it seems that secrets must not occur on a trace (since $\varSecuritytag$ is forced to be $\unlock$). 
 However, this is considered standard practice in terms of coding guidelines~\cite{ctguidelines}.
 Moreover, programs that have been compiled with FaCT~\cite{cauligi2019fact} and run with a ``data independent timing mode''~\cite{arm-refman,intel-refman} enabled do not leak secrets. 
+We'd like to emphasize that our goal is to motivate the core theory presented in \Cref{sec:rtpc} and not develop a new programming language.
 
 \paragraph{\gls*{ms}, Strict Cryptographic Constant Time}
 
 The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
 However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
-To remedy this issue, we introduce $\sim_{\ctsafe}: \varEvent[_{\ctsafe}] \times \varEvent[_{\mssafe}] $, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
-\[
-  \typerulenolabel{}{\varEvent[_{\mssafe}]\sim_{\ctsafe}\varEvent[_{\mssafe}];\unlock{}}
-  \hspace{2ex}
-  \typerulenolabel{}{\lightning\sim_{\ctsafe}\lightning}
-  \hspace{2ex}
-  \typerulenolabel{}{\emptyevent\sim_{\ctsafe}\ev{Branch\;n};\varSecuritytag{}}
-  \hspace{2ex}
-  \typerulenolabel{}{\emptyevent\sim_{\ctsafe}\ev{Binop\;n};\varSecuritytag{}}
-\]
+To remedy this issue, we introduce $\xlangrel{\scctsafe}{\mssafe} : \scctEvent \to \msEvent \to \mathbb{P}$, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
 
-Essentially, $\sim_{\ctsafe}$ ignores both the new $\ev{Branch\ n}$ and $\ev{Binop\ n}$ base-events as it relates security-insensitive actions ($\unlock$) to their equivalent counterparts.
-Thus, \gls*{ms} traces trivially satisfy \gls*{scct}.
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{scct}]{mapping-ms-scct}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\scctsafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\scctEvent}}{,,Translate \gls*{ms}-events to \gls*{scct}-events.''}
+
+    \typerule{mapping-ms-scct-empty}{}{
+      \mmap{\msev{\emptyevent}}{\scctev{\emptyevent}}
+    }{mapping-ms-scct-empty}
+    %
+    \typerule{mapping-ms-scct-crash}{}{
+      \mmap{\msev{\lightning}}{\scctev{\lightning}}
+    }{mapping-ms-scct-crash}
+    %
+    \typerule{mapping-ms-scct-alloc}{}{
+      \mmap{\msAlloc}{\scctAny[\unlock]}
+    }{mapping-ms-scct-alloc}
+    %
+    \typerule{mapping-ms-scct-dealloc}{}{
+      \mmap{\msDealloc}{\scctAny[\unlock]}
+    }{mapping-ms-scct-dealloc}
+    %
+    \typerule{mapping-ms-scct-use}{}{
+      \mmap{\msUse}{\scctAny[\unlock]}
+    }{mapping-ms-scct-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\scctTrace}}{,,Translate \gls*{ms}-traces to \gls*{scct}-traces.''}
+    
+    \typerule{mapping-ms-scct-empty}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-scct-empty}
+    %
+    \typerule{mapping-ms-scct-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\scctEvent}{\scctTrace}}
+    }{mapping-ms-scct-cons}
+  \end{center}
+\end{definition}
+
+%Essentially, $\sim_{\ctsafe}$ ignores both the new $\ev{Branch\ n}$ and $\ev{Binop\ n}$ base-events as it relates security-insensitive actions ($\unlock$) to their equivalent counterparts.
+\gls*{ms} traces trivially satisfy \gls*{scct}, since it is assumed here that they are the result of a cryptographic constant time computation.
+This may be ensured by a compiler, such as FaCT, or the semantics of the language itself.
+We also don't have any other information in \gls*{scct} traces besides the secrecy tags, since the semantics of a language can simply tag relevant events with the respective vulnerability, such as a leak of secret data.
 % 
-The above relation is extended point-wise to traces, skipping the empty event $\emptyevent$ on either side, and it is now possible to define \gls*{msscct} using the universal image:
+It is now possible to define \gls*{msscct} using the universal image:
 
-\begin{definition}{\definitionlabel[\glsfirst{ms} and \glsfirst{scct}]{def-trace-msscctdef}}
+\begin{definition}{\definitionlabel[\glsfirst{ms} and \glsfirst{scct}]{msscctdef}}
   \[
-  \msscctsafe:=\mssafe\cap\sigma_{\sim_{\ctsafe}}\left(\scctsafe\right)
+    \msscctsafe:=\mssafe\cap\mapUniversal{\xlangrel{\mssafe}{\scctsafe}}{\scctsafe}
   \]
 \end{definition}
 
 \paragraph{Extending the Trace Model with Speculation}
 
 So far, the considered trace models do not let us express speculative execution attacks such as Spectre~\cite{kocher2019spectre}. 
-For this, we extend the earlier trace model so that the security tags ($\varSecuritytag{}$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
-Moreover, we add base-events signalling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
+For this, we extend the earlier trace model so that the secrecy tags ($\varSecuritytag{}$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
+This tag may be emitted by the semantics of a concrete programming language, as seen in earlier work~\cite{fabian2022automatic}. 
+%Moreover, we add base-events signalling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
 
-\vspace{-1em}
+\begin{definition}{\definitionlabel[\glsfirst{ss} traces]{sstraces}}
 {
 \[
   \begin{array}{rrcl}
-    (\text{Base-Events}) & \varEvent[_{\mathghost}] &:=& \varEvent[_{\ctsafe}] \\
-    (\text{Spectre Variants}) & vX &:=& \operatorname{NONE} \mid \operatorname{PHT} \\
-    (\text{Security Tags}) & \varSecuritytag{} &:=& \lock_{vX} \mid \unlock\\ 
-    (\text{Events}) & \varEvent[_{\mathghost}] &:=& \varEvent[_{\mathghost}];\varSecuritytag{} \mid \emptyevent \mid \lightning \mid \ev{Spec} \mid \ev{Rlb} \mid \ev{Barrier}\\ 
+    (\text{Spectre Variants}) & vX &:=& \operatorname{NONE} \mid \operatorname{PHT} \mid \dots \\
+    (\text{Secrecy Tags}) & \varSecuritytag{} &:=& \lock_{vX} \mid \unlock\\ 
+    (\text{Events}) & \specEvent &:=& \specEvent \mid \emptyevent \mid \lightning \\ 
   \end{array}
 \]
 }
+\end{definition}
 
-Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
+%Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
+NONE describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}).
+Any other secrecy tag, such as PHT, describes the concrete reason for the respective leak.
+The trace model in \defref{sstraces} is general enough to allow for potential future extension with different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
 %For sake of readability, this paper just uses the notation $\lock$ in place of $\lock_{\text{PHT}}$.
 
-\subsubsection{Speculative Safety}
+\subsubsection{Speculation Safety}
 
 \gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is a sound overapproximation of a variant of noninterference.
 
-\begin{definition}{\definitionlabel[\glsfirst{ss}]{def-trace-ssdef}}
+\begin{definition}{\definitionlabel[\glsfirst{ss}]{ssdef}}
   \[
     \sssafe := \left\{
-      \varTrace[_{\mathghost}] 
+      \specTrace
         \left|
           \begin{array}{l}
-            \varTrace[_{\mathghost}]=\hole{\cdot} 
+            \specTrace=\hole{\cdot} 
               \text{ or } 
-            \exists\varTrace[_{\mathghost}'].\\
+            \specTrace=\lightning
+              \text{ or }
+            \exists\specTrace['].\\
             %
-            \left(\varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\unlock\cdot\varTrace[_{\mathghost}'] 
+            \left(\specTrace=\specAny[\unlock]\cdot\specTrace['] 
               \text{or }
-            \varTrace[_{\mathghost}]=\varEvent[_{\mathghost}];\lock_{\text{NONE}}\cdot\varTrace[_{\mathghost}']\right)\\
+            \varTrace[_{\mathghost}]=\specAny[\lock_{\text{NONE}}]\cdot\specTrace[']\right.\\
+            \hspace{2em}\text{or }
+            \left.\varTrace[_{\mathghost}]=\emptyevent\cdot\specTrace[']\right)\\
             %
             \text{and }%
             \ \varTrace[_{\mathghost}']\in\sssafe
@@ -650,34 +701,244 @@ That way, programs attaining \gls*{ss} do not necessarily attain \gls*{scct}.
 \subsubsection{Speculation Memory Safety}\label{sec:spec-ms-rel}
 
 As before, we need to relate the different trace models with each other, so that the memory safety property without speculation can be lifted to speculation. 
-To this end, let $\sim_{\mathghost}: \varEvent[_{\mathghost}] \times \varEvent[_{\ctsafe}]$ be a cross-language trace relation whose key cases are below.
-The intuition is that \gls*{ss} is trivially satisfied in \gls*{scct}, since speculation is inexpressible there, which amounts to dropping events $\ev{Spec}$, $\ev{Rlb}$, or $\ev{Barrier}$, as well as all base events tagged with $\lock_{\text{PHT}}$. 
+To this end, let $\xlangrel{ms}{ss}: \msEvent \to \specEvent\to\mathbb{P}$ be a cross-language trace relation whose key cases are below.
+The intuition is that \gls*{ss} is trivially satisfied in \gls*{ms}, since speculation is inexpressible there and a language attaining \gls*{ms} by means of semantics can enforce \gls*{ss} simply by not having a speculative dynamic semantics. 
+In turn, all base events tagged with $\lock_{\text{PHT}}$ are simply dropped. 
 
-\[
-  \typerulenolabel{}{\varEvent[_{\ctsafe}];\lock\sim_{\mathghost}\varEvent[_{\ctsafe}];\lock_{\text{NONE}}}
-  \hspace{2ex}
-  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\varEvent[_{\mathghost}];\lock_{\text{PHT}}}
-  \hspace{2ex}
-  \typerulenolabel{}{\varEvent[_{\ctsafe}];\unlock\sim_{\mathghost}\varEvent[_{\ctsafe}];\unlock}
-  \hspace{2ex}
-  \typerulenolabel{}{\lightning\sim_{\mathghost}\lightning}
-  \hspace{2ex}
-  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\ev{Spec}}
-  \hspace{2ex}
-  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\ev{Rlb}}
-  \hspace{2ex}
-  \typerulenolabel{}{\emptyevent\sim_{\mathghost}\ev{Barrier}}
-\]
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{ss}]{mapping-ms-spec}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\sssafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\specEvent}}{,,Translate \gls*{ms}-events to \gls*{ss}-events.''}
 
-We conclude by defining the ultimate property of interest for secure compilers: \gls*{specms}.
-\begin{definition}{\definitionlabel[\glsfirst{specms}]{def-trace-specmsdef}}
+    \typerule{mapping-ms-spec-empty}{}{
+      \mmap{\msev{\emptyevent}}{\specev{\emptyevent}}
+    }{mapping-ms-spec-empty}
+    %
+    \typerule{mapping-ms-spec-crash}{}{
+      \mmap{\msev{\lightning}}{\specev{\lightning}}
+    }{mapping-ms-spec-crash}
+    %
+    \typerule{mapping-ms-spec-alloc}{}{
+      \mmap{\msAlloc}{\specAny[\unlock]}
+    }{mapping-ms-spec-alloc}
+    %
+    \typerule{mapping-ms-spec-dealloc}{}{
+      \mmap{\msDealloc}{\specAny[\unlock]}
+    }{mapping-ms-spec-dealloc}
+    %
+    \typerule{mapping-ms-spec-use}{}{
+      \mmap{\msUse}{\specAny[\unlock]}
+    }{mapping-ms-spec-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\specTrace}}{,,Translate \gls*{ms}-traces to \gls*{spec}-traces.''}
+    
+    \typerule{mapping-ms-spec-empty}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-spec-empty}
+    %
+    \typerule{mapping-ms-spec-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\specEvent}{\specTrace}}
+    }{mapping-ms-spec-cons}
+  \end{center}
+\end{definition}
+
+We conclude with the ultimate property of interest for our secure compiler: \gls*{specms}.
+\begin{definition}{\definitionlabel[\glsfirst{specms}]{specmsdef}}
   \[
-  \specmssafe := \msscctsafe\cap\sigma_{\sim_{\mathghost}}\left(\sssafe\right)
+    \specmssafe := \msscctsafe\cap\mapUniversal{\xlangrel{\mssafe}{\sssafe}}{\sssafe}
   \]
 \end{definition}
 
 
-\subsubsection{Monitors}\label{subsubsec-cs-properties-monitors}
+\subsection{Monitors}\label{subsec-cs-monitors}
+
+This part presents monitors for the properties presented in \Cref{subsec-cs-properties}.
+Since all properties are safety properties, it is enough to consider trace-prefixes, i.e., finite lists of events.
+
+\subsubsection{\gls*{tms} Monitor}\label{subsubsec-mon-tms}
+In order to check \gls*{tms} on traces mechanically, we introduce a monitor that works on more abstract monitor-actions, without any other events besides those relevant to temporal memory safety.
+
+\begin{definition}{\definitionlabel[\gls*{tms} Monitor]{monitor-tms}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract Store)}~\tmsMonitor &\isdef\{A : \mi{Locs}, F : \mi{Locs}\} \\
+      \tmsMonitor\subseteq_F \tmsMonitor['] &\text{ iff } \tmsMonitor[.F] \subseteq \tmsMonitor['.F]\\
+      \varLoc\in \tmsMonitor &\text{ iff } \varLoc \in {\tmsMonitor[.A]} \wedge \varLoc \notin {\tmsMonitor[.F]}\\
+      \varLoc\notin \tmsMonitor &\text{ iff } \varLoc \notin {\tmsMonitor[.A]} \wedge \varLoc \notin {\tmsMonitor[.F]}\\
+      \{\varLoc\}\cup \tmsMonitor &= \{A : \{\varLoc\}\cup \tmsMonitor[.A], F : \tmsMonitor[.F]\}\\
+      \tmsMonitor\setminus\{\varLoc\} &= \{A : \tmsMonitor[.A]\setminus\{\varLoc\}, F : \tmsMonitor[.F]\cup\left\{\varLoc\right\}\}\\
+      \tmsMonitor\cup \tmsMonitor' &= \{A : \tmsMonitor[.A]\cup \tmsMonitor['.A], F : \tmsMonitor[.F]\cup \tmsMonitor['.F]\}\\
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[\gls*{tms} Monitor Reductions]{monitor-tms-steps}}
+  \begin{center}
+    \judgbox{\monitorcheck[]{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent}}{,,Given abstract state $\tmsMonitor$, step to abstract state $\tmsMonitor'$\\ emitting an abstract event $\tmsEvent$.''}
+
+    \typerule{tmsmon-empty}{}{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor}{\emptyevent}
+    }{tmsmon-empty}
+    \typerule{tmsmon-alloc}{
+      \varLoc\not\in\tmsMonitor
+    }{
+      \monitorcheck[]{\tmsMonitor}{\{\varLoc\}\cup\tmsMonitor}{\tmsAlloc}
+    }{tmsmon-alloc}
+    \typerule{tmsmon-dealloc}{
+      \varLoc\in\tmsMonitor
+    }{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor\setminus\{\varLoc\}}{\tmsDealloc}
+    }{tmsmon-dealloc}
+    \typerule{tmsmon-use}{
+      \varLoc\in\tmsMonitor
+    }{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor}{\tmsUse}
+    }{tmsmon-use}
+    \typerule{tmsmon-crash}{}{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor}{\lightning}
+    }{tmsmon-crash}
+  \end{center}
+  \begin{center}
+    \judgbox{\monitorcheck{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent}}{,,Reflexive-Transitive closure of above judgement.\\$\tmsTrace$ is a list of events.''}
+
+    \typerule{tmsmon-refl}{
+      \tmsMonitor[.A]=\emptyset
+    }{
+      \monitorcheck{\tmsMonitor}{\tmsMonitor}{\hole{\cdot}}
+    }{tmsmon-refl}
+    %
+    \typerule{tmsmon-trans}{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent}&
+      \monitorcheck{\tmsMonitor[']}{\tmsMonitor['']}{\tmsTrace}&
+    }{
+      \monitorcheck{\tmsMonitor}{\tmsMonitor['']}{\tmsEvent\cdot\tmsTrace}
+    }{tms-trans}
+  \end{center}
+\end{definition}
+
+\subsubsection{\gls*{sms} Monitor}\label{subsubsec-mon-sms}
+placeholder
+\subsubsection{\gls*{ms} Monitor}\label{subsubsec-mon-ms}
+placeholder
+\subsubsection{\gls*{scct} Monitor}\label{subsubsec-mon-scct}
+placeholder
+\subsubsection{\gls*{msscct} Monitor}\label{subsubsec-mon-msscct}
+placeholder
+\subsubsection{\gls*{ss} Monitor}\label{subsubsec-mon-spec}
+placeholder
+\subsubsection{\gls*{specms} Monitor}\label{subsubsec-mon-specms}
+placeholder
+
+%%%%%%%%%%%%%
+
+\subsection{$\src{RusT}$- A Temporal Memory Safe Language}\label{subsec-rust}
+placeholder
+\subsubsection{Syntax}\label{subsec-rust-syntax}
+placeholder
+\subsubsection{Static Semantics}\label{subsec-rust-static}
+placeholder
+\subsubsection{Dynamic Semantics}\label{subsec-rust-dynamic}
+placeholder
+\subsubsection{Properties}\label{subsec-rust-properties}
+placeholder
+
+%%%%%%%%%%%%%
+
+\subsection{$\irl{CePeEs}$- An Intermediate Representation}\label{subsec-cepees}
+placeholder
+\subsubsection{Syntax}\label{subsec-cepees-syntax}
+placeholder
+\subsubsection{Static Semantics}\label{subsec-cepees-static}
+placeholder
+\subsubsection{Dynamic Semantics}\label{subsec-cepees-dynamic}
+placeholder
+\subsubsection{Properties}\label{subsec-cepees-properties}
+placeholder
+
+%%%%%%%%%%%%%
+
+\subsection{Compiler from $\src{RusT}$ to $\irl{CePeEs}$}\label{subsec-rust-to-cepees}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-rust-to-cepees-seccomp}
+placeholder
+
+\subsection{Bounds-Check Instrumentation in $\irl{CePeEs}$}\label{subsec-softbounds-in-cepees}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-softbounds-cepees-seccomp}
+placeholder
+
+\subsection{Improved Compiler from $\src{RusT}$ to $\irl{CePeEs}$}\label{subsec-improved-rust-to-cepees}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-improved-rust-to-cepees-seccomp}
+placeholder
+
+\subsection{Dead Code Elimination in $\irl{CePeEs}$}\label{subsec-dce-in-cepees}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-dce-cepees-seccomp}
+placeholder
+
+\subsection{Constant Folding in $\irl{CePeEs}$}\label{subsec-cf-in-cepees}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-cf-cepees-seccomp}
+placeholder
+
+\subsection{Optimising Compiler from $\src{RusT}$ to $\irl{CePeEs}$}\label{subsec-optimising-rust-to-cepees}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-optimising-rust-to-cepees-seccomp}
+placeholder
+
+%%%%%%%%%%%%%
+
+\subsection{$\obj{A}$ - An Assembly-Like Target}\label{subsec-a}
+placeholder
+\subsubsection{Syntax}\label{subsec-a-syntax}
+placeholder
+\subsubsection{Static Semantics}\label{subsec-a-static}
+placeholder
+\subsubsection{Dynamic Semantics}\label{subsec-a-dynamic}
+placeholder
+\subsubsection{Properties}\label{subsec-a-properties}
+placeholder
+
+%%%%%%%%%%%%
+
+\subsection{Compiler from $\irl{CePeEs}$ to $\obj{A}$}\label{subsec-cepees-to-a}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-cepees-to-a-seccomp}
+placeholder
+
+\subsection{Compiler from $\src{RusT}$ to $\obj{A}$}\label{subsec-rust-to-a}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-rust-to-a-seccomp}
+placeholder
+
+%%%%%%%%%%%%
+
+\subsection{$\ird{SpA}$ - An Assembly-Like Target with Speculation}\label{subsec-spa}
+placeholder
+\subsubsection{Syntax}\label{subsec-spa-syntax}
+placeholder
+\subsubsection{Static Semantics}\label{subsec-spa-static}
+placeholder
+\subsubsection{Dynamic Semantics}\label{subsec-spa-dynamic}
+placeholder
+\subsubsection{Properties}\label{subsec-spa-properties}
+placeholder
+
+%%%%%%%%%%%%
+
+\subsection{Compiler from $\obj{A}$ to $\ird{SpA}$}\label{subsec-a-to-spa}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-a-to-spa-seccomp}
+placeholder
+
+\subsection{Compiler from $\src{RusT}$ to $\ird{SpA}$}\label{subsec-rust-to-spa}
+placeholder
+\subsubsection{Secure Compiler}\label{subsec-rust-to-spa-seccomp}
+placeholder
+
 
 \clearpage
 \bibliographystyle{ACM-Reference-Format}

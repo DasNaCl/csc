@@ -429,6 +429,10 @@
 \newcommand{\tmsev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\tmssafe}}}
 \newcommand{\smsev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\smssafe}}}
 \newcommand{\msev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\mssafe}}}
+\newcommand{\scctev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\scctsafe}}}
+\newcommand{\specev}[1]{\ensuremath\ulcorner #1 \urcorner\;^{\kern-3pt{\specsafe}}}
+
+\newcommand{\varSecuritytag}[1]{\ensuremath\sigma#1}
 \newcommand{\lock}{\ensuremath\text{\scriptsize\faIcon{lock}}}
 \newcommand{\unlock}{\ensuremath\text{\scriptsize\faIcon{lock-open}}}
 
@@ -440,23 +444,31 @@
 %% Language-Specific events
 \newcommand{\makeConcreteEvent}[3]{\ensuremath\ev{\textnormal{#1}\;\lrpars{#2}}\;^{\kern-3pt{#3}}}
 
-\newcommand{\msEvent}[1][]{\ensuremath \varEvent[_{\mssafe}]}
-\newcommand{\msTrace}[1][]{\ensuremath \varTrace[_{\mssafe}]}
+\newcommand{\msEvent}[1][]{\ensuremath \varEvent[_{\mssafe}#1]}
+\newcommand{\msTrace}[1][]{\ensuremath \varTrace[_{\mssafe}#1]}
 \newcommand{\msAlloc}[1][\varLoc;n]{\ensuremath\makeConcreteEvent{Alloc}{#1}{\mssafe}}
 \newcommand{\msDealloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Dealloc}{#1}{\mssafe}}
 \newcommand{\msUse}[1][\varLoc;n]{\ensuremath\makeConcreteEvent{Use}{#1}{\mssafe}}
 
-\newcommand{\smsEvent}[1][]{\ensuremath \varEvent[_{\smssafe}]}
-\newcommand{\smsTrace}[1][]{\ensuremath \varTrace[_{\smssafe}]}
+\newcommand{\smsEvent}[1][]{\ensuremath \varEvent[_{\smssafe}#1]}
+\newcommand{\smsTrace}[1][]{\ensuremath \varTrace[_{\smssafe}#1]}
 \newcommand{\smsAlloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Alloc}{#1}{\smssafe}}
 \newcommand{\smsDealloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Dealloc}{#1}{\smssafe}}
 \newcommand{\smsUse}[1][\varLoc]{\ensuremath\makeConcreteEvent{Use}{#1}{\smssafe}}
 
-\newcommand{\tmsEvent}[1][]{\ensuremath \varEvent[_{\tmssafe}]}
-\newcommand{\tmsTrace}[1][]{\ensuremath \varTrace[_{\tmssafe}]}
+\newcommand{\tmsEvent}[1][]{\ensuremath \varEvent[_{\tmssafe}#1]}
+\newcommand{\tmsTrace}[1][]{\ensuremath \varTrace[_{\tmssafe}#1]}
 \newcommand{\tmsAlloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Alloc}{#1}{\tmssafe}}
 \newcommand{\tmsDealloc}[1][\varLoc]{\ensuremath\makeConcreteEvent{Dealloc}{#1}{\tmssafe}}
 \newcommand{\tmsUse}[1][\varLoc]{\ensuremath\makeConcreteEvent{Use}{#1}{\tmssafe}}
+
+\newcommand{\scctEvent}[1][]{\ensuremath \varEvent[_{\scctsafe}#1]}
+\newcommand{\scctTrace}[1][]{\ensuremath \varTrace[_{\scctsafe}#1]}
+\newcommand{\scctAny}[1][\varSecuritytag]{\ensuremath\makeConcreteEvent{Any}{#1}{\scctsafe}}
+
+\newcommand{\specEvent}[1][]{\ensuremath \varEvent[_{\mathghost}#1]}
+\newcommand{\specTrace}[1][]{\ensuremath \varTrace[_{\mathghost}#1]}
+\newcommand{\specAny}[1][\varSecuritytag]{\ensuremath\makeConcreteEvent{Any}{#1}{\mathghost}}
 
 %% Language-Specific
 \newcommand{\ctxtocomp}{\xspace ? \xspace}
@@ -475,6 +487,16 @@
 \newcommand{\varProperty}[1][]{\ensuremath \pi_{#1}}
 \newcommand{\varHyperProperty}[1][]{\ensuremath \Pi_{#1}}
 \newcommand{\varClass}[1][]{\ensuremath \mathbb{C}_{#1}}
+
+\newcommand{\varMonitor}[1][]{\ensuremath T_{#1}}
+\newcommand{\tmsMonitor}[1][]{\ensuremath\varMonitor[\tmssafe]#1}
+\newcommand{\smsMonitor}[1][]{\ensuremath\varMonitor[\smssafe]#1}
+\newcommand{\msMonitor}[1][]{\ensuremath\varMonitor[\mssafe]#1}
+\newcommand{\scctMonitor}[1][]{\ensuremath\varMonitor[\scctsafe]#1}
+\newcommand{\msscctMonitor}[1][]{\ensuremath\varMonitor[\msscctsafe]#1}
+\newcommand{\specMonitor}[1][]{\ensuremath\varMonitor[\sssafe]#1}
+\newcommand{\specmsMonitor}[1][]{\ensuremath\varMonitor[\specmssafe]#1}
+\newcommand{\stutterstepMonitor}[1][{\varMonitor[_1]\times\varMonitor[_2]}]{\ensuremath\varMonitor[#1]}
 
 % language specific versions of above
 %% src
@@ -541,5 +563,23 @@
 
 \newcommand{\mapUniversalWF}[2]{\ensuremath \vdash {#1} : \mathit{WF}^{\forall}_{#2}}
 \newcommand{\mapExistentialWF}[2]{\ensuremath \vdash {#1}\ ; \mathit{WF}^{\exists}_{#2}}
+
+
+% Reductions
+\usetikzlibrary{calc,decorations.pathmorphing,shapes}
+
+\newcounter{sarrow}
+\newcommand\xrsquigarrow[1]{%
+\stepcounter{sarrow}%
+\mathrel{\begin{tikzpicture}[baseline= {( $ (current bounding box.south) + (0,-0.5ex) $ )}]
+\node[inner sep=.5ex] (\thesarrow) {$\scriptstyle #1$};
+\path[draw,<-,decorate,
+  decoration={zigzag,amplitude=0.7pt,segment length=1.2mm,pre=lineto,pre length=4pt}] 
+    (\thesarrow.south east) -- (\thesarrow.south west);
+\end{tikzpicture}}%
+}
+\newcommand{\monitorcheck}[4][{\kern-3.5pt}^*]{%
+  \vdash\xspace{#2}\xspace \xrsquigarrow{#4}{#1}\xspace{#3}\xspace%
+}
 
 

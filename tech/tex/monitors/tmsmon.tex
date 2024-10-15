@@ -1,0 +1,80 @@
+\subsubsection{\gls*{tms} Monitor}\label{subsubsec-mon-tms}
+
+\begin{definition}{\definitionlabel[\gls*{tms} Monitor]{monitor-tms}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract Store)}~\tmsMonitor &\isdef\{A : \mi{Locs}, F : \mi{Locs}\} \mid \lightning \\
+      \tmsMonitor\subseteq_F \tmsMonitor['] &\text{ iff } \tmsMonitor[.F] \subseteq \tmsMonitor['.F]\\
+      \varLoc\in \tmsMonitor &\text{ iff } \varLoc \in {\tmsMonitor[.A]} \wedge \varLoc \notin {\tmsMonitor[.F]}\\
+      \varLoc\notin \tmsMonitor &\text{ iff } \varLoc \notin {\tmsMonitor[.A]} \wedge \varLoc \notin {\tmsMonitor[.F]}\\
+      \{\varLoc\}\cup \tmsMonitor &= \{A : \{\varLoc\}\cup \tmsMonitor[.A], F : \tmsMonitor[.F]\}\\
+      \tmsMonitor\setminus\{\varLoc\} &= \{A : \tmsMonitor[.A]\setminus\{\varLoc\}, F : \tmsMonitor[.F]\cup\left\{\varLoc\right\}\}\\
+      \tmsMonitor\cup \tmsMonitor' &= \{A : \tmsMonitor[.A]\cup \tmsMonitor['.A], F : \tmsMonitor[.F]\cup \tmsMonitor['.F]\}\\
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[\gls*{tms} Monitor Reductions]{monitor-tms-steps}}
+  \begin{center}
+    \judgbox{\monitorcheck[]{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent}}{,,Given abstract state $\tmsMonitor$, step to abstract state $\tmsMonitor'$\\ emitting an abstract event $\tmsEvent$.''}
+
+    \typerule{tmsmon-empty}{}{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor}{\emptyevent}
+    }{tmsmon-empty}
+    \typerule{tmsmon-alloc}{
+      \varLoc\not\in\tmsMonitor
+    }{
+      \monitorcheck[]{\tmsMonitor}{\{\varLoc\}\cup\tmsMonitor}{\tmsAlloc}
+    }{tmsmon-alloc}
+    \typerule{tmsmon-dealloc}{
+      \varLoc\in\tmsMonitor
+    }{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor\setminus\{\varLoc\}}{\tmsDealloc}
+    }{tmsmon-dealloc}
+    \typerule{tmsmon-use}{
+      \varLoc\in\tmsMonitor
+    }{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor}{\tmsUse}
+    }{tmsmon-use}
+    \typerule{tmsmon-crash}{}{
+      \monitorcheck[]{\tmsMonitor}{\lightning}{\lightning}
+    }{tmsmon-crash}
+  \end{center}
+  \begin{center}
+    \judgbox{\monitorcheck{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent}}{,,Reflexive-Transitive closure of above judgement.\\$\tmsTrace$ is a list of events.''}
+
+    \typerule{tmsmon-refl}{
+      \tmsMonitor[.A]=\emptyset
+    }{
+      \monitorcheck{\tmsMonitor}{\tmsMonitor}{\hole{\cdot}}
+    }{tmsmon-refl}
+    %
+    \typerule{tmsmon-trans}{
+      \monitorcheck[]{\tmsMonitor}{\tmsMonitor[']}{\tmsEvent} \rulesep
+      \monitorcheck{\tmsMonitor[']}{\tmsMonitor['']}{\tmsTrace}
+    }{
+      \monitorcheck{\tmsMonitor}{\tmsMonitor['']}{\tmsEvent\cdot\tmsTrace}
+    }{tms-trans}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[Trace is \gls*{tms} via Monitor]{trace-is-tms-via-mon}}
+  \begin{align*}
+    \tmssafe\vdash\tmsTrace &\isdef \exists\noncrashMonitor{\tmsMonitor},\monitorcheck{\emptyset}{\tmsMonitor}{\tmsTrace}
+  \end{align*}
+\end{definition}
+
+\begin{lemma}{\lemmalabel[Monitor \gls*{tms} is $\tmssafe$]{monitor-tms-is-tms}}
+  If
+  \begin{assumptions}
+    \asm{monitor-tms-is-tms}{\tmssafe\vdash\tmsTrace}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{monitor-tms-is-tms}{\tmsTrace\in\tmssafe}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}

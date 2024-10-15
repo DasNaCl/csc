@@ -1,0 +1,71 @@
+\subsubsection{\gls*{sms} Monitor}\label{subsubsec-mon-sms}
+\begin{definition}{\definitionlabel[\gls*{sms} Monitor]{monitor-sms}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract Store)}~\smsMonitor &\isdef \mi{Locs}\times\mathbb{N} \mid \lightning \\
+      \operatorname{dom}\lrpars{\smsMonitor}&=\{\varLoc \mid \forall n, \lrpars{\varLoc;n}\in\smsMonitor\}
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[\gls*{sms} Monitor Reductions]{monitor-sms-steps}}
+  \begin{center}
+    \judgbox{\monitorcheck[]{\smsMonitor}{\smsMonitor[']}{\smsEvent}}{,,Given abstract state $\smsMonitor$, step to abstract state $\smsMonitor'$\\ emitting an abstract event $\smsEvent$.''}
+
+    \typerule{smsmon-empty}{}{
+      \monitorcheck[]{\smsMonitor}{\smsMonitor}{\emptyevent}
+    }{smsmon-empty}
+    \typerule{smsmon-alloc}{
+      \varLoc\not\in\operatorname{dom}\lrpars{\smsMonitor}
+    }{
+      \monitorcheck[]{\smsMonitor}{\{\varLoc\}\cup\smsMonitor}{\smsAlloc}
+    }{smsmon-alloc}
+    \typerule{smsmon-use}{
+      \lrpars{\varLoc;n}\in\smsMonitor \rulesep
+      m<n
+    }{
+      \monitorcheck[]{\smsMonitor}{\smsMonitor}{\smsUse}
+    }{smsmon-use}
+    \typerule{smsmon-crash}{}{
+      \monitorcheck[]{\smsMonitor}{\lightning}{\lightning}
+    }{smsmon-crash}
+  \end{center}
+  \begin{center}
+    \judgbox{\monitorcheck{\smsMonitor}{\smsMonitor[']}{\smsEvent}}{,,Reflexive-Transitive closure of above judgement.\\$\smsTrace$ is a list of events.''}
+
+    \typerule{smsmon-refl}{
+      \smsMonitor=\emptyset
+    }{
+      \monitorcheck{\smsMonitor}{\smsMonitor}{\hole{\cdot}}
+    }{smsmon-refl}
+    %
+    \typerule{smsmon-trans}{
+      \monitorcheck[]{\smsMonitor}{\smsMonitor[']}{\smsEvent} \rulesep
+      \monitorcheck{\smsMonitor[']}{\smsMonitor['']}{\smsTrace}
+    }{
+      \monitorcheck{\smsMonitor}{\smsMonitor['']}{\smsEvent\cdot\smsTrace}
+    }{smsmon-trans}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[Trace is \gls*{sms} via Monitor]{trace-is-sms-via-mon}}
+  \begin{align*}
+    \smssafe\vdash\smsTrace &\isdef \exists\noncrashMonitor{\smsMonitor},\monitorcheck{\emptyset}{\smsMonitor}{\smsTrace}
+  \end{align*}
+\end{definition}
+
+\begin{lemma}{\lemmalabel[Monitor \gls*{sms} is $\smssafe$]{monitor-sms-is-sms}}
+  If
+  \begin{assumptions}
+    \asm{monitor-sms-is-sms}{\smssafe\vdash\smsTrace}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{monitor-sms-is-sms}{\smsTrace\in\smssafe}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  \incompleteProof
+\end{proof}
+

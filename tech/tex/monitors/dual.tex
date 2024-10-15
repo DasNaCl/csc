@@ -1,0 +1,75 @@
+\subsubsection{Dual-Monitor}\label{subsubsec-mon-dual}
+
+\begingroup
+  \newcommand{\aM}[1][]{\varMonitor[A]#1}
+  \newcommand{\bM}[1][]{\varMonitor[B]#1}
+  \newcommand{\aE}[1][]{\varEvent[A]#1}
+  \newcommand{\bE}[1][]{\varEvent[B]#1}
+
+For sake of this section, let $A,B$ be monitors with respective monitor states $\aM$ and $\bM$.
+Then, both monitor states can be combined as follows:
+
+\begin{definition}{\definitionlabel[Dual-Monitor State]{monitor-dual}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract State)}~\dualMonitor &\isdef \aM \times \bM \mid \lightning\\
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[Dual-Monitor Reductions]{monitor-dual-steps}}
+  \begin{center}
+    \judgbox{\monitorcheck{\dualMonitor}{\dualMonitor[']}{\varTrace[A;B]}}{,,Dual-Monitor state $\dualMonitor$ steps to $\dualMonitor[']$ with trace $\varTrace[A;B]$.''}
+
+    \typerule{dualmon-refl}{}{
+      \monitorcheck{\lrpars{\emptyset_A;\emptyset_B}}{\lrpars{\emptyset_A;\emptyset_B}}{\hole{\cdot}}
+    }{dualmon-refl}
+    %
+    \typerule{dualmon-crashL}{
+    }{
+      \monitorcheck{\lrpars{\lightning;\bM}}{\lightning}{\varTrace[A;B]}
+    }{dualmon-crashL}
+    %
+    \typerule{dualmon-crashR}{
+      \aM\not=\lightning
+    }{
+      \monitorcheck{\lrpars{\aM;\lightning}}{\lightning}{\varTrace[A;B]}
+    }{dualmon-crashR}
+    %
+    \typerule{dualmon-trans-emptyA}{
+      \dualMonitor=\lrpars{\aM;\bM} \rulesep
+      \monitorcheck[]{\bM}{\bM}{\bE} \rulesep
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\varTrace[{A;B}]}
+    }{
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\lrpars{\emptyevent;\bE}\cdot\varTrace[A;B]}
+    }{dualmon-trans-emptyA}
+    %
+    \typerule{dualmon-trans-emptyB}{
+      \dualMonitor=\lrpars{\aM;\bM} \rulesep
+      \aE\not=\emptyevent \rulesep
+      \monitorcheck[]{\aM}{\aM}{\aE} \rulesep
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\varTrace[{A;B}]}
+    }{
+      \monitorcheck{\dualMonitor}{\dualMonitor}{\lrpars{\aE;\emptyevent}\cdot\varTrace[A;B]}
+    }{dualmon-trans-emptyB}
+    %
+    \typerule{dualmon-trans}{
+      \lrpars{\aE;\bE}\not=\lrpars{\emptyevent;\emptyevent} \rulesep
+      \monitorcheck[]{\aM}{\aM[']}{\aE} \rulesep
+      \monitorcheck[]{\bM}{\bM[']}{\bE} \rulesep
+      \monitorcheck{\dualMonitor}{\dualMonitor[']}{\varTrace[{A;B}]}
+    }{
+      \monitorcheck{\dualMonitor}{\dualMonitor}{\lrpars{\aE;\bE}\cdot\varTrace[{A;B}]}
+    }{dualmon-trans}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[Dual-Trace Satisfaction via Monitor]{trace-is-ab-via-mon}}
+  Let $A,B$ monitors and $\varProperty$ a property,
+  \begin{align*}
+    \varProperty\vdash\varTrace[A;B] &\isdef \exists\noncrashMonitor{\dualMonitor},\monitorcheck{\emptyset}{\dualMonitor}{\varTrace[A;B]}
+  \end{align*}
+\end{definition}
+
+\endgroup

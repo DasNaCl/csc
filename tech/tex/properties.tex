@@ -1,0 +1,364 @@
+\subsection{Properties}\label{subsec-cs-properties}
+
+The properties considered in this case-study are a mixture of trace-properties as welll as hyperproperties.
+However, to carry out proofs, all properties are overapproximated by a monitor.
+
+\subsubsection{Formal Definition}\label{subsubsec-cs-properties-formaldef}
+
+For simple memory safety composed of temporal and spatial memory safety, the trace model defines events ($\varEvent[_{\mssafe}]$) as either the empty event ($\emptyevent$), a crash ($\lightning$), or a base-event ($\varEvent[_{\mssafe}]$).
+
+\begin{definition}{\definitionlabel[\glsfirst{ms} Trace Model]{mstraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Base-Events)}&\varEvent[_{\mssafe}] &:=& \msAlloc \mid \msDealloc \mid \msUse \\
+    \text{(Events)}&\varEvent[_{\mssafe}] &:=& \varEvent[_{\mssafe}] \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
+
+Base-events describe the actual kind of event that happened.
+For the basic memory-safety properties, these are three variants:
+First, the allocation event ($\msAlloc$) that fires whenever a program claims $n$ cells of memory and stores them at address $\varLoc$, where addresses are assumed to be unique.
+Second, deallocation ($\msDealloc$) announces that the object at location $\varLoc$ is freed.
+Third, an event to describe reads from and writes to the $n$-th memory cell from address $\varLoc$ ($\msUse$).
+
+\paragraph{Temporal Memory Safety}
+
+\gls*{tms}~\cite{nagarakatte2010cets} is a safety property that describes that an unallocated object must not be (re-)used.
+Since it does not care about bounds of an object in memory, we emphasize this fact by deviating from the unified, memory-safety trace model and instead introduce traces for temporal memory safety:
+\begin{definition}{\definitionlabel[\glsfirst{tms} Traces]{tmstraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Base-Events)}&\tmsEvent &:=& \tmsAlloc \mid \tmsDealloc \mid \tmsUse \\
+    \text{(Events)}&\tmsEvent &:=& \tmsEvent \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
+
+With this, \gls*{tms} is defined as follows.
+\begin{definition}{\definitionlabel[\glsfirst{tms}]{tmsdef}}
+  \[
+  \tmssafe:=\left\{\tmsTrace
+    \left| 
+      \begin{array}{rcl}
+        \tmsAlloc&\le_{\tmsTrace}&\tmsDealloc \\
+        \tmsUse&\le_{\tmsTrace}&\tmsDealloc \\
+      \end{array}
+    \right.
+  \right\}
+  \]
+\end{definition}
+Hereby, the notation $\varEvent[_{1}]\le_{\varTrace}\varEvent[_{2}]$ means that if $\varEvent[_{1}]$ is in $\varTrace$ and if $\varEvent[_{2}]$ is in $\varTrace$, then $\varEvent[_{1}]$ appears before $\varEvent[_{2}]$.
+
+\paragraph{Spatial Memory Safety}
+\gls*{sms}~\cite{nagarakatte2009soft} is a safety property that prohibits out-of-bounds accesses.
+For emphasis, we also use a custom trace-model for spatial memory safety.
+\begin{definition}{\definitionlabel[\glsfirst{sms} Traces]{smstraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Base-Events)}&\smsEvent &:=& \smsAlloc \mid \smsUse \\
+    \text{(Events)}&\smsEvent &:=& \smsEvent \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
+
+With this, \gls*{sms} is defined as follows.
+\begin{definition}{\definitionlabel[\glsfirst{sms}]{smsdef}}
+  \[
+  \smssafe:=\left\{\smsTrace \left|\begin{array}{rcl}
+      \text{If }\smsAlloc\le_{\smsTrace}\smsUse, \text{ then }m<n
+  \end{array}\right.\right\}
+  \]
+\end{definition}
+
+\paragraph{Memory Safety}
+
+In spirit of earlier work~\cite{nagarakatte2009soft,nagarakatte2010cets,jim2002cyclone,necula2005ccured,michael2023mswasm}, full \gls*{ms} is the intersection of \definitionref{tmsdef} and \definitionref{smsdef}.
+However, both properties use a different trace model, so intersecting them alone would trivially yield the empty set.
+To remedy this, we define cross-language trace relations that lift both \definitionref{tmstraces} and \definitionref{smstraces} to \definitionref{mstraces}.
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{tms}]{mapping-tms-ms}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\tmssafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\tmsEvent}}{,,Translate \gls*{ms}-events to \gls*{tms}-events.''}
+
+    \typerule{mapping-ms-tms-empty}{}{
+      \mmap{\msev{\emptyevent}}{\tmsev{\emptyevent}}
+    }{mapping-ms-tms-empty}
+    %
+    \typerule{mapping-ms-tms-crash}{}{
+      \mmap{\msev{\lightning}}{\tmsev{\lightning}}
+    }{mapping-ms-tms-crash}
+    %
+    \typerule{mapping-ms-tms-alloc}{}{
+      \mmap{\msAlloc}{\tmsAlloc}
+    }{mapping-ms-tms-alloc}
+    %
+    \typerule{mapping-ms-tms-dealloc}{}{
+      \mmap{\msDealloc}{\tmsDealloc}
+    }{mapping-ms-tms-dealloc}
+    %
+    \typerule{mapping-ms-tms-use}{}{
+      \mmap{\msUse}{\tmsUse}
+    }{mapping-ms-tms-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\tmsTrace}}{,,Translate \gls*{ms}-traces to \gls*{tms}-traces.''}
+    
+    \typerule{mapping-ms-tms-refl}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-tms-refl}
+    %
+    \typerule{mapping-ms-tms-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\tmsEvent}{\tmsTrace}}
+    }{mapping-ms-tms-cons}
+  \end{center}
+\end{definition}
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{sms}]{mapping-sms-ms}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\smssafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\smsEvent}}{,,Translate \gls*{ms}-events to \gls*{sms}-events.''}
+
+    \typerule{mapping-ms-sms-empty}{}{
+      \mmap{\msev{\emptyevent}}{\smsev{\emptyevent}}
+    }{mapping-ms-sms-empty}
+    %
+    \typerule{mapping-ms-sms-crash}{}{
+      \mmap{\msev{\lightning}}{\smsev{\lightning}}
+    }{mapping-ms-sms-crash}
+    %
+    \typerule{mapping-ms-sms-alloc}{}{
+      \mmap{\msAlloc}{\smsAlloc}
+    }{mapping-ms-sms-alloc}
+    %
+    \typerule{mapping-ms-sms-dealloc}{}{
+      \mmap{\msDealloc}{\emptyevent}
+    }{mapping-ms-sms-dealloc}
+    %
+    \typerule{mapping-ms-sms-use}{
+      n=m
+    }{
+      \mmap{\msUse}{\smsUse}
+    }{mapping-ms-sms-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\smsTrace}}{,,Translate \gls*{ms}-traces to \gls*{sms}-traces.''}
+    
+    \typerule{mapping-ms-sms-refl}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-sms-refl}
+    %
+    \typerule{mapping-ms-sms-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\smsEvent}{\smsTrace}}
+    }{mapping-ms-sms-cons}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[\glsfirst{ms}]{msdef}}
+  \[
+    \mssafe:=\mapUniversal{\xlangrel{\mssafe}{\tmssafe}}{\tmssafe} \cap \mapUniversal{\xlangrel{\mssafe}{\smssafe}}{\smssafe}
+  \]
+\end{definition}
+
+Note that \definitionref{msdef} ignores data isolation, so there may still be memory-safety issues introduced by side-channels.
+
+\subsubsection{Strict Cryptographic Constant Time}
+
+\begin{definition}{\definitionlabel[\glsfirst{scct} Traces]{sccttraces}}
+\[
+  \begin{array}{rcll}
+    \text{(Secrecy Tags)}&\varSecuritytag &:=& \unlock \mid \lock \\
+    \text{(Events)}&\tmsEvent &:=& \scctAny \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+\end{definition}
+
+\gls*{cct} is a hypersafety property~\cite{barthe2018sec} and, thus, difficult to check with monitors.
+This is because, intuitively, hypersafety properties can relate multiple execution traces with each other, but monitors work on a single execution.
+It is a common trick to sidestep this issue by means of overapproximation: this section defines the property \gls*{scct}, a stricter variant of \gls*{cct} (inspired by earlier work~\cite{almeida2017jasmin}) that enforces the policy that no secret appears on a trace.
+Programs that satisfy \gls*{scct} also satisfy \gls*{cct}, but programs that satisfy \gls*{cct} may not satisfy \gls*{scct}.
+
+\begin{definition}{\definitionlabel[\glsfirst{scct}]{scctdef}}
+  \noindent\[
+  \scctsafe:=\left\{\scctTrace 
+      \left|
+        \begin{array}{l}
+          \scctTrace=\hole{\cdot} \text{ or } \scctTrace=\lightning \\
+          \exists\scctTrace['],\left(\scctTrace=\scctAny[\unlock]\cdot\varTrace[_{\ctsafe}'] \text{ or } \right.\\
+          \hspace{2.8em}\left.\scctTrace=\emptyevent\cdot\scctTrace[']
+          \wedge \varTrace[_{\ctsafe}']\in\scctsafe \right)
+        \end{array}
+      \right.
+    \right\}
+  \]
+\end{definition}
+
+\gls*{scct} may appear overly strict, since it seems that secrets must not occur on a trace (since $\varSecuritytag$ is forced to be $\unlock$). 
+However, this is considered standard practice in terms of coding guidelines~\cite{ctguidelines}.
+Moreover, programs that have been compiled with FaCT~\cite{cauligi2019fact} and run with a ``data independent timing mode''~\cite{arm-refman,intel-refman} enabled do not leak secrets. 
+We'd like to emphasize that our goal is to motivate the core theory presented in \Cref{sec:rtpc} and not develop a new programming language.
+
+\paragraph{\gls*{ms}, Strict Cryptographic Constant Time}
+
+The combination of \gls*{ms} and \gls*{scct} is the intersection of these properties, \gls*{msscct}.
+However, \gls*{ms} uses a different trace model than \gls*{scct}, so intersecting them would trivially yield the empty set. 
+To remedy this issue, we introduce $\xlangrel{\scctsafe}{\mssafe} : \scctEvent \to \msEvent \to \mathbb{P}$, a cross-language trace relation (whose key cases are presented below), that we use to intuitively unify the trace model in which the two properties are expressed:
+
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{scct}]{mapping-ms-scct}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\scctsafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\scctEvent}}{,,Translate \gls*{ms}-events to \gls*{scct}-events.''}
+
+    \typerule{mapping-ms-scct-empty}{}{
+      \mmap{\msev{\emptyevent}}{\scctev{\emptyevent}}
+    }{mapping-ms-scct-empty}
+    %
+    \typerule{mapping-ms-scct-crash}{}{
+      \mmap{\msev{\lightning}}{\scctev{\lightning}}
+    }{mapping-ms-scct-crash}
+    %
+    \typerule{mapping-ms-scct-alloc}{}{
+      \mmap{\msAlloc}{\scctAny[\unlock]}
+    }{mapping-ms-scct-alloc}
+    %
+    \typerule{mapping-ms-scct-dealloc}{}{
+      \mmap{\msDealloc}{\scctAny[\unlock]}
+    }{mapping-ms-scct-dealloc}
+    %
+    \typerule{mapping-ms-scct-use}{}{
+      \mmap{\msUse}{\scctAny[\unlock]}
+    }{mapping-ms-scct-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\scctTrace}}{,,Translate \gls*{ms}-traces to \gls*{scct}-traces.''}
+    
+    \typerule{mapping-ms-scct-refl}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-scct-refl}
+    %
+    \typerule{mapping-ms-scct-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\scctEvent}{\scctTrace}}
+    }{mapping-ms-scct-cons}
+  \end{center}
+\end{definition}
+
+%Essentially, $\sim_{\ctsafe}$ ignores both the new $\ev{Branch\ n}$ and $\ev{Binop\ n}$ base-events as it relates security-insensitive actions ($\unlock$) to their equivalent counterparts.
+\gls*{ms} traces trivially satisfy \gls*{scct}, since it is assumed here that they are the result of a cryptographic constant time computation.
+This may be ensured by a compiler, such as FaCT, or the semantics of the language itself.
+We also don't have any other information in \gls*{scct} traces besides the secrecy tags, since the semantics of a language can simply tag relevant events with the respective vulnerability, such as a leak of secret data.
+% 
+It is now possible to define \gls*{msscct} using the universal image:
+
+\begin{definition}{\definitionlabel[\glsfirst{ms} and \glsfirst{scct}]{msscctdef}}
+  \[
+    \msscctsafe:=\mssafe\cap\mapUniversal{\xlangrel{\mssafe}{\scctsafe}}{\scctsafe}
+  \]
+\end{definition}
+
+\paragraph{Extending the Trace Model with Speculation}
+
+So far, the considered trace models do not let us express speculative execution attacks such as Spectre~\cite{kocher2019spectre}. 
+For this, we extend the earlier trace model so that the secrecy tags ($\varSecuritytag{}$) carry additional information about the kind of private data leakage, i.e., the type of speculative leak.
+This tag may be emitted by the semantics of a concrete programming language, as seen in earlier work~\cite{fabian2022automatic}. 
+%Moreover, we add base-events signalling the beginning of a speculative execution ($\ev{Spec}$), a barrier ($\ev{Barrier}$) that signals that any speculative execution may not go past it, as well as a rollback event ($\ev{Rlb}$), which signals that execution resumes to where speculation started.
+
+\begin{definition}{\definitionlabel[\glsfirst{ss} traces]{sstraces}}
+{
+\[
+  \begin{array}{rrcl}
+    (\text{Spectre Variants}) & vX &:=& \operatorname{NONE} \mid \operatorname{PHT} \mid \dots \\
+    (\text{Secrecy Tags}) & \varSecuritytag{} &:=& \lock_{vX} \mid \unlock\\ 
+    (\text{Events}) & \specEvent &:=& \specEvent \mid \emptyevent \mid \lightning \\ 
+  \end{array}
+\]
+}
+\end{definition}
+
+%Even though the considered Spectre variants are just SPECTRE-PHT~\cite{kocher2019spectre}, NONE just describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}), the trace model is general enough to allow for potential future extension with different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
+NONE describes secret data as in \gls*{scct} (see \Cref{subsec:scct:tracemodel}).
+Any other secrecy tag, such as PHT, describes the concrete reason for the respective leak.
+The trace model in \defref{sstraces} is general enough to allow for potential future extension with different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
+%For sake of readability, this paper just uses the notation $\lock$ in place of $\lock_{\text{PHT}}$.
+
+\subsubsection{Speculation Safety}
+
+\gls*{ss}~\cite{patrignani2021exorcising}, similar to \gls*{scct}, is a sound overapproximation of a variant of noninterference.
+
+\begin{definition}{\definitionlabel[\glsfirst{ss}]{ssdef}}
+  \[
+    \sssafe := \left\{
+      \specTrace
+        \left|
+          \begin{array}{l}
+            \specTrace=\hole{\cdot} 
+              \text{ or } 
+            \specTrace=\lightning
+              \text{ or }
+            \exists\specTrace['].\\
+            %
+            \left(\specTrace=\specAny[\unlock]\cdot\specTrace['] 
+              \text{or }
+            \varTrace[_{\mathghost}]=\specAny[\lock_{\text{NONE}}]\cdot\specTrace[']\right.\\
+            \hspace{2em}\text{or }
+            \left.\varTrace[_{\mathghost}]=\emptyevent\cdot\specTrace[']\right)\\
+            %
+            \text{and }%
+            \ \varTrace[_{\mathghost}']\in\sssafe
+          \end{array}
+        \right.
+      \right\}
+  \] 
+\end{definition}
+The technical setup so far leads to the above definition, where only locks annotated with $\text{SPECTRE-PHT}$ are disallowed to occur on the trace.
+That way, programs attaining \gls*{ss} do not necessarily attain \gls*{scct}.
+
+\subsubsection{Speculation Memory Safety}\label{sec:spec-ms-rel}
+
+As before, we need to relate the different trace models with each other, so that the memory safety property without speculation can be lifted to speculation. 
+To this end, let $\xlangrel{ms}{ss}: \msEvent \to \specEvent\to\mathbb{P}$ be a cross-language trace relation whose key cases are below.
+The intuition is that \gls*{ss} is trivially satisfied in \gls*{ms}, since speculation is inexpressible there and a language attaining \gls*{ms} by means of semantics can enforce \gls*{ss} simply by not having a speculative dynamic semantics. 
+In turn, all base events tagged with $\lock_{\text{PHT}}$ are simply dropped. 
+
+\begin{definition}{\definitionlabel[Mapping \glsfirst{ms} to \glsfirst{ss}]{mapping-ms-spec}}
+  \newcommand{\mmap}[2]{{#1}\;{\xlangrel{\mssafe}{\sssafe}}\;{#2}}
+  \begin{center}
+    \judgbox{\mmap{\msEvent}{\specEvent}}{,,Translate \gls*{ms}-events to \gls*{ss}-events.''}
+
+    \typerule{mapping-ms-spec-empty}{}{
+      \mmap{\msev{\emptyevent}}{\specev{\emptyevent}}
+    }{mapping-ms-spec-empty}
+    %
+    \typerule{mapping-ms-spec-crash}{}{
+      \mmap{\msev{\lightning}}{\specev{\lightning}}
+    }{mapping-ms-spec-crash}
+    %
+    \typerule{mapping-ms-spec-alloc}{}{
+      \mmap{\msAlloc}{\specAny[\unlock]}
+    }{mapping-ms-spec-alloc}
+    %
+    \typerule{mapping-ms-spec-dealloc}{}{
+      \mmap{\msDealloc}{\specAny[\unlock]}
+    }{mapping-ms-spec-dealloc}
+    %
+    \typerule{mapping-ms-spec-use}{}{
+      \mmap{\msUse}{\specAny[\unlock]}
+    }{mapping-ms-spec-use}
+  \end{center}
+  \begin{center}
+    \judgbox{\mmap{\msTrace}{\specTrace}}{,,Translate \gls*{ms}-traces to \gls*{ss}-traces.''}
+    
+    \typerule{mapping-ms-spec-refl}{}{
+      \mmap{\emptyTrace}{\emptyTrace}
+    }{mapping-ms-spec-refl}
+    %
+    \typerule{mapping-ms-spec-cons}{}{
+      \mmap{\consTrace{\msEvent}{\msTrace}}{\consTrace{\specEvent}{\specTrace}}
+    }{mapping-ms-spec-cons}
+  \end{center}
+\end{definition}
+
+We conclude with the ultimate property of interest for our secure compiler: \gls*{specms}.
+\begin{definition}{\definitionlabel[\glsfirst{specms}]{specmsdef}}
+  \[
+    \specmssafe := \msscctsafe\cap\mapUniversal{\xlangrel{\mssafe}{\sssafe}}{\sssafe}
+  \]
+\end{definition}

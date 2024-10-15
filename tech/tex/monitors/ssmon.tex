@@ -1,0 +1,54 @@
+\subsubsection{\gls*{ss} Monitor}\label{subsubsec-mon-spec}
+
+\begin{definition}{\definitionlabel[\gls*{ss} Monitor State]{monitor-spec}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract State)}~\specMonitor &\isdef \emptyset \mid \lightning\\
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[\gls*{ss} Monitor Reductions]{monitor-spec-steps}}
+  \begin{center}
+    \judgbox{\monitorcheck[]{\specMonitor}{\specMonitor[']}{\specEvent}}{,,Given abstract state $\specMonitor$, step to abstract state $\specMonitor'$\\ emitting an abstract event $\specEvent$.''}
+
+    \typerule{specmon-empty}{}{
+      \monitorcheck[]{\specMonitor}{\specMonitor}{\emptyevent}
+    }{specmon-empty}
+    \typerule{specmon-any-public}{
+    }{
+      \monitorcheck[]{\specMonitor}{\specMonitor}{\specAny[\unlock]}
+    }{specmon-any-public}
+    \typerule{specmon-any-private}{
+    }{
+      \monitorcheck[]{\specMonitor}{\specMonitor}{\specAny[\lock_{\text{NONE}}]}
+    }{specmon-any-private}
+    \typerule{specmon-crash}{}{
+      \monitorcheck[]{\specMonitor}{\lightning}{\lightning}
+    }{specmon-crash}
+  \end{center}
+  \begin{center}
+    \judgbox{\monitorcheck{\specMonitor}{\specMonitor[']}{\specEvent}}{,,Reflexive-Transitive closure of above judgement.\\$\specTrace$ is a list of events.''}
+
+    \typerule{specmon-refl}{
+    }{
+      \monitorcheck{\specMonitor}{\specMonitor}{\hole{\cdot}}
+    }{specmon-refl}
+    %
+    \typerule{specmon-trans}{
+      \monitorcheck[]{\specMonitor}{\specMonitor[']}{\specEvent} \rulesep
+      \monitorcheck{\specMonitor[']}{\specMonitor['']}{\specTrace}
+    }{
+      \monitorcheck{\specMonitor}{\specMonitor['']}{\specEvent\cdot\specTrace}
+    }{specmon-trans}
+  \end{center}
+\end{definition}
+Note that \trref{specmon-any-private} allows secrets to be exposed on the trace if the leak is not because of speculation.
+
+\begin{definition}{\definitionlabel[\gls*{ss}-Satisfaction via Monitor]{trace-is-spec-via-mon}}
+  \begin{align*}
+    \sssafe\vdash\specTrace &\isdef \exists\noncrashMonitor{\specMonitor},\monitorcheck{\emptyset}{\specMonitor}{\specTrace}
+  \end{align*}
+\end{definition}
+

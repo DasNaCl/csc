@@ -1,0 +1,49 @@
+\subsubsection{\gls*{scct} Monitor}\label{subsubsec-mon-scct}
+
+\begin{definition}{\definitionlabel[\gls*{scct} Monitor State]{monitor-scct}}
+  \begin{gather*}
+    \begin{aligned}
+      \text{(Abstract State)}~\scctMonitor &\isdef \emptyset \mid \lightning\\
+    \end{aligned}
+  \end{gather*}
+\end{definition}
+
+The reductions are defined as follows:
+\begin{definition}{\definitionlabel[\gls*{scct} Monitor Reductions]{monitor-scct-steps}}
+  \begin{center}
+    \judgbox{\monitorcheck[]{\scctMonitor}{\scctMonitor[']}{\scctEvent}}{,,Given abstract state $\scctMonitor$, step to abstract state $\scctMonitor'$\\ emitting an abstract event $\scctEvent$.''}
+
+    \typerule{scctmon-empty}{}{
+      \monitorcheck[]{\scctMonitor}{\scctMonitor}{\emptyevent}
+    }{scctmon-empty}
+    \typerule{scctmon-any}{
+    }{
+      \monitorcheck[]{\scctMonitor}{\scctMonitor}{\scctAny[\unlock]}
+    }{scctmon-any}
+    \typerule{scctmon-crash}{}{
+      \monitorcheck[]{\scctMonitor}{\lightning}{\lightning}
+    }{scctmon-crash}
+  \end{center}
+  \begin{center}
+    \judgbox{\monitorcheck{\scctMonitor}{\scctMonitor[']}{\scctEvent}}{,,Reflexive-Transitive closure of above judgement.\\$\scctTrace$ is a list of events.''}
+
+    \typerule{scctmon-refl}{
+    }{
+      \monitorcheck{\scctMonitor}{\scctMonitor}{\hole{\cdot}}
+    }{scctmon-refl}
+    %
+    \typerule{scctmon-trans}{
+      \monitorcheck[]{\scctMonitor}{\scctMonitor[']}{\scctEvent} \rulesep
+      \monitorcheck{\scctMonitor[']}{\scctMonitor['']}{\scctTrace}
+    }{
+      \monitorcheck{\scctMonitor}{\scctMonitor['']}{\scctEvent\cdot\scctTrace}
+    }{scctmon-trans}
+  \end{center}
+\end{definition}
+
+\begin{definition}{\definitionlabel[\gls*{scct}-Satisfaction via Monitor]{trace-is-scct-via-mon}}
+  \begin{align*}
+    \scctsafe\vdash\scctTrace &\isdef \exists\noncrashMonitor{\scctMonitor},\monitorcheck{\emptyset}{\scctMonitor}{\scctTrace}
+  \end{align*}
+\end{definition}
+

@@ -4,6 +4,26 @@
 \documentclass[12pt]{article}
 \usepackage[left=1.0cm,top=1.5cm,right=1.0cm,bottom=1.5cm]{geometry}
 \usepackage{parskip}
+\usepackage[numbers]{natbib}
+\usepackage{trimclip}
+\makeatletter
+\DeclareRobustCommand{\circbullet}{\mathbin{\vphantom{\circ}\text{\circbullet@}}}
+\newcommand{\circbullet@}{%
+  \check@mathfonts
+  \m@th\ooalign{%
+    \clipbox{0 0 0 {\dimexpr\height-\fontdimen22\textfont2}}{$\bullet$}\cr
+    $\circ$\cr
+  }%
+}
+\DeclareRobustCommand{\bulletcirc}{\mathbin{\text{\bulletcirc@}}}
+\newcommand{\bulletcirc@}{%
+  \check@mathfonts
+  \m@th\ooalign{%
+    \raisebox{\fontdimen22\textfont2}{\clipbox{0 {\fontdimen22\textfont2} 0 0}{$\bullet$}}\cr
+    $\circ$\cr
+  }%
+}
+\makeatother
 
 % https://tex.stackexchange.com/questions/648845/sans-serif-uppercase-greek-no-longer-showing-in-acmart
 \DeclareMathAlphabet{\mathsf}{OT1}{LibertinusSans-LF}{m}{n}
@@ -13,111 +33,121 @@
 
 \input{cmds.tex}
 
+\newcommand{\ccseqct}{\ensuremath\llbracket\cdot\rrbracket^{\text{seq}}_{\text{ct}}}
+\newcommand{\ccspecmem}{\ensuremath\llbracket\cdot\rrbracket^{\text{spec}}_{\text{mem}}}
+\newcommand{\ccspecct}{\ensuremath\llbracket\cdot\rrbracket^{\text{spec}}_{\text{ct}}}
+\newcommand{\ccspecpathct}{\ensuremath\llbracket\cdot\rrbracket^{\text{spec}}_{\text{ct}}}
+\newcommand{\ccseqarch}{\ensuremath\llbracket\cdot\rrbracket^{\text{seq}}_{\text{arch}}}
+\newcommand{\ccspecarch}{\ensuremath\llbracket\cdot\rrbracket^{\text{spec}}_{\text{arch}}}
+\newcommand{\ccseqspecctpc}{\ensuremath\llbracket\cdot\rrbracket^{\text{seq-spec}}_{\text{ct-pc}}}
+
+\newcommand{\partialsec}{\ensuremath\circbullet}
+\newcommand{\fullsec}{\ensuremath\bullet}
+
+\newcommand{\proven}{\ensuremath\checkmark}
+\newcommand{\partiallyproven}{\ensuremath(\checkmark)}
+\newcommand{\informal}{\ensuremath\times}
+
+\newcommand{\specpht}{\ensuremath\text{PHT}}
+\newcommand{\specssb}{\ensuremath\text{SSB}} %is this relevant?
+\newcommand{\specrsb}{\ensuremath\text{RSB}}
+\newcommand{\specbtb}{\ensuremath\text{BTB}}
+\newcommand{\specstl}{\ensuremath\text{STL}}
+\newcommand{\specpsf}{\ensuremath\text{PSF}}
+
 \loadglsentries{acronyms}
 \makeglossaries
 
 \begin{document}
 
 \begin{center}
-  \begin{tabular}{|c|c|c|c|}
+  \begin{tabular}{|c|c|c|c|c|c|c|}
     \hline
-    Name      & 
-    Reference        &
-    Version &
-    Incompat.
-    \\
-    \hline
+    Ref. &
+    Cont. &
+    Variants &
+    Mitigations &
+    Proof &
+    Security &
+    Platform
+    \\\hline
     %
-    Retpoline & 
-    \cite{retpoline,gretpoline} &
-    BTB,RSB &
-    \\
-    %
-    Kernel Flags & 
-    \cite{ipredd} &
-    BTB &
-    \\
-    %
-    Ret2Spec &
-    \cite{maisuradze2018ret2spec} &
-    BTB,RSB &
+    \cite{vassena2021blade} &
+    \acrshort{ccspecct} &
+    $\specpht,\specrsb$ &
+    \acrshort{fi}, \acrshort{slh} &
+    $\partiallyproven$ &
+    $\fullsec$ &
+    \acrshort{s}
     \\
     %
-    Flush RSB@ctx switch &
-    \cite{maisuradze2018ret2spec} &
-    BTB,RSB &
+    \cite{elatali2024cmr} &
+    \acrshort{ccspecct} &
+    $\specpht,\specrsb$ &
+    \acrshort{cmr} &
+    $\informal$ &
+    $\partialsec$ &
+    \acrshort{hs}
     \\
     %
-    Index Masking &
-    \cite{Daniel2021HuntingTH} &
-    PHT &
-    STL
+    \cite{yu2019stt} &
+    \acrshort{ccspecarch} &
+    $\specpht$ &
+    \acrshort{dtt} &
+    $\partiallyproven$ &
+    $\partialsec$ &
+    \acrshort{h}
     \\
     %
-    Fence Insertion &
-    \makecell{
-      \cite{Daniel2021HuntingTH}, \\
-      \cite{ssbd}, ARM SSBB,\\
-      \cite{vassena2021blade}, \\
-      \cite{maisuradze2018ret2spec}, \\
-      \cite{bhattacharyya2019smotherspectre}, \\
-      \cite{mosier2023serberus}
-    } &
-    all &
+    \cite{lfence} &
+    ? &
+    $\specpht$ &
+    \acrshort{fi} &
+    $\informal$ &
+    $\fullsec$ &
+    \acrshort{s}
     \\
     %
-    SLH &
-    \cite{slh} &
-    PHT &
-    BTB \\
-    %
-    USLH &
-    \cite{zhang2023uslh} &
-    PHT &
+    \cite{lfence} &
+    ? &
+    $\specssb$ &
+    \acrshort{msr} &
+    $\informal$ &
+    $\fullsec$ &
+    \acrshort{s}/\acrshort{h}
     \\
     %
-    SSLH &
-    \cite{patrignani2021exorcising} &
-    PHT &
-    \\
-    %
-    Deterministic Timers &
-    \cite{cao2017detbrowser} &
-    * & 
-    \\
-    %
-    Random Jitter in Timers &
-    \cite{kohlbrenner2016fuzzyfox} &
-    * & 
-    \\
-    %
-    Sandboxing/Isolation &
-    \cite{isolation,mosier2023serberus} &
-    STL & 
-    \\
-    %
-    Register Zeroing &
     \cite{mosier2023serberus} &
-    ? & 
+    \acrshort{ccspecct} &
+    $\specpht$, $\specbtb$, $\specrsb$, $\specstl$, $\specpsf$ &
+    \acrshort{fi},\acrshort{iso},\acrshort{rz} &
+    $\partiallyproven$ &
+    $\fullsec$ &
+    \acrshort{s}
     \\
     %
-    Swivel-CET &
     \cite{narayan2021swivel} &
-    PHT,BTB,RSB &
+    \acrshort{ccspecmem} &
+    $\specpht$, $\specbtb$, $\specrsb$, $\specstl$, $\specpsf$ &
+    \acrshort{iso},\acrshort{sst},\acrshort{ri} &
+    $\informal$ &
+    $\fullsec$ &
+    \acrshort{s}/\acrshort{h}
     \\
-    %
     \hline
   \end{tabular}
 \end{center}
-*=ALL
 
-ignored hardware, mostly
+\footnotetext{
+The above table uses execution modes \gls{seq}, \gls{seq-ooo}, \gls{spec}, and \gls{spec-ooo}.
+Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and \gls{archobs}.
+}
+
+\printglossary
 
 \clearpage
 \bibliographystyle{ACM-Reference-Format}
 \bibliography{main}
-
-\printglossary
 
 \end{document}
 \endinput

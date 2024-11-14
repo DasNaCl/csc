@@ -261,45 +261,51 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
 
 \clearpage
 
-\paragraph{Trace Models}
+\section{Observers}
 
 \[
   \begin{array}{rcl}
   \ccseqct &-&
     \begin{array}{rcl}
-      \seqctEvent & = & \ev{Load\;\varLoc} \mid %
-                        \ev{Store\;\varLoc} \mid %
-                        \ev{Pc\;n}
+      \seqctEvent & = & \seqctev{\emptyevent} \mid
+                        \seqctev{Load\;\varLoc} \mid %
+                        \seqctev{Store\;\varLoc} \mid %
+                        \seqctev{Pc\;n}
     \end{array} \\
   \ccspecct &-&
     \begin{array}{rcl}
-      \specctEvent & = & \ev{Load\;\varLoc} \mid %
-                         \ev{Store\;\varLoc} \mid %
-                         \ev{Pc\;n} \mid %
-                         \ev{Spec} \mid %
-                         \ev{Rlb} 
+      \specctEvent & = & \specctev{\emptyevent} \mid
+                         \specctev{Load\;\varLoc} \mid %
+                         \specctev{Store\;\varLoc} \mid %
+                         \specctev{Pc\;n} \mid %
+                         \specctev{Spec} \mid %
+                         \specctev{Rlb} 
     \end{array} \\
   \ccseqmem &-&
     \begin{array}{rcl}
-      \seqmemEvent & = & \ev{Load\;\varLoc} \mid %
+      \seqmemEvent & = & \ev{\emptyevent} \mid
+                         \ev{Load\;\varLoc} \mid %
                          \ev{Store\;\varLoc}
     \end{array} \\
   \ccspecmem &-&
     \begin{array}{rcl}
-      \specmemEvent & = & \ev{Load\;\varLoc} \mid %
+      \specmemEvent & = & \ev{\emptyevent} \mid
+                          \ev{Load\;\varLoc} \mid %
                           \ev{Store\;\varLoc} \mid %
                           \ev{Spec} \mid %
                           \ev{Rlb} 
     \end{array} \\
   \ccseqarch &-&
     \begin{array}{rcl}
-      \seqarchEvent & = & \ev{Load\;\varLoc\;v} \mid %
+      \seqarchEvent & = & \ev{\emptyevent} \mid
+                          \ev{Load\;\varLoc\;v} \mid %
                           \ev{Store\;\varLoc\;v} \mid %
                           \ev{Pc\;n}
     \end{array} \\
   \ccspecarch &-&
     \begin{array}{rcl}
-      \specarchEvent & = & \ev{Load\;\varLoc\;v} \mid %
+      \specarchEvent & = & \ev{\emptyevent} \mid
+                           \ev{Load\;\varLoc\;v} \mid %
                            \ev{Store\;\varLoc\;v} \mid %
                            \ev{Pc\;n} \mid %
                            \ev{Spec} \mid %
@@ -308,27 +314,75 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
   \end{array}
 \]
 
+\section{Mappings between Observers}
+
 \judgbox{\seqctev{\cdot}\sim\specctev{\cdot}}{,,Map sequential constant time to speculative constant time.''}
 \begin{center}
   \typerule{seqct-to-specct-pc}{}{
-    \seqctev{Pc\;n}\sim\specctev{Pc\;n}
+    \seqctev{Pc\;n}\secctTOspecct{0}{0}\specctev{Pc\;n}
   }{seqct-to-specct-pc}
   %
   \typerule{seqct-to-specct-store}{}{
-    \seqctev{Store\;\varLoc}\sim\specctev{Store\;\varLoc}
+    \seqctev{Store\;\varLoc}\secctTOspecct{0}{0}\specctev{Store\;\varLoc}
   }{seqct-to-specct-store}
   %
   \typerule{seqct-to-specct-load}{}{
-    \seqctev{Load\;\varLoc}\sim\specctev{Load\;\varLoc}
+    \seqctev{Load\;\varLoc}\secctTOspecct{0}{0}\specctev{Load\;\varLoc}
   }{seqct-to-specct-load}
   %
   \typerule{seqct-to-specct-spec}{
-    \specctev{Spec}\not\in\varTrace \rulesep
-    \specctev{Rlb}\not\in\varTrace 
   }{
-    \emptyevent\sim\specctev{Spec}\cdot\varTrace\cdot\specctev{Rlb}
+    \emptyevent\secctTOspecct{n}{1+n}\specctev{Spec}
   }{seqct-to-specct-spec}
+  %
+  \typerule{seqct-to-specct-rlb}{
+  }{
+    \emptyevent\secctTOspecct{1+n}{n}\specctev{Rlb}
+  }{seqct-to-specct-rlb}
+  %
+  \typerule{seqct-to-specct-pc-ign}{}{
+    \seqctev{\emptyevent}\secctTOspecct{1+n}{1+n}\specctev{Pc\;n}
+  }{seqct-to-specct-pc-ign}
+  %
+  \typerule{seqct-to-specct-store-ign}{}{
+    \seqctev{\emptyevent}\secctTOspecct{1+n}{1+n}\specctev{Store\;\varLoc}
+  }{seqct-to-specct-store-ign}
+  %
+  \typerule{seqct-to-specct-load-ign}{}{
+    \seqctev{\emptyevent}\secctTOspecct{1+n}{1+n}\specctev{Load\;\varLoc}
+  }{seqct-to-specct-load-ign}
 \end{center}
+\begin{center}
+  \typerule{seqct-to-specct-refl}{}{
+    \hole{\cdot}\secctTOspecct{0}{0}\hole{\cdot}
+  }{seqct-to-specct-refl}
+  %
+  \typerule{seqct-to-specct-trans}{
+    \varEvent\secctTOspecct{n}{m'}\varEvent' \rulesep
+    \varTrace\secctTOspecct{m'}{m}\varTrace
+  }{
+    \varEvent\cdot\varTrace\secctTOspecct{n}{m}\varEvent'\cdot\varTrace'
+  }{seqct-to-specct-trans}
+\end{center}
+
+\section{Machines}
+
+\[
+\begin{array}{rcl}
+  \text{(Fencing)} &-&
+    \begin{array}{rcl}
+      \trg{\varEvent} & = & \trgFenceEv{\emptyevent} \mid
+                            \trgFenceEv{Load\;\varLoc\;v} \mid %
+                            \trgFenceEv{Store\;\varLoc\;v} \mid %
+                            \trgFenceEv{Pc\;n} \mid %
+                            \trgFenceEv{Spec} \mid %
+                            \trgFenceEv{Rlb} \mid %
+                            \trgFenceEv{Fence}
+    \end{array} \\
+\end{array}
+\]
+
+\section{Mappings from Observers to Machines}
 
 \judgbox{\specarchev{\cdot}\sim_o\ev{\cdot}}{,,Map speculative architecture to Mem-Fencing using oracle $o$.''}
 \begin{center}
@@ -345,7 +399,7 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
   }{specarch-to-fencing-store}
 \end{center}
 
-\judgbox{\specarchev{\cdot}\sim\ev{\cdot}}{,,Map speculatve architecture to SLH.''}
+\judgbox{\specarchev{\cdot}\sim\ev{\cdot}}{,,Map speculative architecture to SLH.''}
 \begin{center}
   \typerule{specarch-to-slh-load}{
     \specarchev{Rlb}\not\in\varTrace \rulesep
@@ -356,6 +410,10 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
     \specarchev{Spec}\cdot\specarchev{Pc\;n}\cdot\varTrace \cdot \specarchev{Load\;\varLoc\;v}\sim\trg{Spec\cdot Br\;b\cdot\varTrace\cdot Load\;\varLoc\;v}
   }{specarch-to-slh-load}
 \end{center}
+
+\section{Clustering}
+
+\cite{vassena2021blade} uses combination of above
 
 \printglossary
 

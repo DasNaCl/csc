@@ -308,47 +308,54 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
   \end{array}
 \]
 
+\judgbox{\seqctev{\cdot}\sim\specctev{\cdot}}{,,Map sequential constant time to speculative constant time.''}
 \begin{center}
-  \typerule{seqct-to-specct-pc-fencing}{}{
-    \ev{Pc\;n}\sim\ev{Pc\;n}\cdot\ev{Spec}\cdot\ev{Rlb}
-  }{seqct-to-specct-pc-fencing}
+  \typerule{seqct-to-specct-pc}{}{
+    \seqctev{Pc\;n}\sim\specctev{Pc\;n}
+  }{seqct-to-specct-pc}
+  %
+  \typerule{seqct-to-specct-store}{}{
+    \seqctev{Store\;\varLoc}\sim\specctev{Store\;\varLoc}
+  }{seqct-to-specct-store}
+  %
+  \typerule{seqct-to-specct-load}{}{
+    \seqctev{Load\;\varLoc}\sim\specctev{Load\;\varLoc}
+  }{seqct-to-specct-load}
+  %
+  \typerule{seqct-to-specct-spec}{
+    \specctev{Spec}\not\in\varTrace \rulesep
+    \specctev{Rlb}\not\in\varTrace 
+  }{
+    \emptyevent\sim\specctev{Spec}\cdot\varTrace\cdot\specctev{Rlb}
+  }{seqct-to-specct-spec}
 \end{center}
 
-\begin{itemize}
-  \item
-Hide details of countermeasures in specific hardware-level interpretation of (abstract) states? 
-  \subitem[$\rightarrow$]
-Very simple trace relations
+\judgbox{\specarchev{\cdot}\sim_o\ev{\cdot}}{,,Map speculative architecture to Mem-Fencing using oracle $o$.''}
+\begin{center}
+  \typerule{specarch-to-fencing-load}{
+    \llbracket o\rrbracket = \text{yes}
+  }{
+    \specarchev{Load\;\varLoc\;v}\sim_o\trg{Fence\cdot Load\;\varLoc\;v}
+  }{specarch-to-fencing-load}
+  %
+  \typerule{specarch-to-fencing-store}{
+    \llbracket o\rrbracket = \text{yes}
+  }{
+    \specarchev{Store\;\varLoc\;v}\sim_o\trg{Fence\cdot Store\;\varLoc\;v}
+  }{specarch-to-fencing-store}
+\end{center}
 
-\end{itemize}
-\begin{itemize}
-  \item Hardware-Software Contracts:
-  \subitem trace model of prog. lang describes the visible observations
-  \subitem semantics of hardware influence state 
-    \subsubitem[$\rightarrow$] even though traces may agree, internal hardware-level actions distinguish two states
-\end{itemize}
-
-
-ARM:
-\[
-  \begin{array}{ccc}
-    \cdot\to_{\text{fetch}}\cdot &
-    \cdot\to_{\text{decode}}\cdot &
-    \cdot\to_{\text{execute}}\cdot
-  \end{array}
-\]
-
-Intel:
-\[
-  \begin{array}{ccccc}
-    \cdot\to_{\text{fetch}}\cdot &
-    \cdot\to_{\text{decode}}\cdot &
-    \cdot\to_{\text{execute}}\cdot &
-    \cdot\to_{\text{memory}}\cdot &
-    \cdot\to_{\text{write-back}}\cdot
-  \end{array}
-\]
-
+\judgbox{\specarchev{\cdot}\sim\ev{\cdot}}{,,Map speculative architecture to SLH.''}
+\begin{center}
+  \typerule{specarch-to-slh-load}{
+    \specarchev{Rlb}\not\in\varTrace \rulesep
+    \trg{Rlb}\not\in\trg{\varTrace} \rulesep
+    \vdash\trg{\varLoc}:\text{secret} \rulesep
+    \trg{v}=v\vert_{\mathbb{B}}\trg{b}
+  }{
+    \specarchev{Spec}\cdot\specarchev{Pc\;n}\cdot\varTrace \cdot \specarchev{Load\;\varLoc\;v}\sim\trg{Spec\cdot Br\;b\cdot\varTrace\cdot Load\;\varLoc\;v}
+  }{specarch-to-slh-load}
+\end{center}
 
 \printglossary
 

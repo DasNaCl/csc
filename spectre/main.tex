@@ -267,14 +267,16 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
   \begin{array}{rcl}
   \ccseqct &-&
     \begin{array}{rcl}
-      \seqctEvent & = & \seqctev{\emptyevent} \mid
+      \seqctEvent & = & \seqctev{\emptyevent} \mid %
+                        \seqctev{\lightning} \mid %
                         \seqctev{Load\;\varLoc} \mid %
                         \seqctev{Store\;\varLoc} \mid %
                         \seqctev{Pc\;n}
     \end{array} \\
   \ccspecct &-&
     \begin{array}{rcl}
-      \specctEvent & = & \specctev{\emptyevent} \mid
+      \specctEvent & = & \specctev{\emptyevent} \mid %
+                         \specctev{\lightning} \mid %
                          \specctev{Load\;\varLoc} \mid %
                          \specctev{Store\;\varLoc} \mid %
                          \specctev{Pc\;n} \mid %
@@ -283,86 +285,233 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
     \end{array} \\
   \ccseqmem &-&
     \begin{array}{rcl}
-      \seqmemEvent & = & \ev{\emptyevent} \mid
-                         \ev{Load\;\varLoc} \mid %
-                         \ev{Store\;\varLoc}
+      \seqmemEvent & = & \seqmemev{\emptyevent} \mid %
+                         \seqmemev{\lightning} \mid %
+                         \seqmemev{Load\;\varLoc} \mid %
+                         \seqmemev{Store\;\varLoc}
     \end{array} \\
   \ccspecmem &-&
     \begin{array}{rcl}
-      \specmemEvent & = & \ev{\emptyevent} \mid
-                          \ev{Load\;\varLoc} \mid %
-                          \ev{Store\;\varLoc} \mid %
-                          \ev{Spec} \mid %
-                          \ev{Rlb} 
+      \specmemEvent & = & \specmemev{\emptyevent} \mid %
+                          \specmemev{\lightning} \mid %
+                          \specmemev{Load\;\varLoc} \mid %
+                          \specmemev{Store\;\varLoc} \mid %
+                          \specmemev{Spec} \mid %
+                          \specmemev{Rlb} 
     \end{array} \\
   \ccseqarch &-&
     \begin{array}{rcl}
-      \seqarchEvent & = & \ev{\emptyevent} \mid
-                          \ev{Load\;\varLoc\;v} \mid %
-                          \ev{Store\;\varLoc\;v} \mid %
-                          \ev{Pc\;n}
+      \seqarchEvent & = & \seqarchev{\emptyevent} \mid %
+                          \seqarchev{\lightning} \mid %
+                          \seqarchev{Load\;\varLoc\;v} \mid %
+                          \seqarchev{Store\;\varLoc\;v} \mid %
+                          \seqarchev{Pc\;n}
     \end{array} \\
   \ccspecarch &-&
     \begin{array}{rcl}
-      \specarchEvent & = & \ev{\emptyevent} \mid
-                           \ev{Load\;\varLoc\;v} \mid %
-                           \ev{Store\;\varLoc\;v} \mid %
-                           \ev{Pc\;n} \mid %
-                           \ev{Spec} \mid %
-                           \ev{Rlb} 
+      \specarchEvent & = & \specarchev{\emptyevent} \mid %
+                           \specarchev{\lightning} \mid %
+                           \specarchev{Load\;\varLoc\;v} \mid %
+                           \specarchev{Store\;\varLoc\;v} \mid %
+                           \specarchev{Pc\;n} \mid %
+                           \specarchev{Spec} \mid %
+                           \specarchev{Rlb} 
     \end{array} \\
   \end{array}
 \]
 
 \section{Mappings between Observers}
 
-\judgbox{\seqctev{\cdot}\sim\specctev{\cdot}}{,,Map sequential constant time to speculative constant time.''}
+\subsection{Sequential to Speculative}
+
+All relations presented in this section share the same key idea, so it is mostly repetitive. 
+The key insight is to index the relations by natural numbers in order to keep track of the depth of nested speculation and ignore if the depth is non-zero, i.e., if there is speculation.
+The trace-level versions have to do minor bookkeeping to count speculation depth, but the counting is done at event-level.
+
+\paragraph{Constant-Time} $\;$\\
+
+\judgbox{\seqctTOspecct{n}{m} : \seqctEvent\to\specctEvent\to\mathbb{P}}{,,Map sequential constant time to speculative constant time events.\\%
+  $n$ represents the current size of speculation depth and $m$ the new size.%
+''}
 \begin{center}
+  \typerule{seqct-to-specct-empty}{}{
+    \seqctev{\emptyevent}\seqctTOspecct{n}{n}\specctev{\emptyevent}
+  }{seqct-to-specct-empty}
+  %
+  \typerule{seqct-to-specct-crash}{}{
+    \seqctev{\lightning}\seqctTOspecct{n}{n}\specctev{\lightning}
+  }{seqct-to-specct-crash}
+  %
   \typerule{seqct-to-specct-pc}{}{
-    \seqctev{Pc\;n}\secctTOspecct{0}{0}\specctev{Pc\;n}
+    \seqctev{Pc\;n}\seqctTOspecct{0}{0}\specctev{Pc\;n}
   }{seqct-to-specct-pc}
   %
   \typerule{seqct-to-specct-store}{}{
-    \seqctev{Store\;\varLoc}\secctTOspecct{0}{0}\specctev{Store\;\varLoc}
+    \seqctev{Store\;\varLoc}\seqctTOspecct{0}{0}\specctev{Store\;\varLoc}
   }{seqct-to-specct-store}
   %
   \typerule{seqct-to-specct-load}{}{
-    \seqctev{Load\;\varLoc}\secctTOspecct{0}{0}\specctev{Load\;\varLoc}
+    \seqctev{Load\;\varLoc}\seqctTOspecct{0}{0}\specctev{Load\;\varLoc}
   }{seqct-to-specct-load}
   %
   \typerule{seqct-to-specct-spec}{
   }{
-    \emptyevent\secctTOspecct{n}{1+n}\specctev{Spec}
+    \emptyevent\seqctTOspecct{n}{1+n}\specctev{Spec}
   }{seqct-to-specct-spec}
   %
   \typerule{seqct-to-specct-rlb}{
   }{
-    \emptyevent\secctTOspecct{1+n}{n}\specctev{Rlb}
+    \emptyevent\seqctTOspecct{1+n}{n}\specctev{Rlb}
   }{seqct-to-specct-rlb}
   %
   \typerule{seqct-to-specct-pc-ign}{}{
-    \seqctev{\emptyevent}\secctTOspecct{1+n}{1+n}\specctev{Pc\;n}
+    \seqctev{\emptyevent}\seqctTOspecct{1+n}{1+n}\specctev{Pc\;m}
   }{seqct-to-specct-pc-ign}
   %
   \typerule{seqct-to-specct-store-ign}{}{
-    \seqctev{\emptyevent}\secctTOspecct{1+n}{1+n}\specctev{Store\;\varLoc}
+    \seqctev{\emptyevent}\seqctTOspecct{1+n}{1+n}\specctev{Store\;\varLoc}
   }{seqct-to-specct-store-ign}
   %
   \typerule{seqct-to-specct-load-ign}{}{
-    \seqctev{\emptyevent}\secctTOspecct{1+n}{1+n}\specctev{Load\;\varLoc}
+    \seqctev{\emptyevent}\seqctTOspecct{1+n}{1+n}\specctev{Load\;\varLoc}
   }{seqct-to-specct-load-ign}
 \end{center}
+\judgbox{\seqctTOspeccttr{n}{m} : \seqctTrace\to\specctTrace\to\mathbb{P}}{,,Map sequential constant time to speculative constant time events.\\
+  $n$ represents the current size of speculation depth and $m$ the new size.%
+''}
 \begin{center}
   \typerule{seqct-to-specct-refl}{}{
-    \hole{\cdot}\secctTOspecct{0}{0}\hole{\cdot}
+    \hole{\cdot}\seqctTOspeccttr{0}{0}\hole{\cdot}
   }{seqct-to-specct-refl}
   %
   \typerule{seqct-to-specct-trans}{
-    \varEvent\secctTOspecct{n}{m'}\varEvent' \rulesep
-    \varTrace\secctTOspecct{m'}{m}\varTrace
+    \varEvent\seqctTOspecct{n}{m'}\varEvent' \rulesep
+    \varTrace\seqctTOspeccttr{m'}{m}\varTrace
   }{
-    \varEvent\cdot\varTrace\secctTOspecct{n}{m}\varEvent'\cdot\varTrace'
+    \varEvent\cdot\varTrace\seqctTOspeccttr{n}{m}\varEvent'\cdot\varTrace'
   }{seqct-to-specct-trans}
+\end{center}
+
+\paragraph{Memory} $\;$\\
+
+\judgbox{\seqmemTOspecmem{n}{m} : \seqmemEvent\to\specmemEvent\to\mathbb{P}}{,,Map sequential memory to speculative memory events.\\%
+  $n$ represents the current size of speculation depth and $m$ the new size.%
+''}
+\begin{center}
+  \typerule{seqmem-to-specmem-empty}{}{
+    \seqmemev{\emptyevent}\seqmemTOspecmem{n}{n}\specmemev{\emptyevent}
+  }{seqmem-to-specmem-empty}
+  %
+  \typerule{seqmem-to-specmem-crash}{}{
+    \seqmemev{\lightning}\seqmemTOspecmem{n}{n}\specmemev{\lightning}
+  }{seqmem-to-specmem-crash}
+  %
+  \typerule{seqmem-to-specmem-store}{}{
+    \seqmemev{Store\;\varLoc}\seqmemTOspecmem{0}{0}\specmemev{Store\;\varLoc}
+  }{seqmem-to-specmem-store}
+  %
+  \typerule{seqmem-to-specmem-load}{}{
+    \seqmemev{Load\;\varLoc}\seqmemTOspecmem{0}{0}\specmemev{Load\;\varLoc}
+  }{seqmem-to-specmem-load}
+  %
+  \typerule{seqmem-to-specmem-spec}{
+  }{
+    \emptyevent\seqmemTOspecmem{n}{1+n}\specmemev{Spec}
+  }{seqmem-to-specmem-spec}
+  %
+  \typerule{seqmem-to-specmem-rlb}{
+  }{
+    \emptyevent\seqmemTOspecmem{1+n}{n}\specmemev{Rlb}
+  }{seqmem-to-specmem-rlb}
+  %
+  \typerule{seqmem-to-specmem-store-ign}{}{
+    \seqmemev{\emptyevent}\seqmemTOspecmem{1+n}{1+n}\specmemev{Store\;\varLoc}
+  }{seqmem-to-specmem-store-ign}
+  %
+  \typerule{seqmem-to-specmem-load-ign}{}{
+    \seqmemev{\emptyevent}\seqmemTOspecmem{1+n}{1+n}\specmemev{Load\;\varLoc}
+  }{seqmem-to-specmem-load-ign}
+\end{center}
+\judgbox{\seqmemTOspecmemtr{n}{m} : \seqmemTrace\to\specmemTrace\to\mathbb{P}}{,,Map sequential memory to speculative memory events.\\
+  $n$ represents the current size of speculation depth and $m$ the new size.%
+''}
+\begin{center}
+  \typerule{seqmem-to-specmem-refl}{}{
+    \hole{\cdot}\seqmemTOspecmemtr{0}{0}\hole{\cdot}
+  }{seqmem-to-specmem-refl}
+  %
+  \typerule{seqmem-to-specmem-trans}{
+    \varEvent\seqmemTOspecmem{n}{m'}\varEvent' \rulesep
+    \varTrace\seqmemTOspecmemtr{m'}{m}\varTrace
+  }{
+    \varEvent\cdot\varTrace\seqmemTOspecmemtr{n}{m}\varEvent'\cdot\varTrace'
+  }{seqmem-to-specmem-trans}
+\end{center}
+
+
+\paragraph{Architecture} $\;$\\
+
+
+\judgbox{\seqarchTOspecarch{n}{m} : \seqarchEvent\to\specarchEvent\to\mathbb{P}}{,,Map sequential architecture to speculative architecture events.\\%
+  $n$ represents the current size of speculation depth and $m$ the new size.%
+''}
+\begin{center}
+  \typerule{seqarch-to-specarch-empty}{}{
+    \seqarchev{\emptyevent}\seqarchTOspecarch{n}{n}\specarchev{\emptyevent}
+  }{seqarch-to-specarch-empty}
+  %
+  \typerule{seqarch-to-specarch-crash}{}{
+    \seqarchev{\lightning}\seqarchTOspecarch{n}{n}\specarchev{\lightning}
+  }{seqarch-to-specarch-crash}
+  %
+  \typerule{seqarch-to-specarch-pc}{}{
+    \seqarchev{Pc\;n}\seqarchTOspecarch{0}{0}\specarchev{Pc\;n}
+  }{seqarch-to-specarch-pc}
+  %
+  \typerule{seqarch-to-specarch-store}{}{
+    \seqarchev{Store\;\varLoc\;v}\seqarchTOspecarch{0}{0}\specarchev{Store\;\varLoc\;v}
+  }{seqarch-to-specarch-store}
+  %
+  \typerule{seqarch-to-specarch-load}{}{
+    \seqarchev{Load\;\varLoc\;v}\seqarchTOspecarch{0}{0}\specarchev{Load\;\varLoc\;v}
+  }{seqarch-to-specarch-load}
+  %
+  \typerule{seqarch-to-specarch-spec}{
+  }{
+    \emptyevent\seqarchTOspecarch{n}{1+n}\specarchev{Spec}
+  }{seqarch-to-specarch-spec}
+  %
+  \typerule{seqarch-to-specarch-rlb}{
+  }{
+    \emptyevent\seqarchTOspecarch{1+n}{n}\specarchev{Rlb}
+  }{seqarch-to-specarch-rlb}
+  %
+  \typerule{seqarch-to-specarch-pc-ign}{}{
+    \seqarchev{\emptyevent}\seqarchTOspecarch{1+n}{1+n}\specarchev{Pc\;m}
+  }{seqarch-to-specarch-pc-ign}
+  %
+  \typerule{seqarch-to-specarch-store-ign}{}{
+    \seqarchev{\emptyevent}\seqarchTOspecarch{1+n}{1+n}\specarchev{Store\;\varLoc\;v}
+  }{seqarch-to-specarch-store-ign}
+  %
+  \typerule{seqarch-to-specarch-load-ign}{}{
+    \seqarchev{\emptyevent}\seqarchTOspecarch{1+n}{1+n}\specarchev{Load\;\varLoc\;v}
+  }{seqarch-to-specarch-load-ign}
+\end{center}
+\judgbox{\seqarchTOspecarchtr{n}{m} : \seqarchTrace\to\specarchTrace\to\mathbb{P}}{,,Map sequential architecture to speculative architecture events.\\
+  $n$ represents the current size of speculation depth and $m$ the new size.%
+''}
+\begin{center}
+  \typerule{seqarch-to-specarch-refl}{}{
+    \hole{\cdot}\seqarchTOspecarchtr{0}{0}\hole{\cdot}
+  }{seqarch-to-specarch-refl}
+  %
+  \typerule{seqarch-to-specarch-trans}{
+    \varEvent\seqarchTOspecarch{n}{m'}\varEvent' \rulesep
+    \varTrace\seqarchTOspecarchtr{m'}{m}\varTrace
+  }{
+    \varEvent\cdot\varTrace\seqarchTOspecarchtr{n}{m}\varEvent'\cdot\varTrace'
+  }{seqarch-to-specarch-trans}
 \end{center}
 
 \section{Machines}

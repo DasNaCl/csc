@@ -514,6 +514,99 @@ The trace-level versions have to do minor bookkeeping to count speculation depth
   }{seqarch-to-specarch-trans}
 \end{center}
 
+\begin{lemma}{\lemmalabel[$\seqarchTOspecarch{n}{m}$ is left-unique.]{seqarch-to-specarch-left-unique}}
+  $\seqarchTOspecarch{n}{m}$ is left-unique.
+\end{lemma}
+\begin{proof}
+  \newcommand{\lpref}{seqarch-to-specarch-left-unique}
+  Let $\seqarchEvent$ and $\seqarchEvent[']$ with $\specarchEvent$ such that:
+  \begin{passumptions}
+    \asm{\lpref-rel1}{\seqarchEvent\seqarchTOspecarch{n}{m}\specarchEvent}
+    \asm{\lpref-rel2}{\seqarchEvent[']\seqarchTOspecarch{n}{m}\specarchEvent}
+  \end{passumptions}
+  The goal is:
+  \begin{goals}
+    \goal{\lpref-eq}{\seqarchEvent=\seqarchEvent[']}
+  \end{goals}
+
+  Invert both \asmref{\lpref-rel1} and \asmref{\lpref-rel2}, then \goalref{\lpref-eq} follows by reflexivity.
+\end{proof}
+\begin{lemma}{\lemmalabel[$\seqarchTOspecarch{n}{m}$ is left-total.]{seqarch-to-specarch-left-total}}
+  $\seqarchTOspecarch{n}{m}$ is left-total.
+\end{lemma}
+\begin{proof}
+  Simple case analysis on the arguments.
+\end{proof}
+
+\begin{corollary}{\corollarylabel[$\seqarchTOspecarch{n}{m}$ induces Galois Insertion.]{seqarch-to-specarch-galois-insertion}}
+  The universal and existential images of binary relation $\seqarchTOspecarch{n}{m}$ induce a galois insertion.
+\end{corollary}
+\begin{proof}
+  % mapUniversal is abstraction
+  \newcommand{\lpref}{seqarch-to-specarch-galois-insertion}
+  \newcommand{\abstraction}[1]{\mapUniversal{\seqarchTOspecarch{n}{m}}{#1}}
+  \newcommand{\concretization}[1]{\mapExistential{\seqarchTOspecarch{n}{m}}{#1}}
+
+  Let $\varProperty$ be a set of $\seqarchEvent$ events, what needs to be shown is $\abstraction{\concretization{\varProperty}}=\varProperty$.
+
+  The proof goes by antisymmetry of set-inclusion:
+  \begin{proofcase}{\subseteq}
+    We know: 
+    \begin{passumptions}
+      \asm{\lpref-in-acprop}{\seqarchEvent\in\abstraction{\concretization{\varProperty}}}
+    \end{passumptions}
+    We need to show:
+    \begin{goals}
+      \goal{\lpref-in-prop}{\seqarchEvent\in\varProperty}
+    \end{goals}
+
+    From \lemmaref{seqarch-to-specarch-left-total} we know that there is a $\specarchEvent$ such that:
+    \begin{passumptions}
+      \asm{\lpref-le-initrel}{\seqarchEvent\seqarchTOspecarch{n}{m}\specarchEvent}
+    \end{passumptions}
+    Specialize \asmref{\lpref-in-acprop} with \asmref{\lpref-le-initrel}, obtaining:
+    \begin{passumptions}
+      \asm{\lpref-elc}{\specarchEvent\in\concretization{\varProperty}}
+    \end{passumptions}
+    From \asmref{\lpref-elc}, we know that there is a $\seqarchEvent[']$ such that:
+    \begin{passumptions}
+      \asm{\lpref-le-rel}{\seqarchEvent[']\seqarchTOspecarch{n}{m}\specarchEvent}
+      \asm{\lpref-in-prop-prime}{\seqarchEvent[']\in\varProperty}
+    \end{passumptions}
+
+    Now, \goalref{\lpref-in-prop} follows from \asmref{\lpref-in-prop-prime} by rewriting with \lemmaref{seqarch-to-specarch-left-unique} whose assumptions are satisfied via \asmref{\lpref-le-initrel} and \asmref{\lpref-le-rel}.
+  \end{proofcase}
+  \begin{proofcase}{\supseteq}
+    We know: 
+    \begin{passumptions}
+      \asm{\lpref-in-prop}{\seqarchEvent\in\varProperty}
+    \end{passumptions}
+    We need to show:
+    \begin{goals}
+      \goal{\lpref-in-acprop}{\seqarchEvent\in\abstraction{\concretization{\varProperty}}}
+    \end{goals}
+    Unfold \goalref{\lpref-in-acprop}, so let $\specarchEvent$ such that:
+    \begin{passumptions}
+      \asm{\lpref-ge-initrel}{\seqarchEvent\seqarchTOspecarch{n}{m}\specarchEvent}
+    \end{passumptions}
+    What is left to prove is:
+    \begin{goals}
+      \goal{\lpref-in-propc}{\specarchEvent\in\concretization{\varProperty}}
+    \end{goals}
+    Simply instantiate the existential in \goalref{\lpref-in-propc} with $\seqarchEvent$, \asmref{\lpref-ge-initrel} and \asmref{\lpref-in-prop} resolve the remaining obligations.
+  \end{proofcase}
+\end{proof}
+
+\subsection{Across Observer Types}
+
+\paragraph{Memory to Constant-Time} $\;$
+
+\begin{center}
+  \typerule{specmem-to-specct-empty}{}{
+    \specmemev{\emptyevent}\specmemTOspecct\specctev{\emptyevent}
+  }{specmem-to-specct-empty}
+\end{center}
+
 \section{Machines}
 
 \[
@@ -554,7 +647,7 @@ The trace-level versions have to do minor bookkeeping to count speculation depth
     \specarchev{Rlb}\not\in\varTrace \rulesep
     \trg{Rlb}\not\in\trg{\varTrace} \rulesep
     \vdash{\varLoc}:\text{secret} \rulesep
-    \trg{v}=v\vert_{\mathbb{B}}\trg{b}
+    \trg{v}=v\operatorname{bitor}\trg{b}
   }{
     \specarchev{Spec}\cdot\specarchev{Pc\;n}\cdot\varTrace \cdot \specarchev{Load\;\varLoc\;v}\sim\trg{Spec\cdot Br\;b\cdot\varTrace\cdot Load\;\varLoc\;v}
   }{specarch-to-slh-load}

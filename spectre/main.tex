@@ -261,6 +261,75 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
 
 \clearpage
 
+\section{Preliminaries}
+
+\begin{lemma}{\lemmalabel[Left-total and injective $\sim$ induces a Galois Insertion.]{general-induce-galois-insertion}}
+  If
+  \begin{assumptions}
+    \asm{general-induce-galois-insertion-left-total}{\sim\text{ left total}}
+    \asm{general-induce-galois-insertion-left-unique}{\sim\text{ left unique}}
+  \end{assumptions}
+  then
+  \begin{goals}
+    \goal{general-induce-galois-insertion}{\forall\varProperty,\mapUniversal{\sim}{\mapExistential{\sim}{\varProperty}}=\varProperty}
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  % mapUniversal is abstraction
+  \newcommand{\lpref}{general-induce-galois-insertion}
+  \newcommand{\abstraction}[1]{\mapUniversal{\sim}{#1}}
+  \newcommand{\concretization}[1]{\mapExistential{\sim}{#1}}
+
+  Let $\varProperty$ be a set of source-level objects.
+  Let $\src{\varEvent[S]}$ be a source-level object. 
+  The proof goes by antisymmetry of set-inclusion:
+  \begin{proofcase}{\subseteq}
+    We know: 
+    \begin{passumptions}
+      \asm{\lpref-in-acprop}{\src{\varEvent[S]}\in\abstraction{\concretization{\varProperty}}}
+    \end{passumptions}
+    We need to show:
+    \begin{goals}
+      \goal{\lpref-in-prop}{\src{\varEvent[S]}\in\varProperty}
+    \end{goals}
+
+    From \asmref{\lpref-left-total} we know that there is a $\trg{\varEvent[T]}$ such that:
+    \begin{passumptions}
+      \asm{\lpref-le-initrel}{\src{\varEvent[S]}\sim\trg{\varEvent[T]}}
+    \end{passumptions}
+    Specialize \asmref{\lpref-in-acprop} with \asmref{\lpref-le-initrel}, obtaining:
+    \begin{passumptions}
+      \asm{\lpref-elc}{\trg{\varEvent[T]}\in\concretization{\varProperty}}
+    \end{passumptions}
+    From \asmref{\lpref-elc}, we know that there is a $\src{\varEvent[S]'}$ such that:
+    \begin{passumptions}
+      \asm{\lpref-le-rel}{\src{\varEvent[S]'}\sim\trg{\varEvent[T]}}
+      \asm{\lpref-in-prop-prime}{\src{\varEvent[S]'}\in\varProperty}
+    \end{passumptions}
+
+    Now, \goalref{\lpref-in-prop} follows from \asmref{\lpref-in-prop-prime} by rewriting with \asmref{\lpref-left-unique} whose assumptions are satisfied via \asmref{\lpref-le-initrel} and \asmref{\lpref-le-rel}.
+  \end{proofcase}
+  \begin{proofcase}{\supseteq}
+    We know: 
+    \begin{passumptions}
+      \asm{\lpref-in-prop}{\src{\varEvent[S]}\in\varProperty}
+    \end{passumptions}
+    We need to show:
+    \begin{goals}
+      \goal{\lpref-in-acprop}{\src{\varEvent[S]}\in\abstraction{\concretization{\varProperty}}}
+    \end{goals}
+    Unfold \goalref{\lpref-in-acprop}, so let $\trg{\varEvent[T]}$ such that:
+    \begin{passumptions}
+      \asm{\lpref-ge-initrel}{\src{\varEvent[S]}\sim\trg{\varEvent[T]}}
+    \end{passumptions}
+    What is left to prove is:
+    \begin{goals}
+      \goal{\lpref-in-propc}{\trg{\varEvent[T]}\in\concretization{\varProperty}}
+    \end{goals}
+    Simply instantiate the existential in \goalref{\lpref-in-propc} with $\seqarchEvent$, \asmref{\lpref-ge-initrel} and \asmref{\lpref-in-prop} resolve the remaining obligations.
+  \end{proofcase}
+\end{proof}
+
 \section{Observers}
 
 \[
@@ -392,6 +461,39 @@ The trace-level versions have to do minor bookkeeping to count speculation depth
   }{seqct-to-specct-trans}
 \end{center}
 
+\begin{lemma}{\lemmalabel[$\seqctTOspecct{n}{m}$ is left-unique.]{seqct-to-specct-left-unique}}
+  $\seqctTOspecct{n}{m}$ is left-unique.
+\end{lemma}
+\begin{proof}
+  \newcommand{\lpref}{seqct-to-specct-left-unique}
+  Let $\seqctEvent$ and $\seqctEvent[']$ with $\specctEvent$ such that:
+  \begin{passumptions}
+    \asm{\lpref-rel1}{\seqctEvent\seqctTOspecct{n}{m}\specctEvent}
+    \asm{\lpref-rel2}{\seqctEvent[']\seqctTOspecct{n}{m}\specctEvent}
+  \end{passumptions}
+  The goal is:
+  \begin{goals}
+    \goal{\lpref-eq}{\seqctEvent=\seqctEvent[']}
+  \end{goals}
+
+  Invert both \asmref{\lpref-rel1} and \asmref{\lpref-rel2}, then \goalref{\lpref-eq} follows by reflexivity.
+\end{proof}
+\begin{lemma}{\lemmalabel[$\seqctTOspecct{n}{m}$ is left-total.]{seqct-to-specct-left-total}}
+  $\seqctTOspecct{n}{m}$ is left-total.
+\end{lemma}
+\begin{proof}
+  Simple case analysis on the arguments.
+\end{proof}
+\begin{corollary}{\corollarylabel[$\seqctTOspecct{n}{m}$ induces a Galois Insertion.]{seqct-to-specct-induce-galois-insertion}}
+  It holds that:
+  \begin{goals}
+    \goal{seqct-to-specct-induce-galois-insertion}{\forall\varProperty,\mapUniversal{\sim}{\mapExistential{\sim}{\varProperty}}=\varProperty}
+  \end{goals}
+\end{corollary}
+\begin{proof}
+  Immediate from \lemmaref{general-induce-galois-insertion} via \lemmaref{seqct-to-specct-left-total} and \lemmaref{seqct-to-specct-left-unique}.
+\end{proof}
+
 \paragraph{Memory} $\;$\\
 
 \judgbox{\seqmemTOspecmem{n}{m} : \seqmemEvent\to\specmemEvent\to\mathbb{P}}{,,Map sequential memory to speculative memory events.\\%
@@ -448,6 +550,38 @@ The trace-level versions have to do minor bookkeeping to count speculation depth
   }{seqmem-to-specmem-trans}
 \end{center}
 
+\begin{lemma}{\lemmalabel[$\seqmemTOspecmem{n}{m}$ is left-unique.]{seqmem-to-specmem-left-unique}}
+  $\seqmemTOspecmem{n}{m}$ is left-unique.
+\end{lemma}
+\begin{proof}
+  \newcommand{\lpref}{seqmem-to-specmem-left-unique}
+  Let $\seqmemEvent$ and $\seqmemEvent[']$ with $\specmemEvent$ such that:
+  \begin{passumptions}
+    \asm{\lpref-rel1}{\seqmemEvent\seqmemTOspecmem{n}{m}\specmemEvent}
+    \asm{\lpref-rel2}{\seqmemEvent[']\seqmemTOspecmem{n}{m}\specmemEvent}
+  \end{passumptions}
+  The goal is:
+  \begin{goals}
+    \goal{\lpref-eq}{\seqmemEvent=\seqmemEvent[']}
+  \end{goals}
+
+  Invert both \asmref{\lpref-rel1} and \asmref{\lpref-rel2}, then \goalref{\lpref-eq} follows by reflexivity.
+\end{proof}
+\begin{lemma}{\lemmalabel[$\seqmemTOspecmem{n}{m}$ is left-total.]{seqmem-to-specmem-left-total}}
+  $\seqmemTOspecmem{n}{m}$ is left-total.
+\end{lemma}
+\begin{proof}
+  Simple case analysis on the arguments.
+\end{proof}
+\begin{corollary}{\corollarylabel[$\seqmemTOspecmem{n}{m}$ induces a Galois Insertion.]{seqmem-to-specmem-induce-galois-insertion}}
+  It holds that:
+  \begin{goals}
+    \goal{seqmem-to-specmem-induce-galois-insertion}{\forall\varProperty,\mapUniversal{\sim}{\mapExistential{\sim}{\varProperty}}=\varProperty}
+  \end{goals}
+\end{corollary}
+\begin{proof}
+  Immediate from \lemmaref{general-induce-galois-insertion} via \lemmaref{seqmem-to-specmem-left-total} and \lemmaref{seqmem-to-specmem-left-unique}.
+\end{proof}
 
 \paragraph{Architecture} $\;$\\
 
@@ -537,64 +671,51 @@ The trace-level versions have to do minor bookkeeping to count speculation depth
 \begin{proof}
   Simple case analysis on the arguments.
 \end{proof}
-
-\begin{corollary}{\corollarylabel[$\seqarchTOspecarch{n}{m}$ induces Galois Insertion.]{seqarch-to-specarch-galois-insertion}}
-  The universal and existential images of binary relation $\seqarchTOspecarch{n}{m}$ induce a galois insertion.
+\begin{corollary}{\corollarylabel[$\seqarchTOspecarch{n}{m}$ induces a Galois Insertion.]{seqarch-to-specarch-induce-galois-insertion}}
+  It holds that:
+  \begin{goals}
+    \goal{seqarch-to-specarch-induce-galois-insertion}{\forall\varProperty,\mapUniversal{\sim}{\mapExistential{\sim}{\varProperty}}=\varProperty}
+  \end{goals}
 \end{corollary}
 \begin{proof}
-  % mapUniversal is abstraction
-  \newcommand{\lpref}{seqarch-to-specarch-galois-insertion}
-  \newcommand{\abstraction}[1]{\mapUniversal{\seqarchTOspecarch{n}{m}}{#1}}
-  \newcommand{\concretization}[1]{\mapExistential{\seqarchTOspecarch{n}{m}}{#1}}
+  Immediate from \lemmaref{general-induce-galois-insertion} via \lemmaref{seqarch-to-specarch-left-total} and \lemmaref{seqarch-to-specarch-left-unique}.
+\end{proof}
 
-  Let $\varProperty$ be a set of $\seqarchEvent$ events, what needs to be shown is $\abstraction{\concretization{\varProperty}}=\varProperty$.
+\begin{lemma}{\lemmalabel[$\seqarchTOspecarchtr{n}{m}$ is left-unique.]{seqarch-to-specarchtr-left-unique}}
+  $\seqarchTOspecarchtr{n}{m}$ is left-unique.
+\end{lemma}
+\begin{proof}
+  \newcommand{\lpref}{seqarch-to-specarchtr-left-unique}
+  Let $\seqarchTrace$ and $\seqarchTrace[']$ with $\specarchTrace$ such that:
+  \begin{passumptions}
+    \asm{\lpref-rel1}{\seqarchTrace\seqarchTOspecarchtr{n}{m}\specarchTrace}
+    \asm{\lpref-rel2}{\seqarchTrace[']\seqarchTOspecarchtr{n}{m}\specarchTrace}
+  \end{passumptions}
+  The goal is:
+  \begin{goals}
+    \goal{\lpref-eq}{\seqarchTrace=\seqarchTrace[']}
+  \end{goals}
 
-  The proof goes by antisymmetry of set-inclusion:
-  \begin{proofcase}{\subseteq}
-    We know: 
-    \begin{passumptions}
-      \asm{\lpref-in-acprop}{\seqarchEvent\in\abstraction{\concretization{\varProperty}}}
-    \end{passumptions}
-    We need to show:
-    \begin{goals}
-      \goal{\lpref-in-prop}{\seqarchEvent\in\varProperty}
-    \end{goals}
+  Induce on \asmref{\lpref-rel1} then invert \asmref{\lpref-rel2}. 
+  The base-case follows by reflexivity and the induction case follows by inductive hypothesis and \lemmaref{seqarch-to-specarch-left-unique}.
+\end{proof}
+\begin{lemma}{\lemmalabel[$\seqarchTOspecarchtr{n}{m}$ is left-total.]{seqarch-to-specarchtr-left-total}}
+  $\seqarchTOspecarchtr{n}{m}$ is left-total.
+\end{lemma}
+\begin{proof}
+  Let $\seqarchTrace$ be a trace.
+  We want to show that there are $n,m,\specarchTrace$ such that $\seqarchTrace\seqarchTOspecarchtr{n}{m}\specarchTrace$.
+  Simply induce on $\seqarchTrace$ and use \lemmaref{seqarch-to-specarch-left-total}.
+\end{proof}
 
-    From \lemmaref{seqarch-to-specarch-left-total} we know that there is a $\specarchEvent$ such that:
-    \begin{passumptions}
-      \asm{\lpref-le-initrel}{\seqarchEvent\seqarchTOspecarch{n}{m}\specarchEvent}
-    \end{passumptions}
-    Specialize \asmref{\lpref-in-acprop} with \asmref{\lpref-le-initrel}, obtaining:
-    \begin{passumptions}
-      \asm{\lpref-elc}{\specarchEvent\in\concretization{\varProperty}}
-    \end{passumptions}
-    From \asmref{\lpref-elc}, we know that there is a $\seqarchEvent[']$ such that:
-    \begin{passumptions}
-      \asm{\lpref-le-rel}{\seqarchEvent[']\seqarchTOspecarch{n}{m}\specarchEvent}
-      \asm{\lpref-in-prop-prime}{\seqarchEvent[']\in\varProperty}
-    \end{passumptions}
-
-    Now, \goalref{\lpref-in-prop} follows from \asmref{\lpref-in-prop-prime} by rewriting with \lemmaref{seqarch-to-specarch-left-unique} whose assumptions are satisfied via \asmref{\lpref-le-initrel} and \asmref{\lpref-le-rel}.
-  \end{proofcase}
-  \begin{proofcase}{\supseteq}
-    We know: 
-    \begin{passumptions}
-      \asm{\lpref-in-prop}{\seqarchEvent\in\varProperty}
-    \end{passumptions}
-    We need to show:
-    \begin{goals}
-      \goal{\lpref-in-acprop}{\seqarchEvent\in\abstraction{\concretization{\varProperty}}}
-    \end{goals}
-    Unfold \goalref{\lpref-in-acprop}, so let $\specarchEvent$ such that:
-    \begin{passumptions}
-      \asm{\lpref-ge-initrel}{\seqarchEvent\seqarchTOspecarch{n}{m}\specarchEvent}
-    \end{passumptions}
-    What is left to prove is:
-    \begin{goals}
-      \goal{\lpref-in-propc}{\specarchEvent\in\concretization{\varProperty}}
-    \end{goals}
-    Simply instantiate the existential in \goalref{\lpref-in-propc} with $\seqarchEvent$, \asmref{\lpref-ge-initrel} and \asmref{\lpref-in-prop} resolve the remaining obligations.
-  \end{proofcase}
+\begin{corollary}{\corollarylabel[$\seqarchTOspecarchtr{n}{m}$ induces a Galois Insertion.]{seqarch-to-specarchtr-induce-galois-insertion}}
+  It holds that:
+  \begin{goals}
+    \goal{seqarch-to-specarchtr-induce-galois-insertion}{\forall\varProperty,\mapUniversal{\seqarchTOspecarchtr{n}{m}}{\mapExistential{\seqarchTOspecarchtr{n}{m}}{\varProperty}}=\varProperty}
+  \end{goals}
+\end{corollary}
+\begin{proof}
+  Immediate from \lemmaref{general-induce-galois-insertion} via \lemmaref{seqarch-to-specarchtr-left-total} and \lemmaref{seqarch-to-specarchtr-left-unique}.
 \end{proof}
 
 \subsection{Across Observer Types}

@@ -147,48 +147,36 @@ Inductive genericspecMod (M : Model) : ModV M -> ModV (SpecModel M) -> Prop :=
                        (modV (SpecModel M) (cons X' (cons Y Xs)) (Some (GenericSpecEventAny _ a)) (cons X'' (cons Y Xs)))
 .
 Local Hint Constructors genericspecMod : core.
-Definition genericspecEv (M : Model) (X : M.(State)) (Y : (SpecModel M).(State)) : option M.(Event) -> option (SpecModel M).(Event) -> Prop :=
-  fun a b => exists X' Y', genericspecMod M (modV M X a X') (modV (SpecModel M) Y b Y')
+Definition genericspecEv (M : Model) (X : M.(State)) : option M.(Event) -> option (SpecModel M).(Event) -> Prop :=
+  fun a b => exists X' Y Y', genericspecMod M (modV M X a X') (modV (SpecModel M) Y b Y')
 .
-Lemma genericspecev_left_determ M X Y : 
-  left_deterministic _ _ (genericspecEv M X Y)
+Lemma genericspecev_left_determ M X : 
+  left_deterministic _ _ (genericspecEv M X)
 .
 Proof.
-  intros a a' b [Xa' [Ya' Ha]] [Xb' [Yb' Hb]]; inversion Ha; inversion Hb; subst; eauto;
+  intros a a' b [Xa [Ya [Za Ha]]] [Xb [Yb [Zb Hb]]];
+  inversion Ha; inversion Hb; subst; eauto;
   try match goal with 
   | [H: Some _ = Some _ |- _] => now inversion H
   | [H: Some _ = None |- _] => now inversion H
   | [H: None = Some _ |- _] => now inversion H
   end.
-Qed.
+Admitted.
 Lemma genericspecev_left_total M X :
-  left_total _ _ (genericspecEv M X (cons X nil))
+  left_total _ _ (genericspecEv M X)
 .
 Proof.
   intros [a|].
-  - exists (Some (GenericSpecEventAny _ a)), X, (cons X nil); apply genericspecModNoSpec.
+  - exists (Some (GenericSpecEventAny _ a)), X, (cons X nil), (cons X nil);
+    apply genericspecModNoSpec.
     admit. (* concrete case analysis *)
     eapply GenericSpecStepSeq. admit. (* same as above *)
-  - exists None, X, (cons X nil); apply genericspecModNone.
+  - exists None, X, (cons X nil), (cons X nil); apply genericspecModNone.
     admit.
     eapply GenericSpecStepSilent.
 Admitted.
-Lemma genericspecev_left_total' M X Y (Ywf: Y <> nil) (XinY: List.In X Y) :
-  left_total _ _ (genericspecEv M X Y)
-.
-Proof.
-  induction Y as [|y Y]; intros [a|]; try congruence.
-  - destruct Y as [|z Z].
-    destruct XinY; subst.
-    exists (Some (GenericSpecEventAny _ a)), X, (cons X nil); apply genericspecModNoSpec.
-    1,2: admit. (* as above *)
-    exfalso; apply H.
-
-    destruct XinY; subst.
-    + exists (Some (GenericSpecEventAny _ a)), X, (cons X (cons z Z)).
-Admitted.
 Corollary genericspecev_insertion M X :
-  galois_insertion _ _ (genericspecEv M X (cons X nil))
+  galois_insertion _ _ (genericspecEv M X)
 .
 Proof.
   eauto using insertion, genericspecev_left_total, genericspecev_left_determ.
@@ -273,14 +261,26 @@ Proof.
   eauto using insertion, memseqspecev_left_determ, memseqspecev_left_total.
 Qed.
 
-Lemma memseqspecev'_left_total Y (Ywf : Y <> nil) (XinY: List.In GCSOk Y) :
-  left_total _ _ (stutter_cong MemSeq__Model MemSpec__Model (genericspecEv MemSeq__Model GCSOk Y)).
+Lemma memseqspecev'_left_total :
+  left_total _ _ (genericspecEv MemSeq__Model GCSOk).
 Proof.
-Admitted.
-Lemma memseqspecev'_left_determ X Y :
-  left_deterministic _ _ (genericspecEv MemSeq__Model X Y).
+  intros [[]|].
+  - exists (Some (GenericSpecEventAny _ (MemSeqCrash)));
+    exists GCSCrash, (cons GCSOk nil), (cons GCSCrash nil); repeat constructor.
+  - exists (Some (GenericSpecEventAny _ (MemSeqLoad l)));
+    exists GCSOk, (cons GCSOk nil), (cons GCSOk nil); repeat constructor;
+    unfold step; cbn; congruence.
+  - exists (Some (GenericSpecEventAny _ (MemSeqStore l)));
+    exists GCSOk, (cons GCSOk nil), (cons GCSOk nil); repeat constructor;
+    unfold step; cbn; congruence.
+  - exists None;
+    exists GCSOk, (cons GCSOk nil), (cons GCSOk nil); repeat constructor;
+    unfold step; cbn; congruence.
+Qed.
+Lemma memseqspecev'_insertion :
+  galois_insertion _ _ (genericspecEv MemSeq__Model GCSOk).
 Proof.
-  eapply genericspecev_left_determ.
+  eauto using insertion, memseqspecev'_left_total, genericspecev_left_determ.
 Qed.
 
 End MemModel.

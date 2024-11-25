@@ -1,3 +1,4 @@
+Require Import Coq.Lists.List.
 
 Section Relations.
 
@@ -10,6 +11,10 @@ Definition left_deterministic (A B : Type)
 Definition left_total (A B : Type) 
                       (rel : xrelation A B) : Prop :=
   forall a, exists b, rel a b
+.
+Definition right_total (A B : Type) 
+                       (rel : xrelation A B) : Prop :=
+  forall b, exists a, rel a b
 .
 Definition abstraction (A B : Type) (rel : xrelation A B) : (B -> Prop) -> (A -> Prop) :=
   fun π a => forall b, rel a b -> π b
@@ -59,6 +64,22 @@ Inductive starstep (M : Model) : M.(State) -> list Event -> M.(State) -> Prop :=
     starstep M X' As X'' ->
     starstep M X As X''
 .
+Inductive stutter_cong (M M' : Model) (rel : option M.(Event) -> option M'.(Event) -> Prop)
+    : list M.(Event) -> list M'.(Event) -> Prop :=
+  | stutter_cong_nil : stutter_cong _ _ _ nil nil
+  | stutter_cong_cons : forall a b As Bs, 
+      rel (Some a) (Some b) ->
+      stutter_cong _ _ _ As Bs ->
+      stutter_cong _ _ _ (cons a As) (cons b Bs)
+  | stutter_cong_ignL : forall b As Bs,
+      rel None (Some b) ->
+      stutter_cong _ _ _ As Bs ->
+      stutter_cong _ _ _ As (cons b Bs)
+  | stutter_cong_ignR : forall a As Bs,
+      rel (Some a) None ->
+      stutter_cong _ _ _ As Bs ->
+      stutter_cong _ _ _ (cons a As) Bs
+.
 
 Inductive GenericSpecOEvent (Ev : Set) : Set :=
   | GenericSpecEventAny (a : Ev)
@@ -66,22 +87,112 @@ Inductive GenericSpecOEvent (Ev : Set) : Set :=
   | GenericSpecEventRlb
 .
 Definition GenericSpecEvent (Ev : Set) := option (GenericSpecOEvent Ev).
-Inductive GenericSpecStep (M : Model) : (M.(State) * nat) -> GenericSpecEvent (M.(Event)) -> (M.(State) * nat) -> Prop :=
-  | GenericSpecStepSeq : forall (n : nat) (X X' : M.(State)) (a : M.(Event)), 
+Inductive GenericSpecStep (M : Model) : (list M.(State)) -> GenericSpecEvent (M.(Event)) -> (list M.(State)) -> Prop :=
+  | GenericSpecStepSilent : forall (X X' : M.(State)) Xs, 
+    GenericSpecStep M (cons X Xs) None (cons X' Xs)
+  | GenericSpecStepSeq : forall (X X' : M.(State)) Xs (a : M.(Event)), 
     M.(step) X (Some a) X' ->
-    GenericSpecStep M (X,n) (Some (GenericSpecEventAny (M.(Event)) a)) (X',n)
-  | GenericSpecStepSpecStart : forall (n : nat) (X : M.(State)),
-    GenericSpecStep M (X,n) (Some (GenericSpecEventSpec (M.(Event)))) (X,1 + n)
-  | GenericSpecStepSpecRlb : forall (n : nat) (X : M.(State)),
-    GenericSpecStep M (X,1 + n) (Some (GenericSpecEventRlb (M.(Event)))) (X, n)
+    GenericSpecStep M (cons X Xs) (Some (GenericSpecEventAny (M.(Event)) a)) (cons X' Xs)
+  | GenericSpecStepSpecStart : forall (X : M.(State)) Xs,
+    GenericSpecStep M (cons X Xs) (Some (GenericSpecEventSpec (M.(Event)))) (cons X (cons X Xs))
+  | GenericSpecStepSpecRlb : forall (n : nat) (X : M.(State)) Xs,
+    GenericSpecStep M (cons X Xs) (Some (GenericSpecEventRlb (M.(Event)))) (Xs)
 .
 Instance SpecModel (M : Model) : Model := {
   Event := GenericSpecOEvent (M.(Event)) ;
-  State := (M.(State)) * nat ;
-  is_final := (fun X => let '(X, n) := X in is_final X /\ n = 0) ;
+  State := list M.(State);
+  is_final := (fun X => 
+    match X with
+    | cons X nil => is_final X
+    | _ => False
+    end
+  ) ;
   step := GenericSpecStep M ;
 }.
+Axiom step_steps : forall (M : Model) X a, ~is_final X -> exists X', step X a X'.
 
+Inductive GenericCrashedState : Set :=
+  | GCSOk
+  | GCSCrash
+.
+Inductive ModV (M : Model) : Type :=
+  | modV (X : M.(State)) (o : option M.(Event)) (X' : M.(State))
+.
+
+Inductive genericspecMod (M : Model) : ModV M -> ModV (SpecModel M) -> Prop :=
+  | genericspecModNone : forall X X', 
+      M.(step) X None X' ->
+      (SpecModel M).(step) (cons X nil) None (cons X' nil) ->
+      genericspecMod M (modV M X None X')
+                       (modV (SpecModel M) (cons X nil) None (cons X' nil))
+  | genericspecModNoSpec : forall X X' a, 
+      M.(step) X (Some a) X' ->
+      (SpecModel M).(step) (cons X nil) (Some (GenericSpecEventAny _ a)) (cons X' nil) ->
+      genericspecMod M (modV M X (Some a) X')
+                       (modV (SpecModel M) (cons X nil) (Some (GenericSpecEventAny _ a)) (cons X' nil))
+  | genericspecModSpec : forall X Xs, 
+      M.(step) X None X ->
+      (SpecModel M).(step) (cons X Xs) (Some (GenericSpecEventSpec _)) (cons X (cons X Xs)) ->
+      genericspecMod M (modV M X None X)
+                       (modV (SpecModel M) (cons X Xs) (Some (GenericSpecEventSpec _)) (cons X Xs))
+  | genericspecModRlb : forall X Xs, 
+      M.(step) X None X ->
+      (SpecModel M).(step) (cons X Xs) (Some (GenericSpecEventRlb _)) Xs ->
+      genericspecMod M (modV M X None X)
+                       (modV (SpecModel M) (cons X Xs) (Some (GenericSpecEventRlb _)) Xs)
+  | genericspecModSpecAny : forall X X' X'' Y Xs a, 
+      M.(step) X None X ->
+      (SpecModel M).(step) (cons X' (cons Y Xs)) (Some (GenericSpecEventAny _ a)) (cons X'' (cons Y Xs)) ->
+      genericspecMod M (modV M X None X)
+                       (modV (SpecModel M) (cons X' (cons Y Xs)) (Some (GenericSpecEventAny _ a)) (cons X'' (cons Y Xs)))
+.
+Local Hint Constructors genericspecMod : core.
+Definition genericspecEv (M : Model) (X : M.(State)) (Y : (SpecModel M).(State)) : option M.(Event) -> option (SpecModel M).(Event) -> Prop :=
+  fun a b => exists X' Y', genericspecMod M (modV M X a X') (modV (SpecModel M) Y b Y')
+.
+Lemma genericspecev_left_determ M X Y : 
+  left_deterministic _ _ (genericspecEv M X Y)
+.
+Proof.
+  intros a a' b [Xa' [Ya' Ha]] [Xb' [Yb' Hb]]; inversion Ha; inversion Hb; subst; eauto;
+  try match goal with 
+  | [H: Some _ = Some _ |- _] => now inversion H
+  | [H: Some _ = None |- _] => now inversion H
+  | [H: None = Some _ |- _] => now inversion H
+  end.
+Qed.
+Lemma genericspecev_left_total M X :
+  left_total _ _ (genericspecEv M X (cons X nil))
+.
+Proof.
+  intros [a|].
+  - exists (Some (GenericSpecEventAny _ a)), X, (cons X nil); apply genericspecModNoSpec.
+    admit. (* concrete case analysis *)
+    eapply GenericSpecStepSeq. admit. (* same as above *)
+  - exists None, X, (cons X nil); apply genericspecModNone.
+    admit.
+    eapply GenericSpecStepSilent.
+Admitted.
+Lemma genericspecev_left_total' M X Y (Ywf: Y <> nil) (XinY: List.In X Y) :
+  left_total _ _ (genericspecEv M X Y)
+.
+Proof.
+  induction Y as [|y Y]; intros [a|]; try congruence.
+  - destruct Y as [|z Z].
+    destruct XinY; subst.
+    exists (Some (GenericSpecEventAny _ a)), X, (cons X nil); apply genericspecModNoSpec.
+    1,2: admit. (* as above *)
+    exfalso; apply H.
+
+    destruct XinY; subst.
+    + exists (Some (GenericSpecEventAny _ a)), X, (cons X (cons z Z)).
+Admitted.
+Corollary genericspecev_insertion M X :
+  galois_insertion _ _ (genericspecEv M X (cons X nil))
+.
+Proof.
+  eauto using insertion, genericspecev_left_total, genericspecev_left_determ.
+Qed.
 Section MemModel.
 Inductive MemSeqOEvent : Set :=
   | MemSeqCrash
@@ -90,70 +201,269 @@ Inductive MemSeqOEvent : Set :=
 .
 Definition MemSeqEvent := option MemSeqOEvent.
 Instance MemSeq__Model : Model := {
-  Event := MemSeqEvent ;
-  State := unit ;
+  Event := MemSeqOEvent ;
+  State := GenericCrashedState ;
   is_final := (fun X => True) ;
-  step := (fun a o b => True) ;
+  step := (fun a o b => 
+    match a, b with
+    | GCSOk, GCSOk => (o <> Some MemSeqCrash)
+    | GCSOk, GCSCrash => (o = Some MemSeqCrash)
+    | _, _ => False
+    end
+  ) ;
 }.
 Definition MemSpecOEvent := GenericSpecOEvent MemSeqOEvent.
 Definition MemSpecEvent := option MemSpecOEvent.
 
 Instance MemSpec__Model : Model := SpecModel MemSeq__Model.
+
+Inductive memseqspecMod : ModV MemSeq__Model -> ModV MemSpec__Model -> Prop :=
+  | memseqspecModEmpty : memseqspecMod (modV MemSeq__Model GCSOk None GCSOk)
+      (modV MemSpec__Model (cons GCSOk nil) None (cons GCSOk nil)) 
+  | memseqspecModCrash : memseqspecMod (modV MemSeq__Model GCSOk (Some MemSeqCrash) GCSCrash)
+                                     (modV MemSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ MemSeqCrash)) (cons GCSCrash nil)) 
+  | memseqspecModLoad : forall l, 
+      memseqspecMod (modV MemSeq__Model GCSOk (Some (MemSeqLoad l)) GCSOk)
+                   (modV MemSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (MemSeqLoad l))) (cons GCSOk nil))
+  | memseqspecModStore : forall l, 
+      memseqspecMod (modV MemSeq__Model GCSOk (Some (MemSeqStore l)) GCSOk)
+                   (modV MemSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (MemSeqStore l))) (cons GCSOk nil))
+  (* Speculation Part *)
+  | memseqspecModSpec : forall Xs,
+      memseqspecMod (modV MemSeq__Model GCSOk None GCSOk)
+                   (modV MemSpec__Model (cons GCSOk Xs) (Some (GenericSpecEventSpec _)) (cons GCSOk (cons GCSOk Xs)))
+  | memseqspecModRlb : forall X Xs,
+      memseqspecMod (modV MemSeq__Model GCSOk None GCSOk)
+                   (modV MemSpec__Model (cons X Xs) (Some (GenericSpecEventRlb _)) (Xs))
+  (* Plumbing *)
+  | memseqspecModCrashIgn : forall X Xs,
+      memseqspecMod (modV MemSeq__Model GCSOk None GCSOk)
+                   (modV MemSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ MemSeqCrash)) (cons GCSCrash (cons X Xs))) 
+  | memseqspecModLoadIgn : forall l X Xs,
+      memseqspecMod (modV MemSeq__Model GCSOk None GCSOk)
+                   (modV MemSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (MemSeqLoad l))) (cons GCSOk (cons X Xs))) 
+  | memseqspecModStoreIgn : forall l X Xs,
+      memseqspecMod (modV MemSeq__Model GCSOk None GCSOk)
+                   (modV MemSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (MemSeqStore l))) (cons GCSOk (cons X Xs))) 
+.
+Local
+Hint Constructors memseqspecMod : core.
+
+Definition memseqspecEv (X : MemSeq__Model.(State)) (Y : MemSpec__Model.(State)) : option MemSeq__Model.(Event) -> option MemSpec__Model.(Event) -> Prop :=
+  fun a b => exists X' Y', memseqspecMod (modV _ X a X') (modV _ Y b Y')
+.
+
+Lemma memseqspecev_left_determ X Y : 
+  left_deterministic _ _ (memseqspecEv X Y)
+.
+Proof.
+  intros a a' b [Xa' [Ya' Ha]] [Xb' [Yb' Hb]]; inversion Ha; inversion Hb; subst; eauto; congruence.
+Qed.
+(* If there is no speculation, we can always find a correspondent *)
+Lemma memseqspecev_left_total :
+  left_total _ _ (memseqspecEv GCSOk (cons GCSOk nil))
+.
+Proof.
+  intros [[]|]; do 3 eexists; eauto.
+Qed.
+Corollary memseqspecEv_insertion :
+  galois_insertion _ _ (memseqspecEv GCSOk (cons GCSOk nil))
+.
+Proof.
+  eauto using insertion, memseqspecev_left_determ, memseqspecev_left_total.
+Qed.
+
+Lemma memseqspecev'_left_total Y (Ywf : Y <> nil) (XinY: List.In GCSOk Y) :
+  left_total _ _ (stutter_cong MemSeq__Model MemSpec__Model (genericspecEv MemSeq__Model GCSOk Y)).
+Proof.
+Admitted.
+Lemma memseqspecev'_left_determ X Y :
+  left_deterministic _ _ (genericspecEv MemSeq__Model X Y).
+Proof.
+  eapply genericspecev_left_determ.
+Qed.
+
 End MemModel.
+Section CtModel.
+Inductive CtSeqOEvent : Set :=
+  | CtSeqCrash
+  | CtSeqPc (n : nat)
+  | CtSeqLoad (l : Loc)
+  | CtSeqStore (l : Loc)
+.
+Definition CtSeqEvent := option CtSeqOEvent.
+Instance CtSeq__Model : Model := {
+  Event := CtSeqOEvent ;
+  State := GenericCrashedState ;
+  is_final := (fun X => True) ;
+  step := (fun a o b => 
+    match a, b with
+    | GCSOk, GCSOk => (o <> Some CtSeqCrash)
+    | GCSOk, GCSCrash => (o = Some CtSeqCrash)
+    | _, _ => False
+    end
+  ) ;
+}.
+Definition CtSpecOEvent := GenericSpecOEvent CtSeqOEvent.
+Definition CtSpecEvent := option CtSpecOEvent.
 
-Inductive SeqOEvent : Set := 
-  | Any
-  | Crash
-.
-Hint Constructors SeqOEvent : core.
-Definition SeqEvent := option SeqOEvent.
-Inductive SpecOEvent : Set :=
-  | SAny
-  | SCrash
-  | SSpec
-  | SRlb
-.
-Hint Constructors SpecOEvent : core.
-Definition SpecEvent := option SpecOEvent.
+Instance CtSpec__Model : Model := SpecModel CtSeq__Model.
 
-Inductive seqspec : (nat * nat) -> xrelation SeqEvent SpecEvent :=
-  | seqspec_empty : forall (n : nat), seqspec (n, n) None None
-  | seqspec_any : forall (n : nat), seqspec (n, n) (Some Any) (Some SAny)
-  | seqspec_crash : forall (n : nat), seqspec (n, n) (Some Crash) (Some SCrash)
-  | seqspec_spec : forall (n : nat), seqspec (n, 1+n) (None) (Some SSpec)
-  | seqspec_rlb : forall (n : nat), seqspec (1+n, n) (None) (Some SRlb)
+Inductive ctseqspecMod : ModV CtSeq__Model -> ModV CtSpec__Model -> Prop :=
+  | ctseqspecModEmpty : ctseqspecMod (modV CtSeq__Model GCSOk None GCSOk)
+      (modV CtSpec__Model (cons GCSOk nil) None (cons GCSOk nil)) 
+  | ctseqspecModCrash : ctseqspecMod (modV CtSeq__Model GCSOk (Some CtSeqCrash) GCSCrash)
+                                     (modV CtSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ CtSeqCrash)) (cons GCSCrash nil)) 
+  | ctseqspecModPc : forall n, 
+      ctseqspecMod (modV CtSeq__Model GCSOk (Some (CtSeqPc n)) GCSOk)
+                   (modV CtSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (CtSeqPc n))) (cons GCSOk nil))
+  | ctseqspecModLoad : forall l, 
+      ctseqspecMod (modV CtSeq__Model GCSOk (Some (CtSeqLoad l)) GCSOk)
+                   (modV CtSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (CtSeqLoad l))) (cons GCSOk nil))
+  | ctseqspecModStore : forall l, 
+      ctseqspecMod (modV CtSeq__Model GCSOk (Some (CtSeqStore l)) GCSOk)
+                   (modV CtSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (CtSeqStore l))) (cons GCSOk nil))
+  (* Speculation Part *)
+  | ctseqspecModSpec : forall Xs,
+      ctseqspecMod (modV CtSeq__Model GCSOk None GCSOk)
+                   (modV CtSpec__Model (cons GCSOk Xs) (Some (GenericSpecEventSpec _)) (cons GCSOk (cons GCSOk Xs)))
+  | ctseqspecModRlb : forall X Xs,
+      ctseqspecMod (modV CtSeq__Model GCSOk None GCSOk)
+                   (modV CtSpec__Model (cons X Xs) (Some (GenericSpecEventRlb _)) (Xs))
+  (* Plumbing *)
+  | ctseqspecModCrashIgn : forall X Xs,
+      ctseqspecMod (modV CtSeq__Model GCSOk None GCSOk)
+                   (modV CtSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ CtSeqCrash)) (cons GCSCrash (cons X Xs))) 
+  | ctseqspecModPcIgn : forall n X Xs,
+      ctseqspecMod (modV CtSeq__Model GCSOk None GCSOk)
+                   (modV CtSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (CtSeqPc n))) (cons GCSOk (cons X Xs))) 
+  | ctseqspecModLoadIgn : forall l X Xs,
+      ctseqspecMod (modV CtSeq__Model GCSOk None GCSOk)
+                   (modV CtSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (CtSeqLoad l))) (cons GCSOk (cons X Xs))) 
+  | ctseqspecModStoreIgn : forall l X Xs,
+      ctseqspecMod (modV CtSeq__Model GCSOk None GCSOk)
+                   (modV CtSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (CtSeqStore l))) (cons GCSOk (cons X Xs))) 
 .
-Lemma seqspec_left_determ : forall n m,
-  left_deterministic SeqEvent SpecEvent (seqspec (n,m))
+Local
+Hint Constructors ctseqspecMod : core.
+Definition ctseqspecEv (X : CtSeq__Model.(State)) (Y : CtSpec__Model.(State)) : option CtSeq__Model.(Event) -> option CtSpec__Model.(Event) -> Prop :=
+  fun a b => exists X' Y', ctseqspecMod (modV _ X a X') (modV _ Y b Y')
+.
+
+Lemma ctseqspecev_left_determ X Y : 
+  left_deterministic _ _ (ctseqspecEv X Y)
 .
 Proof.
-  intros n m a a' b; inversion 1; intros H'; subst; inversion H'; subst; easy.
+  intros a a' b [Xa' [Ya' Ha]] [Xb' [Yb' Hb]]; inversion Ha; inversion Hb; subst; eauto; congruence.
 Qed.
-Lemma seqspec_m_determ : forall a a' b n m m',
-  seqspec (n,m) a b ->
-  seqspec (n,m') a' b ->
-  m = m'
+(* If there is no speculation, we can always find a correspondent *)
+Lemma ctseqspecev_left_total :
+  left_total _ _ (ctseqspecEv GCSOk (cons GCSOk nil))
 .
 Proof.
-  intros a a' b n m m'; inversion 1; subst; inversion 1; subst; eauto.
+  intros [[]|]; do 3 eexists; eauto.
 Qed.
-Lemma seqspec_left_determ' : forall n,
-  left_deterministic SeqEvent SpecEvent (fun a b => exists m, seqspec (n,m) a b)
+Corollary ctseqspecEv_insertion :
+  galois_insertion _ _ (ctseqspecEv GCSOk (cons GCSOk nil))
 .
 Proof.
-  intros n a a' b [m H] [m' H'];
-  specialize (seqspec_m_determ a a' b n m m' H H') as <-.
-  eapply seqspec_left_determ; eauto.
+  eauto using insertion, ctseqspecev_left_determ, ctseqspecev_left_total.
 Qed.
-Lemma seqspec_left_total : forall n,
-  left_total SeqEvent SpecEvent (fun a b => exists m, seqspec (n,m) a b)
+End CtModel.
+Section ArchModel.
+Inductive ArchSeqOEvent : Set :=
+  | ArchSeqCrash
+  | ArchSeqPc (n : nat)
+  | ArchSeqLoad (l : Loc) (v : Val)
+  | ArchSeqStore (l : Loc) (v : Val)
+.
+Definition ArchSeqEvent := option ArchSeqOEvent.
+Instance ArchSeq__Model : Model := {
+  Event := ArchSeqOEvent ;
+  State := GenericCrashedState ;
+  is_final := (fun X => True) ;
+  step := (fun a o b => 
+    match a, b with
+    | GCSOk, GCSOk => (o <> Some ArchSeqCrash)
+    | GCSOk, GCSCrash => (o = Some ArchSeqCrash)
+    | _, _ => False
+    end
+  ) ;
+}.
+Definition ArchSpecOEvent := GenericSpecOEvent ArchSeqOEvent.
+Definition ArchSpecEvent := option ArchSpecOEvent.
+
+Instance ArchSpec__Model : Model := SpecModel ArchSeq__Model.
+
+Inductive archseqspecMod : ModV ArchSeq__Model -> ModV ArchSpec__Model -> Prop :=
+  | archseqspecModEmpty : archseqspecMod (modV ArchSeq__Model GCSOk None GCSOk)
+      (modV ArchSpec__Model (cons GCSOk nil) None (cons GCSOk nil)) 
+  | archseqspecModCrash : archseqspecMod (modV ArchSeq__Model GCSOk (Some ArchSeqCrash) GCSCrash)
+                                     (modV ArchSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ ArchSeqCrash)) (cons GCSCrash nil)) 
+  | archseqspecModPc : forall n, 
+      archseqspecMod (modV ArchSeq__Model GCSOk (Some (ArchSeqPc n)) GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (ArchSeqPc n))) (cons GCSOk nil))
+  | archseqspecModLoad : forall l v, 
+      archseqspecMod (modV ArchSeq__Model GCSOk (Some (ArchSeqLoad l v)) GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (ArchSeqLoad l v))) (cons GCSOk nil))
+  | archseqspecModStore : forall l v, 
+      archseqspecMod (modV ArchSeq__Model GCSOk (Some (ArchSeqStore l v)) GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ (ArchSeqStore l v))) (cons GCSOk nil))
+  (* Speculation Part *)
+  | archseqspecModSpec : forall Xs,
+      archseqspecMod (modV ArchSeq__Model GCSOk None GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk Xs) (Some (GenericSpecEventSpec _)) (cons GCSOk (cons GCSOk Xs)))
+  | archseqspecModRlb : forall X Xs,
+      archseqspecMod (modV ArchSeq__Model GCSOk None GCSOk)
+                   (modV ArchSpec__Model (cons X Xs) (Some (GenericSpecEventRlb _)) (Xs))
+  (* Plumbing *)
+  | archseqspecModCrashIgn : forall X Xs,
+      archseqspecMod (modV ArchSeq__Model GCSOk None GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ ArchSeqCrash)) (cons GCSCrash (cons X Xs))) 
+  | archseqspecModPcIgn : forall n X Xs,
+      archseqspecMod (modV ArchSeq__Model GCSOk None GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (ArchSeqPc n))) (cons GCSOk (cons X Xs))) 
+  | archseqspecModLoadIgn : forall l v X Xs,
+      archseqspecMod (modV ArchSeq__Model GCSOk None GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (ArchSeqLoad l v))) (cons GCSOk (cons X Xs))) 
+  | archseqspecModStoreIgn : forall l v X Xs,
+      archseqspecMod (modV ArchSeq__Model GCSOk None GCSOk)
+                   (modV ArchSpec__Model (cons GCSOk (cons X Xs)) (Some (GenericSpecEventAny _ (ArchSeqStore l v))) (cons GCSOk (cons X Xs))) 
+.
+Local
+Hint Constructors archseqspecMod : core.
+Definition archseqspecEv (X : ArchSeq__Model.(State)) (Y : ArchSpec__Model.(State)) : option ArchSeq__Model.(Event) -> option ArchSpec__Model.(Event) -> Prop :=
+  fun a b => exists X' Y', archseqspecMod (modV _ X a X') (modV _ Y b Y')
+.
+
+Lemma archseqspecev_left_determ X Y : 
+  left_deterministic _ _ (archseqspecEv X Y)
 .
 Proof.
-  intros n [[]|]; do 2 eexists; now econstructor.
+  intros a a' b [Xa' [Ya' Ha]] [Xb' [Yb' Hb]]; inversion Ha; inversion Hb; subst; eauto; congruence.
 Qed.
-Corollary seqspec_insertion : forall n,
-  galois_insertion SeqEvent SpecEvent (fun a b => exists m, seqspec (n,m) a b)
+(* If there is no speculation, we can always find a correspondent *)
+Lemma archseqspecev_left_total :
+  left_total _ _ (archseqspecEv GCSOk (cons GCSOk nil))
 .
 Proof.
-  intros n; eapply insertion; eauto using seqspec_left_determ', seqspec_left_total.
+  intros [[]|]; do 3 eexists; eauto.
 Qed.
+Corollary archseqspecEv_insertion :
+  galois_insertion _ _ (archseqspecEv GCSOk (cons GCSOk nil))
+.
+Proof.
+  eauto using insertion, archseqspecev_left_determ, archseqspecev_left_total.
+Qed.
+End ArchModel.
+
+(** * Cross Language Trace Relations *)
+Inductive archspecctspecMod : ModV ArchSpec__Model -> ModV CtSpec__Model -> Prop :=
+  | archspecctspecModEmpty : archspecctspecMod (modV ArchSpec__Model (cons GCSOk nil) None (cons GCSOk nil))
+      (modV CtSpec__Model (cons GCSOk nil) None (cons GCSOk nil)) 
+  | archspecctspecModCrash : archspecctspecMod (modV ArchSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ ArchSeqCrash)) (cons GCSCrash nil))
+                                     (modV CtSpec__Model (cons GCSOk nil) (Some (GenericSpecEventAny _ CtSeqCrash)) (cons GCSCrash nil)) 
+                                     (* ... now what? *)
+.
+
+

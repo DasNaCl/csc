@@ -63,6 +63,7 @@
 
 \begin{document}
 
+
 \begin{center}
   \begin{tabular}{|c|c|c|c|c|c|c|}
     \hline
@@ -262,6 +263,9 @@ Moreover, it relies on observers \gls{ctobs}, \gls{pathctobs}, \gls{memobs}, and
 \clearpage
 
 \section{Preliminaries}
+
+For all traces, we assume that if $\lightning$ occurs, it occurs exactly once and no events follow after.
+The $\lightning$ event mimicks a crash.
 
 \begin{lemma}{\lemmalabel[Left-total and injective $\sim$ induces a Galois Insertion.]{general-induce-galois-insertion}}
   If
@@ -723,13 +727,182 @@ The trace-level versions have to do minor bookkeeping to count speculation depth
 
 \subsection{Across Observer Types}
 
-\paragraph{Memory to Constant-Time} $\;$
+\paragraph{Memory $\leftrightarrow$ Constant-time} $\;$
 
 \begin{center}
+  \judgbox{\specmemTOspecct : \specmemEvent\to\specctEvent\to\mathbb{P}}{,,Map speculative memory to speculative constant-time events.}
+  %
   \typerule{specmem-to-specct-empty}{}{
     \specmemev{\emptyevent}\specmemTOspecct\specctev{\emptyevent}
   }{specmem-to-specct-empty}
+  %
+  \typerule{specmem-to-specct-crash}{}{
+    \specmemev{\lightning}\specmemTOspecct\specctev{\lightning}
+  }{specmem-to-specct-crash}
+  %
+  \typerule{specmem-to-specct-load}{}{
+    \specmemev{Load\;\varLoc}\specmemTOspecct\specctev{Load\;\varLoc}
+  }{specmem-to-specct-load}
+  %
+  \typerule{specmem-to-specct-store}{}{
+    \specmemev{Store\;\varLoc}\specmemTOspecct\specctev{Store\;\varLoc}
+  }{specmem-to-specct-store}
+  %
+  \typerule{specmem-to-specct-pcign}{}{
+    \specmemev{\emptyevent}\specmemTOspecct\specctev{Pc\;\varLoc}
+  }{specmem-to-specct-pcign}
+  %
+  \typerule{specmem-to-specct-spec}{}{
+    \specmemev{Spec}\specmemTOspecct\specctev{Spec}
+  }{specmem-to-specct-spec}
+  %
+  \typerule{specmem-to-specct-rlb}{}{
+    \specmemev{Rlb}\specmemTOspecct\specctev{Rlb}
+  }{specmem-to-specct-rlb}
 \end{center}
+\begin{center}
+  \judgbox{\specmemTOspeccttr : \specmemTrace\to\specctTrace\to\mathbb{P}}{,,Map speculative memory to speculative constant-time traces.''}
+  %
+  \typerule{specmem-to-specct-refl}{}{
+    \hole{\cdot}\specmemTOspeccttr\hole{\cdot}
+  }{specmem-to-specct-refl}
+  %
+  \typerule{specmem-to-specct-trans}{
+    \specmemEvent\specmemTOspecct\specctEvent \rulesep
+    \specmemTrace\specmemTOspeccttr\specctTrace
+  }{
+    \specmemEvent\cdot\specmemTrace\specmemTOspeccttr\specmemEvent\cdot\specmemTrace
+  }{specmem-to-specct-trans}
+\end{center}
+
+Using existing relations, it is now possible to define sequential comparison without loss of precision as follows:
+
+\[
+  \begin{array}{rcl}
+    \seqmemTrace\seqmemTOspeccttr\specctTrace &\isdef& \exists \specmemTrace\;,
+        \seqmemTrace\seqmemTOspecmemtr{0}{0}\specmemTrace
+      \;\operatorname{and}\;
+        \specmemTrace\specmemTOspeccttr\specctTrace
+    \\[1ex]
+    \seqmemTrace\seqmemTOseqcttr\seqctTrace &\isdef& \exists \specctTrace\;,
+        \seqmemTrace\seqmemTOspeccttr\specctTrace
+      \;\operatorname{and}\;
+        \seqctTrace\seqctTOspeccttr{0}{0}\specctTrace
+  \end{array}
+\]
+
+Moreover:
+\[
+  \specmemTrace\specmemTOseqcttr\seqctTrace \isdef 
+    \exists \specctTrace\;,
+      \specmemTrace\specmemTOspeccttr\specctTrace
+    \;\operatorname{and}\;
+      \seqctTrace\seqctTOspeccttr{0}{0}\specctTrace
+\]
+
+\paragraph{Constant-time $\leftrightarrow$ Architecture} $\;$
+
+\begin{center}
+  \judgbox{\specctTOspecarch : \specctEvent\to\specarchEvent\to\mathbb{P}}{,,Map speculative constant-time to speculative architecture events.}
+  %
+  \typerule{specct-to-specarch-empty}{}{
+    \specctev{\emptyevent}\specctTOspecarch\specarchev{\emptyevent}
+  }{specct-to-specarch-empty}
+  %
+  \typerule{specct-to-specarch-crash}{}{
+    \specctev{\lightning}\specctTOspecarch\specarchev{\lightning}
+  }{specct-to-specarch-crash}
+  %
+  \typerule{specct-to-specarch-load}{}{
+    \specctev{Load\;\varLoc}\specctTOspecarch\specarchev{Load\;\varLoc\;v}
+  }{specct-to-specarch-load}
+  %
+  \typerule{specct-to-specarch-store}{}{
+    \specctev{Store\;\varLoc}\specctTOspecarch\specarchev{Store\;\varLoc\;v}
+  }{specct-to-specarch-store}
+  %
+  \typerule{specct-to-specarch-pc}{}{
+    \specctev{Pc\;n}\specctTOspecarch\specarchev{Pc\;n}
+  }{specct-to-specarch-pc}
+  %
+  \typerule{specct-to-specarch-spec}{}{
+    \specctev{Spec}\specctTOspecarch\specarchev{Spec}
+  }{specct-to-specarch-spec}
+  %
+  \typerule{specct-to-specarch-rlb}{}{
+    \specctev{Rlb}\specctTOspecarch\specarchev{Rlb}
+  }{specct-to-specarch-rlb}
+\end{center}
+\begin{center}
+  \judgbox{\specctTOspecarchtr : \specctTrace\to\specarchTrace\to\mathbb{P}}{,,Map speculative constant-time to speculative architecture traces.''}
+  %
+  \typerule{specct-to-specarch-refl}{}{
+    \hole{\cdot}\specctTOspecarchtr\hole{\cdot}
+  }{specct-to-specarch-refl}
+  %
+  \typerule{specct-to-specarch-trans}{
+    \specctEvent\specctTOspecarch\specarchEvent \rulesep
+    \specctTrace\specctTOspecarchtr\specarchTrace
+  }{
+    \specctEvent\cdot\specctTrace\specctTOspecarchtr\specctEvent\cdot\specctTrace
+  }{specct-to-specarch-trans}
+\end{center}
+
+Using existing relations, it is now possible to define sequential comparison without loss of precision as follows:
+
+\[
+  \begin{array}{rcl}
+    \seqctTrace\seqctTOspecarchtr\specarchTrace &\isdef& \exists \specctTrace\;,
+        \seqctTrace\seqctTOspeccttr{0}{0}\specctTrace
+      \;\operatorname{and}\;
+        \specctTrace\specctTOspecarchtr\specarchTrace
+    \\[1ex]
+    \seqctTrace\seqctTOseqarchtr\seqarchTrace &\isdef& \exists \specarchTrace\;,
+        \seqctTrace\seqctTOspecarchtr\specarchTrace
+      \;\operatorname{and}\;
+        \seqarchTrace\seqarchTOspecarchtr{0}{0}\specarchTrace
+  \end{array}
+\]
+Moreover:
+\[
+  \specctTrace\specctTOseqarchtr\seqarchTrace \isdef 
+    \exists \specarchTrace\;,
+      \specctTrace\specctTOspecarchtr\specarchTrace
+    \;\operatorname{and}\;
+      \seqarchTrace\seqarchTOspecarchtr{0}{0}\specarchTrace
+\]
+
+\paragraph{Memory $\leftrightarrow$ Architecture} $\;$\\
+These cases are plugging the previous relations into each other in a straightforward fashion:
+
+\[
+  \begin{array}{rcl}
+    \seqmemTrace\seqmemTOseqarchtr\seqarchTrace &\isdef&
+      \exists \seqctTrace\;,
+        \seqmemTrace\seqmemTOseqcttr\seqctTrace
+      \;\operatorname{and}\;
+        \seqctTrace\seqctTOseqarchtr\seqarchTrace
+    \\
+    \seqmemTrace\seqmemTOspecarchtr\specarchTrace &\isdef&
+      \exists \seqctTrace\;,
+        \seqmemTrace\seqmemTOseqcttr\seqctTrace
+      \;\operatorname{and}\;
+        \seqctTrace\seqctTOspecarchtr\specarchTrace
+    \\
+    \specmemTrace\specmemTOseqarchtr\seqarchTrace &\isdef&
+      \exists \specctTrace\;,
+        \specmemTrace\specmemTOspeccttr\specctTrace
+      \;\operatorname{and}\;
+        \specctTrace\specctTOseqarchtr\seqarchTrace
+    \\
+    \specmemTrace\specmemTOspecarchtr\specarchTrace &\isdef&
+      \exists \specctTrace\;,
+        \specmemTrace\specmemTOspeccttr\specctTrace
+      \;\operatorname{and}\;
+        \specctTrace\specctTOspecarchtr\specarchTrace
+    \\
+  \end{array}
+\]
 
 \subsection{Observer Hierarchy}
 

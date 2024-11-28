@@ -935,13 +935,24 @@ These cases are plugging the previous relations into each other in a straightfor
 \begin{array}{rcl}
   \text{(Fencing)} &-&
     \begin{array}{rcl}
-      \trg{\varEvent} & = & \trgFenceEv{\emptyevent} \mid
-                            \trgFenceEv{Load\;\varLoc\;v} \mid %
-                            \trgFenceEv{Store\;\varLoc\;v} \mid %
-                            \trgFenceEv{Pc\;n} \mid %
-                            \trgFenceEv{Spec} \mid %
-                            \trgFenceEv{Rlb} \mid %
-                            \trgFenceEv{Fence}
+      \specfenceEvent & = & \specfenceev{\emptyevent} \mid
+                            \specfenceev{Load\;\varLoc\;v} \mid %
+                            \specfenceev{Store\;\varLoc\;v} \mid %
+                            \specfenceev{Pc\;n} \\ &\mid&%
+                            \specfenceev{Spec} \mid %
+                            \specfenceev{Rlb} \mid %
+                            \specfenceev{Fence}
+    \end{array} \\[2em]
+    %
+  \text{(Speculative Load Hardening)} &-&
+    \begin{array}{rcl}
+      \specslhEvent & = & \specslhev{\emptyevent} \mid
+                          \specslhev{Load\;\varLoc\;v} \mid %
+                          \specslhev{Store\;\varLoc\;v} \mid %
+                          \specslhev{Pc\;n} \mid \\ &\mid&%
+                          \specslhev{Br\;b\;n} \mid %
+                          \specslhev{Spec} \mid %
+                          \specslhev{Rlb}
     \end{array} \\
 \end{array}
 \]
@@ -1016,19 +1027,71 @@ The answer $o\lrpars{n}$ corresponds to the event at position $n$ in $\specarchT
 
 \paragraph{Speculative Load Hardening} $\;$
 
+Let $s$ be a set of secret memory addresses, i.e., we say $\varLoc$ is secret iff $\varLoc\in s$.
+Note that we assume speculative execution to use always-mispredict semantics.
+
 \begin{center}
-  \judgbox{\specarchev{\cdot}\sim\ev{\cdot}}{,,Map speculative architecture to SLH.''}
-  \typerule{specarch-to-slh-load}{
-    \specarchev{Rlb}\not\in\varTrace 
-    \rulesep
-    \trg{Rlb}\not\in\trg{\varTrace} 
-    \rulesep
-    \vdash{\varLoc}:\text{secret} 
-    \rulesep
+  \judgbox{\specarchTOspecslh{n;s;\trg{\overline{b}}}{m;\trg{\overline{b}}} : \specarchEvent \to \specslhTrace \to \mathbb{P}}{,,Map speculative architecture to speculative load hardening. %
+  $s$ is a map of secret locations.''}
+  %
+  \typerule{specarch-to-specslh-empty}{}{
+    \specarchev{\emptyevent}\specarchTOspecslh{n;s;\trg{\overline{b}}}{n;\trg{\overline{b}}}\specslhev{\emptyevent}
+  }{specarch-to-specslh-empty}
+  %
+  \typerule{specarch-to-specslh-crash}{}{
+    \specarchev{\lightning}\specarchTOspecslh{n;s;\trg{\overline{b}}}{n;\trg{\overline{b}}}\specslhev{\lightning}
+  }{specarch-to-specslh-crash}
+  %
+  \typerule{specarch-to-specslh-specmode-branch}{}{
+    \specarchev{Pc\;n'}\specarchTOspecslh{1+n;s;\trg{\overline{b}}}{1+n;\trg{b}\cdot\trg{\overline{b}}}\specslhev{Br\;b\;n'}
+  }{specarch-to-specslh-specmode-branch}
+  %
+  \typerule{specarch-to-specslh-specmode-load}{
+    \varLoc\in s \rulesep
     \trg{v}=v\operatorname{bitor}\trg{b}
   }{
-    \specarchev{Spec}\cdot\specarchev{Pc\;n}\cdot\varTrace \cdot \specarchev{Load\;\varLoc\;v}\sim\trg{Spec\cdot Br\;b\cdot\varTrace\cdot Load\;\varLoc\;v}
-  }{specarch-to-slh-load}
+    \specarchev{Load\;\varLoc\;v}\specarchTOspecslh{1+n;s;\trg{b}\cdot\trg{\overline{b}}}{1+n;\trg{b}\cdot\trg{\overline{b}}}\specslhev{Load\;\varLoc\;v}
+  }{specarch-to-specslh-specmode-load}
+  %
+  \typerule{specarch-to-specslh-store}{}{
+    \specarchev{Store\;\varLoc\;v}\specarchTOspecslh{n;s;\trg{\overline{b}}}{n;\trg{\overline{b}}}\specslhev{Store\;\varLoc\;v}
+  }{specarch-to-specslh-store}
+  %
+  \typerule{specarch-to-specslh-load}{}{
+    \specarchev{Load\;\varLoc\;v}\specarchTOspecslh{n;s;\trg{\overline{b}}}{n;\trg{\overline{b}}}\specslhev{Load\;\varLoc\;v}
+  }{specarch-to-specslh-load}
+  %
+  \typerule{specarch-to-specslh-spec}{}{
+    \specarchev{Spec}\specarchTOspecslh{n;s;\trg{\overline{b}}}{1+n;\trg{\overline{b}}}\specslhev{Spec}
+  }{specarch-to-specslh-spec}
+  %
+  \typerule{specarch-to-specslh-rlb}{}{
+    \specarchev{Rlb}\specarchTOspecslh{n;s;\trg{\overline{b}}}{1+n;\trg{\overline{b}}}\specslhev{Rlb}
+  }{specarch-to-specslh-rlb}
+  %
+  \typerule{specarch-to-specslh-pc}{}{
+    \specarchev{Pc\;n'}\specarchTOspecslh{n;s;\trg{\overline{b}}}{n;\trg{\overline{b}}}\specslhev{Pc\;n'}
+  }{specarch-to-specslh-pc}
+  %
+  \typerule{specarch-to-specslh-branch}{}{
+    \specarchev{Pc\;n'}\specarchTOspecslh{n;s;\trg{\overline{b}}}{n;\trg{\overline{b}}}\specslhev{Branch\;b\;n'}
+  }{specarch-to-specslh-branch}
+\end{center}
+
+\begin{center}
+  \judgbox{\specarchTOspecslh{n;s;\trg{\overline{b}}}{m;\trg{\overline{b}}} : \specarchEvent \to \specslhTrace \to \mathbb{P}}{,,Map speculative architecture to speculative load hardening. %
+  $s$ is a map of secret locations.''}
+  %
+  \typerule{specarch-to-specslh-refl}{}{
+    \hole{\cdot}\specarchTOspecslhtr{0;s;\trg{\hole{\cdot}}}{0;\trg{\hole{\cdot}}}\hole{\cdot}
+  }{specarch-to-specslh-refl}
+  %
+  \typerule{specarch-to-specslh-trans}{
+    \specarchEvent\specarchTOspecslh{n;s;\trg{\overline{b}}}{n';\trg{\overline{b'}}}\specslhEvent\rulesep
+    \specarchTrace\specarchTOspecslhtr{n';s;\trg{\overline{b'}}}{m;\trg{\overline{b''}}}\specslhTrace
+  }{
+    \specarchEvent\cdot\specarchTrace\specarchTOspecslhtr{n;s;\trg{\overline{b}}}{m;\trg{\overline{b''}}}\specslhEvent\cdot\specslhTrace
+  }{specarch-to-specslh-trans}
 \end{center}
 
 \section{Clustering}

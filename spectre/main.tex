@@ -948,23 +948,76 @@ These cases are plugging the previous relations into each other in a straightfor
 
 \section{Mappings from Observers to Machines}
 
-\judgbox{\specarchev{\cdot}\sim_o\ev{\cdot}}{,,Map speculative architecture to Mem-Fencing using oracle $o$.''}
+\paragraph{Memory fencing} $\;$\\
+
+Let $o$ be a stream of ,,$\text{yes}$'' and ,,$\text{no}$'', which associate to each $\specarchEvent$ in a given trace $\specarchTrace$.
+The answer $o\lrpars{n}$ corresponds to the event at position $n$ in $\specarchTrace$\;.
 \begin{center}
-  \typerule{specarch-to-fencing-load}{
-    \llbracket o\rrbracket = \text{yes}
-  }{
-    \specarchev{Load\;\varLoc\;v}\sim_o\trg{Fence\cdot Load\;\varLoc\;v}
-  }{specarch-to-fencing-load}
+  \judgbox{\specarchTOspecfence{n}{o} : \specarchEvent \to \specfenceEvent \to \mathbb{P}}{,,Map speculative architecture to memory-fencing using oracle $o$ for a given position $n$.''}
   %
-  \typerule{specarch-to-fencing-store}{
-    \llbracket o\rrbracket = \text{yes}
+  \typerule{specarch-to-fencing-empty}{}{
+    \specarchev{\emptyevent}\specarchTOspecfence{n}{o}\specfenceev{\emptyevent}
+  }{specarch-to-fencing-empty}
+  %
+  \typerule{specarch-to-fencing-crash}{}{
+    \specarchev{\lightning}\specarchTOspecfence{n}{o}\specfenceev{\lightning}
+  }{specarch-to-fencing-crash}
+  %
+  \typerule{specarch-to-fencing-load-yes}{
+    o\lrpars{n} = \text{yes}
   }{
-    \specarchev{Store\;\varLoc\;v}\sim_o\trg{Fence\cdot Store\;\varLoc\;v}
-  }{specarch-to-fencing-store}
+    \specarchev{Load\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Fence\cdot Load\;\varLoc\;v}
+  }{specarch-to-fencing-load-yes}
+  %
+  \typerule{specarch-to-fencing-store-yes}{
+    o\lrpars{n} = \text{yes}
+  }{
+    \specarchev{Store\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Fence\cdot Store\;\varLoc\;v}
+  }{specarch-to-fencing-store-yes}
+  %
+  \typerule{specarch-to-fencing-load-no}{
+    o\lrpars{n} = \text{no}
+  }{
+    \specarchev{Load\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Load\;\varLoc\;v}
+  }{specarch-to-fencing-load-no}
+  %
+  \typerule{specarch-to-fencing-store-no}{
+    o\lrpars{n} = \text{no}
+  }{
+    \specarchev{Store\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Store\;\varLoc\;v}
+  }{specarch-to-fencing-store-no}
+  %
+  \typerule{specarch-to-fencing-pc}{}{
+    \specarchev{Pc\;n}\specarchTOspecfence{n}{o}\specfenceev{Pc\;n}
+  }{specarch-to-fencing-pc}
+  %
+  \typerule{specarch-to-fencing-spec}{}{
+    \specarchev{Spec}\specarchTOspecfence{n}{o}\specfenceev{Spec}
+  }{specarch-to-fencing-spec}
+  %
+  \typerule{specarch-to-fencing-rlb}{}{
+    \specarchev{Rlb}\specarchTOspecfence{n}{o}\specfenceev{Rlb}
+  }{specarch-to-fencing-rlb}
+\end{center}
+\begin{center}
+  \judgbox{\specarchTOspecfence{n}{o} : \specarchEvent \to \specfenceEvent \to \mathbb{P}}{,,Map speculative architecture to memory-fencing using oracle $o$ for a given position $n$.''}
+  %
+  \typerule{specarch-to-fencing-refl}{}{
+    \hole{\cdot}\specarchTOspecfencetr{n}{o}\trg{\hole{\cdot}}
+  }{specarch-to-fencing-refl}
+  %
+  \typerule{specarch-to-fencing-trans}{
+    \specarchEvent\specarchTOspecfence{n}{o}\specfenceEvent \rulesep
+    \specarchTrace\specarchTOspecfence{1+n}{o}\specfenceTrace 
+  }{
+    \specarchEvent\cdot\specarchTrace\specarchTOspecfencetr{n}{o}\specfenceEvent\cdot\specfenceTrace
+  }{specarch-to-fencing-trans}
 \end{center}
 
-\judgbox{\specarchev{\cdot}\sim\ev{\cdot}}{,,Map speculative architecture to SLH.''}
+\paragraph{Speculative Load Hardening} $\;$
+
 \begin{center}
+  \judgbox{\specarchev{\cdot}\sim\ev{\cdot}}{,,Map speculative architecture to SLH.''}
   \typerule{specarch-to-slh-load}{
     \specarchev{Rlb}\not\in\varTrace 
     \rulesep

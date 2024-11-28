@@ -953,7 +953,7 @@ These cases are plugging the previous relations into each other in a straightfor
 Let $o$ be a stream of ,,$\text{yes}$'' and ,,$\text{no}$'', which associate to each $\specarchEvent$ in a given trace $\specarchTrace$.
 The answer $o\lrpars{n}$ corresponds to the event at position $n$ in $\specarchTrace$\;.
 \begin{center}
-  \judgbox{\specarchTOspecfence{n}{o} : \specarchEvent \to \specfenceEvent \to \mathbb{P}}{,,Map speculative architecture to memory-fencing using oracle $o$ for a given position $n$.''}
+  \judgbox{\specarchTOspecfence{n}{o} : \specarchEvent \to \specfenceTrace \to \mathbb{P}}{,,Map speculative architecture to memory-fencing using oracle $o$ for a given position $n$.''}
   %
   \typerule{specarch-to-fencing-empty}{}{
     \specarchev{\emptyevent}\specarchTOspecfence{n}{o}\specfenceev{\emptyevent}
@@ -966,13 +966,13 @@ The answer $o\lrpars{n}$ corresponds to the event at position $n$ in $\specarchT
   \typerule{specarch-to-fencing-load-yes}{
     o\lrpars{n} = \text{yes}
   }{
-    \specarchev{Load\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Fence\cdot Load\;\varLoc\;v}
+    \specarchev{Load\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Fence}\cdot\specfenceev{Load\;\varLoc\;v}
   }{specarch-to-fencing-load-yes}
   %
   \typerule{specarch-to-fencing-store-yes}{
     o\lrpars{n} = \text{yes}
   }{
-    \specarchev{Store\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Fence\cdot Store\;\varLoc\;v}
+    \specarchev{Store\;\varLoc\;v}\specarchTOspecfence{n}{o}\specfenceev{Fence}\cdot \specfenceev{Store\;\varLoc\;v}
   }{specarch-to-fencing-store-yes}
   %
   \typerule{specarch-to-fencing-load-no}{
@@ -1007,10 +1007,10 @@ The answer $o\lrpars{n}$ corresponds to the event at position $n$ in $\specarchT
   }{specarch-to-fencing-refl}
   %
   \typerule{specarch-to-fencing-trans}{
-    \specarchEvent\specarchTOspecfence{n}{o}\specfenceEvent \rulesep
-    \specarchTrace\specarchTOspecfence{1+n}{o}\specfenceTrace 
+    \specarchEvent\specarchTOspecfence{n}{o}\specfenceTrace \rulesep
+    \specarchTrace\specarchTOspecfence{1+n}{o}\specfenceTrace['] 
   }{
-    \specarchEvent\cdot\specarchTrace\specarchTOspecfencetr{n}{o}\specfenceEvent\cdot\specfenceTrace
+    \specarchEvent\cdot\specarchTrace\specarchTOspecfencetr{n}{o}\specfenceTrace\cdot\specfenceTrace[']
   }{specarch-to-fencing-trans}
 \end{center}
 

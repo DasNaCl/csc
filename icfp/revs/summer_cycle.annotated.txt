@@ -1,0 +1,323 @@
+# Rebuttal
+
+This document addresses the concerns raised during the previous submission (spring-cycle of CSF'25) and it explains if and how we incorporate(d) the feedback.
+To this end, this text contains the previous reviews with a quotation prefix (`> `) and our comments without any prefix.
+The supplementary material contains a compiled version of this text as PDF which may be easier to print or read.
+
+## Short Compilation of Changes
+
+- Emphasized that the composition framework works with hyperproperties. To this end,
+  - Patched definitions to use hyperproperties instead
+  - Added an example at end of section II.B of robustly preserving compilers that preserve a property and a hyperproperty, respectively.
+  - Showed that these two compilers compose (on a high level) in section III
+- Moved Upper and Lower Composition to Appendix
+- Clarified on sCCT vs CCT 
+- Made dependence on FaCT in Case Study more apparent and renamed data-independent timing (DIT) mode to constant-time mode in order to distinguish it clearly from DIT processor modes.
+- Added paragraph in related work comparing to "weird machines as insecure compilation" PDF
+- Added Swappable Theorem for differing trace models
+- Minor rewordings of sentences (as seen in `latexdiff.pdf`)
+
+
+## Previous Reviews and Our Detailed Comments
+
+> 
+> CSF 2025 Paper #3 Reviews and Comments
+> ===========================================================================
+> Paper #3 Secure Composition of Robust and Optimising Compilers
+> 
+> 
+> Review #3A
+> ===========================================================================
+> 
+> Overall merit
+> -------------
+> 2. Weak reject
+> 
+> Reviewer expertise
+> ------------------
+> 4. Expert
+> 
+> Paper summary
+> -------------
+> The paper studies the question of when two or more secure compilers can be composed while preserving robust-security properties. The result is applicable to compilers that robustly preserve classes of trace properties and is demonstrated via a case study combining temporal and spatial memory safety, constant time execution, and speculative safety.
+> 
+
+We'd like to emphasize here that the results are not applicable to just trace properties, since they can be applied to hyperproperties as well.
+The text already mentioned this in the paragraph right after Definition II.4, but for extra clarity, we've added an additional emphasis in the section that presents our composition results.
+
+> Strengths
+> ---------
+> - The question of compositional security of secure compilers is important for the design and implementation of practical secure compilers and security mitigations.
+> - The technical material appears to be correct and thoroughly considered.
+> - The case study is ambitious and models a number of relevant and practical security mechanisms.
+> 
+> Weaknesses
+> ----------
+> - The paper does not discuss the related work "Weird Machines as Insecure Compilation" by Paykin et al (https://arxiv.org/pdf/1911.00157), which postulates similar criteria for composability of secure compilers in Section IV, as well as requirements for behavior (trace) relations between languages.
+> 
+
+We've added a comparison to this work in the related work section of our submission.
+
+>
+> - The formalization covers only the core (highly abstract) composition result, and not the case study or the correct property proof in Section VII.B.
+>
+
+Our formalization covers all the formal development, as can be seen from the technical report in our supplementary material.
+However, it is true that our *mechanization* does not cover most parts of the case stuy, only the semantics of the source language.
+Given the mechanization effort of typically several thousands of lines of Coq code even for very simple secure compilers (see e.g. "SecurePtrs: Proving Secure Compilation with Data-Flow Back-Translation and Turn-Taking Simulation", https://doi.org/10.1109/CSF54842.2022.9919680), we argue that pen&paper style is enough to motivate our core results, which is about the composition and not the case study itself.
+
+
+> 
+> - The paper only addresses composition of compilers that robustly preserve trace properties, though previous work highlights the importance of robust preservation of hyper-properties. Of particular note, the constant time and speculative security properties in the case study are trace-approximations of hyper properties that more directly encode the desired security model. While a composition argument for hyper-property-preserving secure compilers may be infeasible (is it?), it would be nice to at least address whether the trace-approximation of the desired hyper-property is preserved under the current model.
+> 
+
+The presented work is not limited to just trace properties and we'd like to note that overapproximation of hyperproperties by means of an ordinary property are a common proof technique.
+In fact, it is difficult to identify work in the area that proves a hyperproperty directly instead of overapproximating it by means of, e.g., a taint analysis.
+
+> 
+> - The composition result depends heavily on the validity of the trace relation that accompanies a compiler and transports properties of source and target. Spending some time with the definitions, I'm relatively convinced that they capture the desired properties, but the case study falls short at exploring potential nuances, since the relations considered are relatively trivial: either simple equality or erasing information that only appears in the target trace. This, in combination with the enforcement mechanisms used, makes the composition result seem relatively specific to the studied languages and compilers.
+> 
+
+We agree that the results heavily rely on the trace relation, which are established and discussed extensively in seminal work by Abate et al., 2021 (https://doi.org/10.1145/3460860).
+Their "validity" is implicitly given by proving robust preservation with respect to the universal/existential projections parameterized over the respective cross-language trace relation, since that would not be provable for "invalid" relations.
+The presented composition results rely on existing proofs for individual compilers (or passes).
+
+The relations being relatively trivial is a feature: Even for larger-scale compilers, such as CompCert, the relations turn out to be simple (see the extended account paper referred to in the previous paragraph).
+Our argument is that once robust preservation is established, it is enough (and acceptable!) to reason about the simpler cross-language trace relations instead of reasoning about the syntactic changes done by the compiler.
+
+Lastly, the presented property composition results are language-independent -- they operate at the trace level -- so it is unclear to us how the composition result seems specific to our case study.
+
+> 
+> - The brittleness described above is demonstrated in Section VII.B. which notes how the actual correctness of the composition depends closely on the composability of the chosen trace relations. Given how critical theorem VII.1 is, it should appear much earlier in the text---probably as a precondition of the composition result. Again, the complicated cases here are made simple by the choice of enforcement mechanism, which makes broader application of the approach more difficult to assess.
+> 
+
+Theorem VII.1 is not a precondition, the composition of compilers works regardless as long as there is proof that both compilers are robustly preserving with respect to respective cross-language trace relations.
+The theorem helps to assess the relations unrelated to compilers, i.e., those that map language-level to monitor-level traces.
+
+> 
+> - As identified in a separate review, there are technical issues with the part of the case study on constant time.
+> 
+
+We have addressed this comment in the reviews below.
+
+> 
+> Comments for authors
+> --------------------
+> - Having already bought in on the broader goal of secure compilation, I found the introduction to focus a little heavily on the importance of the specific combination of properties included in the case study---I'm not sure the broader community would recognize SpecMS as a gold standard, particularly as CCT and SS are very specific trace-simplifications of broader hyper-properties that could be enforced in other ways. This also caused the strncpy example to feel a little forced, particularly its vulnerability if called with a pointer to uninitialized memory.
+> 
+> - Section II glosses over the fact that previous work in this area has considered hyper-properties as well as trace properties
+> 
+
+We changed the submission to re-emphasize that our results work with hyperproperties as well.
+
+> 
+> - The correctness criteria for trace relations discussed in Section VII should appear in Section II (as a pre-requisite for secure composition?)
+> 
+
+The presented criterion is specific to the case-study and serves as re-assurance that the relations unrelated to a compiler, i.e., those that map language-level traces to monitor-level traces, are okay.
+Because of this, we don't think presenting the theorem earlier is beneficial.
+In fact, it cannot be presented earlier, because it relies on the specific trace models of the case study.
+
+> 
+> - The usefulness of the upper and lower composition theorems was unclear. Consider dropping this subsection?
+> 
+
+We agree and have moved these subsections to the appendix.
+
+> 
+> - IV.B. mentions "monitors" for the first time. I take this to mean the enforcement of hyper-properties via trace approximations, but the term nor the concept has been introduced. As mentioned in the "Weaknesses" section, I think the paper would be improved by addressing this point more directly (even if a result for hyper-properties is out of reach).
+> 
+
+We believe this to be orthogonal to the main goal of the paper, which is concerned with the composition results.
+Nevertheless, we've added more motivation for why we want to use sCCT instead of CCT.
+
+> 
+> - It's a lot to ask, but I feel like the paper would be improved by exploring a slightly more complex enforcement of one or more of the properties where more than pass ordering is required to ensure composability (perhaps allowing DCE to run after Constant Time Preservation if some branches are marked protected or something?)
+> 
+
+The work considers a pipeline that "works" and discusses what happens if this breaks in VII.C
+
+> 
+> Requested Changes
+> -----------------
+> At a minimum, the authors should:
+> - address the related work noted in the "weaknesses section"
+> 
+
+Done.
+
+> 
+> - make the content/property in Section VII.B more apparent in the earlier technical material
+> 
+
+See above discussion of this point, where we argue against such a change.
+In short, it is not a precondition to the composition results and an artifact to our proof-setup based on monitors.
+
+> 
+> - address the mismatch between the constant-time and speculative-safety hyperproperties and the enforced trace properties more directly
+> 
+
+We've added clarification in section IV.B
+
+> 
+> Review #3B
+> ===========================================================================
+> 
+> Overall merit
+> -------------
+> 2. Weak reject
+> 
+> Reviewer expertise
+> ------------------
+> 3. Knowledgeable
+> 
+> Paper summary
+> -------------
+> This paper presents a framework for formally assessing the properties obtained from the composition of robust & secure compilation passes (memory safety, (speculative)-constant time hardening) along with optimisation passes (e.g. dead code elimination, constant propagation)
+> 
+> To that extend, the paper gives (pretty general) necessary conditions for two secure compilation passes to be safely composed and/or swapped. These properties are then examplified on different compilation passes (memory safety, speculative constant-time, optimisation passes), leading to a formal treatment of their composition.
+> 
+> The paper's results have been formally verified in the Coq proof assistant.
+> 
+> Strengths
+> ---------
+> - impactful topic
+> - paper is well-structured and easy to read
+> - numerous examples are given
+> - results are formally verified
+> 
+> Weaknesses
+> ----------
+> - hard to assess what are the gain of using the presented framework w.r.t. more elementary correctness proofs
+
+The gain is to not having to do these more elementary correctness/security proofs for the composed compilers: It is enough to prove the compilers (or passes) secure individually.
+We've reworded the text a little in an attempt to emphasize this better.
+
+> 
+> Comments for authors
+> --------------------
+> Despite the topic being of interest, the necessary conditions presented in the paper seem pretty general and it is hard to assess whether one gains some benefits (in term of proof effort) by using them over doing a direct proof of the soundness of the composition. For instance, I find that the examples fail to exemplify such benefits. 
+> That the sequence MS -> DCE/CF -> CC, in this order, composes well is not surprising.
+> 
+
+In "classic" approaches, you'd have to do a purely syntactic proof of the correctness/security for the whole chain, which is very labor-intensive.
+The framework presented allows you do the proofs of robust preservation individually and compose them for a proof of robust preservation for the bigger compilation chain.
+
+> 
+> I would have liked to see a more intricate example that composed e.g. (s)CC with an optimisation pass that is know to preserve (s)CC, something that you may have if you statically checked that your input code is robustly (s)CC before any optimisation had the chance to take place.
+> 
+
+We don't think complicating our case-study further is beneficial to the main-goal of our submission, which is about the composition results for robust preservation.
+
+> 
+> Nothing is said about the Coq formalisation. At the very least, the authors should indicate what have been formally verified and maybe give some hints about the formalisation effort.
+> 
+
+Respective mechanized results are marked with a peacock-symbol which is explained in the list of contributions.
+
+> 
+> Minor:
+> - l.509: this beyond -> this is beyond
+> - the inference rules of Section V.F are hardly understandable from the context of the paper.
+> 
+
+> Review #3C
+> ===========================================================================
+> 
+> Overall merit
+> -------------
+> 1. Reject
+> 
+> Reviewer expertise
+> ------------------
+> 4. Expert
+> 
+> Paper summary
+> -------------
+> The paper addresses the critical issue of determining under which conditions the security 
+> properties ensured by different passes of a compiler can be combined to achieve a global 
+> security property guaranteed by the entire compiler.
+> 
+> -Section 2 introduces background on expressing security properties in terms of execution traces with leakage and the notion of robust preservation for a compiler.
+> -Section 3 presents the concept of composition of secure compilers.
+> -Section 4 discusses different security notions, including memory safety, strict cryptographic constant time, and speculative safety.
+> -Section 5 examines various compilation passes and their role in ensuring some security properties.
+> -Section 6 explores the composition of different secure compilation passes and optimization passes.
+> -Section 7 provides additional discussion on the importance of compilation order in this context.
+> 
+> Strengths
+> ---------
+> - Understanding how different secure compilation passes can be combined and mixed with traditional optimizing transformations is a timely and important topic.
+> - A small part of the paper is formally proven.
+> 
+> Weaknesses
+> ----------
+> - The paper's presentation is difficult to follow, primarily due to the notation used and inconsistent naming of concepts (e.g., secure compiler vs. preservation).
+> 
+
+We mostly rely on standard notation used within this area of research.
+However, if there are concrete syntactic annoyances that we could improve on, we'd kindly ask to point these out concretely, so that we can change the notation accordingly.
+
+> 
+> - The level of detail is not well chosen; often, too much low-level semantic detail is provided without sufficient information or intuition to grasp it fully.
+> 
+
+See above bullet.
+It is difficult to assess what level of detail is not well chosen without explicit mention of those parts.
+We present parts of the semantic detail of our case study to demonstrate the rough idea and formalization-setup of it and interested readers can take a look at our technical report, which supplies all details.
+
+> 
+> - As a result, it is hard to understand what has been proved. 
+>    A simple lemma stating something like: 
+>     "if the source program satisfies properties A and B, 
+>      then the compiled program satisfies properties C and D" would be helpful.
+> 
+
+We believe to have given such theorems/lemmas within our case-study in Section VI, e.g., Corollary VI.1 demonstrates that the composed compiler robustly preserves the monitor-level property MS, given Theorems VI.1 and VI.2, which prove that the compilers robustly preserve TMS or SMS, respectively.
+
+> 
+> Most importantly, I believe results based on DOIT are incorrect. 
+> You seem to misunderstand the meaning of DOIT instructions. 
+> Using data operand independent timing (DOIT) mode will not help transform a non-constant-time (CCT) program into a CCT one. 
+> DOIT ensures only that the time taken by some instructions does not depend on their operands' values, and not all instructions, especially conditional jumps, are included.
+> For Intel, the list of DOIT instruction is provided here: https://www.intel.com/content/www/us/en/developer/articles/technical/software-security-guidance/resources/data-operand-independent-timing-instructions.html
+> 
+> From Intel's documentation:
+>  "Although not relevant for most code, DOIT is useful for code specifically written 
+>   to execute in constant time, such as cryptographic algorithms. 
+>   This mode allows constant-time code to inform the processor that DOIT is needed."
+> 
+> Therefore, if your code is not already in constant time, setting the DOIT mode will 
+> not make it constant time. Thus, the compilation of the example I.1 
+> cannot become constant time just by setting a flag.
+> 
+
+We agree with the above and regret that our submission lost an important detail after revising it prior to our last submission.
+The sCCT-compiler is supposed to encode what FaCT does without defining the precise rewrites of FaCT. (https://doi.org/10.1145/3314221.3314605)
+To remedy this, we changed the DOIT-mode into a constant-time-mode which is supposed to model the effect of FaCT and the DOIT-mode.
+We have reworked the section to make this simplification clear.
+
+> 
+> Comments for authors
+> --------------------
+> - Line 189: "the we extend the" – this needs correction.
+> 
+
+Done.
+
+> 
+> - Definition II.3: The definition uses different "a"s that differ only in font. 
+>   Using two different letters would improve readability significantly.
+> 
+
+The "a"s are distinguishable both by color (even when printed black and white) and font similar to what has been done in existing compilation papers.
+We would like to make use of the existing notation that the community uses without compromising on readability.
+In this case, we argue that the distinction by font and color is enough.
+
+> 
+> - Line 344: A period is missing before "This".
+> - Line 356: Can you explain why sCCT is novel?
+> 
+
+We haven't found a similar overapproximation in literature, which is why we claim it to be novel.
+However, we agree that, e.g., its definition is not much different from Robust Speculative Safety and have dropped the claim of novelty.

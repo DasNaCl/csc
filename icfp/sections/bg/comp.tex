@@ -1,0 +1,92 @@
+\subsection{Secure Compilers}\label{subsec:bg:rtp}
+
+A {\em compiler} ($\cc{\src{L}}{\trg{L}}$) translates syntactic descriptions of programs from a {\em source} ($\src{L}$) into a {\em target} ($\trg{L}$) programming language.
+This translation is considered {\em correct} if it is semantics-preserving.
+That is, for a whole program $\src{\wholeprogvar}$, the compiler should relate the $\src{L}$ semantics of $\src{\wholeprogvar}$ with the semantics of $\trg{L}$ of the compiled counterpart of $\src{p}$ in such a way that they are ``compatible''.
+Unfortunately, correct compilers may be insecure compilers~\cite{patrignani2019survey,kennedy2006secure.net,abadi1999protect,ahmed2018dagstuhl} and programs translated by insecure compilers can violate security properties that the programmer assumes to hold.
+This is why {\em robust preservation} is a good candidate as a compiler-level security property~\cite{abate2019jour}.
+
+This paper uses a general notion of robust preservation~\cite{abate2021extacc} that considers compilers that use languages with different trace models. 
+To this end, considering a source trace $\src{\trace}$ and a target trace $\trg{\trace}$, there is a relation ($\sim$) describing the effect of a corresponding compiler (see \Cref{sec:casestud:rtp}). 
+This relation induces the following two projection functions~\cite{abate2021extacc}: (1) the \emph{existential image} $\tau_\sim\left(\src{\pi}\right)$ and (2) the \emph{universal image} $\sigma_\sim\left(\trg{\pi}\right)$.
+These projections map source-level (resp. target-level) properties to target-level (resp. source-level) properties in a way that identifies the ``same'' property across languages. 
+The case study of this paper uses the universal image, since some considered properties, such as \gls*{ss}, are not definable in a higher-level language that, e.g., does not model speculation.
+% For self-containment, the universal image is defined as follows~\cite{abate2021extacc}:
+% 
+\begin{definition}[Universal Image]
+% [Existential and Universal Image]
+\label{def:universal:img}\label{def:sigma}
+  % \[
+  %   \tau_\sim\left(\src{\pi}\right) := 
+  %     \left\{ 
+  %       \trg{\trace} \mid \exists \src{\trace}\ldotp \src{\trace}\sim\trg{\trace}, \text{ and } \src{\trace}\in\src{\pi} 
+  %     \right\}
+  % \]
+  \[ 
+    \sigma_\sim\left(\trg{\pi}\right) := 
+      \left\{ 
+        \src{\trace} \mid \forall \trg{\trace}\ldotp \text{if }\src{\trace}\sim\trg{\trace}, \text{ then } \trg{\trace}\in\trg{\pi} 
+      \right\}
+  \]
+\end{definition}
+\noindent
+With this projection function, we define a more general version of robust preservation as follows~\cite{abate2021extacc}.
+% For a \bul{compiler $\cc{\src{L}}{\trg{L}}$ to robustly preserve a class of source properties $\src{\class}$}, if for any \rul{property $\src{\pi}$ of that class $\src{\class}$ and programs $\src{p}$ written in $\src{L}$} where \iul{$\src{\progvar}$ robustly satisfies $\src{\pi}$}, then \oul{the compilation of $\src{\progvar}$, $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$, must robustly satisfy $\tau_\sim\left(\src{\pi}\right)$}.
+% 
+% \begin{definition}[Robust Preservation with $\tau_\sim$]\label{def:rtp:tau}
+%   % $\;$\\
+%   % \vspace{-1em}
+%   % \begin{nscenter}
+%   % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
+%   \bul{$\rtptau{\cc{\src{L}}{\trg{L}}}{\src{\class}}{\sim}$}
+%   %, iff 
+%   $\isdef$
+%   \rul{$\forall \src{\pi}\in\src{\class}, \src{p}\in\src{L},$} if \iul{$\rsat{\src{\progvar}}{\src{\pi}}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\tau_\sim{\left(\src{\pi}\right)}}$}.
+%   % \end{nscenter}
+% \end{definition}
+% 
+A \bul{compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves a class of target properties $\trg{\class}$}, if for any \rul{property $\trg{\pi}$ of class $\trg{\class}$ and programs $\src{p}$}, where \iul{$\src{\progvar}$ robustly satisfies $\sigma_\sim\left(\trg{\pi}\right)$}, \oul{for the compilation of $\src{\progvar}$, we have that $\cc{\src{L}}{\trg{L}}\left(\src{p}\right)$ robustly satisfies $\trg{\pi}$}.
+
+\begin{definition}[Robust Preservation with $\sigma_\sim$]\label{def:rtp:sigma}
+  % $\;$\\
+  % \vspace{-1em}
+  % \begin{nscenter}
+  % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
+  \bul{$\rtpsig{\cc{\src{L}}{\trg{L}}}{\trg{\class}}{\sim}$}
+  %, iff 
+  $\isdef$
+  \rul{$\forall \trg{\pi}\in\trg{\class}, \src{p}\in\src{L},$} if \iul{$\rsat{\src{\progvar}}{\sigma_\sim\left(\trg{\pi}\right)}$}, then \oul{$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\trg{\pi}}$}.
+  % \end{nscenter}
+\end{definition}
+Note that a class of properties $\class$ can represent just one property $\pi$ by lifting~\cite{clarkson2008hyper} that property to sets of properties, i.e., use the powerset of $\pi$ instead of $\pi$ itself.
+Because of this, this paper may write $\rtptau{\cc{\src{L}}{\trg{L}}}{\trg{\pi}}{\sim}$, even though $\trg{\pi}$ is a property and not a class.
+A similar construction can be used to the projection functions (see \Cref{def:universal:img}) by applying them to the lifted version of $\trg{\pi}$ instead of just $\trg{\pi}$.
+
+
+In case the trace model is the same for both source and target programs (and thus $\sim$ is equality), we obtain~\cite{abate2019jour}:
+\begin{definition}[Robust Preservation]\label{def:rtp}
+  % $\;$\\
+  % \vspace{-1em}
+  % \begin{nscenter}
+  % Compiler $\cc{\src{L}}{\trg{L}}$ robustly preserves $\class$, 
+  $\;$ 
+
+
+  {$\rtp{\cc{\src{L}}{\trg{L}}}{\class}$}
+  %, iff 
+  $\isdef$
+  {$\forall \pi\in\class, \src{p}\in\src{L},$} if {$\rsat{\src{\progvar}}{\pi}$}, then {$\rsat{\cc{\src{L}}{\trg{L}}\left(\src{p}\right)}{\pi}$}.
+  % \end{nscenter}
+\end{definition}
+
+Examples of compilers fulfilling \Cref{def:rtp} exist in the literature~\cite{korashy2022secureptrs,korashy2021capableptrs,abate2021extacc,abate2019jour,patrignani2021rsc}.
+For example, SecurePtrs~\cite{korashy2022secureptrs} gives a compiler that robustly preserves all safety properties for a C-like language to an assembly-like language. 
+% The mechanization has well over 20k lines in total, which demonstrates that proving a compiler secure with respect to \Cref{def:rtp} is a significant effort. \MP{move this line to later ?}
+% i don't see how adding a def of cct is beneficial
+As another example, even though it is not strictly satisfying \Cref{def:rtp}, the FaCT~\cite{cauligi2019fact} compiler preserves the \gls*{cct} property for a C-like language with constant-time primitives, e.g., \texttt{ctselect} for branching. %, whose precise definition can be found in \Cref{sec:cct}.
+Throughout this work, it is assumed that FaCT satisfies \Cref{def:rtp}.
+% While we were not able to find compilers in literature that provably fulfill \Cref{def:rtp}, we anticipate that 
+ % would satisfy this hyperproperty.
+% FaCT proves constant-timeness by means of overapproximation, i.e., instead of directly proving the hyperproperty, they fall back to a property that overapproximates the corresponding hyperproperty.
+
+%\smallskip%MP: the underline compacts the sections too much

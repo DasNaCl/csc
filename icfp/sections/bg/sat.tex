@@ -1,4 +1,4 @@
-\subsection{Properties and (Robust) Satisfaction}\label{subsec:bg:tprop}
+\subsection{Trace Properties and (Robust) Satisfaction}\label{subsec:bg:tprop}
 
 Running a (whole) program yields a trace ($\trace$), i.e., a potentially infinite sequence\footnote{
 Throughout the paper, sequences are indicated with an overbar (i.e., $\trace$), empty sequences with $\hole{\cdot}$, and concatenation of sequences $\trace[_{1}],\trace[_{2}]$ as $\trace[_{1}]\cdot\trace[_{2}]$.
@@ -6,7 +6,7 @@ Prepending element $\event$ to a sequence $\trace$ uses the same notation: $\eve
 } of events ($\event$).
 Events include security-relevant actions (e.g., reading from and writing to memory, as detailed in \Cref{sec:compprop}), the unobservable event ($\emptyevent$), and a crash ($\lightning$).
 For a given program, we refer to the set of traces as its behaviour. 
-Moreover, sets of traces are called properties ($\pi$) which describe admissible program behaviours. % ascribing what said property considers valid.
+Moreover, sets of traces are called properties ($\varProp$) which describe admissible program behaviours. % ascribing what said property considers valid.
 % 
 The set of all properties can be split-up into different {\em classes} ($\class$), i.e., safety, liveness, and neither safety nor liveness~\cite{clarkson2008hyper}, so a class is simply a set of properties.
 % 
@@ -19,33 +19,30 @@ The first two events in the shown trace are enough to decide that the trace does
 
 %In the following, the execution of a whole program $\wholeprogvar$ that terminates in state $\runtimetermvar$ according to the language semantics and produces trace $\trace$ is written as $\progstepto{\wholeprogvar}{\runtimetermvar}{\trace}$.
 %With this, we defined property satisfaction as follows:
-\bul{A whole program $\wholeprogvar$ satisfies a property $\pi$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisfies $\pi$}.
+\bul{A whole program $\wholeprogvar$ satisfies a property $\varProp$} iff \iul{$\wholeprogvar$ yields a trace $\trace$} such that \oul{$\trace$ satisfies $\varProp$}.
 
 \begin{definition}[Property Satisfaction]\label{def:propsat}
-  \bul{$\sat{\wholeprogvar}{\pi}$}
+  \bul{$\sat{\wholeprogvar}{\varProp}$}
   $\isdef$
   if \iul{$\forall\trace,\tracegen{\wholeprogvar}{\trace}$},
-  then \oul{$\trace\in\pi$}.
+  then \oul{$\trace\in\varProp$}.
 \end{definition}
 
 Property satisfaction is defined on whole programs, i.e., programs without missing definitions.
 Thus, from a security perspective, \Cref{def:propsat} considers only a passive attacker model, where the attacker observes the execution and, e.g., retrieves secrets from that.
 To consider a stronger model similarly to what existing work does~\cite{abate2019jour,abate2021extacc,maffeis2008code-carrying,gordon2003authenticity,fournet2007authorization,bengtson2011refine,backes2014uniontyps,michael2023mswasm,swasey2017robust,sammler2019benefits}, we extend the concept of satisfaction with {\em robustness}.
 Robust satisfaction considers partial programs $\progvar$, i.e., components with missing imports, which cannot run until said imports are fulfilled.
-To remedy this, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
+To fill those gaps, {\em linking} takes two partial programs $\progvar[_{1}],\progvar[_{2}]$ and produces a whole program $\wholeprogvar$, i.e., $\link{\progvar[_{1}]}{\progvar[_{2}]}=\wholeprogvar$.
+
 As typically done in works that consider the execution of partial programs~\cite{abate2019jour,devriese2018parametricity,patrignani2021rsc,korashy2021capableptrs,strydonck2019lincap,devriese2017modular,bowman2015noninterference,ahmed2011equivcps,patterson2017linkingtyps},
 this paper assumes that whole programs are the result of linking partial programs referred to as {\em context} ($\ctx$) and {\em component} ($\comp$).
-The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of any features the programming language has, and the component is what is security-relevant.
+The context is an arbitrary program and thus has the role of an {\em attacker} that can interact with the component by means of any features the programming language has, while the component is what is security-relevant.
 %In this work, the semantics of the programming language is expected to differentiate between the component and the context.
-With this, \Thmref{def:propsat} can be extended as follows: for \bul{a component $\progvar$ to robustly satisfy a property $\pi$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$}, \oul{the resulting whole program must satisfy $\pi$}.
+With this, \Thmref{def:propsat} can be extended as follows: for \bul{a component $\progvar$ to robustly satisfy a property $\varProp$}, take an \iul{attacker context $\contextvar$ and link it with $\progvar$} such that \oul{the resulting whole program must satisfy $\varProp$}.
 
 \begin{definition}[Robust Satisfaction]\label{def:proprsat}
-  $\;$ 
-
-  \begin{nscenter}
-  \bul{$\rsat{\progvar}{\pi}$}
-  $\isdef$ \iul{$\forall \contextvar\ \wholeprogvar$, if $\link{\contextvar}{\progvar}=\wholeprogvar$}, then \oul{$\sat{\wholeprogvar}{\pi}$}.
-  \end{nscenter}
+  \bul{$\rsat{\progvar}{\varProp}$}
+  $\isdef$ \iul{$\forall \contextvar\ \wholeprogvar$, if $\link{\contextvar}{\progvar}=\wholeprogvar$}, then \oul{$\sat{\wholeprogvar}{\varProp}$}.
 \end{definition}
 
 % \begin{exampleenv}[Double Free in Bluetooth Subsystem]

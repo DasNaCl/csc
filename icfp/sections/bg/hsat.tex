@@ -6,39 +6,48 @@ To describe this property, it is necessary to refer to two possibly distinct tra
 It is possible to describe such properties as so-called hyperproperties~\cite{clarkson2008hyper}.
 
 A hyperproperty ($\varHProp$) is a set of program behaviours, i.e., a set of sets of traces, which have been referred to as {\em class} (see \Cref{subsec:bg:tprop}).
-Much like trace-based properties, hyperproperties can also be classified into different categories, e.g., hypersafety or hyperliveness~\cite{}.
+Much like trace-based properties, hyperproperties can also be classified into different categories, e.g., hypersafety or hyperliveness~\cite{clarkson2008hyper}.
+Based off of \Cref{def:prophsat,def:propsat}, it is well known that an ordinary trace-based property can be lifted to an equivalent hyperproperty by means of simply taking its powerset~\cite{clarkson2008hyper}.
 
 We extend \Cref{def:propsat,def:proprsat} as follows:
 
-%TODO: this is wrong. rework to explain it via program behaviours instead
 \begin{definition}[Hyper-Satisfaction]\label{def:prophsat}
   $\sat{\wholeprogvar}{\varHProp}$
   $\isdef$
-  $\forall\varProp\in\varHProp,\sat{\wholeprogvar}{\varProp}$.
+  $\behav{\wholeprogvar}\in\varHProp$.
 \end{definition}
 \begin{definition}[Robust Hyper-Satisfaction]\label{def:proprhsat}
   $\rsat{\progvar}{\varHProp}$
   $\isdef$ 
-  $\forall\varProp\in\varHProp,\rsat{\progvar}{\varProp}$.
+  $\forall\contextvar\ \wholeprogvar,\text{if}\ \link{\contextvar}{\progvar}=\wholeprogvar, \text{then}\sat{\wholeprogvar}{\varHProp}$.
 \end{definition}
 
-The definitions in \Cref{subsec:bg:rtp} are trivially extended to the hyperproperty case, so we omit it.
-However, it is worth noting that program refinement does not commute with hyperproperty refinement, while it does so for traces.
-% TODO: write more
-Consider 
-\[
-\begin{array}{rcl}
-  \operatorname{behav}\left(\src{p}\right) &=& \left\{ \src{\event_0} \right\} \\
-  \operatorname{behav}\left(\src{p'}\right) &=& \left\{ \src{\event_0}, \src{\event_1} \right\} \\[.33cm]
-  \varHProp &=& \left\{ \left\{ \src{\event_0} \right\}, \left\{ \src{\event_1} \right\} \right\} \\
-  \varHProp' &=& \left\{ \left\{ \src{\event_1} \right\} \right\} \\
-\end{array}
-\]
-Clearly, $\operatorname{behav}(\src{p})\subseteq\operatorname{behav}(\src{p'})$, so $\src{p}$ {\em refines} $\src{p'}$.
-Similarly, $\varHProp'\subseteq\varHProp$.
-Note that $\sat{\src{p}}{\varHProp}$, but $\not\sat{\src{p}}{\varHProp'}$.
-This does not break for ordinary trace-based properties, since refinement coincides with satisfaction.
+The definitions in \Cref{subsec:bg:rtp} are trivially extended to the hyperproperty case, so we omit them.
+However, it is worth noting that program refinement does not commute with hyper-satisfaction, while it does commute for ordinary satisfaction.
+To see this, consider the following example:
+ %\[
+ %\begin{array}{c}
+ %  \operatorname{behav}\left(\src{\wholeprogvar}\right) = \left\{ \src{\trace[_0]} \right\} \quad
+ %  \operatorname{behav}\left(\src{\wholeprogvar'}\right) = \left\{ \src{\trace[_0]}, \src{\trace[_1]} \right\} \qquad
+ %  \varHProp = \left\{ \left\{ \src{\trace[_0]} \right\}, \left\{ \src{\trace[_1]} \right\} \right\} \quad
+ %  \varHProp' = \left\{ \left\{ \src{\trace[_1]} \right\} \right\} \\
+ %\end{array}
+ %\]
+\begin{center}
+\begin{tikzpicture}
+  \node (a) {$\behav{\src{\wholeprogvar}}=\left\{\src{\trace[_0]}\right\}$};
+  \node[right=2cm of a] (b) {$\behav{\src{\wholeprogvar[']}}=\left\{\src{\trace[_0]},\src{\trace[_1]}\right\}$};
+  \node[below=1cm of b] (d) {$\varHProp=\left\{\left\{\src{\trace[_0]},\src{\trace[_1]}\right\},\left\{\src{\trace[_1]}\right\}\right\}$};
+
+  \node[right=.8cm of a] (ab) {$\subseteq$};
+  \node[below=.5cm of b,rotate=270] (bd) {$\in$};
+  \node[below=.3cm of ab,rotate=-33] (ad) {$\not\in$};
+\end{tikzpicture}
+\end{center}
+
+Clearly, $\operatorname{behav}(\src{\wholeprogvar})\subseteq\operatorname{behav}(\src{\wholeprogvar'})$, so $\src{\wholeprogvar}$ {\em refines} $\src{\wholeprogvar'}$.
+However, while $\src{\wholeprogvar[']}$ satisfies $\varHProp$ ($\sat{\src{\wholeprogvar[']}}{\varHProp}$), we have that $\not\sat{\src{\wholeprogvar}}{\varHProp}$.
+This does not break for ordinary trace-based properties, since refinement coincides with satisfaction, i.e., taking subsets is a transitive operation.
 
 
-Based off of \Cref{def:prophsat,def:propsat}, it is well known that an ordinary trace-based property can be lifted to an equivalent hyperproperty by means of simply taking its powerset~\cite{clarkson2008hyper}.
 

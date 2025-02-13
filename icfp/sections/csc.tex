@@ -1,0 +1,384 @@
+\section{Case Study: Composing Secure Compiler Passes and Optimisations \pages{7}}\label{sec:casestud:rtp}
+This section defines several secure compilers, each of which robustly preserves a different property of interest as depicted in \Cref{fig:pipeline}.
+\begin{figure*}[!h]
+  \centering
+  \begin{tikzpicture}
+    \node (S) {$\src{L_{\tmssafe}}$};
+    \node[right=2.0 of S] (T) {$\trg{L}$};
+    \node[right=2.0 of T] (M) {$\irl{L_{\mssafe}}$};
+    \node[below right=1.5 and 1.0 of M] (D0) {$\irl{L_{\mssafe}}$};
+    \node[above right=1.5 and 1.0 of M] (C0) {$\irl{L_{\mssafe}}$};
+    \node[right=3.0 of M] (E) {$\irl{L_{\mssafe}}$};
+    \node[right=2.0 of E] (O) {$\obj{L_{\scctsafe}}$};
+    \node[right=2.0 of O] (Z) {$\ird{L_{\mathghost}}$};
+
+    \draw[->] (S) to[sloped] node[align=center] (tmsedge) {\gls*{tms}\\ \Cref{thm:cca:rtp:tms}} (T);
+    \draw[->] (T) to[sloped] node[align=center] {\gls*{sms}\\ \Cref{thm:ccb:rtp:sms}} (M);
+    \draw[->] (M) to[sloped] node[align=center] {\gls*{dce}\\ \Cref{thm:ccdce:rtp:ms}} (D0);
+    \draw[->] (M) to[sloped] node[align=center] {\gls*{cf}\\ \Cref{thm:cccf:rtp:ms}} (C0);
+    \draw[->] (D0) to[sloped] node[align=center] {\gls*{cf}\\ \Cref{thm:cccf:rtp:ms}} (E);
+    \draw[->] (C0) to[sloped] node[align=center] {\gls*{dce}\\ \Cref{thm:ccdce:rtp:ms}} (E);
+    \draw[->] (E) to[sloped] node[align=center] {\gls*{scct}\\ \Cref{thm:ccscct:rtp:scct}} (O);
+    \draw[->] (O) to[sloped] node[align=center] {\gls*{ss}\\ \Cref{thm:ccspec:rtp:spec}} (Z);
+
+    % Sections
+    \node (sectms) at ($(S)+(1.25,2.5)$) {{\Cref{subsec:cs:tms}}};
+    \node (secsms) at ($(T)+(1.25,2.5)$) {{\Cref{subsec:cs:ms}}};
+    \node (secopts) at ($(M)+(2.0,2.5)$) {{\Cref{subsec:cs:opts}}};
+    \node (secscct) at ($(E)+(1.5,2.5)$) {{\Cref{subsec:cs:scct}}};
+    \node (secss) at ($(O)+(1.5,2.5)$) {{\Cref{subsec:cs:ss}}};
+
+    \draw[thick,dotted,->] ($(S) + (0.2,-0.27)$) to ($(S) - (-0.2,1)$) to node[align=center] {\gls*{ms}\\ \Cref{corr:ccab:rtp:ms}} ($(M) - (0.0,1)$) to (M);
+
+    \draw[thick,dotted,->] (S) to ($(S) - (0.0,2.5)$) to node[align=center,pos=.65] {\gls*{specms}\\ \Cref{thm:ccall:rtp:specms}} ($(Z) - (0.0,2.5)$) to (Z);
+
+    % \draw[thick,dotted,->] (S) to[bend right=33,sloped] node[align=center] {\gls*{ms}\\ \Cref{corr:ccab:rtp:ms}} (M);
+    \draw[thick,dotted,->] (M) to[bend right=0,sloped] node[align=center] {\gls*{ms}\\ \Cref{thm:cccfccdce:rtp:ms}} (E);
+%    \draw[thick,dotted,->] (S) to[out=-45,in=198,sloped] node[align=center] {\gls*{ms}+\gls*{scct}\\ \Cref{thm:ccall:rtp:msscct}} (O);
+    % \draw[thick,dotted,->] (S) to[out=-40,in=210,sloped] node[align=center,pos=.8] {\gls*{specms}\\ \Cref{thm:ccall:rtp:specms}} (Z);
+
+    \draw[dashed] ($(S)-(0.0,-0.5)$) -- ($(S)-(0.0,-2.5)$);
+    \draw[dashed] ($(T)-(0.0,-0.5)$) -- ($(T)-(0.0,-2.5)$);
+    \draw[dashed] ($(M)-(0.0,-0.5)$) -- ($(M)-(0.0,-2.5)$);
+    \draw[dashed] ($(E)-(0.0,-0.5)$) -- ($(E)-(0.0,-2.5)$);
+    \draw[dashed] ($(O)-(0.0,-0.5)$) -- ($(O)-(0.0,-2.5)$);
+    \draw[dashed] ($(Z)-(0.0,-0.5)$) -- ($(Z)-(0.0,-2.5)$);
+  \end{tikzpicture}
+  \vspace{-1em}
+  \caption{Visualisation of the optimising compilation pipeline that preserves \gls*{specms}. %
+    Vertices in the graph are the programming languages from earlier sections (\Cref{sec:casestud:defs}). %
+    Full edges are secure compilers passes.
+    Dotted edges are composition of passes and use the presented framework (\Cref{sec:sequential}) to indicate the property they preserve. %
+    The dashed lines partition the graph into the sections where the respective theorems are presented.
+  }\label{fig:pipeline}
+\end{figure*}
+The section demonstrates the power of the framework (\Cref{sec:sequential}) by composing these compilers for a secure and optimising compilation chain that robustly preserves \gls*{specms}.
+The first step in this chain is the compiler from $\src{L_{\tmssafe}}$ to $\trg{L}$ that robustly preserves just \gls*{tms} (\Cref{thm:cca:rtp:tms}).
+From here, another pass from $\trg{L}$ to $\irl{L_{\mssafe}}$ ensures that no out-of-bounds accesses can happen and, thus, programs at this point attain \gls*{sms} (\Cref{thm:ccb:rtp:sms}).
+Since these properties compose into \gls*{ms}, composing these passes yields a compiler that robustly preserves \gls*{ms} (\Cref{corr:ccab:rtp:ms}).
+Then, the section presents two optimisation passes, namely \gls*{cf} and \gls*{dce}, each of which robustly preserves \gls*{ms} (\Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms}).
+These passes can be freely ordered in the compilation chain without compromising memory safety (\Cref{thm:cccfccdce:rtp:ms}).
+The next step in the chain ensures that code stays \gls*{scct} (\Cref{thm:ccscct:rtp:scct}) when compiled from $\Lms$ to $\Lscct$, which is done by switching on a constant-time mode for the computation.
+Lastly, by introducing barriers immediately after branches, speculative leaks via SPECTRE-PHT are prevented when compiling $\Lscct$ to $\Lspec$.
+The final result is that the whole compilation chain robustly preserves \gls*{specms} (\Cref{thm:ccall:rtp:specms}).
+
+
+\subsection{Robust Temporal Memory Safety Preservation}\label{subsec:cs:tms}
+
+The secure compiler from $\Ltms$ to $\Ltrg$ needs to ensure that when execution switches from context to component, the type signatures are respected.
+Thus, the compiler inserts the following dynamic typechecks before entering the body of a component-defined function (anything elided is a trivial identity function from source to target):
+
+\vspace{-1em}
+{
+\begin{gather}
+  \begin{align*}%{rcl}
+    %\cca(\src{x}) = &\ \trg{x} 
+    % \\
+  	%&
+  	%\qquad
+    %\cca(\src{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) = &\ \lbinop[\trg]{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr[_{2}]})\right]} \\
+    %\cca(\src{n}) = &\ \trg{n} 
+    % \\
+    %&
+    \cca(\src{\lget{x}{\expr}}) = &\ \lget[\trg]{\trg{x}}{\left[\cca(\src{\expr})\right]} \\
+    \cca(\src{\ldelete{x}}) = &\ \ldelete[\trg]{\left[\cca(\src{x})\right]} 
+    \\
+    \cca(\src{\lfunction{g}{x:\natt\to\type[_{e}]}{\expr}})  =&
+  \end{align*}
+  \\
+  \begin{align*}
+%    \cca(\src{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = \lset[\trg]{\left[\cca(\src{x})\right]}{\left[\cca(\src{\expr[_{1}]})\right]}{\left[\cca(\src{\expr_{2}})\right]} \\
+% \\ 
+\lfunction[\trg]{\trg{g}}{\trg{x}}{\lifz[\trg]{\trg{\lhast{x}{\natt}}}{
+                                                            \left[\cca(\src{\expr})\right] %
+                                                                                                 }{\labort[\trg]}}
+  \end{align*}
+\end{gather}
+}
+
+\noindent Since $\trg{L}$ has no static typing, an attacker $\trg{\library_{\ctx}}$ can invoke a component function accepting a $\src{\natt}$ with $\trg{\lpair{17}{29}}$.
+With the dynamic check, the compiler ensures that execution aborts in such cases.
+%The compiler does not insert other checks and proceeds as the identity function (which in this paper amounts to a simple re-colouring of $\src{L_{\tmssafe}}$ to $\trg{L}$ expressions).
+
+Compiling the \texttt{strncpy} function from \Cref{sec:introduction} with $\cca$, the compiler would in this case ensure that the arguments that are evaluated in the compiled \texttt{strncpy} are valid.
+%This effectively has no influence on the resulting trace, so a corresponding cross-language trace relation $\sim^{\Ltms}_{\Ltrg}$ is just equality.
+
+$\cca$ is robustly preserving (\Cref{def:rtp}) \gls*{tms}:
+\begin{theorem}[$\cca$ secure w.r.t. \gls*{tms}]\label{thm:cca:rtp:tms}
+    $\rtp{\cca}{\tmssafe}$ % \Coqed
+\end{theorem}
+
+\subsection{Robust Spatial Memory Safety Preservation}\label{subsec:cs:ms}
+
+The spatial memory safety preserving compiler from $\Ltrg$ to $\Lms$ only inserts bounds-checks whenever reading from or writing to memory in order to enforce \gls*{sms}.
+These bounds checks need the bounds information, which the compiler keeps around by introducing a fresh identifier $\irl{x_{SIZE}}$ for each allocation that binds $\irl{x}$.
+Then, it is simply a matter of referring to that variable and ensuring that memory accesses are in the interval $[\irl{0},\irl{x_{SIZE}})$.
+When the check fails, the code aborts.
+
+\begin{nscenter}
+% \small
+  $$
+  \begin{array}{rcl}
+    \ccb(\trg{\lnew{x}{\expr[_{1}]}{\expr[_{2}]}}) & = 
+                                                   & \llet[\irl]{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{1}]})}{}
+    		\\&&
+    		\lnew[\irl]{\irl{x}}{\irl{x_{SIZE}}}{\ccb(\trg{\expr[_{2}]})}
+    		 \\
+  \ccb(\trg{\lget{x}{\expr}}) & = 
+                              & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr})}{}
+  	\\&&
+  \lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\\&&\irl{\lget{x}{x_{n}}}}{}
+  		\irl{\labort}
+  	  \\
+  \ccb(\trg{\lset{x}{\expr[_{1}]}{\expr[_{2}]}}) & = 
+                                                 & \llet[\irl]{\irl{x_{n}}}{\ccb(\trg{\expr[_{1}]})}{}
+  		\\&&
+  \lifz[\irl]{\irl{0\le x_{n}<x_{SIZE}}}{\\&&\lset[\irl]{\irl{x}}{\irl{x_{n}}}{}
+  		\ccb(\trg{\expr[_{2}]})
+  		}{\irl{\labort}} 
+  		% \\
+  \end{array}
+  $$
+\end{nscenter}
+
+\begin{exampleenv}[Instrumented \texttt{strncpy}]
+  Consider again \texttt{strncpy}, but instrumented for \gls*{sms}:
+    \begin{lstlisting}[language=c,basicstyle=\ttfamily, morekeywords={size_t}]
+void strncpy(size_t n, size_t dst_size, char *dst,
+             size_t src_size, char *src) {
+  for(size_t i = 0; i < src_size
+      && src[i] != '\0' && i < n; ++i) {
+    if(i < src_size && i < dst_size) {
+      dst[i] = src[i];
+    }
+  }
+}
+    \end{lstlisting}
+Consider context \texttt{strncpy(2, x, y)}, where \texttt{x} and \texttt{y} are pointers to valid regions of memory with allocated space for exactly two cells and do not contain the null-terminating character \texttt{'\textbackslash 0'}.
+% 
+Without the \gls*{sms} pass, the event $\ev{Use}\ \loc_{x}\ 2;\comp;\unlock$ would appear on the trace, but that indicates an out-of-bounds access! 
+Fortunately, with \gls*{sms} mitigation in place, that event does not appear during execution, since the bounds check prevents the condition \texttt{src[i] != '\textbackslash 0'} from executing.
+\end{exampleenv}
+
+Contrary to the previous compiler, $\ccb$ may change the trace of the original $\Ltrg$ program: if there is a memory access, it needs to be protected with a bounds check.
+% 
+The corresponding relation $\sim^{\Ltrg}_{\Lms} : \trg{\trace}\times\irl{\trace}$ that describes this semantic effect of the compiler is defined partially below.
+% 
+We omit action $\trg{Set}$, which is treated analogously, and any other event, which is related to its cross-language equivalent.
+% \footnote{Up to colours.}
+% \footnote{In the interest of space, the full details are in the technical report.}
+
+{
+\[
+  \typerulenolabel{xrel:sms:read}{\trg{n}\text{ in bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{Get\ \loc\ n;\comp}}
+\]
+% \[
+%   \typerulenolabel{xrel:sms:panic}{\trg{n}\text{ out of bounds}}{\trg{Get\ \loc\ n;\comp}\sim^{\Ltrg}_{\Lms}\irl{\lightning}}
+% \]
+}
+
+% Note that neither $\Ltrg$ nor $\Lms$ expose branches on the trace.\MP{so what?}
+For simplicity, we elide the environment that this relation carries around in order to bind each location to its metadata (such as its size), and resolve the ``$\trg{n}$ in/out of bounds'' premise.
+% The bounds check mentioned in the premises of the rules above is left abstract for the sake of simplicity, the interested reader can find
+% since the precise definition needs some technicalities that only inhibit readability without any technical insights.
+% 
+We can now prove that compiler $\ccb$ robustly preserves \gls*{sms}.
+\begin{theorem}[$\ccb$ secure w.r.t. \gls*{sms}]\label{thm:ccb:rtp:sms}
+  $\rtpsim{\ccb}{\smssafe}{\sim^{\Ltrg}_{\Lms}}$ % \Coqed
+\end{theorem}
+
+At this point we can compose $\ccb$ with the previous compiler ($\cca$), but in order to do so, we need a trace relation from $\Ltms$ to $\Lms$.
+% 
+We can obtain this relation by composing the trace relation we just defined ($\sim^{\Ltrg}_{\Lms}$) with the one used by the previous compiler: $\sim^{\Ltms}_{\Ltrg} : \src{\trace}\times\trg{\trace}$.
+% 
+The latter has not been previously defined (nor has it been used in the related theorem) because that is just an equality relation, since the trace models of $\Ltms$ and of $\Ltrg$ are the same.
+% 
+Thus, we formally define $\sim^{\Ltms}_{\Lms}: \src{\trace} \times \irl{\trace}$ as the following composition: $\sim^{\Ltms}_{\Ltrg}\bullet\sim^{\Ltrg}_{\Lms}$.
+% 
+With this relation, \Cref{corr:ccab:rtp:ms} states that the composition of $\cca$ and $\ccb$ is secure w.r.t. \gls*{ms} and it follows from \Cref{thm:cca:rtp:tms,thm:ccb:rtp:sms} using \Cref{thm:rtpsim:sig}.
+% 
+\begin{corollary}[$\cca\circ\ccb$ secure w.r.t. \gls*{ms}]\label{corr:ccab:rtp:ms}
+  $\;$ 
+
+  \begin{nscenter}
+    $\rtpsim{\cca\circ\ccb}{\mssafe}{\sim^{\Ltms}_{\Lms}}$ % \Coqed
+  \end{nscenter}
+\end{corollary}
+% 
+This proof requires another precondition besides \Cref{thm:ccb:rtp:sms,thm:cca:rtp:tms}: $\sim^{\Ltms}_{\Ltrg}$ needs to be well-formed with respect to $\smssafe$.
+This follows trivially since $\sim^{\Ltms}_{\Ltrg}$ is an equality. 
+% 
+\begin{lemma}[$\sim^{\Ltms}_{\Ltrg}$ well-formed w.r.t. $\smssafe$]\label{lem:wf:ltmsltrg}
+$\;$ 
+
+  \begin{nscenter}
+  $\wfcsig{\sim^{\Ltms}_{\Ltrg}}{\smssafe}$
+  \end{nscenter}
+\end{lemma}
+
+\subsection{Optimising Compilers}\label{subsec:cs:opts} 
+
+This section defines two optimising compiler passes from $\Lms$ to $\Lms$ which perform \gls*{dce} and \gls*{cf}, respectively.
+The \gls*{dce} pass applies a na\"ive rewrite rule on conditionals.
+The \gls*{cf} pass relies on an auxiliary function \texttt{mix} that uses a substitutions accumulator $\irl{\substlist}$ in order to rewrite constant binary operations, e.g., $\irl{{17}-1}$ to $\irl{16}$, and replace variables that are assigned to constants, e.g., $\irl{\llet{x}{7}{x}}$ to $\irl{7}$.
+
+\vspace{-1em}
+\begin{gather*}
+  \begin{align*}
+    \ccdce(\irl{\lifz{true}{\expr[_{1}]}{\expr[_{2}]}}) & = \ccdce(\irl{\expr[_{1}]}) &\\
+    \ccdce(\irl{\lifz{false}{\expr[_{1}]}{\expr[_{2}]}}) & = \ccdce(\irl{\expr[_{2}]}) &
+  \end{align*}
+  \\
+  % \begin{align*}
+  %   \ccdce(\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = \lbinop[\irl]{\ccdce(\irl{\expr[_{1}]})}{\ccdce(\irl{\expr[_{2}]})} &
+  % \end{align*}
+  % \\[0.25cm]
+  \begin{align*}
+    \cccf(\irl{\expr}) & = \partialeval{\irl{\expr}}{\irl{\hole{\cdot}}} &
+  \end{align*}
+  \\[0.125cm]
+  \begin{align*}
+   \partialeval{\irl{x}}{\irl{\substlist}} & = \irl{n} 
+   	\qquad\qquad \text{if } \irl{\subst{n}{x}}\in\irl{\substlist} \\
+   \partialeval{\irl{x}}{\irl{\substlist}} & = \irl{x} 
+   \qquad\qquad \text{if } \irl{\subst{n}{x}}\notin\irl{\substlist} \\
+   \partialeval{\irl{\lbinop{n}{m}}}{\irl{\substlist}} & = \irl{k} 
+   \qquad\qquad \text{if } \lbinop{\irl{n}}{\irl{m}}=k \\
+   %\partialeval{\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}}{\irl{\substlist}} & = \lbinop[\irl]{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}} \\
+   \partialeval{\irl{\llet{x}{n}{\expr}}}{\irl{\substlist}} & = \partialeval{\irl{\expr}}{\irl{\subst{n}{x}\cdot\substlist}} 
+  % \\
+  % \partialeval{\irl{\lget{x}{\expr}}}{\irl{\substlist}} & = \lget[\irl]{\irl{x}}{\partialeval{\irl{\expr}}{\irl{\substlist}}}
+% \end{align*}
+\end{align*}
+% \\
+% \begin{align*}
+%   \partialeval{\irl{\llet{x}{\expr[_{1}]}{\expr[_{2}]}}}{\irl{\substlist}} & = \llet[\irl]{\irl{x}}{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\\&\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}} \\
+%   \partialeval{\irl{\lifz{\expr[_{1}]}{\expr[_{2}]}{\expr[_{3}]}}}{\irl{\substlist}} & = \lifz[\irl]{\partialeval{\irl{\expr[_{1}]}}{\irl{\substlist}}}{\\&\partialeval{\irl{\expr[_{2}]}}{\irl{\substlist}}}{\partialeval{\irl{\expr[_{3}]}}{\irl{\substlist}}} \\
+% \end{align*}
+\end{gather*}
+% \vspace{-3em}
+
+Note that both passes have no effect on the resulting trace of a program, up to $\emptyevent$-steps. 
+Because of this, both passes have equality as corresponding cross language trace relation. 
+Moreover, it is straightforward to prove both passes as secure (\Cref{def:rtp}) w.r.t. \gls*{ms}. 
+
+\begin{theorem}[$\ccdce$ secure w.r.t. \gls*{ms}]\label{thm:ccdce:rtp:ms}
+  $\rtp{\ccdce}{\mssafe}$ %\Coqed
+\end{theorem}
+\begin{theorem}[$\cccf$ secure w.r.t. \gls*{ms}]\label{thm:cccf:rtp:ms}
+  $\rtp{\cccf}{\mssafe}$ %\Coqe
+\end{theorem}
+
+With both \Cref{thm:ccdce:rtp:ms,thm:cccf:rtp:ms} it follows from \Cref{corr:swappable} that the two passes can be interchanged arbitrarily:
+
+\begin{theorem}[$\cccf\circ\ccdce$ and $\cccf\circ\ccdce$ are secure w.r.t. \gls*{ms}]\label{thm:cccfccdce:rtp:ms}
+$\;$ 
+
+  \begin{nscenter}
+  \phantom{and~}\!\!$\rtp{\cccf\circ\ccdce}{\mssafe}$ 
+
+  and~$\rtp{\ccdce\circ\cccf}{\mssafe}$ % \Coqed
+  \end{nscenter}
+\end{theorem}
+
+\subsection{Robust Strict Cryptographic Constant Time Preservation}\label{subsec:cs:scct}
+
+This section defines a compiler $\ccscct$ from $\Lms$ to $\Lscct$ that robustly preserves \gls*{scct}. 
+Given the fact that $\Lscct$ provides a \gls*{cct}-mode that can be turned on or off, the compiler inserts wrapper code for function calls and function bodies to ensure that execution in the component always happen in \gls*{cct}-mode.
+This simple flag combines the effect of FaCT~\cite{cauligi2019fact} 
+
+\vspace{-1em}
+\[
+\begin{array}{rcl}
+  \ccscct(\irl{\lfunction{g}{x}{\expr}}) & = & \lfunction[\obj]{\obj{g}}{\obj{x}}{\obj{\lwrdoit{ON};}\ccscct(\irl{\expr})} \\
+  \ccscct(\irl{\lcall{g}{\expr}}) & = & \lcall[\obj]{\obj{g}}{\ccscct(\irl{\expr})\obj{; \lwrdoit{ON}}} 
+    % \\
+    % \ccscct(\irl{\lbinop{\expr[_{1}]}{\expr[_{2}]}}) & = \lbinop[\obj]{\ccscct{\irl{\expr[_{1}]}}}{\ccscct{\irl{\expr[_{2}]}}} 
+    % \\
+\end{array}
+\]
+% \vspace{-2em}
+%
+The context can overwrite the flag and exit the mode, but upon invoking a function that is part of the component, the flag is set again.
+Because of this, the corresponding cross-language trace relation $\sim^{\Lms}_{\Lscct}$, only relates events without secrets:%
+
+\begin{center} 
+  \typerulenolabel{xrel:scct:noleak}{}{\irl{\preevent;\comp}\sim^{\Lms}_{\Lscct}\obj{\preevent;\comp;\unlock}}
+\end{center}
+
+The compiler is secure w.r.t. \gls*{scct}: %, similarly proven as in \Cref{subsec:cs:tms}.
+
+\begin{theorem}[$\ccscct$ secure w.r.t. \gls*{scct}]\label{thm:ccscct:rtp:scct}
+  \small
+  $\rtpsim{\ccscct}{\scctsafe}{\sim^{\Lms}_{\Lscct}}$ % \Coqed
+\end{theorem}
+
+\subsection{Robust Speculative Safety Preservation}\label{subsec:cs:ss}
+
+This section defines the final compilation pass $\ccspec$, which ensures that $\Lscct$ programs, which are assumed to be \gls*{ss}, stay \gls*{ss} at $\Lspec$-level. 
+To do so, $\ccspec$ inserts a speculation barrier after branches, which is sufficient to harden the program against speculative leaks, since SPECTRE-PHT~\cite{kocher2019spectre} is the only speculative leak modeled in the semantics of $\Lspec$.
+
+\vspace{-1em}
+\[
+\begin{array}{cl}
+  &\ccspec{(\obj{\lifz{\expr[_0]}{\expr[_1]}{\expr[_2]}})} = 
+  \\
+  &\qquad\qquad \lifz[\ird]{\ccspec{\left(\obj{\expr[_0]}\right)}}{\ird{\lbarrier;}\ccspec{\left(\obj{\expr[_1]}\right)} \\&\qquad\qquad}{ \ird{\lbarrier;}\ccspec{\left(\obj{\expr[_2]}\right)}} 
+\end{array}
+\]
+% \vspace{-2em}
+%
+
+Clearly, the corresponding cross-language trace relation $\sim^{\Lscct}_{\Lspec}$ has only one non-trivial case: for branches, only relate them where speculation is blocked by a barrier:
+
+\begin{center}
+  \typerulenolabel{xrel:spec:if}{}{\obj{Branch\ n}\sim^{\Lscct}_{\Lspec}\ird{Branch\ n}\cdot\ird{Spec}\cdot\ird{Barrier}\cdot\ird{Rlb}}
+\end{center}
+
+The base-event relation above scales to full events by ensuring the missing annotations ($\obj{\comp;\securitytag{}}$ and $\ird{\comp;\securitytag{}}$) are the same.
+% 
+With this relation, we prove that $\ccspec$ is secure with respect to \gls*{ss}.
+\begin{theorem}[$\ccspec$ secure w.r.t. \gls*{ss}]\label{thm:ccspec:rtp:spec}
+  \small$\rtpsim{\ccspec}{\sssafe}{\sim^{\Lscct}_{\Lspec}}$ % \Coqed
+\end{theorem}
+
+\subsection{Robust Preservation of Memory Safety, Strict Cryptographic Constant Time, and Speculative Safety}
+
+Finally, this subsection combines all previous results into one compilation chain to get that it preserves full \gls*{specms}.
+Let $\ccspecms$ be the compiler that is the composition of $\cca$, $\ccb$, $\cccf$, $\ccdce$, $\ccscct$, and $\ccspec$. 
+Let $\sim^{\Ltms}_{\Lspec}$ be the composition of $\sim^{\Ltms}_{\Lms}$, $\sim^{\Lms}_{\Lscct}$, and $\sim^{\Lscct}_{\Lspec}$.
+Then, the following corollary holds.
+
+\begin{corollary}[$\ccspecms$ secure w.r.t. \gls*{specms}]\label{thm:ccall:rtp:specms}
+  $\;$ 
+
+  \begin{nscenter}
+    $\rtpsim{\cc{\Ltms}{\Lspec}}{\mssafe\cap\scctsafe\cap\sssafe}{\sim^{\Ltms}_{\Lspec}}$ % \Coqed
+  \end{nscenter}
+\end{corollary}
+
+As with \Cref{corr:ccab:rtp:ms}, it is important to ensure that the respective cross language trace relations are well-formed (\Cref{def:wfc:sig:tracerel}).
+It is already known that $\sim^{\Ltms}_{\Lms}$ is well-formed with respect to $\mssafe$ (\Cref{lem:wf:ltmsltrg}).
+Next in the chain is $\sim^{\Lms}_{\Lscct}$, which has to be well-formed w.r.t. $\scctsafe$.
+This lemma holds, since a trace that was $\scctsafe$ is $\scctsafe$ even after applying $\sim^{\Lms}_{\Lscct}$: the relation enforces that $\Lscct$ traces related to $\Lms$ traces have no leaks of secrets whatsoever.
+
+\begin{lemma}[$\sim^{\Lms}_{\Lscct}$ well-formed w.r.t. $\scctsafe$]\label{lem:wf:lsmslscct}
+$\;$ 
+
+  \begin{nscenter}
+  $\wfcsig{\sim^{\Lms}_{\Lscct}}{\scctsafe}$
+  \end{nscenter}
+\end{lemma}
+
+The last relation is $\sim^{\Lscct}_{\Lspec}$ which needs to be well-formed w.r.t. $\sssafe$.
+Similarly to the previous relation, this holds, since $\sim^{\Lscct}_{\Lspec}$ only relates $\Lspec$ traces, which do not have speculative leaks, with $\Lscct$ traces.
+
+\begin{lemma}[$\sim^{\Lscct}_{\Lspec}$ well-formed w.r.t. $\sssafe$]\label{lem:wf:lscctlspec}
+  $\wfcsig{\sim^{\Lscct}_{\Lspec}}{\sssafe}$
+\end{lemma}
+
+
+
+
+
+

@@ -1,0 +1,309 @@
+\section{Case Study: Language Formalisations\pages{2}}\label{sec:casestud:defs}
+
+This section defines programming languages $\Ltms$, $\Ltrg$, $\Lms$, $\Lscct$, and $\Lspec$, all of which share common elements (presented in \Cref{subsec:cs:defs}).
+$\Ltms$ is the only statically-typed language, and it exhibits the property that all well-typed programs are \gls*{tms} (\Cref{subsec:ltms}).
+However, not all $\Ltms$ programs are \gls*{sms}.
+That is, there are well-typed $\Ltms$ programs that perform an out-of-bounds access.
+Language $\Ltrg$ is untyped and does not provide any guarantees with regards to \gls*{ms} (\Cref{subsec:lsms}).
+$\Lms$ is exactly the same language as $\Ltrg$, but this paper still distinguishes the two for sake of readability (\Cref{subsec:lms}).
+All three languages --- so $\Ltms$, $\Ltrg$, and $\Lms$ --- assume \gls*{scct} to hold, since this is -- in an ideal world -- what the programmer would expect, too: it is the job of the compiler to preserve and (potentially) enforce \gls*{scct} security~\cite{cauligi2019fact,nagarakatte2010cets,nagarakatte2009soft,akritidis2009baggy}.
+% This paper considers \gls*{cct} as an architecture-dependent property\MPin{can we justify this}, so
+
+Such consideration is also backed up by architecture providing a data (operand) independent timing mode, such as processors by Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman}.
+%In spirit of this, all languages besides $\Lscct$ are trivially \gls*{scct}. 
+This kind of processor feature is modelled in language $\Lscct$ (\Cref{subsec:lscct}), where programs have access to a ``\gls*{cct}-mode'' and can change the leakage of emitted events according to the value of this mode (either $\obj{ON}$ or $\obj{OFF}$). 
+
+Finally, modern processors also employ speculative execution to achieve speedups---and unfortunately generate Spectre attacks~\cite{kocher2019spectre}---and this is the extension of $\Lspec$ (\Cref{subsec:lspec}).
+ % extends $\Lscct$ to model speculative execution.
+%
+Thus, all previous languages trivially satisfy \gls*{ss}, since they do not support speculative execution at all.
+% All languages share large parts of syntactic elements, which are presented in the next subsection (\Cref{subsec:cs:defs}).
+% Subsequent subsections extend on this accordingly.
+
+\subsection{Shared Language Definitions}\label{subsec:cs:defs}
+
+All presented programming languages share a common fragment which is partially presented here and in full detail in the technical report. 
+%\MP{put omitted stuff in appendix + ref there (and add textual explanation)}
+
+% \vspace{-.5em}
+{
+  \renewcommand{\src}[1]{\mathsf{#1}}
+ \small
+\[
+  \begin{array}{rrcl}
+    \text{(Base-Events)} & \src{\preevent} &:=& \src{\ev{Alloc \loc\ n}} \mid \src{\ev{Dealloc \loc}} \mid \src{\ev{Get \loc\ n}} \mid \src{\ev{Set \loc\ n}} \\
+    \text{(Control Tags)} & \src{\sandboxtag{}} &:=& \src{\ctx} \mid \src{\comp} \\
+    \text{(Events)} & \src{\event} &:=& \src{\preevent;\sandboxtag{}} \mid \src{\emptyevent} \mid \src{\lightning} \\ 
+    \text{(Values)} & \src{v} &:=& \src{n} \\
+    \text{(Expressions)} & \src{\expr} &:=& \src{x} \mid \src{n} \mid \src{\lbinop{\expr[_1]}{\expr[_2]}} \mid \src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}} \\ 
+                         &&&\mid \src{\llet{x}{\expr[_1]}{\expr[_2]}} \mid \src{\llet{x}{new\ \expr[_1]}{\expr[_2]}} \\
+                         &&&\mid \src{\ldelete{x}} \mid \src{\lget{x}{\expr}} \mid \src{\lset{x}{\expr[_1]}{\expr[]}} \mid \src{stuck}\\
+                         &&&\mid \src{\lcall{f}{\expr}} \mid \src{\lreturn{\expr}} \\
+    \text{(Functions)} & \src{F} &:=& (\src{x};\src{\expr}) \\
+    \text{(Libraries)} &&&\hspace{-3.8em} \src{\library_{\ctx}},\src{\library_{\comp}} : \src{Vars} \to \src{F} 
+    % \hspace{2em}
+    %  : \src{Vars} \to \src{F} 
+     \\
+    \text{(Heaps)} & \src{H} &:=& \src{\hole{\cdot}} \mid \src{n},\src{H}
+    % \hspace{0.5cm}    
+    \\
+    \text{(Pointer Maps)} & \src{\Delta} && \text{ omitted for simplicity}
+    \\
+    \text{(Memory States)} & \src{\memstate} &:=& \left(\src{H^{\ctx}};\src{H^{\comp}};\src{\Delta}\right)\\
+    \text{(Control States)} & \src{\cfstate} & & \text{ omitted for simplicity} 
+    \\
+    \text{(States)} &\src{\Omega} &:=& \left(\src{\cfstate};\src{\sandboxtag{}};\src{\memstate}\right)\\
+  \end{array}
+\]
+}
+{
+  \renewcommand{\src}[1]{\mathsf{#1}}
+The trace models of all languages are similar to those presented earlier (\Cref{sec:compprop}).
+One technical detail is the addition of a control tag, indicating who is to blame for an emitted action: context ($\ctx$) or component ($\comp$).
+This is a standard technique in secure compilation in order to rule out irrelevant context-level events. 
+For example, a context immediately deallocating an allocated memory region twice trivially violates memory safety, but the main interest in secure compilation is to preserve component-level security, and thus component events.
+Even though this tagging could be used for blame preservation~\cite{patrignani2023blame}, this is beyond the focus of this paper.
+Another key difference is that memory accesses are now explicitly modelled as reads ($\src{\ev{Read\ \loc\ n}}$) and writes ($\src{\ev{Write\ \loc\ n}}$) instead of just uses.
+
+All languages have at least numbers as values ($\src{v}$) and second class functions ($\src{F}$).
+Functions are modelled as pairs containing the name of one argument and the body of the function.
+Bodies are just ordinary expressions, which can be simple binary operations ($\src{\lbinop{\expr[_1]}{\expr[_2]}}$), conditionals ($\src{\lifz{\expr[_1]}{\expr[_2]}{\expr[_3]}}$), function calls ($\src{\lcall{f}{e}}$) and returns ($\src{\lreturn{\expr}}$), as well as C-like memory operations. 
+Programs have sets of pre-determined functions called libraries and they are marked as being part of some component ($\src{\library_{\comp}}$) or context ($\src{\library_{\ctx}}$).
+
+For the operational semantics, the runtime state ($\src{\Omega}$) is a triple consisting of a control-flow state ($\src{\cfstate}$), a control tag ($\src{\sandboxtag{}}$), and a memory state ($\src{\memstate}$). 
+The latter carries information about pointers that are kept ``alive'' in pointer maps ($\src{\Delta}$), so that the semantics does not get stuck when encountering, e.g., a double-free.
+The memory state also carries two heaps to model sandboxing between a context ($\src{H^{\ctx}}$) and a component ($\src{H^{\comp}}$).
+
+}
+
+\subsection{$\src{L_{\tmssafe}}$: A Temporal but Not Spatial Memory Safe Language}\label{subsec:ltms}
+
+$\src{L_{\tmssafe}}$ is the only statically-typed language in this case study and restricts functions ($\src{F}$) to the typing signature $\src{\natt\to\natt}$. 
+The type system of $\src{L_{\tmssafe}}$ is inspired by $L^{3}$~\cite{morrisett2005L3,scherer2018fabulous} and enforces that every well-typed $\src{L_{\tmssafe}}$ program satisfies \gls*{tms}.
+ % (\Cref{thm:wt:tms}).
+
+\begin{theorem}[$\src{L_{\tmssafe}}$-programs are \gls*{tms}]\label{thm:wt:tms}
+$\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
+  % $\;$ 
+% 
+  % \begin{nscenter}
+  %   \hfill For any component $\src{\library_{\comp}}$, $\rsat{\src{\library_{\comp}}}{\tmssafe}$ \Coqed
+  % \end{nscenter}
+\end{theorem}
+
+\subsection{$\Ltrg$: A Memory-Unsafe Language}\label{subsec:lsms}
+
+$\Ltrg$ extends the syntax presented earlier (\Cref{subsec:cs:defs}) with dynamic typechecks ($\trg{\lhast{\expr}{\type}}$), evaluating to $\trg{0}$ if the type matches with the shape of $\trg{\expr}$ and $\trg{1}$ otherwise.
+%The pointers carry poison tags, which signify a pointer being allocated ($\trg{\poisoned}$) or freed ($\trg{\poisonless}$). 
+Furthermore, the syntax of $\Ltrg$ is extended with a way to inspect whether a pointer is freed ($\trg{\lispoisoned{x}}$), evaluating to $\trg{0}$ if it is freed and to $\trg{1}$ otherwise.
+Functions may receive arguments that are not $\trg{\natt}$, values are extended with tuples, and expressions are also extended with pair projections.
+
+% \vspace{-1em}
+\[
+  \begin{array}{rrcl}
+    \text{(Values)} & \trg{v} &:=& \dots \mid \trg{\lpair{v_1}{v_2}} \\
+    \text{(Expressions)} & \trg{\expr} &:=& \dots \mid \trg{\lhast{\expr}{\tau}} \mid \trg{\lispoisoned{x}} \mid \trg{e.1} \mid \trg{e.2}
+  \end{array}
+\]
+
+No changes are done to the trace model, but $\Ltrg$ has no static typing, making double-free code patterns possible.
+
+\subsection{$\Lms$: Another Memory-Unsafe Language}\label{subsec:lms}
+$\Lms$ is exactly equal to $\Ltrg$ (\Cref{subsec:lsms}), but used to emphasize that this is code after applying $\cc{\Ltrg}{\Lms}$ (\Cref{subsec:cs:ms}).
+
+\subsection{$\Lscct$: A Memory-Unsafe Language with a Constant Time Mode}\label{subsec:lscct}
+
+$\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a ,,constant-time mode''. 
+The activation of the mode can be checked ($\obj{\lrddoit{x}{\expr}}$), changed ($\obj{\lwrdoit{D}}$), and is stored in program states ($\obj{\Omega}$).
+At the beginning of program execution of $\Lscct$ programs, the mode is turned off ($\obj{OFF}$).
+If the mode is enabled (i.e., set to $\obj{ON}$), the intuition is that no secrets are leaked. 
+This models the real-world\footnote{As present in Intel~\cite[p.80]{intel-refman} and ARM~\cite[p.~543]{arm-refman} processors.} data-independent timing mode as well as the result of compiling a program with FaCT~\cite{cauligi2019fact}.
+For example, FaCT rewrite code that branches to use a constant-time selection primitive.
+To not obfuscate our formalisation unnecessarily by duplicating syntax, we simply added the ,,constant-time mode'' to $\Lscct$.
+
+% $\Lscct$ extends $\Lms$ (\Cref{subsec:lms}) with a way to read from ($\obj{\lrddoit{x}{\expr}}$) and to write to ($\obj{\lwrdoit{D}}$) a model-specific register that controls a constant-time mode. 
+% This language is a combination of the effect of the FaCT compiler~\cite{cauligi2019fact} as well as a data-independent timing mode, a feature that is present in both Arm~\cite[p.~543]{arm-refman} and Intel~\cite[p.~80]{intel-refman} processors.
+% \MP{ can we be more specific about the fact pass? }
+% To this end, states ($\obj{\Omega}$) are extended with the value of the register ($\obj{D}$), which is initially set to be not active ($\obj{OFF}$).
+% If the register is marked active ($\obj{ON}$), the intuition is that no secrets can appear on specification traces.
+% If the register is marked inactive, secrets may appear on traces.
+% The state of the register can be read and written to, e.g., \Cref{tr:e-wrdoit-off}.
+% For the other languages seen earlier, the mode is intuitively always-on, i.e., the mode of execution always uses constant-time mode.
+
+% \vspace{-.5em}
+\[
+  \begin{array}{rrcl}
+    \text{(Mode Values)} & \obj{D} &:=& \obj{ON} \mid \obj{OFF} \\
+    \text{(Security Tags)} & \obj{\securitytag{}} &:=& \obj{\lock} \mid \obj{\unlock} \\
+    \text{(Base-Events)} & \obj{\preevent} &:=& \dots \mid \obj{iGet\ \loc\ v} \mid \obj{iSet\ \loc\ v} \\
+                       &&& \mid\ \obj{Binop\ n} \mid \obj{Branch\ n} \\
+    \text{(Events)} & \obj{\event} &:=& \obj{\preevent;\sandboxtag{};\securitytag{}} \mid \obj{\emptyevent} \mid \obj{\lightning} \\
+    \text{(Expressions)} & \obj{\expr} &:=& \dots \mid \obj{\lrddoit{x}{\expr}} \mid \obj{\lwrdoit{D}} \\
+                         &&&\mid\ \obj{\llet{x^{\securitytag{}}}{\expr[_1]}{\expr[_2]}}\\
+    \text{(States)} & \obj{\Omega} & := & \left(\obj{\cfstate};\obj{\sandboxtag{}};\obj{D};\obj{\memstate}\right)\\
+  \end{array}
+\]
+\begin{center}
+\newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
+\newcommand{\exprevalo}[5]{\expreval{\obj{#1}}{\obj{#2}}{\obj{#3}}{\obj{#4}}{\obj{#5}}}
+  \typerule{$e-\obj{wrdoit}-\text{off}$}{
+  }{
+    \pstepto{\rtt{\obj{\cfstate;\sandboxtag{};D;\memstate}}{\obj{\lwrdoit{OFF}}}}{\rtt{\obj{\cfstate;\sandboxtag{};OFF;\memstate}}{\obj{0^{\securitytag{}}}}}{\obj{\emptyevent}}
+  }{e-wrdoit-off}
+
+  \typerule{$e-\obj{get}-\in-$noleak}{
+    \obj{\memstate}=\obj{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag{};\poison),\Delta_2} &
+    \obj{\loc}+\obj{n}\in\text{dom }\obj{H^{\sandboxtag{}}} \\
+    \obj{\securitytag{''}}=\obj{\securitytag{}\sqcap\securitytag{'}} &
+    \obj{\event} = \obj{{iGet}\ \loc\ n;\sandboxtag{};\securitytag{''}}
+  }{
+    \exprevalo{
+    	\cfstate;\sandboxtag{'};ON;\memstate
+    }{
+      	x^{\securitytag[n^{\securitytag{'}}] }
+    }{
+    	\cfstate;\sandboxtag{'};ON;\memstate
+    }{
+    	(H^{\sandboxtag{}}(\loc+n))^{\securitytag{''}}
+    }{
+      \event
+    }
+  }{to-e-get-in-noleak}
+\end{center}
+
+The language also adds user annotations $\obj{\securitytag{}}$ for the secrecy of variables, which can be either private (high secrecy) $\obj{\lock}$ or public (low secrecy) $\obj{\unlock}$.
+Security tags $\obj{\securitytag{}}$ are arranged in the usual secrecy lattice~\cite{zdancewicphd}, where $\obj{\unlock}\sqsubseteq\obj{\lock}$.
+% $\obj{\lock}\sqsubseteq\obj{\securitytag{}}$ and $\obj{\securitytag{}}\sqsubseteq\obj{\unlock}$.
+
+Memory accesses to secret data need to be present to reason about memory safety, even when execution is in constant-time mode, e.g, \Cref{tr:to-e-get-in-noleak}.
+$\Lscct$ extends base-events with $\obj{\ev{iGet}\ \loc\ \valueexpr}$ and $\obj{\ev{iSet}\ \loc\ \valueexpr}$ (for data $\obj{i}$ndependent get and set) to prevent secrets from leaking but still enable reasoning about memory safety. 
+Due to the technical setup, the rule needs to check if the access is in bounds ($\obj{\loc}+\obj{n}\in\obj{H^t}$) and update the secrecy tag ($\obj{\securitytag{''}}=\obj{\securitytag{}\sqcap\securitytag{'}}$) with the least upper bound of the tags, according to the aforementioned lattice.
+The precise information carried by the event, e.g., location ($\obj{\loc}$) is taken from the pointer map, which carries information irrelevant to this rule ($\obj{\poison}$).
+
+Base-events include $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ that are emitted when evaluating a branch or certain binary expressions, such as division, respectively, whenever the constant-time mode is inactive.
+Events are extended with a security-tag ($\obj{\securitytag{}}$) to signal the secrecy of the involved data.
+
+The evaluation steps are amended to propagate the security-tag annotations $\obj{\securitytag{}}$.
+When the constant-time mode is inactive, base-events $\obj{\ev{Branch}\ n}$ and $\obj{\ev{Binop}\ n}$ are emitted for conditionals and binary operations, respectively.
+Otherwise, just like in the semantics of the earlier languages, $\obj{\emptyevent}$ is emitted for binary and branching operations.
+%To mark this mode as active or inactive, \Cref{tr:e-wrdoit} allows to access the register in $\obj{\statevar}$.
+
+
+\Cref{ex:lscct} illustrates the differences between $\Lscct$ and other languages.
+
+\begin{exampleenv}[$\Lscct$ with and without constant-time mode]\label{ex:lscct}
+  Consider again \Cref{ex:strncpy}, with a context copying the string \texttt{Hello World}, where everything is marked with a high security tag: $\lock$.
+  The top half of \Cref{fig:ex-cct} (titled $\Lscct$), describes the execution trace of the program, while the bottom side of the table (titled ``Specification''), describes the related specification trace (\Cref{subsec:msctss:tracemodel}).
+  Read in parallel from top to bottom, the figure shows parts of the execution trace. 
+  In each half, the left column (\textit{Active}) has constant-time mode $\obj{ON}$ and the right one (\textit{Inactive}) has it $\obj{OFF}$.
+  
+  When the constant-time mode is off, the execution yields events without constant-time leaks (\Cref{subsec:ltms,subsec:lsms,subsec:lms}).
+  But, if it is turned on, then the branching event \colorbox{yellow}{does not fire} anymore and both reading and writing to memory is related to a specification trace with \colorbox{lightgray}{no exposed secrets}.
+\end{exampleenv}
+\begin{figure}[!htb]
+	\vspace{-1em}\small
+  $$
+  % {
+  \begin{array}{ccc}
+    & \Lscct &        \\
+    \text{Active} & \mid & \text{Inactive} \\\hline
+    \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{x}\ 12;\comp;\unlock} \\
+    \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} & \mid & \obj{\ev{Alloc}\ \loc_{y}\ 12;\comp;\unlock} \\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} \\
+    \text{\colorbox{yellow}{$\obj{\emptyevent}$}} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} \\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 0;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 0;\comp;\lock} \\
+    \obj{{\ev{iSet}}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Set}\ \loc_{y}\ 0\ \mathtt{'H'};\comp;\lock} \\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 1;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 1;\comp;\lock} \\
+    \text{\colorbox{yellow}{$\obj{\emptyevent}$}} & \mid & \obj{\ev{Branch}\ 0;\comp;\lock} \\
+    \vdots & \mid & \vdots \\
+    \obj{{\ev{iGet}}\ \loc_{x}\ 12;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{x}\ 12;\comp;\lock} \\
+    \text{\colorbox{yellow}{$\obj{\emptyevent}$}}& \mid & \obj{\ev{Branch}\ 1;\comp;\lock} \\
+    \obj{\ev{Dealloc}\ \loc_{y};\comp;\unlock} & \mid & \obj{\ev{Dealloc}\ \loc_{y};\comp;\lock} \\
+    \obj{{\ev{iGet}}\ \loc_{y}\ 6;\comp;}\text{\colorbox{lightgray}{$\obj{\lock}$}} & \mid & \obj{\ev{Get}\ \loc_{y}\ 6;\comp;\lock} \\
+  \end{array}
+  % }
+  $$
+  $$
+  % {
+  \begin{array}{ccc}
+          & \text{Specification} & \\
+  \text{Active} & \mid & \text{Inactive} \\\hline
+     \ev{Alloc}\ \loc_{x}\ 12;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\unlock\\
+     \ev{Alloc}\ \loc_{y}\ 12;\unlock & \mid & \ev{Alloc}\ \loc_{x}\ 12;\unlock\\
+     \ev{Use}\ \loc_{x}\ 0;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\lock\\
+     \emptyevent & \mid & \ev{Branch}\ 0;\lock\\
+     \ev{Use}\ \loc_{x}\ 0;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 0;\lock\\
+     \ev{Use}\ \loc_{y}\ 0;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 0;\lock\\
+     \ev{Use}\ \loc_{x}\ 1;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 1;\lock\\
+     \emptyevent & \mid & \ev{Branch}\ 0;\lock\\
+     \vdots & \mid & \vdots \\
+      \ev{Use}\ \loc_{x}\ 12;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{x}\ 12;\lock\\
+      \emptyevent & \mid & \ev{Branch}\ 1;\lock\\
+      \ev{Dealloc}\ \loc_{y};\unlock & \mid & \ev{Dealloc}\ \loc_{y};\unlock\\
+      \ev{Use}\ \loc_{y}\ 6;\text{\colorbox{lightgray}{$\unlock$}} & \mid & \ev{Use}\ \loc_{y}\ 6;\lock\\
+  \end{array}
+  % }
+  $$
+  \caption{Traces for \Cref{ex:lscct}.}
+  \label{fig:ex-cct}
+\end{figure}
+
+
+\subsection{$\Lspec$: A Memory-Unsafe Language with Speculation}\label{subsec:lspec}
+
+$\Lspec$ extends $\Lscct$ (\Cref{subsec:lscct}) with speculative dynamic semantics that is inspired by existing work~\cite{guarnieri2018spectector,fabian2022automatic}.
+After branching, speculation starts by pushing the current configuration into the speculation state ($\ird{S}$), and run subsequent code in a predetermined window (whose size is $\omega$) until a rollback of operational state is performed. 
+The window is set inside the speculation state.
+Within such windows, data may leak, this is marked as high $\ird{\lock}$ and with an annotation that indicates the respective speculative execution variant. 
+In this paper, we just consider SPECTRE-PHT~\cite{kocher2019spectre}, whose starting point is \Cref{tr:e-ifz-true-spec}. % where $\omega$ is the size of the speculation window, i.e., a number of reduction steps to be taken under speculative semantics.
+Additionally, $\ird{\lock}$ may also carry a $\ird{NONE}$ annotation, to signal that this is a leak irrespective of speculation, i.e., as defined earlier (\Cref{subsec:lscct}).
+The semantics is kept general enough to allow for future extension to support different variants~\cite{kocher2019spectre,maisuradze2018ret2spec,horn2019zero}.
+
+In terms of language features, $\Lspec$ includes a new barrier operation $\ird{\lbarrier}$ that blocks speculative execution. 
+To facilitate speculative execution in a non-assembly-like language, a stack of operational state is used and speculation is active if that stack has a size greater than one.
+This is exploited in \Cref{tr:e-spec-eat} to consume any leftover speculation.
+
+\vspace{-.5em}
+\[
+  \begin{array}{rrcl}
+    \text{(Base-Events)} & \ird{\preevent} &:=& \dots \mid \ird{Spec} \mid \ird{Rlb} \mid \ird{Barrier}\\
+    \text{(Expressions)} & \ird{\expr} &:=& \dots \mid \ird{\lbarrier} \\
+    \text{(Speculation State)} & \ird{S} &:=& \ird{\Omega\triangleright\expr} \mid \ird{S},\left(\ird{\Omega};\ird{n};\ird{\expr}\right)
+  \end{array}
+\]
+
+\begin{center}
+\newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
+\newcommand{\exprevald}[5]{\expreval{\ird{#1}}{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}}
+
+  %
+  \typerule{$e-\ird{ifz}-\ird{true}-\text{spec}$}{
+    \ird{S} = \rtt{(\ird{\cfstate['];\sandboxtag{};D;\memstate});\ird{S}}{\ird{\expr[_1]}},({\ird{\cfstate;\sandboxtag{};D;\memstate}};\omega;{\ird{\expr[_2]}})
+  }{
+    \pstepto{\rtt{\ird{\cfstate;\sandboxtag{};D;\memstate}}{\ird{\lifz{0^{\securitytag{}}}{\expr[_1]}{\expr[_2]}}}}{\ird{S}}{\ird{{Branch}\ 0;\sandboxtag{};\securitytag{}}\cdot\ird{{Spec};\sandboxtag{};\securitytag{}}}
+  }{e-ifz-true-spec}
+  %
+  \typerule{$e-\ird{spec}-\text{eat}$}{
+    \ird{n} > 0 &
+    \pstepto{\rtt{\ird{\Omega}}{\ird{\expr}}}{\rtt{\ird{\Omega'}}{\ird{\expr[']}}}{\ird{\event}}
+  }{
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{n};\ird{\expr})}{\ird{S},(\ird{\Omega'};\ird{n}-1;\ird{\expr'})}{\ird{\event}}
+  }{e-spec-eat}
+  % 
+  \typerule{$e-\ird{spec}-\text{eaten}$}{
+  }{
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{0};\ird{\expr})}{\ird{S}}{\ird{Rlb;\Omega.\sandboxtag{};\unlock}}
+  }{e-spec-eaten}
+  %
+  \typerule{$e-\ird{spec}-\text{barrier}$}{
+  }{
+    \ghoststepto{\ird{S},(\ird{\Omega};\ird{n};\ird{\lbarrier})}{\ird{S},(\ird{\Omega};\ird{0};\ird{0})}{\ird{Barrier;\Omega.\sandboxtag{};\unlock}}
+  }{e-spec-barrier}
+\end{center}
+
+The trace model is extended with $\ird{{Spec}}$, $\ird{{Rlb}}$, and $\ird{{Barrier}}$ events that signal the respective operational action. 
+A $\ird{\lbarrier}$ prevents any execution whatsoever besides $\ird{{Rlb}}$ when run in speculative execution mode and does nothing when run in normal mode, e.g., \Cref{tr:e-spec-barrier}.%
+\footnote{In the rule, the notation $\cfstate' = \cfstate[.\text{win} = 0]$ means that $\cfstate'$ is a copy of $\cfstate$ up to field $\text{win}$, which is set to $0$.}
+Lastly, $\ird{Rlb}$ is emitted when the speculation window is zero and the operational state is rolled back (see \Cref{tr:e-spec-eaten}). 
+
+

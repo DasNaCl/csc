@@ -1,4 +1,4 @@
-
+% !TEX root = ./../main.tex
 
 \section{Introduction}\label{sec:introduction}
 
@@ -6,8 +6,8 @@
   As of today, there exist a number of programming languages that enforce security-relevant properties.
   One of the most used programming languages in that space is Rust~\cite{}, which guarantees basic memory safety.
   That is, there is a guarantee that all memory accesses are {\em temporally} as well as {\em spatially} safe. 
-  Temporal memory safety is the absence of use-after-free and use-after-reallocation bugs and necessitates tracking of pointer provenance\footnote{Due to potential use-after-reallocation bugs.}.
-  Provenance of pointers is also crucial information, together with bounds, for spatial memory safety, which ensures that all accesses are within an allocated object.
+  Temporal memory safety is the absence of use-after-free and use-after-reallocation bugs and necessitates tracking of pointer provenance.\footnote{Due to potential use-after-reallocation bugs.}
+  Provenance of pointers is also crucial information, together with bounds, for spatial memory safety, which ensures that all pointer accesses are within the bounds of an allocated object.
   There is a large body of prior work modifying existing memory-unsafe languages~\cite{} or providing compiler-level enforcements~\cite{} for both temporal and spatial memory safety.
   However, there is more to memory-safety than just temporal and spatial.
   For example, processors of the current age can speculatively load memory and this can be exploited with timing attacks to obtain secrets from ,,memory-safe'' applications~\cite{}.
@@ -17,26 +17,31 @@
   While properties can be enforced at source-level by means of, e.g., static analyses, after compiling to languages without such abstractions, the properties may break.
   For example, RISC-V, a possible target-language of the most commonly used Rust compiler, provides neither memory nor type safety guarantees.
   Intuitively, this is why we want compilers to be {\em correct}, so that they provably preserve the meaning of the source-language.
+  \MP{not flowing, logically}
   With preservation of meaning follows preservation of safety guarantees.
-  Unfortunately, software is seldolmy developed in isolation and programs may be linked with target-level libraries after compilation.
+  Unfortunately, software is seldom developed in isolation and programs may be linked with target-level libraries after compilation.
   These libraries can be compiled with different compilers or may even be hand-written.
   In turn, the correctness-guarantees provided by one compiler do not extend to this setting.
+  \MP{the correctness thing breaks the flow of the argument}
 
-  In previous work, it has been argued that correct compilation is a spectrum~\cite{} with different restrictions applying to how the compiled partial programs can interact with target-level libraries.
+\MP{abate et al, not spectrum thing}
+  Previous work argued that correct compilation is a spectrum~\cite{} with different restrictions applying to how the compiled partial programs can interact with target-level libraries.
   At the extreme end of the spectrum with basically zero restrictions\footnote{The minimal restriction that has to be applied is interface compatibility.} lies robust preservation of meaning.
   Here, partial program components can interact with arbitrary contexts, i.e., libraries, and the compiler has to ensure that crossing the boundary between components and contexts does not break any properties whatsoever.
   For example, in order to robustly ensure memory safety in Rust when compiling to RISC-V, the compiler could compartmentalize all calls and returns via the foreign function interface.
-  This compartmentalization can be done in different ways, one of which is via CHERI capabilities~\cite{}.
+  This compartmentalization can be done in different ways, one of which is via CHERI capabilities~\cite{}. \MP{ don't need}
 
   % Gap
-  For the context of this paper, we are interested in formally verified compilers.
-  That is, they need to be proven to be robustly preserving, which is a labor-intensive and in parts difficult task~\cite{}. %lots of cits
+  For the context of this paper, we are interested in formally verified compilers. \MP{don't need}
+  That is, they need to be proven to be robustly preserving, which is a labor-intensive and in parts difficult task~\cite{}. \MP{don't need}
+  %lots of cits 
   Worse, compilers are not just simple functions translating from one domain into another. 
   A practical compiler consists of several different compilation passes, which itself can be seen as compilers that translate from one intermediate representation into another.
   %%MK: the following is not necessary, i think
   %The CompCert project~\cite{}, while having more restrictions on target-level contexts, attests the herculian effort necessary to prove correctness for realistic compilers with several different passes.
   Moreover, for optimising passes, it can be beneficial to swap the order or iterate them until a fixpoint is reached, but this necessitates modifications to a top-level meaning-preservation proof of a compiler.
   Therefore, it is helpful to have local meaning-preservation proofs for each pass and be able to compose them to obtain a whole-proof for the complete pipeline.
+  \MP{ can likely  }
 
   Compositionality of meaning-preservation proofs for compilers has been investigated in the context of different flavors of compiler correctness. 
   But, to the best of our knowledge, compositionality for robustly preserving compilers is still unclear.
@@ -44,9 +49,10 @@
   Vertical compositionality asserts that it should be possible to verify a compiler pass in isolation.
   For source-independent linking, note that when verifying a compiler, source and target terms need to be related somehow.
   However, this is only necessary for the component, i.e., the partial program that is being compiled, and so source-independent linking asserts that the target context need not be related to any source-context.
+  \MP{wut?}
 
   % Innovation
-  Our aim with this paper is to lay the groundwork for secure compiler composition.
+  Our aim with this paper is to lay the groundwork for secure compiler composition. 
   To this end, we make the following contributions.
   \begin{itemize}
     \item 

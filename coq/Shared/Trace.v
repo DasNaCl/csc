@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String Lists.List Numbers.Natural.Peano.NPeano Lia Program.Equality.
+From Stdlib Require Import Strings.String Lists.List Lia Program.Equality.
 
 Require Import CSC.Util.Convenience.
 
@@ -63,8 +63,8 @@ Section Trace.
   Proof.
     split.
     - induction 1; intros. now constructor. specialize (IHwherein H). inv IHwherein; try easy.
-      constructor; trivial. rewrite Nat.add_comm. now constructor.
-    - intros H0. inv H0. rewrite Nat.add_comm in H5; congruence. rewrite Nat.add_comm in H4. now inv H4.
+      constructor; trivial. rewrite PeanoNat.Nat.add_comm. now constructor.
+    - intros H0. inv H0. rewrite PeanoNat.Nat.add_comm in H5; congruence. rewrite PeanoNat.Nat.add_comm in H4. now inv H4.
   Qed.
   Definition before (a0 a1 : Ev) (As : tracepref) : Prop :=
     exists n0 n1, wherein a0 As n0 /\ wherein a1 As n1 /\ n0 < n1
@@ -87,7 +87,7 @@ Section Trace.
   .
   Proof.
     intros Ha Hb [H1 | [H1 H2]]; try unfold_before.
-    - exists (S n0); exists (S n1); repeat split; auto. now apply Arith_prebase.lt_n_S_stt.
+    - exists (S n0); exists (S n1); repeat split; auto. now apply Arith_base.lt_n_S_stt.
     - subst; congruence.
   Qed.
   Lemma eat_front_in_t a b As :
@@ -222,7 +222,7 @@ Section Lang.
 End Lang.
 
 Module LangNotations.
-  Context (langParams : LangParams).
+  #[local] Parameter (langParams : LangParams).
 
   Declare Scope LangNotationsScope.
   Delimit Scope LangNotationsScope with langnotationsscope.

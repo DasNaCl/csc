@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
+Require Import Strings.String Strings.Ascii Lists.List Program.Equality Recdef Lia.
 
 Require Import CSC.Shared.Sema CSC.Shared.Fresh CSC.Util.Sets CSC.Shared.Fresh CSC.Shared.Props.
 Require Import CSC.Util.HasEquality CSC.Util.Convenience CSC.Util.NoDupInv.
@@ -23,8 +23,8 @@ Lemma value_eqb_eq v1 v2 :
   value_eqb v1 v2 = true <-> v1 = v2.
 Proof.
   revert v2; induction v1; cbn; split; intros.
-  - destruct v2; try easy. apply Nat.eqb_eq in H; inv H; reflexivity.
-  - destruct v2; inv H; apply Nat.eqb_refl.
+  - destruct v2; try easy. apply PeanoNat.Nat.eqb_eq in H; inv H; reflexivity.
+  - destruct v2; inv H; apply PeanoNat.Nat.eqb_refl.
   - inv H; cbn. destruct v2; inv H1. eq_to_defeq value_eqb.
     eapply IHv1_1 in H. eapply IHv1_2 in H0. now subst.
   - destruct v2; inv H. eq_to_defeq value_eqb; split. now eapply IHv1_1.

@@ -130,7 +130,7 @@ Section Bool.
   Proof. now destruct x,y. Qed.
 End Bool.
 
-Require Import Strings.Ascii Numbers.Natural.Peano.NPeano.
+From Stdlib Require Import Strings.Ascii.
 Definition ascii_of_nat (n : nat) : ascii :=
   match n with
   | 0 => "0"
@@ -147,11 +147,11 @@ Definition ascii_of_nat (n : nat) : ascii :=
 .
 Definition string_of_nat (n : nat) : string :=
   let fix string_of_nat_aux (time n : nat) (acc : string) : string :=
-    let acc' := String (ascii_of_nat (n mod 10)) acc in
+    let acc' := String (ascii_of_nat (Nat.modulo n 10)) acc in
     match time with
     | 0 => acc'
     | S time' =>
-      match n / 10 with
+      match Nat.div n 10 with
       | 0 => acc'
       | n' => string_of_nat_aux time' n' acc'
       end

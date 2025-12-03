@@ -1,5 +1,5 @@
 Set Implicit Arguments.
-Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
+Require Import Strings.String Strings.Ascii Lists.List Program.Equality Recdef Lia.
 Require Import CSC.Shared.Fresh CSC.Shared.Sema CSC.Util.Sets CSC.Shared.Props CSC.Util.HasEquality.
 Require Import CSC.Util.Convenience CSC.Util.NoDupInv CSC.Shared.Trace.
 
@@ -51,7 +51,7 @@ Lemma dynloc_eqb_eq dℓ0 dℓ1 :
 Proof.
   unfold dynloc_eqb; split; intros.
   - eq_to_defeq Nat.eqb. cbv in *; destruct dℓ0, dℓ1; inv H; trivial.
-  - inv H; eq_to_defeq Nat.eqb; try apply Nat.eqb_eq.
+  - inv H; eq_to_defeq Nat.eqb; try apply PeanoNat.Nat.eqb_eq.
 Qed.
 #[export]
 Instance dynloceq__Instance : HasEquality dynloc := {
@@ -168,13 +168,13 @@ Lemma preevent_eqb_eq e1 e2 :
 Proof.
   destruct e1, e2; cbn; split; intros; try easy; eq_to_defeq value_eqb; eq_to_defeq loc_eqb; eq_to_defeq comms_eqb.
   - now inv H.
-  - apply Nat.eqb_eq in H0; inv H0. reflexivity.
-  - inv H; split; try easy. apply Nat.eqb_refl.
+  - apply PeanoNat.Nat.eqb_eq in H0; inv H0. reflexivity.
+  - inv H; split; try easy. apply PeanoNat.Nat.eqb_refl.
   - now inv H.
-  - apply Nat.eqb_eq in H0; inv H0; reflexivity.
-  - inv H; split; try easy. apply Nat.eqb_refl.
-  - apply Nat.eqb_eq in H0; inv H0; reflexivity.
-  - inv H; repeat split; try easy. apply Nat.eqb_refl.
+  - apply PeanoNat.Nat.eqb_eq in H0; inv H0; reflexivity.
+  - inv H; split; try easy. apply PeanoNat.Nat.eqb_refl.
+  - apply PeanoNat.Nat.eqb_eq in H0; inv H0; reflexivity.
+  - inv H; repeat split; try easy. apply PeanoNat.Nat.eqb_refl.
   - apply String.eqb_eq in H; inv H; reflexivity.
   - inv H; repeat split; eq_to_defeq a; apply String.eqb_refl.
   - inv H; split; easy.

@@ -1,5 +1,6 @@
+(*
 Set Implicit Arguments.
-Require Import Strings.String Strings.Ascii Numbers.Natural.Peano.NPeano Lists.List Program.Equality Recdef Lia.
+Require Import Strings.String Strings.Ascii Lists.List Program.Equality Recdef Lia.
 Require Import CSC.Util.Sets CSC.Shared.Props CSC.Util.Convenience CSC.Util.HasEquality.
 
 Require Import CSC.Shared.Fresh CSC.Shared.Sema CSC.Shared.Trace CSC.Ltms.syntax.
@@ -66,13 +67,13 @@ Inductive splitting : Gamma -> Gamma -> Gamma -> Prop :=
 | splitNat : forall (x : vart) (Γ Γ1 Γ2 : Gamma),
     Γ ≡ Γ1 ∘ Γ2 ->
     (x ↦ Tpre Tℕ ◘ Γ) ≡ (x ↦ Tpre Tℕ ◘ Γ1) ∘ (x ↦ Tpre Tℕ ◘ Γ2)
-| splitPtr : forall (x : vart) (ℓ : Loc) (Γ Γ1 Γ2 : Gamma),
+| splitPtr : forall (x : vart) (ℓ : loc) (Γ Γ1 Γ2 : Gamma),
     Γ ≡ Γ1 ∘ Γ2 ->
     (x ↦ Tpre(Tptr ℓ) ◘ Γ) ≡ (x ↦ Tpre(Tptr ℓ) ◘ Γ1) ∘ (x ↦ Tpre(Tptr ℓ) ◘ Γ2)
-| splitCapL : forall (x : vart) (ℓ : Loc) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
+| splitCapL : forall (x : vart) (ℓ : loc) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
     Γ ≡ Γ1 ∘ Γ2 ->
     (x ↦ Tpre(Tcap ℓ τ) ◘ Γ) ≡ (x ↦ Tpre(Tcap ℓ τ) ◘ Γ1) ∘ Γ2
-| splitCapR : forall (x : vart) (ℓ : Loc) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
+| splitCapR : forall (x : vart) (ℓ : loc) (τ : pre_ty) (Γ Γ1 Γ2 : Gamma),
     Γ ≡ Γ1 ∘ Γ2 ->
     (x ↦ Tpre(Tcap ℓ τ) ◘ Γ) ≡ Γ1 ∘ (x ↦ Tpre(Tcap ℓ τ) ◘ Γ2)
 | splitPairL : forall (x : vart) (τ1 τ2 : pre_ty) (Γ Γ1 Γ2 : Gamma),
@@ -1551,3 +1552,4 @@ Proof.
   eapply steps_tms_via_monitor; eauto.
   repeat constructor.
 Qed.
+*)

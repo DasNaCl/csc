@@ -1,0 +1,86 @@
+\subsection{Robustly Preserving $\specsafe$}
+
+\subsubsection{Compiler}
+
+\myfig{
+  \begin{center}
+    \begin{gather*}
+    \judgbox{\mmlAtscctmmlAspeccomp{e}=\ird{e'}}{,,Compile $\mmlAtscct$ expression $\obj{e}$ to $\mmlAspec$ expression $\ird{e'}$.''}\\
+    \judgbox{\mmlAtscctmmlAspeccomp{\left[\valueexpr / x\right]}=\ird{\left[\valueexpr / x\right]}}{,,Compile $\mmlAtscct$ substitution to $\mmlAspec$ substitution.''} \\
+    \judgbox{\mmlAtscctmmlAspeccomp{\commlib}=\ird{\commlib'}}{,,Compile $\mmlAtscct$ component library to $\mmlAspec$ component library.''} \\
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+    \mmlAtscctmmlAspeccomp{\finalexpr} &\ = & \ird{\finalexpr} \\
+    \mmlAtscctmmlAspeccomp{call\ foo\ e} &\ = & \ird{call\ }\mmlAtscctmmlAspeccomp{foo}\ \mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{return\ e} &\ = & \ird{return\ }\mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{e_1\oplus e_2} &\ = & \mmlAtscctmmlAspeccomp{e_1} \ird{\oplus} \mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{x[e]} &\ = & \ird{x[}\mmlAtscctmmlAspeccomp{e}\ird{]} \\
+    \mmlAtscctmmlAspeccomp{let\ x= e_1\ in\ e_2} &\ = & \ird{let\ x=} \mmlAtscctmmlAspeccomp{e_1}\ird{\ in\ }\mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{x[e_1]\leftarrow e_2} &\ = & \ird{x[}\mmlAtscctmmlAspeccomp{e_1}\ird{]\leftarrow} \mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{let\ x=new\ e_1\ in\ e_2} &\ = & \ird{let\ x=new\ }\mmlAtscctmmlAspeccomp{e_1}\ird{\ in\ }\mmlAtscctmmlAspeccomp{e_2} \\
+    \mmlAtscctmmlAspeccomp{delete\ x} &\ = & \ird{delete\ x} \\
+    \mmlAtscctmmlAspeccomp{x\ is\ \poisoned} &\ = & \ird{x\ is\ \poisoned} \\
+    \mmlAtscctmmlAspeccomp{\lparen e_1;e_2\rparen} &\ = & \ird{\lparen}\mmlAtscctmmlAspeccomp{e_1}\ird{;}\mmlAtscctmmlAspeccomp{e_2}\ird{\rparen}\\
+    \mmlAtscctmmlAspeccomp{\pi_1\ e} &\ = & \ird{\pi_1\ }\mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{\pi_2\ e} &\ = & \ird{\pi_2\ }\mmlAtscctmmlAspeccomp{e}\\
+    \mmlAtscctmmlAspeccomp{e\ has\ \type} &\ = & \mmlAtscctmmlAspeccomp{e}\ \ird{has\ \type}\\
+    \mmlAtscctmmlAspeccomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \ird{ifz\ }\mmlAtscctmmlAspeccomp{e_1}\\
+                                                        &&\ird{then\ barrier;}\mmlAtscctmmlAspeccomp{e_2} \\
+                                                        &&\ird{else\ barrier;}\mmlAtscctmmlAspeccomp{e_3} \\[0.5cm]
+    %
+    \mmlAtscctmmlAspeccomp{\left[\valueexpr/x\right]}&\ = & \ird{\left[\right.}\mmlAtscctmmlAspeccomp{v}\ird{/}\mmlAtscctmmlAspeccomp{x}\ird{\left.\right]} \\[0.5cm]
+    %
+    \mmlAtscctmmlAspeccomp{\hole{\cdot}}&\ = & \ird{\hole{\cdot}} \\
+    \mmlAtscctmmlAspeccomp{foo,\commlib}&\ = & \ird{foo,}\mmlAtscctmmlAspeccomp{\commlib} \\
+    \end{array}
+    $$
+  \end{center}
+}{scct-pres-compiler}{Compiler from $\mmlAtscct$ to $\mmlAspec$.}
+\myfig{
+  \begin{center}
+    \begin{gather*}
+    \judgbox{\mmlAtscctmmlAspeccomp{F}=\ird{F}}{,,Compile $\mmlAtscct$ procedures to $\mmlAspec$ procedures.''}
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+    %
+      \mmlAtscctmmlAspeccomp{let\ foo\ x := e}&\ = & \mmlAtscctmmlAspeccomp{e}\\
+    \end{array}
+    $$
+    \begin{gather*}
+    \judgbox{\mmlAtscctmmlAspeccomp{\library}=\ird{\library}}{,,Compile $\mmlAtscct$ libraries to $\mmlAspec$ libraries.''}
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+      \mmlAtscctmmlAspeccomp{\hole{\cdot}}&\ = & \ird{\hole{\cdot}} \\
+      \mmlAtscctmmlAspeccomp{F,\library}&\ = & \mmlAtscctmmlAspeccomp{F}\obj{,}\mmlAtscctmmlAspeccomp{\library} \\
+    \end{array}
+    $$
+  \end{center}
+}{scct-pres-compiler-comp}{Compiler from $\mmlAtscct$ components to $\mmlAspec$ components.}
+
+\begin{scontents}[store-env=buffer]
+  $\;$\\
+  \begin{goals}
+    \item $\vdash\mmlAtscctmmlAspeccomp{\bullet}:\lceil\specsafe\rceil$
+  \end{goals}
+\end{scontents}
+\realthm{thm:rssp}{9}{Robust Speculative Safety Preservation}
+\begin{incompleteproof}
+  Analogous to \Cref{thm:rscctp}.
+\end{incompleteproof}
+
+\begin{scontents}[store-env=buffer]
+  $\;$\\
+  \begin{goals}
+  \item $\vdash\mmlAtscctmmlAspeccomp{\color{black}\mmlAtmsmmlAtscctcomp{\color{black}\mmlAtmmlAtmscomp{\color{black}\mmlAmmlAtcomp{\bullet}}}}:\lceil\operatorname{msafe}\rceil\cap\lceil\operatorname{sCCT}\rceil\cap\lceil\specsafe\rceil$
+  \end{goals}
+\end{scontents}
+\realthm{thm:rmsscctssp}{10}{Robust Memory Safety, Strict Cryptographic Constant Time, and Speculation Safety Preservation}
+\begin{proof}
+  By \Thmref{lem:seqcompo}, \Thmref{thm:rmsp}, \Thmref{thm:rscctp}, and \Thmref{thm:rssp}.
+\end{proof}
+
+\clearpage
+

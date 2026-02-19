@@ -1,0 +1,88 @@
+\subsection{Optimising Passes}
+\subsubsection{DCE}
+
+\myfig{
+  \begin{center}
+    \begin{gather*}
+    \judgbox{\dcecomp{e}=\irl{e'}}{,,Compile $\mmlAtms$ expression $\irl{e}$ to $\mmlAtms$ expression $\irl{e'}$.''}\\
+    \judgbox{\dcecomp{\left[\valueexpr / x\right]}=\irl{\left[\valueexpr / x\right]}}{,,Compile $\mmlAtms$ substitution to $\mmlAtms$ substitution.''} \\
+    \judgbox{\dcecomp{\commlib}=\irl{\commlib'}}{,,Compile $\mmlAtms$ component library to $\mmlAtms$ component library.''} \\
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+    \dcecomp{\finalexpr} &\ = & \irl{\finalexpr} \\
+    \dcecomp{call\ foo\ e} &\ = & \irl{call\ }\dcecomp{foo}\ \dcecomp{e}\\
+    \dcecomp{return\ e} &\ = & \irl{return\ }\dcecomp{e}\\
+    \dcecomp{e_1\oplus e_2} &\ = & \dcecomp{e_1} \irl{\oplus} \dcecomp{e_2} \\
+    \dcecomp{x[e]} &\ = & \irl{x[}\dcecomp{e}\irl{]}\\
+    \dcecomp{let\ x= e_1\ in\ e_2} &\ = & \irl{let\ x=} \dcecomp{e_1}\irl{\ in\ }\dcecomp{e_2} \\
+    \dcecomp{x[e_1]\leftarrow e_2} &\ = & \irl{x[}\dcecomp{e_1}\irl{]\leftarrow }\dcecomp{e_2} \\
+    \dcecomp{let\ x=new\ e_1\ in\ e_2} &\ = & \irl{let\ x=new\ } \dcecomp{e_1}\irl{\ in\ }\dcecomp{e_2} \\
+    \dcecomp{delete\ x} &\ = & \irl{delete\ x} \\
+    \dcecomp{x\ is\ \poisoned} &\ = & \irl{x\ is\ \poisoned} \\
+    \dcecomp{\lparen e_1;e_2\rparen} &\ = & \irl{\lparen}\dcecomp{e_1}\irl{;}\dcecomp{e_2}\irl{\rparen}\\
+    \dcecomp{\pi_1\ e} &\ = & \irl{\pi_1\ }\dcecomp{e}\\
+    \dcecomp{\pi_2\ e} &\ = & \irl{\pi_2\ }\dcecomp{e}\\
+    \dcecomp{e\ has\ \type} &\ = & \dcecomp{e}\ \irl{has\ \type}\\
+    \dcecomp{ifz\ true\ then\ e_2\ else\ e_3} &\ = & \irl{e_2} \\
+    \dcecomp{ifz\ true\ then\ e_3\ else\ e_3} &\ = & \irl{e_3} \\
+    \dcecomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \irl{ifz\ }\dcecomp{e_1}\\
+                                                        &&\irl{then\ }\dcecomp{e_2} \\
+                                                        &&\irl{else\ }\dcecomp{e_3} \\[0.5cm]
+
+    %
+    \dcecomp{\left[\valueexpr/x\right]}&\ = & \irl{\left[\right.}\dcecomp{v}\irl{/}\dcecomp{x}\irl{\left.\right]} \\[0.5cm]
+    %
+    \dcecomp{\hole{\cdot}}&\ = & \irl{\hole{\cdot}} \\
+    \dcecomp{foo,\commlib}&\ = & \irl{foo,}\dcecomp{\commlib} \\
+    \end{array}
+    $$
+  \end{center}
+}{dce-compiler}{Compiler from $\mmlAtms$ to $\mmlAtms$, performing dead code elimination.}
+
+Since the traces do not change after compiling with $\dcecomp{\bullet}$, the security proof follows easily using a context-based backtranslation that is essentially just the identity. 
+Anything else is similar to \Cref{subsec:rsms}.
+
+\subsubsection{CF}
+
+\myfig{
+  \begin{center}
+    \begin{gather*}
+    \judgbox{\cfcomp{e}=\irl{e'}}{,,Compile $\mmlAtms$ expression $\irl{e}$ to $\mmlAtms$ expression $\irl{e'}$.''}\\
+    \judgbox{\cfcomp{\commlib}=\irl{\commlib'}}{,,Compile $\mmlAtms$ component library to $\mmlAtms$ component library.''} \\
+    \end{gather*}
+    $$
+    \begin{array}{rll}
+      \cfcomp{x} &\ = & \irl{v}\text{\ \ \ \ \ if }\irl{[v\text{ for }x]}\in\irl{\overline{\rho}} \\
+      \cfcomp{x} &\ = & \irl{x}\text{\ \ \ \ \ if }\irl{[v\text{ for }x]}\not\in\irl{\overline{\rho}} \\
+    \cfcomp{\finalexpr} &\ = & \irl{\finalexpr} \\
+    \cfcomp{call\ foo\ e} &\ = & \irl{call\ }\cfcomp{foo}\ \cfcomp{e}\\
+    \cfcomp{return\ e} &\ = & \irl{return\ }\cfcomp{e}\\
+    \cfcomp{n\oplus m} &\ = & \irl{k}\text{\ \ \ \ where }\irl{k}=\irl{n}\oplus\irl{m}\\
+    \cfcomp{e_1\oplus e_2} &\ = & \cfcomp{e_1} \irl{\oplus} \cfcomp{e_2} \\
+    \cfcomp{x[e]} &\ = & \irl{x[}\cfcomp{e}\irl{]}\\
+    \cfcomp{let\ x= v\ in\ e} &\ = & \cfcomp[\text{[}v\text{ for }x\text{]}\cdot\overline{\rho}]{e_2} \\
+    \cfcomp{let\ x= e_1\ in\ e_2} &\ = & \irl{let\ x=} \cfcomp{e_1}\irl{\ in\ }\cfcomp{e_2} \\
+    \cfcomp{x[e_1]\leftarrow e_2} &\ = & \irl{x[}\cfcomp{e_1}\irl{]\leftarrow }\cfcomp{e_2} \\
+    \cfcomp{let\ x=new\ e_1\ in\ e_2} &\ = & \irl{let\ x=new\ } \cfcomp{e_1}\irl{\ in\ }\cfcomp{e_2} \\
+    \cfcomp{delete\ x} &\ = & \irl{delete\ x} \\
+    \cfcomp{x\ is\ \poisoned} &\ = & \irl{x\ is\ \poisoned} \\
+    \cfcomp{\lparen e_1;e_2\rparen} &\ = & \irl{\lparen}\cfcomp{e_1}\irl{;}\cfcomp{e_2}\irl{\rparen}\\
+    \cfcomp{\pi_1\ e} &\ = & \irl{\pi_1\ }\cfcomp{e}\\
+    \cfcomp{\pi_2\ e} &\ = & \irl{\pi_2\ }\cfcomp{e}\\
+    \cfcomp{e\ has\ \type} &\ = & \cfcomp{e}\ \irl{has\ \type}\\
+    \cfcomp{ifz\ e_1\ then\ e_2\ else\ e_3} &\ = & \irl{ifz\ }\cfcomp{e_1}\\
+                                                        &&\irl{then\ }\cfcomp{e_2} \\
+                                                        &&\irl{else\ }\cfcomp{e_3} \\[0.5cm]
+
+    %
+    \cfcomp{\hole{\cdot}}&\ = & \irl{\hole{\cdot}} \\
+    \cfcomp{foo,\commlib}&\ = & \irl{foo,}\cfcomp{\commlib} \\
+    \end{array}
+    $$
+  \end{center}
+}{cf-compiler}{Compiler from $\mmlAtms$ to $\mmlAtms$, performing constant folding.}
+
+Since the traces do not change after compiling with $\cfcomp{\bullet}$, the security proof follows easily using a context-based backtranslation that is essentially just the identity. 
+Anything else is similar to \Cref{subsec:rsms}.
+

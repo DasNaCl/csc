@@ -1,0 +1,1858 @@
+\subsection{Source Language}
+\subsubsection{Syntax}
+
+\myfig{
+	\vspace{-1em}
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Final\ Result}\ \src{\finalexprnoerr} \bnfdef&\ \src{\valueexpr} \mid \src{x} \hspace{0.5cm}
+  \mi{May\ be\ a\ Result}\ \src{\finalexpr} \bnfdef\ \src{\finalexprnoerr} \mid \src{stuck} \\
+  %
+  \mi{Expressions}~\src{e} \bnfdef&\ \src{\finalexpr} \mid \src{e_{1} \oplus e_{2}} \mid \src{x[e]} \mid \src{let\ x = e_{1}\ in\ e_{2}}\mid \src{x[e_{1}]\leftarrow e_{2}} \\
+  & \mid \src{let\ x=new\ e_{1}\ in\ e_{2}} \mid \src{delete\ x} \mid \src{return\ e} \mid \src{call\ foo\ e} \\
+  & \mid \src{ifz\ e_1\ then\ e_2\ else\ e_3} \hspace{0.5cm} \text{where } \src{\oplus}\in\{\src{+},\src{-},\src{\times},\src{<}\}\\
+  %
+  \mi{Functions}~\src{\asymbol} \bnfdef&\ \src{let\ foo\ x : \type}_{\lambda}\src{:= e} \\
+  %
+  \mi{Expr.\ Types}~\types_{\src{e}} \bnfdef&\ \src{\nat} \mid \src{ref_q\ \nat} \hspace{0.25cm}
+  %
+  \mi{Qualifier}~\src{q} \bnfdef\ \full \mid \half\hspace{0.25cm}
+  \mi{Values}~\src{\valueexpr} \bnfdef\ \src{n}\in\src{\nat} \\
+  %
+  \mi{Ectx\ Types}~\types_{\lambda}\ \bnfdef& \types_{\src{e}}\to\types_{\src{e}} \hspace{0.25cm}
+  \mi{Types}~\types \bnfdef \types_{\src{e}}\mid\types_{\lambda}\mid\types_{\src{e}}\src{\to\bot} \hspace{0.25cm}
+  %
+  \mi{References}~\src{\loc}\in\src{\nat} \\
+  \mi{Eval. Ctx.}~\src{K}\bnfdef &\ \src{\hole{\cdot}}\mid \src{K\oplus e}\mid \src{v\oplus K}\mid \src{x[K]}\mid \src{let\ x=K\ in\ e}\\
+                     &\ \mid\src{x[K]\leftarrow e}\mid \src{x[v]\leftarrow K}\mid \src{let\ x=new\ K\ in\ e} \\
+                     &\ \mid\src{ifz\ K\ then\ e_1\ else\ e_2} \mid \src{call\ foo\ K}\mid \src{return\ K} \\
+  %
+  \mi{Variables}~\ &\src{x} \mid \src{y} \mid \src{foo} \mid \dots \hspace{0.5cm}
+  %
+  \mi{Poison}~\ \src{\poison}~\bnfdef\ \src{\poisonless} \mid \src{\poisoned}\\
+  \mi{Sandbox\ Tag}~&\ \src{\sandboxtag}~\bnfdef\ \src{\ctx} \mid \src{\comp}\\
+  %
+  \mi{Typing. Env.}~\src{\Gamma} \bnfdef&\ \src{\hole{\cdot}} \mid \Gammas,\src{x:\type}\hspace{0.5cm}
+  \mi{Store}~\src{\Delta} \bnfdef\ \src{\hole{\cdot}} \mid \src{x\mapsto(\loc;\sandboxtag;\poison;n)},\Deltas\\
+  %
+  \mi{Communication}~\src{\comm} \bnfdef&\ \src{\ctxtocomp} \mid \src{\comptoctx} \mid \src{\nocomm} \hspace{0.5cm}
+  \mi{Heaps}~\src{H} \bnfdef\ \src{\hole{\cdot}} \mid \src{H}::\src{n} \\
+  %
+  \mi{Cont.\ Stack}~\src{\kontstack} \bnfdef&\ \src{\hole{\cdot}} \mid (\src{K};\src{foo}),\src{\kontstack} \hspace{0.5cm}
+  \mi{Library}~\src{\library} \bnfdef\ \src{\hole{\cdot}} \mid \src{\asymbol},\src{\library} \\
+  \mi{Relevant}\ \src{\commlib} \bnfdef& \src{\hole{\cdot}} \mid \src{foo},\src{\commlib}\hspace{0.5cm}
+  \mi{State}~\configs\ \bnfdef\ \src{\cfstate;\sandboxtag;\memstate}\\
+  \mi{Flow\ State}~\src{\cfstate}\bnfdef&\ \src{\commlib;\library;\kontstack}\hspace{0.5cm}
+  \mi{Memory\ State}~\src{\memstate}\bnfdef\ \src{H^{\ctx};H^{\comp};\Delta} \\
+  %
+  \mi{Programs}\ &\src{prog\ \library_{ctx}\ \library_{comp}} \hspace{0.35cm}
+  \mi{Substitutions}~\src{\gamma} \bnfdef \src{[\valueexpr/x],\gamma}\ \vert\ \src{\hole{\cdot}} \\
+  \end{aligned}
+  \end{gather*}
+}{mmla-syntax}{Syntax of $\mmlAs$}
+
+Most of the syntax is more or less standard.
+Qualifiers $\src{q}$ can be attached to pointers to signal ownership.
+Hereby, the qualifier $\src{\full}$ means "fully owned", meaning we may and also must delete the pointer at some point, while we cannot do the same for $\src{\half}$, which forbids us to delete.
+Poison $\src{\poison}$ marks locations in the execution-context $\src{\Omega}$ as ,,to-be-deleted'' ($\src{\poisonless}$) or ,,deleted'' ($\src{\poisoned}$).
+$\src{\commlib}$ contains a list of identifiers referencing what functions are considered a component.
+Anything not present in $\src{\commlib}$ is considered to be a context.
+We describe the act of calling or returning from component to context or vice versa as ,,crossing the boundary''.
+The heap is split into two parts, such that any component listed in $\src{\commlib}$ will allocate in $\src{H^{\comp}}$ and anything else in $\src{H^{\ctx}}$.
+Objects pointed at by a location $\src{\loc}$ are marshalled when they are passed across the boundary.
+Without the heap sandboxing, contexts can arbitrarily rewrite a component's memory, which incurs compiler correctness issues.
+We chose to distinguish between successful final results ($\src{\finalexprnoerr}$) and potentially crashed results ($\src{\finalexpr}$).
+Note that a final result may also be an identifier, which we keep around as abstract representation for locations of pointers.
+However, we still distinct them from ordinary values ($\src{\valueexpr}$), since they don't behave like normal values.
+For example, we cannot make canonical typing lemmas for them without the additional information contained in a non-empty typing-context.
+When discussing secure compilation, there is a notion of ,,context'' and ,,component'', where the latter is usually the part one cares about.
+We use the term ,,context-switching'' with its usual meaning, i.e. change in control flow to some other procedure.
+For $\src{\comm}$, the representation $\src{\ctxtocomp}$ signalizes a context switch from context to component, $\src{\comptoctx}$ from component to context, and $\src{\nocomm}$ signals an internal change, either inside the context or inside the component.
+The state $\configs$ carries information on what the current context is and the continuation stack $\src{\kontstack}$ is used in the semantics to mark events with above policy accordingly.
+Continuations $\src{K}$ in the stack are annotated with the name of the function $\src{foo}$ the continuation originates from.
+Programs $\src{prog\ \library_{ctx}\ \library_{comp}}$ contain two lists of top-level definitions $\src{\library_{ctx}}$ and $\src{\library_{comp}}$.
+$\src{\library_{ctx}}$ takes the role as attacker code.
+We reason explicitly about substitutions in the dynamic semantics.
+
+\subsubsection{Static Semantics}
+\myfig{
+  \begin{center}
+    \judgbox{\vdash\src{\tau}\operatorname{int}}{,,$\src{\tau}$ is an interface type.''}$\;$\\
+  \typerule{int-$\src{\nat}$}{
+  }{
+    \vdash\src{\nat}\operatorname{int}
+  }{src-int-type-nat}
+  \end{center}
+}{src-int-types}{Interface types of $\mmlAs$.}
+
+We introduce interface types to explicitly disallow passing owned pointers.
+
+\myfig{
+  \begin{center}
+  \judgbox{\Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}}{,,Environment $\Gammas$ can be split into $\src{\Gamma_1}$ and $\src{\Gamma_2}$.''}
+  %
+  $\;$\\
+  \typerule{splitEmpty}{
+  }{
+    \src{\hole{\cdot}} \equiv \src{\hole{\cdot}}\circ\src{\hole{\cdot}}
+  }{t-empty-split}
+  %
+  \typerule{splitEmptyL}{
+  }{
+    \src{\Gamma} \equiv \src{\hole{\cdot}}\circ\src{\Gamma}
+  }{t-empty-splitL}
+  %
+  \typerule{splitEmptyR}{
+  }{
+    \src{\Gamma} \equiv \src{\Gamma}\circ\src{\hole{\cdot}}
+  }{t-empty-splitR}
+  %
+  \typerule{$\nat$split}{
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\nat},\Gammas \equiv \src{x:\nat},\src{\Gamma_1}\circ\src{x:\nat},\src{\Gamma_2}
+  }{t-nat-split}
+  %
+  \typerule{weakPtrSplit}{
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\wptr},\Gammas \equiv \src{x:\wptr},\src{\Gamma_1}\circ\src{x:\wptr},\src{\Gamma_2}
+  }{t-wptr-split}
+  %
+  \typerule{ptrLSplit}{
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\ptr},\Gammas \equiv \src{x:\ptr},\src{\Gamma_1}\circ\src{\Gamma_2}
+  }{t-ptr-l-split}
+  %
+  \typerule{ptrRSplit}{
+    \Gammas \equiv \src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{x:\ptr},\Gammas \equiv \src{x:\wptr,\Gamma_1}\circ\src{x:\ptr},\src{\Gamma_2}
+  }{t-ptr-r-split}
+  %
+  \typerule{arrowSplit}{
+    \vdash\src{\type_e^{(1)}}\ \operatorname{int} &
+    \vdash\src{\type_e^{(2)}}\ \operatorname{int} &
+    \src{\Gamma}\equiv\src{\Gamma_1}\circ\src{\Gamma_2}
+  }{
+    \src{foo:\type_e^{(1)}\to\type_e^{(2)}},\Gammas \equiv \src{foo:\type_e^{(1)}\to\type_e^{(2)}},\src{\Gamma_1}\circ\src{foo:\type_e^{(1)}\to\type_e^{(2)}},\src{\Gamma_2}
+  }{t-arrow-split}
+  \end{center}
+}{w-ctx-split}{Context Splitting of $\mmlAs$ typing contexts.}
+
+The splitting of contexts takes care to propagate owned-pointers towards the end.
+This way, no non-owned pointer occurs in the context after an owned one, where both have the same identifier.
+Note that non-owned pointers and values may be freely duplicated and that we can generate non-owned pointers if we have ownership.
+
+\begin{definition}[NoOwnedPtr]
+  We write $\src{\noptr{\Gamma}}$ iff for any $\src{x}, \src{\type}$, if $\src{x} : \src{\type}\in\src{\Gamma}$, then $\types\not=\ptr$.
+\end{definition}
+\myfig{
+  \judgbox{\typechecks{\Gamma}{e}{\types}}{,,Under environment $\Gammas$ the expression $\src{e}$ has type $\types$.''}
+
+  \begin{center}
+  \typerule{$t-\src{var}$}{
+  \src{\noptr{\Gamma_1,x:\type,\Gamma_2}}
+	}{
+    \typechecks{\Gamma_1,x:\type,\Gamma_2}{x}{\type}
+	}{t-var}
+  %
+  \typerule{$t-\src{\nat}$}{
+    \src{\noptr{\Gamma}}
+  }{
+    \typechecks{\Gamma}{n}{\nat}
+  }{t-nat}
+  %
+  \typerule{$t-\src{\oplus}$}{
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{\Gamma_2}{e_2}{\nat}
+  }{
+    \typechecks{\Gamma_1\circ\Gamma_2}{e_1\oplus e_2}{\nat}
+  }{t-binop}
+  %
+  \typerule{$t-$get}{
+    \typechecks{\Gamma_2}{x}{\wptr} &
+    \typechecks{\Gamma_1}{e}{\nat}
+  }{
+    \typechecks{\Gamma_1\circ\Gamma_2}{x[e]}{\nat}
+  }{t-get}
+  %
+  \typerule{$t-$set}{
+    \typechecks{\Gamma_3}{x}{\wptr} &
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{\Gamma_2}{e_2}{\nat}
+  }{
+    \typechecks{(\Gamma_1\circ\Gamma_2)\circ\Gamma_3}{x[e_1]\leftarrow e_2}{\nat}
+  }{t-set}
+  %
+  \typerule{$t-\src{let}$}{
+    \typechecks{\Gamma_1}{e_1}{\type_{e}^{(1)}} &
+    \typechecks{x:\type_{e}^{(1)},\Gamma_2}{e_2}{\type^{(2)}}
+  }{
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=e_1\ in\ e_2}{\type^{(2)}}
+  }{t-let}
+  %
+  \typerule{$t-\src{new}$}{
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{x:\ptr,\Gamma_2}{e_2}{\nat}
+  }{
+    \typechecks{\Gamma_1\circ\Gamma_2}{let\ x=new\ e_1\ in\ e_2}{\nat}
+  }{w-t-new}
+  %
+  \typerule{$t-\src{delete}$}{
+    \src{\noptr{\Gamma_1}} & \src{\noptr{\Gamma_2}}
+  }{
+    \typechecks{\Gamma_1,x:\ptr,\Gamma_2}{delete\ x}{\nat}
+  }{w-t-delete}
+  %
+  \typerule{$t-\src{call}$}{
+    \vdash\src{\type_e^{(1)}}\ \operatorname{int} &
+    \vdash\src{\type_e^{(2)}}\ \operatorname{int} \\
+    \typechecks{\Gamma}{foo}{\type_e^{(1)}\to\type_e^{(2)}} &
+    \typechecks{\Gamma}{e}{\type_e^{(1)}}
+  }{
+    \typechecks{\Gamma}{call\ foo\ e}{\type_e^{(2)}}
+  }{t-call}
+  %
+  \typerule{$t-\src{return}$}{
+    \src{\type_e}\ \operatorname{int} &
+    \typechecks{\Gamma}{e}{\type_e}
+  }{
+    \typechecks{\Gamma}{return\ e}{\type_e\to\bot}
+  }{t-return}
+  %
+  \typerule{$t-\src{ifz}$}{
+    \typechecks{\Gamma_1}{e_1}{\nat} &
+    \typechecks{\Gamma_2}{e_2}{\type} &
+    \typechecks{\Gamma_2}{e_3}{\type}
+  }{
+    \typechecks{\Gamma_1\circ\Gamma_2}{ifz\ e_1\ then\ e_2\ else\ e_3}{\type}
+  }{w-t-if}
+  %
+  \typerule{$t-\src{abort}$}{
+  }{
+    \typechecks{\Gamma}{abort()}{\type}
+  }{w-t-abort}
+  \end{center}
+}{w-expr-ty}{Checking of $\mmlAs$ expressions.}
+The context splitting takes care that for e.g. \Cref{tr:t-binop} it cannot happen that we do something like $\src{(delete\ x) + x[0]}$.
+For \Cref{tr:t-var,tr:t-nat} we require that the contexts do not contain any owned pointer.
+Intuitively, an owned pointer is useless upto getting a non-owned version from context splitting, because we cannot do anything with it besides deleting.
+This is inspired by linear logic.
+
+\myfig{
+  \judgbox{\typechecks{\Gamma}{K}{\types^{(1)}\to\types^{(2)}}}{,,Under environment $\Gammas$ the evaluation context $\src{K}$ requires an\\object of type $\src{\type^{(1)}}$ and yields one of type $\src{\type^{(2)}}$.''}
+  \begin{center}
+    \typerule{et-$\src{\hole{\cdot}}$}{
+    }{
+      \typechecks{\Gamma}{\hole{\cdot}}{\type\to\type}
+    }{w-te-hole}
+    %
+    \typerule{et-$\src{\oplus}$R}{
+      \typechecks{\Gamma}{\valueexpr}{\nat} &
+      \typechecks{\Gamma}{K}{\type\to\nat}
+    }{
+      \typechecks{\Gamma}{\valueexpr\oplus K}{\type\to\nat}
+    }{w-te-bionpR}
+    %
+    \typerule{et-$\src{\oplus}$L}{
+      \typechecks{\Gamma}{K}{\type\to\nat} &
+      \typechecks{\Gamma}{e}{\nat}
+    }{
+      \typechecks{\Gamma}{K\oplus e}{\type\to\nat}
+    }{w-te-bionpL}
+    %
+    \typerule{et-get}{
+      \typechecks{\Gamma}{x}{\wptr} &
+      \typechecks{\Gamma}{K}{\type\to\nat}
+    }{
+      \typechecks{\Gamma}{x[K]}{\type\to\nat}
+    }{w-te-get}
+    %
+    \typerule{et-setR}{
+      \typechecks{\Gamma}{v}{\nat} &
+      \typechecks{\Gamma}{K}{\type\to\nat}
+    }{
+      \typechecks{\Gamma}{x[\valueexpr]\leftarrow K}{\type\to\nat}
+    }{w-te-setR}
+    %
+    \typerule{et-setL}{
+      \typechecks{\Gamma}{K}{\type\to\nat} &
+      \typechecks{\Gamma}{e}{\nat}
+    }{
+      \typechecks{\Gamma}{x[K]\leftarrow e}{\type\to\nat}
+    }{w-te-setL}
+    %
+    \typerule{et-let}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type_{e}'} &
+      \typechecks{x:\type_{e}',\Gamma}{e}{\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{let\ x=K\ in\ e}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-let}
+    %
+    \typerule{et-new}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\nat} &
+      \typechecks{x:\ptr,\Gamma}{e}{\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{let\ x=new\ K\ in\ e}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-new}
+    %
+    \typerule{et-ifz}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\nat} &
+      \typechecks{\Gamma}{e_2}{\type^{(2)}}&
+      \typechecks{\Gamma}{e_3}{\type^{(2)}}&
+    }{
+      \typechecks{\Gamma}{ifz\ K\ then\ e_2\ else\ e_3}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-ifz}
+    %
+    \typerule{et-call}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type'} &
+      \typechecks{\Gamma}{foo}{\type'\to\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{call\ foo\ K}{\type^{(1)}\to\type^{(2)}}
+    }{w-te-call}
+    %
+    \typerule{et-ret}{
+      \typechecks{\Gamma}{K}{\type^{(1)}\to\type^{(2)}}
+    }{
+      \typechecks{\Gamma}{return\ K}{\type^{(1)}\to(\type^{(2)}\to\bot)}
+    }{w-te-ret}
+  \end{center}
+}{w-ectx-ty}{Checking of $\mmlAs$ evaluation contexts.}
+
+\myfig{
+  \judgbox{\src{\library}\downarrow=\src{\Gamma}}{,,Project $\mmlAs$ library to static typing context.''}$\;$\\
+  \begin{center}
+    \typerule{$\src{\library}$-proj-$\src{\hole{\cdot}}$}{
+    }{
+      \src{\hole{\cdot}}\downarrow = \src{\hole{\cdot}}
+    }{w-lib-proj-empty}
+    %
+    \typerule{$\src{\library}$-proj-cons}{
+      \src{\library}\downarrow = \src{\Gamma}
+    }{
+      (\src{let\ foo\ x : \type}_\lambda\src{:= e})\src{,\library}\downarrow = (\src{foo \mapsto \type}_\lambda),\src{\Gamma}
+    }{w-lib-proj-cons}
+  \end{center}
+  %
+  \judgbox{\operatorname{dom}\ \src{\library}=\src{foo},\dots,\src{bar}}{,,Collect function names.''}$\;$\\
+  \begin{center}
+    \typerule{$\src{\library}$-dom-$\src{\hole{\cdot}}$}{
+    }{
+      \operatorname{dom}\ \src{\hole{\cdot}} = \src{\hole{\cdot}}
+    }{w-lib-dom-empty}
+    %
+    \typerule{$\src{\library}$-dom-cons}{
+      \operatorname{dom}\ \src{\library} = \src{D}
+    }{
+      \operatorname{dom}\ (\src{let\ foo\ x : \type}_\lambda\src{:= e})\src{,\library} = \src{foo},\src{D}
+    }{w-lib-dom-cons}
+  \end{center}
+}{w-gamma-of-symbols}{Extracting type annotations and function names.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\src{\library}\equiv\src{\library_1}\cup\src{\library_2}}{,,Merging $\mmlAs$ libraries.''}$\;$\\
+    \typerule{lib-merge-empty}{
+      \src{\library}=\src{\library_1}
+    }{
+      \src{\library}\equiv\src{\library_1}\cup\src{\hole{\cdot}}
+    }{src-lib-merge-empty}
+    %
+    \typerule{lib-merge-cons}{
+      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
+    }{
+      \src{\asymbol,\library}\equiv\src{\library_1}\cup\src{\asymbol,\library_2}
+    }{src-lib-merge-cons}
+
+    \judgbox{\src{\library_1\linker\library_2}=\src{\library}}{,,Syntactically linking $\mmlAs$ libraries.''}$\;$\\
+    \typerule{syntactic-plugging}{
+      \operatorname{dom}\src{\library_1}\cap\operatorname{dom}\src{\library_2} = \emptyset &
+      \src{\library}\equiv\src{\library_1}\cup\src{\library_2}
+    }{
+      \src{\library_1\linker\library_2} = \src{\library}
+    }{src-plugging}
+  \end{center}
+}{w-plugging-s}{$\mmlAs$ plugging of libraries.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\src{\Gamma}\vdash\src{\library}\ \operatorname{ok}}{,,$\mmlAs$ library typechecks.''}$\;$\\
+    %
+    \typerule{t-$\src{\library}$-empty}{
+    }{
+      \src{\Gamma}\vdash\src{\hole{\cdot}}\ \operatorname{ok}
+    }{w-t-lib-empty}
+    %
+    \typerule{t-$\src{\library}$-cons}{
+      \src{\type_e^{(1)}}\ \operatorname{int} &
+      \src{\type_e^{(2)}}\ \operatorname{int} &
+      \src{\Gamma}\vdash\src{\library}\ \operatorname{ok} &
+      \typechecks{x:\type_e^{(1)},\Gamma}{e}{\type_{e}^{(2)}\to\bot}
+    }{
+      \src{\Gamma}\vdash(\src{let\ foo\ x : \type_e^{(1)}}\to\src{\type_e^{(2)}:= e}),\src{\library}\ \operatorname{ok}
+    }{w-t-lib-cons}\\[0.33cm]
+    %
+    \judgbox{\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\src{\commlib}}{,,$\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$ typechecks. $\src{\library}$ is the\\result of linking $\src{\library_{ctx}}$ and $\src{\library_{comp}}$. $\src{\commlib}$ is $\operatorname{dom}\ \src{\library_{comp}}$.''}$\;$\\
+    %
+    \typerule{$t-\text{prog}$}{
+      \src{\library}=\src{\library_{ctx}\linker\library_{comp}} &
+      \src{\library}\downarrow = \src{\Gamma_0} &
+      \src{main}\in\operatorname{dom} \src{\Gamma_0} &
+      \src{\Gamma_0}\vdash\src{\library}\ \operatorname{ok} \\
+      \typechecks{\Gamma_0}{call\ main\ 0}{\nat\to\nat}
+    }{
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\library},\operatorname{dom}\ \src{\library_{comp}}
+    }{w-t-wprog}
+    %
+    \judgbox{\typechecks{}{\configs\triangleright e}{\type}}{,,$\mmlAs$ runtime program $\src{\configs\triangleright e}$ typechecks.''}$\;$\\
+    \typerule{$t-\text{prog}-\text{runtime}$}{
+      \typechecks{\library}{\Delta}{\Gamma}&
+      \typechecks{\Gamma}{e}{\type}
+    }{
+      \typechecks{}{\commlib;\library;\kontstack;\sandboxtag;H^\ctx;H^\comp;\Delta\triangleright e}{\type}
+    }{w-t-prog-runtime}
+  \end{center}
+}{w-program-ty}{Checking of $\mmlAs$ contexts, components, programs, and whole programs.}
+Perhaps most interesting is \Cref{tr:w-t-prog-runtime} which generates a suitable typing context from the execution context.
+\Cref{fig:store-ty} shows how this works exactly.
+
+\myfig{
+  \begin{center}
+    \judgbox{\typechecks{\library}{\Delta}{\Gamma}}{,,$\mmlAs$ location map $\Deltas$ yields static typing environment $\Gammas$.''}
+    \typerule{$T\text{empty}\src{\Delta}$}{
+      \src{\library}\downarrow=\src{\Gamma}
+    }{
+      \typechecks{\library}{\hole{\cdot}}{\Gammas}
+    }{t-empty-store}
+    %
+    \typerule{$T\ptr$}{
+    \typechecks{\library}{\Delta}{\Gamma}
+    }{
+    \typechecks{\library}{x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}{x:\ptr,\Gamma}
+    }{t-ptr-store}
+    %
+    \typerule{$T\ptr\text{poison}$}{
+    \typechecks{\library}{\Delta}{\Gamma}
+    }{
+    \typechecks{\library}{x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta}{\Gamma}
+    }{t-poison-store}
+  \end{center}
+}{store-ty}{$\mmlAs$ store typing.}
+Here, we want to populate the typing context with all {\em valid} pointers, which are those that are not poisoned.
+Pointers of type $\src{\wptr}$ are implicitly generated during elaboration, see \Cref{fig:w-ctx-split}.
+
+\subsubsection{Dynamic Semantics}
+
+The language trivially satisfies \gls{scct}.
+It does not satisfy \gls{sms}, as seen in \Thmref{thm:lms:notspatmemsafe}.
+
+\myfig{
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Base\ Events}~\src{\event_{b}} \bnfdef&\ \src{Alloc\ \loc\ \valueexpr} \mid \src{Dealloc\ \loc} \mid \src{Get\ \loc\ \valueexpr} \mid \src{Set\ \loc\ \valueexpr\ \valueexpr'} \\
+                                  & \mid \src{Call\ \comm\ foo\ \valueexpr} \mid \src{Ret\ \comm\ \valueexpr} \mid \src{Start} \mid \src{End\ \valueexpr}\\
+  \mi{Events}~\src{\event} \bnfdef&\ \src{\emptyevent} \mid \src{\event_{b};\sandboxtag} \mid \src{\lightning}
+  \end{aligned}
+  \end{gather*}
+}{w-events}{Events of $\mmlAs$.}
+
+\myfig{
+  \judgbox{\exprevals{\configs}{e}{\configs'}{e'}{\event}}{,,Expression $\src{e}$ applied evaluates under configuration $\configs$\\to $\src{e'}$ and new configuration $\src{\configs'}$, emitting event $\src{\event}$.''}
+  %
+  \typerule{$e-\src{\oplus}$}{
+    \src{n_1}\oplus\src{n_2}=\src{n_3}
+  }{
+    \exprevals{\configs}{n_1 \oplus n_2}{\configs}{n_3}{\emptyevent}
+  }{w-e-oplus}
+  %
+  \typerule{$e-\src{get}-\in$}{
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc}+\src{n}\in\text{dom }\src{\memstate.H^{\sandboxtag}}
+  }{
+    \exprevals{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
+  }{w-e-get-in}
+  %
+  \typerule{$e-\src{get}-\notin$}{
+    \src{\memstate.\Delta}=\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc+\src{n}}\notin\text{dom }\src{\memstate.H^{\sandboxtag}}
+  }{
+    \exprevals{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
+  }{w-e-get-notin}
+  %
+  \typerule{$e-\src{set}-\in$}{
+    \src{\memstate.\Delta}=\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc+\src{n}}\in\operatorname{dom}\src{\memstate.H^{\sandboxtag}}\\
+    \src{H^{\sandboxtag}_1} = \src{\memstate.H^{\sandboxtag}}(\src{\loc+n}\mapsto \src{v}) &
+    \src{\memstate'}=\src{\memstate[H^{\sandboxtag}\leftarrow H^{\sandboxtag}_1]}
+  }{
+    \exprevals{\cfstate;\sandboxtag_0;\memstate}{x[n]\leftarrow v}{\cfstate;\sandboxtag_0;\memstate'}{v}{Set\ \loc\ n\ v;\sandboxtag_0}
+  }{w-e-set-in}
+  %
+  \typerule{$e-\src{set}-\notin$}{
+    \src{\memstate.\Delta}=\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \src{\loc+\src{n}}\notin\operatorname{dom}\src{\memstate.H^{\sandboxtag}}
+  }{
+    \exprevals{\cfstate;\sandboxtag_0;\memstate}{x[n]\leftarrow v}{\cfstate;\sandboxtag_0;\memstate'}{v}{Set\ \loc\ n\ v;\sandboxtag_0}
+  }{w-e-set-notin}
+  %
+  \typerule{$e-\src{let}-\src{\finalexprnoerr}$}{
+  }{
+    \exprevals{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
+  }{w-e-let-f}
+  %
+  \typerule{$e-\src{delete}$}{
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
+    \src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
+  }{
+    \exprevals{\cfstate;\sandboxtag;\memstate}{delete\ x}{\cfstate;\sandboxtag;\memstate'}{0}{Dealloc\ \loc;\sandboxtag}
+  }{w-e-delete}
+  %
+  \typerule{$e-\src{new}$}{
+    \fresh{\src{\memstate.\Delta}}{\src{\loc}} &
+    \fresh{\src{\memstate.\Delta}}{\src{z}} &
+    \src{H^{\sandboxtag}_1} = \src{\memstate.H^{\sandboxtag}} \ll \src{n} \\
+    \src{\memstate'} = \src{\memstate[H^{\sandboxtag} \leftarrow H^{\sandboxtag}_1][\Delta \leftarrow z\mapsto(\loc,\sandboxtag,\poisonless;n),\memstate.\Delta]}
+  }{
+    \exprevals{\cfstate;\sandboxtag;\memstate}{let\ x=new\ n\ in\ e}{\cfstate;\sandboxtag;\memstate'}{e[z/x]}{Alloc\ \loc\ n;\sandboxtag}
+  }{w-e-let-new}
+  %
+  \typerule{$e-\src{ifz}-$true}{
+  }{
+  \exprevals{\Omega}{ifz\ 0\ then\ e_1\ else\ e_2}{\Omega}{e_1}{\emptyevent}
+  }{w-e-if-true}
+  %
+  \typerule{$e-\src{ifz}-$false}{
+  }{
+  \exprevals{\Omega}{ifz\ S(n)\ then\ e_1\ else\ e_2}{\Omega}{e_2}{\emptyevent}
+  }{w-e-if-false}
+  %
+  \typerule{$e-\src{abort}$}{
+  }{
+    \exprevals{\Omega}{abort()}{\lightning}{stuck}{\lightning}
+  }{w-e-abort}
+}{w-expr-prim-eval}{Primitive Evaluation of $\mmlAs$ expressions.}
+Evaluation is mostly straightforward, the only interesting cases involve the pointers.
+Specifically, \Cref{tr:w-e-delete} demonstrates why we need the poison-tag on the locations: Regardless of the current tag, emit a $\src{Dealloc\ \loc}$ event and mark $\src{\loc}$ as poisoned ($\src{\poisoned}$).
+The intuitive solution, removing the mapping on deletion, doesn't allow to run programs that delete twice.
+However, we want to model memory effects and show that such situations never happen, even though they {\em could}.
+Given a poisoned location, we can still do everything with it: reading, writing, or deletion.
+When generating the static context from the execution context, \Cref{tr:t-poison-store} allows us to disregard deleted locations which will help us reason that the given execution could not have been happening if the program was well-typed to begin with.
+For sake of readablity, we will omit $\src{\gamma}=\src{\hole{\cdot}}$ when writing down evaluation steps.
+That is, whenever we have $\exprevals{\configs}{e\hole{\cdot}}{\configs'}{e'\hole{\cdot}}{\event}$, it's written $\exprevals{\configs}{e}{\configs'}{e'}{\event}$.
+Moreover, $\src{\gamma}$ as postfix binds anything before it up to $\triangleright$, so $\src{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\src{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
+
+
+\myfig{
+  \begin{center}
+    \judgbox{\execs[]{\configs}{K[e]}{\configs'}{K'[e']}{\event}}{,,Given an evaluation context $\src{K}$ and an expression $\src{e}$\\it evaluates under configuration $\configs$ to $\src{e'}$ and new\\configuration $\src{\configs'}$ in context $\src{K}$, emitting event $\src{\event}$.''}
+    %
+    \typerule{$e-\text{ctx}$}{
+      \exprevals{\Omega}{e}{\Omega'}{e'}{\event}
+    }{
+      \execs[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
+    }{w-e-ectx}
+    %
+    \typerule{$e-\text{ctx}-\src{stuck}$}{
+      \exprevals{\Omega}{e}{\Omega'}{stuck}{\lightning}
+    }{
+      \execs[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
+    }{w-e-ectx-stuck}
+    %
+    \typerule{$e-\text{ctx}-\src{call}-$main}{
+      \src{\Omega}=\src{\commlib;\library;\hole{\cdot};\comp;\memstate} &
+      \src{\library}=\src{\library_1,}(\src{let\ main\ x:\type}_\lambda\src{:=e})\src{,\library_2}\\
+      \src{\Omega'}=\src{\commlib;\library;\ctx;(K;main),\hole{\cdot};\memstate}
+    }{
+      \execs[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start;\comp}
+    }{w-e-ectx-call-main}
+    %
+    \typerule{$e-\text{ctx}-\src{call}-\text{notsame}$}{
+      \src{\Omega}=\src{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
+      \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
+      %\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
+      \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
+      \rho\left(\src{\sandboxtag}\right) = \src{\comm} &
+      \src{\Omega'}=\src{\commlib;\library;(K;foo),\kontstack;\neg\sandboxtag;\memstate} \\
+    }{
+      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
+    }{w-e-ectx-call-notsame}
+    %
+    \typerule{$e-\text{ctx}-\src{call}-\text{same}$}{
+      \src{\Omega}=\src{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
+      \src{\library}=\src{\library_1,}(\src{let\ foo\ x:\type}_\lambda\src{:=e})\src{,\library_2} \\
+      %\rho_{\tiny call}(\src{\commlib},\src{foo},\src{\kontstack},\src{v}) = \src{\event},\src{\comm} &
+      \src{foo}\in_{\src{\sandboxtag}}\src{\commlib} &
+      \src{\Omega'}=\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate} \\
+    }{
+      \execs[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \valueexpr;\sandboxtag}
+    }{w-e-ectx-call-same}
+    %
+    \typerule{$e-\text{ctx}-\src{return}-$main}{
+    }{
+      \exec[]{\src{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\hole{\cdot};\comp;\memstate}}{\src{\valueexpr}}{\src{End\ \valueexpr;\sandboxtag}}
+    }{w-e-ectx-ret-main}
+    %
+    \typerule{$e-\text{ctx}-\src{return}-\text{notsame}$}{
+      \src{foo}\in_{\src{\neg\sandboxtag}}\src{\commlib} &
+      \rho\left(\src{\sandboxtag}\right) = \src{\comm}
+    }{
+      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\src{K[\valueexpr]}}{\src{Ret\ \comm\ \valueexpr;\sandboxtag}}
+    }{w-e-ectx-ret-notsame}
+    %
+    \typerule{$e-\text{ctx}-\src{return}-\text{same}$}{
+      \src{foo}\in_{\src{\sandboxtag}}\src{\commlib}
+    }{
+      \exec[]{\src{\commlib;\library;(K;foo),\kontstack;\sandboxtag;\memstate}}{\src{K'[return\ \valueexpr]}}{\src{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\src{K[\valueexpr]}}{\src{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
+    }{w-e-ectx-ret-same}
+    %
+    \judgbox{\rho(\src{\sandboxtag})=\src{\comm}}{,,Returns either $\src{\ctxtocomp}$ or $\src{\comptoctx}$ depending on $\src{\sandboxtag}$.''}\\
+    %
+    \typerule{comm-ctxtocomp}{
+    }{
+      \rho(\src{\ctx})=\src{\ctxtocomp}
+    }{w-comm-ctxtocomp}
+    %
+    \typerule{comm-comptoctx}{
+    }{
+      \rho(\src{\comp})=\src{\comptoctx}
+    }{w-comm-comptoctx}\\[0.33cm]
+    %
+    \judgbox{\src{\neg\sandboxtag}=\src{\sandboxtag'}}{,,Negation of $\src{\sandboxtag}$.''}\\
+    %
+    \typerule{neg-ctx}{
+    }{
+      \src{\neg\ctx}=\src{\comp}
+    }{w-neg-ctx}
+    %
+    \typerule{neg-comp}{
+    }{
+      \src{\neg\comp}=\src{\ctx}
+    }{w-neg-comp}
+  \end{center}
+}{w-expr-ctx-eval}{Contextual Evaluation of $\mmlAs$ expressions.}
+\myfig{
+  \begin{center}
+    \judgbox{\execs{\configs}{e}{\configs'}{e'}{\trace}}{,,Expression $\src{e}$ evaluates under configuration $\configs$ to $\src{e'}$ and\\new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
+    %
+    \typerule{$es-\text{refl}$}{
+    }{
+      \execs{\configs}{\finalexprnoerr}{\configs}{\finalexprnoerr}{\hole{\cdot}}
+    }{ws-e-refl}
+    %
+    \typerule{$es-\text{trans}-$important}{
+      \execs[]{\configs}{e}{\configs'}{e'}{\event}&
+      \execs{\configs'}{e'}{\configs''}{e''}{\trace}&
+      \src{\event}\not=\src{\emptyevent}
+    }{
+      \execs{\configs}{e}{\configs''}{e''}{\event \cdot \trace}
+    }{ws-e-trans-important}
+    %
+    \typerule{$es-\text{trans}-$unimportant}{
+      \execs[]{\configs}{e}{\configs'}{e'}{\emptyevent}&
+      \execs{\configs'}{e'}{\configs''}{e''}{\trace}&
+    }{
+      \execs{\configs}{e}{\configs''}{e''}{\trace}
+    }{ws-e-trans-unimportant}
+    %
+    \judgbox{\execsn{\configs}{e}{\configs'}{e'}{\trace}}{,,Expression $\src{e}$ evaluates in $n$ steps under configuration $\configs$ to $\src{e'}$\\and new configuration $\src{\configs'}$, emitting list of events $\src{\trace}$.''}
+    %
+    \typerule{$en-\text{refl}$}{
+    }{
+      \execsn[^0]{\configs}{e}{\configs}{e}{\emptyevent}
+    }{wsn-e-refl}
+    %
+    \typerule{$en-\text{trans}-$important}{
+      \execs[]{\configs}{e}{\configs'}{e'}{\event} &
+      \execsn[^n]{\configs'}{e'}{\configs''}{e''}{\trace} &
+      \src{\event}\not=\src{\emptyevent}
+    }{
+      \execsn[^{(n+1)}]{\configs}{e}{\configs''}{e''}{\event\cdot\trace}
+    }{wsn-e-trans-important}
+    %
+    \typerule{$en-\text{trans}-$unimportant}{
+      \execs[]{\configs}{e}{\configs'}{e'}{\emptyevent} &
+      \execsn[^n]{\configs'}{e'}{\configs''}{e''}{\trace} &
+    }{
+      \execsn[^{(n+1)}]{\configs}{e}{\configs''}{e''}{\trace}
+    }{wsn-e-trans-unimportant}
+  \end{center}
+}{w-steps}{Trace prefix generation given a $\mmlAs$ program using the reflexive-transitive closure.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}}{,,Run $\mmlAs$ program $\src{prog\ \library_{ctx}\ \library_{comp}}$, giving dynamic state\\$\configs$ and emitting trace $\src{\trace}$.''}
+    \typerule{$e-\text{wprog}$}{
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
+      \src{main}\notin\src{\commlib}\\
+      \execs{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexprnoerr}{\trace}
+    }{
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexprnoerr}{\trace}
+    }{ws-e-prog}
+    %
+    \typerule{$e-\text{wprog}-\lightning$}{
+      \vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv \src{\commlib},\src{\library} &
+      \src{main}\notin\src{\commlib}\\
+      \execs{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+    }{
+      \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+    }{ws-e-prog-crash}
+  \end{center}
+}{wprog-run}{Running a whole $\mmlAs$ program.}
+
+\subsubsection{Translation to Specification Events}
+We need a way to translate from concrete actions, as emitted by a program's execution, to abstract actions.
+The translation is, however, standard.
+The empty action $\specificev{\emptyevent}$ is necessary. When proving lemmas by structural induction on the primitive steps (\Cref{fig:w-expr-prim-eval}), we get a concrete event $\src{\emptyevent}$ that needs to be related to some $\msevent$. The natural candidate is $\specificev{\emptyevent}$.
+We also use it to project the call/return events onto it.
+
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,A map from $\mmlAs$ memory locations $\src{\loc}$ to specification locations $\specificev{\loc}$.''}
+    \judgbox{\tospecificevs[_{\delta_{MS}}]{\event} = \msevent}{,,Project an $\mmlAs$ event to specification events.''}
+    %
+    \typerule{filter-context}{
+      \src{\event_b} \not= \src{\lightning}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{\event_b;\ctx} = \specificev{\emptyevent}
+    }{filter-context}
+    %
+    \typerule{filter-comp-start}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Start;\comp} = \specificev{\emptyevent}
+    }{filter-comp-start}
+    %
+    \typerule{filter-comp-alloc}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc} &
+      \specificev{n}=\src{n}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Alloc\ \loc\ n;\comp} = \specificev{Alloc\ \loc\ n}
+    }{filter-comp-alloc}
+    %
+    \typerule{filter-comp-dealloc}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Dealloc\ \loc;\comp} = \specificev{Dealloc\ \loc}
+    }{filter-comp-dealloc}
+    %
+    \typerule{filter-comp-get}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc} &
+      \specificev{n}=\src{n}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Get\ \loc\ n;\comp} = \specificev{Use\ \loc\ n}
+    }{filter-comp-get}
+    %
+    \typerule{filter-comp-set}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc} &
+      \specificev{n}=\src{n}
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Set\ \loc\ n\ \valueexpr;\comp} = \specificev{Use\ \loc\ n}
+    }{filter-comp-set}
+    %
+    \typerule{filter-comp-call}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Call\ \comm\ foo\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{filter-comp-call}
+    %
+    \typerule{filter-comp-ret}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{Ret\ \comm\ \valueexpr;\comp} = \specificev{\emptyevent}
+    }{filter-comp-ret}
+    %
+    \typerule{filter-abort}{
+    }{
+      \tospecificevs[_{\delta_{MS}}]{\lightning;\sandboxtag} = \specificev{\lightning}
+    }{filter-abort}
+    %
+    \judgbox{\tospecificevs[^*_{\delta_{MS}}]{\trace} = \mstrace}{,,Project an $\mmlAs$ trace to specification traces.''}
+    %
+    \typerule{filter-empty}{
+    }{
+      \tospecificevs[^*_{\delta_{MS}}]{\hole{\cdot}} = \specificev{\hole{\cdot}}
+    }{filter-empty}
+    %
+    \typerule{filter-cons-relevant}{
+      \tospecificevs[_{\delta_{MS}}]{\event} = \specificev{\event} &
+      \tospecificevs[^*_{\delta_{MS}}]{\trace} = \mstrace &
+      \specificev{\event} \not= \specificev{\emptyevent}
+    }{
+      \tospecificevs[^*_{\delta_{MS}}]{\event\cdot\trace} = \specificev{\event}\cdot\mstrace
+    }{filter-cons-relevant}
+    %
+    \typerule{filter-cons-relevant}{
+      \tospecificevs[_{\delta_{MS}}]{\event} = \specificev{\emptyevent} &
+      \tospecificevs[^*_{\delta_{MS}}]{\trace} = \mstrace
+    }{
+      \tospecificevs[^*_{\delta_{MS}}]{\event\cdot\trace} = \mstrace
+    }{filter-cons}
+  \end{center}
+}{w-events-project-to-specific}{Projection of $\mmlAs$ events to specification events.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\delta_{MS}(\src{\loc})=\specificev{\loc}}{,,Map $\mmlAs$ locations $\src{\loc}$ to abstract locations $\specificev{\loc}$.''}
+    \judgbox{\storeagreetms{\tmsmonitor}{\src{\Delta}}}{,,Abstract memory state $\tmsmonitor$ describes the concrete state $\src{\Delta}$.''}
+    \typerule{Empty-Agree}{
+    }{
+      \storeagreetms{\emptyset}{\src{\hole{\cdot}}}
+    }{store-empty-agree}
+    %
+    \typerule{Abort-Agree}{
+    }{
+      \storeagreetms{\emptyset}{\src{\lightning}}
+    }{store-abort-agree}
+    %
+    \typerule{Cons-Agree}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc}&
+      \specificev{\loc}\notin\tmsmonitor&
+      \storeagreetms{\tmsmonitor}{\src{\Delta}}
+    }{
+      \storeagreetms{\left\{\specificev{\loc}\right\}\cup \tmsmonitor}{\src{x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}}
+    }{store-cons-agree}
+    %
+    \typerule{Poison-Agree}{
+      \delta_{MS}(\src{\loc})=\specificev{\loc}&
+      \storeagreetms{\tmsmonitor}{\src{\Delta}}
+    }{
+      \storeagreetms{\tmsmonitor}{\src{x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta}}
+    }{store-poison-agree}
+  \end{center}
+}{tms-store-agreement}{Store Agreement.}
+
+\begin{scontents}[store-env=buffer]
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:mmlatmsviamonitor:run} $\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\tospecificevs[^{*}_{\delta_{ms}}]{\trace}\in\operatorname{tmsafe}$
+  \end{goals}.
+\end{scontents}
+\mockthm{thm:mmlAs:tmssafe}{1}
+
+\begin{scontents}[store-env=buffer]
+  There is a well-typed $\mmlAs$ component that does not robustly satisfy \Cref{def:spatmemsafe}:
+  $\rsat{\src{\library}}{smsafe}$
+\end{scontents}
+
+\realthm{thm:mmlAs:not:smssafe}{2}{$\mmlAs$ is not spatially memory safe}\label{thm:lms:notspatmemsafe}
+\begin{proof}
+  We pick:
+  $$\src{\library_{comp}} = \src{let\ foo\ x:\nat\to\nat:=let\ z=new\ x\ in\ let\ w = z[1337]\ in\ let\ \_ = delete\ z\ in\ w},\src{\hole{\cdot}}$$
+  and
+  $
+  \src{\library_{ctx}} = \src{let\ main\ z:\nat\to\nat:=call\ foo\ 42},\src{\hole{\cdot}}
+  $.
+  Let $\src{\library} \equiv \src{\library_{comp}}\cup\src{\library_{ctx}}$.
+  We show $\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\left\{\src{foo}\right\}$.
+  First note that $\src{\library}=\src{\library_{ctx}\linker\library_{comp}}$, since $\operatorname{dom}\ \src{\library_{ctx}}\cap\operatorname{dom\ \src{\library_{comp}}}=\emptyset$ and $\src{\library}\equiv\src{\library_{ctx}\cup\library_{comp}}$ by definition.
+  Now, $\operatorname{dom}\ \src{\library_{comp}}=\left\{\src{foo}\right\}$ and $\src{\library}\downarrow=\src{foo\mapsto\nat\to\nat,main\mapsto\nat\to\nat,\hole{\cdot}}=\src{\Gamma_{0}}$ by \Cref{tr:w-lib-proj-empty,tr:w-lib-proj-cons}.
+  Consequently, $\src{main}\in\operatorname{dom}\src{\Gamma_{0}}=\left\{\src{foo},\src{main}\right\}$.
+  Note that \Cref{tr:src-int-type-nat} gives $\src{\nat}\ \operatorname{int}$.
+  Using \Cref{tr:w-t-lib-empty,tr:w-t-lib-cons}, what is left to show are the following:
+  \begin{enumerate}
+    \item $\typechecks{x:\nat,\Gamma_{0}}{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ delete\ z; w}{\nat}$
+    \item $\typechecks{z:\nat,\Gamma_{0}}{call\ foo\ 42}{\nat}$
+  \end{enumerate}
+
+  Let $\src{e_w}=\src{let\ w=z[1337]\ in\ delete\ z; w}$, $\Gammas=\src{z:\ptr,x:\nat,\hole{\cdot}}$, and $\src{\Gamma'}=\src{z:\wptr,x:\nat,\hole{\cdot}}$ due to space constraints.
+
+  \bigskip
+  \noindent\makebox[\textwidth]{%
+    \typerulederiv{$\text{\Cref{tr:w-t-new}}$}{
+      \typerulederiv{$\text{\Cref{tr:t-var}}$}{
+        \src{\nat}\not=\src{\ptr}
+      }{
+        \typechecks{x:\nat,\hole{\cdot}}{x}{\nat}
+      } &
+      \typerulederiv{$\text{\Cref{tr:t-let}}$}{
+        \typechecks{\Gamma'}{z[1337]}{\nat} &
+        \typechecks{w:\nat,\Gamma}{delete\ z;w}{\nat}
+      }{
+        \typechecks{\Gamma'\circ\Gamma}{e_w}{\nat}
+      }
+    }{
+      \typechecks{x:\nat,\hole{\cdot}\circ x:\nat,\hole{\cdot}}{let\ z=new\ x\ in\ let\ w = z[1337]\ in\ delete\ z; w}{\nat}
+    }}
+  \bigskip
+
+  Observe that:
+
+  \bigskip
+  \noindent\makebox[\textwidth]{%
+    \typerulederiv{$\text{\Cref{tr:t-get}}$}{
+      \typerulederiv{$\text{\Cref{tr:t-var}}$}{
+        \src{\wptr}\not=\src{\ptr}&
+        \src{\nat}\not=\src{\ptr}
+      }{
+        \typechecks{\Gamma'}{z}{\wptr}
+      } &
+      \typerulederiv{$\text{\Cref{tr:t-var}}$}{
+        \src{\wptr}\not=\src{\ptr}&
+        \src{\nat}\not=\src{\ptr}
+      }{
+        \typechecks{\Gamma'}{x}{\nat}
+      }
+    }{
+      \typechecks{\Gamma'\circ\Gamma'}{z[1337]}{\nat}
+  }}
+  \bigskip
+
+  And:
+
+  \bigskip
+  \noindent\makebox[\textwidth]{%
+    \typerulederiv{$\text{\Cref{tr:t-let}}$}{
+      \typerulederiv{$\text{\Cref{tr:w-t-delete}}$}{
+        \src{\nat}\not=\src{\ptr} &
+        \src{\nat}\not=\src{\ptr}
+      }{
+        \typechecks{w:\nat,z:\ptr,x:\nat,\hole{\cdot}}{delete\ z}{\nat}
+      }&
+      \typerulederiv{$\text{\Cref{tr:t-var}}$}{
+        \src{\nat}\not=\src{\ptr} &
+        \src{\nat}\not=\src{\ptr}
+      }{
+        \typechecks{w:\nat,x:\nat,\hole{\cdot}}{w}{\nat}
+      }
+    }{
+      \typechecks{w:\nat,z:\ptr,x:\nat,\hole{\cdot}\circ w:\nat,x:\nat,\hole{\cdot}}{delete\ z;w}{\nat}
+    }}
+  \bigskip
+
+  Thus, it typechecks.\\[0.3cm]
+  Now consider the other case:
+
+  \bigskip
+  \noindent\makebox[\textwidth]{%
+    \typerulederiv{$\text{\Cref{tr:t-call}}$}{
+      \typerulederiv{$\text{\Cref{tr:t-var}}$}{}{\typechecks{z:\nat,\Gamma_0}{foo}{\nat\to\nat}}&
+      \typerulederiv{$\text{\Cref{tr:t-nat}}$}{}{\typechecks{z:\nat,\Gamma_0}{42}{\nat}}&
+      \typerulederiv{$\text{\Cref{tr:src-int-type-nat}}$}{}{\src{\nat}\ \operatorname{int}}
+    }{
+      \typecheck{\src{z:\nat,\Gamma_0}}{\src{call\ foo\ 42}}{\src{\nat}}
+    }}
+  \bigskip
+
+  Note that $\src{NoOwnedPtr\ z:\nat,\Gamma_{0}}$ holds by $\src{\nat}\not=\src{\ptr}$ and $\src{\nat\to\nat}\not=\src{\ptr}$
+
+  Running the whole program via \Cref{tr:ws-e-prog} yields trace prefix\\$\src{\trace}=\src{Start;\comp}\cdot\src{Call\ !foo\ 42;\ctx}\cdot\src{Alloc\ \loc\ 42;\comp}\cdot\src{Get\ \loc\ 1337;\comp}\cdot\src{Dealloc\ \loc;\comp}\cdot\src{Ret\ ?1729;\comp}\cdot\src{End\ 1729;\ctx}$.
+  We omit the precise derivation for brevity, but note that \thmref{lem:toplevel:progress} gives us the necessary execution.\\[0.3cm]
+  Let $\delta_{ms}=\{\src{\loc}\mapsto\specificev{\loc}\}$, by \Cref{fig:w-events-project-to-specific}, $\tospecificevs[^*_{\delta_{ms}}]{\trace}=\specificev{Alloc\ \loc\ 42}\cdot\specificev{Use\ \loc\ 1337}\cdot\specificev{Dealloc\ \loc}$.\\[0.3cm]
+  For \Cref{def:spatmemsafe}, note that $\specificev{Alloc\ \loc\ 42}\in\tospecificevs[^*_{\delta_{ms}}]{\trace}$ and $\specificev{Use\ \loc\ 1337}\in\tospecificevs[^*_{\delta_{ms}}]{\trace}$, but ${1337}\not<{42}$, hence $\nrsat{\src{\library_{comp}}}{{smsafe}}$.
+\end{proof}
+
+\subsubsection{Auxiliary Definitions and Lemmas}\label{sec:mmla:aux}
+
+\begin{lemma}[$\rightarrow^{n}_{\ctx}$ and $\rightarrow^{*}_{\ctx}$ yield $\rightarrow^{*}_{\ctx}$]\label{lem:execsn:yields:execs}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:execsn:yields:execs:execsn} $\execsn[^{n}]{\Omega}{e}{\Omega'}{e'}{\trace}$
+    \item $\execs{\Omega'}{e'}{\Omega''}{\finalexpr}{\trace[']}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\execs{\Omega}{e}{\Omega''}{\finalexpr}{\trace\cdot\trace[']}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:execsn:yields:execs:execsn}.
+\end{proof}
+
+\begin{lemma}[$\rightarrow^{*}_{\ctx}$ splits into $\rightarrow^{n}_{\ctx}$ and $\rightarrow^{*}_{\ctx}$]\label{lem:execs:splitsinto:execsn}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:execs:splitsinto:execsn} $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace[_{0}]\cdot\trace[_{1}]}$
+  \end{assumptions}
+  Then $\exists \src{\Omega_{0}}\ \src{e_{0}}\ n$,
+  \begin{goals}
+    \item $\execsn{\Omega}{e}{\Omega_{0}}{e_{0}}{\trace[_{0}]}$
+    \item $\execs{\Omega_{0}}{e_{0}}{\Omega'}{\finalexpr}{\trace_{1}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:execs:splitsinto:execsn}.
+\end{proof}
+
+\begin{lemma}[Static Typing implies Runtime Typing (Toplevel)]\label{lem:static-implies-runtime:toplevel}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:static-implies-runtime:gamma} $\src{\library}\downarrow=\src{\Gamma_{0}}$
+    \item\label[ass]{asm:static-implies-runtime:static} $\typechecks{\Gamma_0}{call\ main\ 0}{\nat}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot}^{\ctx};\hole{\cdot}^{\comp};\hole{\cdot}\triangleright call\ main\ 0}{\nat}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Use \Cref{tr:w-t-prog-runtime,tr:t-call,tr:t-var,tr:t-nat,tr:src-int-type-nat}.
+\end{proof}
+
+\begin{lemma}[Typed Linking Recomposition]\label{lem:typed:linking:recomposition}
+  If
+  \begin{assumptions}
+    \item $\src{\library} = \src{\library_{1}\linker\library_{2}}$
+    \item $\Gammas\vdash\src{\library_{1}}\operatorname{ok}$
+    \item $\Gammas\vdash\src{\library_{2}}\operatorname{ok}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\Gammas\vdash\src{\library}\operatorname{ok}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Easy.
+\end{proof}
+
+\begin{lemma}[Typing Decomposition]\label{lem:ctxtyping:plugged}
+  If
+  \begin{assumptions}
+    \item $\typechecks{\Gamma}{K[e]}{\type}$
+  \end{assumptions}
+  Then $\exists \src{\type_{e}}$,
+  \begin{goals}
+    \item $\typechecks{\Gamma}{K}{\type_{e}\to\type}$
+    \item $\typechecks{\Gamma}{e}{\type_{e}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\src{K}$.
+\end{proof}
+\begin{lemma}[Typing Composition]\label{lem:ctxtyping:compos}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:ctxtyping:compos:K} $\typechecks{\Gamma}{K}{\type_{e}\to\type}$
+    \item $\typechecks{\Gamma}{e}{\type_{e}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{\Gamma}{K[e]}{\type}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:ctxtyping:compos:K}.
+\end{proof}
+\begin{lemma}[Runtime Typing Decomposition]\label{lem:rtctxtyping:plugged}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\Omega \triangleright K[e]}{\type}$
+  \end{assumptions}
+  Then $\exists \src{\type_{e}}$,
+  \begin{goals}
+    \item $\typechecks{}{\Omega \triangleright K}{\type_{e}\to\type}$
+    \item $\typechecks{}{\Omega \triangleright e}{\type_{e}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Use \Cref{lem:ctxtyping:plugged}.
+\end{proof}
+\begin{lemma}[Runtime Typing Composition]\label{lem:rtctxtyping:compos}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\Omega \triangleright K}{\type_{e}\to\type}$
+    \item $\typechecks{}{\Omega \triangleright e}{\type_{e}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\Omega \triangleright K[e]}{\type}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Use \Cref{lem:ctxtyping:compos}.
+\end{proof}
+
+\begin{lemma}[Store Agree Weaken]\label{lem:store-agree-weaken}
+  If
+  \begin{assumptions}
+    \item $\storeagreetms{\tmsmonitor}{\src{\Delta}}$
+    \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor}{\src{\Delta}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on $\storeagreetms{\tmsmonitor}{\src{\Delta}}$.
+\end{proof}
+
+\begin{lemma}[Filter Weaken]\label{lem:filter-weaken}
+  If
+  \begin{assumptions}
+    \item $\theta_{\delta_{ms}}^{*}\left(\src{\trace}\right) \not=\specificev{\hole{\cdot}}$
+    \item $\delta_{ms}\subseteq\delta_{ms}'$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\theta_{\delta_{ms}}^{*}\left(\src{\trace}\right) = \theta_{\delta_{ms}'}^{*}\left(\src{\trace}\right)$
+  \end{goals}
+\end{lemma}
+
+\begin{lemma}[\gls{tms}-$\src{\Delta}$-split]\label{lem:tms:store:split}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:tms:store:split:as} $\storeagreetms{\tmsmonitor}{\src{\Delta_{1},x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_{2}}}$
+  \end{assumptions}
+  Then $\exists \tmsmonitor[_{1}]\ \tmsmonitor[_{2}]\ \specificev{\loc}$,
+  \begin{goals}
+    \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+    \item $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;n),\hole{\cdot}}}$
+    \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+    \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:tms:store:split:as}.
+\end{proof}
+
+
+\begin{lemma}[Trace-based Transitivity Authentic]\label{lem:trace-agree-trans}
+  If
+  \begin{assumptions}
+    \item $\tmstraceagree[^{*}]{\mstrace[_{1}]}{\abstrace_{1}}$
+    \item $\tmstraceagree[^{*}]{\mstrace[_{2}]}{\abstrace_{2}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\tmstraceagree[^{*}]{\mstrace[_{1}]\cdot\mstrace[_{2}]}{\abstrace_{1}\cdot\abstrace_{2}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Easy using \Cref{tr:tms-trans-auth}.
+\end{proof}
+
+\begin{lemma}[Monitor Step Subset]\label{lem:monitor-step-subset}
+  If
+  \begin{assumptions}
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\tmsmonitor\subseteq_F \tmsmonitor[']$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Easy induction on $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$.
+\end{proof}
+
+\begin{lemma}[Monitor Steps Subset]\label{lem:monitor-steps-subset}
+  If
+  \begin{assumptions}
+    \item $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\tmsmonitor\subseteq_F \tmsmonitor[']$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Easy induction on $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\absevent}$ using \Thmref{lem:monitor-step-subset}.
+\end{proof}
+
+\begin{lemma}[$\alpha$-conv. Typing]\label{lem:alpha-conv-typing}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:alpha-conv-typing:typs} $\typechecks{\Gamma}{e}{\type}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{\Gamma[z:\type'/x:\type']}{e[z/x]}{\type}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:alpha-conv-typing:typs}.
+\end{proof}
+
+\begin{lemma}[Substitution]\label{lem:substitution}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:substitution:typs} $\typechecks{x:\type',\Gamma_1}{e}{\type}$
+    \item $\typechecks{\Gamma_2}{v}{\type'}$
+    \item $\src{\Gamma_3}=\src{\Gamma_1}\circ\src{\Gamma_2}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{\Gamma_3}{e[v/x]}{\type}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  By induction on \Cref{asm:substitution:typs}.
+\end{proof}
+
+\begin{lemma}[Base Preservation]\label{lem:base-preservation}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:basepres:step} $\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
+    \item $\configs'\not=\src{\lightning}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:basepres:step}.
+\end{proof}
+
+\begin{lemma}[Ctx Preservation]\label{lem:ctx-preservation}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:ctxpres:step} $\execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:ctxpres:step}.
+\end{proof}
+
+\begin{lemma}[N-Steps Preservation]\label{lem:nsteps-preservation}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:npres:step} $\execsn{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:npres:step}.
+\end{proof}
+
+\begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:starpres:step} $\execs{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:starpres:step}.
+\end{proof}
+
+\begin{lemma}[Progress]\label{lem:progress}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:progress:typs} $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+  \end{assumptions}
+  Then $\exists \src{\Omega'}\ \src{\finalexpr}\ \src{\trace}$,
+  \begin{goals}
+  \item $\execs{\configs}{e}{\configs'}{\finalexpr}{\trace}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Nested induction on \Cref{asm:progress:typs}.
+\end{proof}
+
+\begin{scontents}[store-env=buffer]
+  If
+  \begin{assumptions}
+  \item $\typechecks{}{e}{\type}$
+  \end{assumptions}
+  Then $\exists \src{\Omega}\ \src{\trace}\ \src{\finalexpr}$,
+  \begin{goals}
+  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{\finalexpr}{\trace}$
+  \item $\typechecks{}{\finalexprnoerr}{\type}$
+  \end{goals}.
+\end{scontents}
+% \realthm{thm:mmlAs:typesafe}{3}{Type Safety}
+% \begin{proof}
+%   Easy consequence from \Cref{lem:progress,lem:steps-preservation}.
+% \end{proof}
+
+\begin{lemma}[Top-Level Progress]\label{lem:toplevel:progress}
+  If
+  \begin{assumptions}
+    \item $\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\src{\commlib}$
+  \end{assumptions}
+  Then $\exists \configs\ \src{\finalexpr}\ \src{\trace}$,
+  \begin{goals}
+  \item $\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\Omega}{\finalexpr}{\trace}$
+  \item $\src{\Omega.\library}=\src{\library}$
+  \item $\src{\Omega.\commlib}=\src{\commlib}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Immediate consequence of \Cref{lem:progress}.
+\end{proof}
+
+\begin{lemma}[Base \gls{tms} via Monitor]\label{lem:basetmsmonitor}
+  If
+  \begin{assumptions}
+    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item $\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
+    \item $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+  \end{assumptions}
+  Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+  \begin{goals}
+    \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+    \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{\event}}{\absevent}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+    \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  First, we note
+  \begin{itemize}
+    \item $\src{\Omega}=\src{\cfstate;\sandboxtag;\memstate}$
+    \item $\src{\cfstate}=\src{\commlib;\library;\kontstack}$
+    \item $\src{\memstate}=\src{H^{\ctx};H^{\comp};\Delta}$
+  \end{itemize}
+  Induction on $\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$.
+  \begin{description}
+    \case{tr:w-e-delete}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;n),\Delta_2}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:subseteq} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item\label[goal]{goal:basetmsmonitor:tmstraceagree} $\traceagree{\specificev{Dealloc\ }\delta_{\text{MS}}'(\src{\loc})}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$
+      \end{goals}
+
+      Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
+      \begin{passumptions}{F}
+        \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;n),\hole{\cdot}}}$
+        \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+        \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+      \end{passumptions}
+      Invert \Cref{asm:basetmsmonitor:storeagree:unfolded} to conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$.
+      Choose $\absevent=\textbf{Dealloc\ }\specificev{\loc}$ and $\delta_{\text{MS}}'=\delta_{\text{MS}}$.
+
+      \Cref{goal:basetmsmonitor:subseteq}, $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}$, follows trivially.
+
+        For $\tmstraceagree{\specificev{Dealloc\ }\delta_{\text{MS}}'(\src{\loc})}{\textbf{Dealloc}\ \specificev{\loc}}$ (\Cref{goal:basetmsmonitor:tmstraceagree}), apply \Cref{tr:tms-dealloc-auth}.
+
+      The inversion yields two cases:
+      \begin{description}
+      \case{tr:store-cons-agree}
+        If
+        \begin{passumptions}{F}
+        \item $\typechecks{}{\src{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisonless;n),\src{\Delta_2}\triangleright \src{delete\ x}}}{\type}$
+        \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
+        \item $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$
+        \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
+        \item $\tmsmonitor=\tmsmonitor[_1]\cup\left\{\specificev{\loc}\right\}\cup \tmsmonitor[_2]$
+        \end{passumptions}
+        then $\exists \tmsmonitor[']$,
+        \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:monitorcheck1} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}$
+        \item\label[goal]{goal:basetmsmonitor:storeagree1} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$
+        \end{goals}
+        Choose $\tmsmonitor[']=\tmsmonitor[_1]\cup \tmsmonitor[_2]$.
+
+        \Cref{goal:basetmsmonitor:monitorcheck1}, $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}$, follows immediately by \Cref{tr:tms-dealloc}.
+
+        \Cref{goal:basetmsmonitor:storeagree1}, $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$, follows immediately by \Cref{tr:store-poison-agree}.
+
+      \case{tr:store-poison-agree}
+        If
+        \begin{passumptions}{F}
+        \item\label[ass]{asm:basetmsmonitor:typing} $\typechecks{}{\src{\cfstate;\sandboxtag;H^{\ctx};H^{\comp};\Delta_1},\src{x\mapsto(\loc;\sandboxtag;\poisoned;n)},\src{\Delta_2}\triangleright \src{delete\ x}}{\type}$
+        \item $\storeagreetms{\tmsmonitor[_1]}{\src{\Delta_1}}$
+        \item $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$
+        \item $\storeagreetms{\tmsmonitor[_2]}{\src{\Delta_2}}$
+        \item $\tmsmonitor=\tmsmonitor[_1]\cup \tmsmonitor[_2]$
+        \end{passumptions}
+        then $\exists \tmsmonitor[']$,
+        \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:monitorcheck2} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\textbf{Dealloc}\ \specificev{\loc}}$
+        \item\label[goal]{goal:basetmsmonitor:storeagree2} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}$
+        \end{goals}.
+
+        Invert \Cref{asm:basetmsmonitor:typing} to get
+        \begin{passumptions}{F}
+          \setcounter{enumi}{6}
+          \item\label[ass]{asm:basetmsmonitor:storechecks} $\typechecks{\library}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}}{\Gammas}$
+          \item\label[ass]{asm:basetmsmonitor:freechecks} $\typechecks{\Gammas}{delete\ x}{\nat}$
+        \end{passumptions}
+
+      Due to \Cref{asm:basetmsmonitor:storechecks}, we know $\src{x:\ptr}\not\in\Gammas$.
+
+      But, that contradicts \Cref{asm:basetmsmonitor:freechecks}.
+      \end{description}
+
+    \case{tr:w-e-oplus}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\Omega}\triangleright\src{n_1+n_2}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree{\specificev{\varepsilon}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega}}$
+      \end{goals}
+      Choose $\absevent=\bm{\varepsilon}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+
+      All goals are completely trivial.
+
+    \case{tr:w-e-let-f}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\hole{\cdot}}$
+        \item $\src{\gamma'}=\src{[\finalexprnoerr/x],\hole{\cdot}}$
+        \item $\typechecks{}{\src{\Omega}\triangleright\src{let\ x=\finalexprnoerr\ in\ e'}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree{\specificev{\varepsilon}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega}}$
+      \end{goals}
+      Choose $\absevent=\bm{\varepsilon}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+
+      All goals are completely trivial.
+
+
+    \case{tr:w-e-if-true}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\Omega}\triangleright\src{ifz\ 0\ then\ e_1\ else\ e_2}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree{\specificev{\varepsilon}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega}}$
+      \end{goals}
+      Choose $\absevent=\bm{\emptyevent}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+
+      All goals are completely trivial.
+
+    \case{tr:w-e-if-false}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\Omega}\triangleright\src{ifz\ S(n)\ then\ e_1\ else\ e_2}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree[]{\specificev{\varepsilon}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega}}$
+      \end{goals}
+      Choose $\absevent=\bm{\emptyevent}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+
+      All goals are completely trivial.
+
+    \case{tr:w-e-abort}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\Omega}\triangleright\src{abort()}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree[]{\specificev{\lightning}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\lightning}}$
+      \end{goals}
+      Choose $\absevent=\bm{\lightning}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\emptyset$.
+
+      All goals are completely trivial.
+
+    \case{tr:w-e-let-new}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\hole{\cdot}}$
+        \item $\src{\gamma'}=\src{[z/x],\hole{\cdot}}$
+        \item $\typechecks{}{\src{\Omega}}{\type}$
+        \item\label[ass]{asm:basetmsmonitor:case4:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}}$
+        \item $\fresh{\src{\Delta}}{\src{\loc}}$
+        \item $\fresh{\src{\Delta}}{\src{z}}$
+        \item $\src{H^{\sandboxtag'}}=\src{H^{\sandboxtag}}\ll\src{n}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree{\specificev{Alloc\ }\delta_{\text{MS}}'(\loc)\specificev{\ n}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}}$
+      \end{goals}
+      Let $\specificev{\loc}$ be such that $\fresh{\operatorname{dom} \delta_{\text{MS}}}{\specificev{\loc}}$.
+      Choose $\absevent=\bm{Alloc\ }\specificev{\loc}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}\cup\left\{\src{\loc}\mapsto\specificev{\loc}\right\}$, and $\tmsmonitor[']=\left\{\specificev{\loc}\right\}\cup\tmsmonitor$.
+      The goals become:
+      \begin{goals}
+        \item\label[goal]{goal:basetmsmonitor:case4:subseteq} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}\cup\left\{\src{\loc}\mapsto\specificev{\loc}\right\}$
+        \item\label[goal]{goal:basetmsmonitor:case4:tmstraceagree} $\traceagree{\specificev{Alloc\ \loc\ n}}{\bm{Alloc\ }\specificev{\loc}}$
+        \item\label[goal]{goal:basetmsmonitor:case4:monitorstep} $\monitorcheck[]{\tmsmonitor}{\left\{A:\tmsmonitor.A\cup\left\{\specificev{\loc}\right\},F:\tmsmonitor.F\right\}}{\bm{Alloc\ }\specificev{\loc}}$
+        \item\label[goal]{goal:basetmsmonitor:case4:storeagree} $\storeagreetms[\delta_{MS}\cup\left\{\src{\loc}\mapsto\specificev{\loc}\right\}]{\left\{\specificev{\loc}\right\}\cup\tmsmonitor}{\src{z\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta}}$
+      \end{goals}
+
+      \Cref{goal:basetmsmonitor:case4:subseteq} is trivial.
+
+      \Cref{goal:basetmsmonitor:case4:tmstraceagree} follows immediately by \Cref{tr:tms-alloc-auth}.
+
+      \Cref{goal:basetmsmonitor:case4:monitorstep} follows by \Cref{tr:tms-alloc}.
+
+      \Cref{goal:basetmsmonitor:case4:storeagree} follows by \Cref{tr:store-cons-agree}.
+
+    \case{tr:w-e-get-in}
+      The proof is analogous to the next, up to the nested case analysis.
+    \case{tr:w-e-get-notin}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\cfstate};\sandboxtag;\src{H^{\ctx}};\src{H^{\comp}};\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}\triangleright\src{x[n]}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
+        \item $\src{\loc}\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{v}=\src{H^{\sandboxtag}}\left(\src{\loc+n}\right)$
+        \item $\src{\loc}\not\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{v}=\src{1729}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree[\delta_{\text{MS}}']{\specificev{Use\ }\delta_{\text{MS}}'(\loc)\specificev{\ n}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
+      \end{goals}
+
+      Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
+      \begin{passumptions}{F}
+        \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded2} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;m),\hole{\cdot}}}$
+        \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+        \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+      \end{passumptions}
+      Invert \Cref{asm:basetmsmonitor:storeagree:unfolded2} to conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$.
+      Choose $\absevent=\bm{Use\ }\specificev{\loc}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+      The goals become:
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}$
+        \item $\traceagree{\specificev{Use\ \loc\ n}}{\bm{Use\ }\specificev{\loc}}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{Use\ }\specificev{\loc}}$
+        \item $\storeagreetms[\delta_{\text{MS}}]{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
+      \end{goals}
+      All goals follow easily.
+
+    \case{tr:w-e-set-in}
+      The proof is analogous to the next, up to the nested case analysis.
+    \case{tr:w-e-set-notin}
+      If
+      \begin{passumptions}{H}
+        \item $\src{\gamma}=\src{\gamma'}=\src{\hole{\cdot}}$
+        \item $\typechecks{}{\src{\cfstate};\sandboxtag;\src{H};\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}\triangleright\src{x[n]}}{\type}$
+        \item $\storeagreetms{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
+        \item $\src{\loc+n}\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{H^{\sandboxtag'}}=\src{H^{\sandboxtag}}\left(\src{\loc+n}\mapsto\src{\valueexpr}\right)$
+        \item $\src{\loc+n}\not\in\operatorname{dom}\src{H^{\sandboxtag}}\implies \src{H^{\sandboxtag'}}=\src{H^{\sandboxtag}}$
+      \end{passumptions}
+      Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+        \item $\traceagree{\specificev{Use\ \loc\ n}}{\absevent}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
+      \end{goals}
+      Apply \Thmref{lem:tms:store:split} on \Cref{asm:basetmsmonitor:storeagree}:
+      \begin{passumptions}{F}
+        \item $\storeagreetms{\tmsmonitor[_{1}]}{\src{\Delta_{1}}}$
+        \item\label[ass]{asm:basetmsmonitor:storeagree:unfolded3} $\storeagreetms{\{\specificev{\loc}\}\cup\emptyset}{\src{x\mapsto(\loc;\sandboxtag;\poison;m),\hole{\cdot}}}$
+        \item $\storeagreetms{\tmsmonitor[_{2}]}{\src{\Delta_{2}}}$
+        \item $\tmsmonitor=\tmsmonitor_{1}\cup\{\specificev{\loc}\}\cup\tmsmonitor_{2}$
+      \end{passumptions}
+      Invert \Cref{asm:basetmsmonitor:storeagree:unfolded3} to conclude $\delta_{\text{MS}}(\src{\loc})=\specificev{\loc}$.
+      Choose $\absevent=\bm{Use\ }\specificev{\loc}$, $\delta'_{\text{MS}}=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+      The goals become:
+      \begin{goals}
+        \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}$
+        \item $\traceagree[\delta_{\text{MS}}']{\specificev{Use\ \loc\ n}}{\bm{Use\ }\specificev{\loc}}$
+        \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor}{\bm{Use\ }\specificev{\loc}}$
+        \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor}{\src{\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2}}$
+      \end{goals}
+      All goals follow easily.
+  \end{description}
+\end{proof}
+
+\begin{lemma}[Ctx \gls{tms} via Monitor]\label{lem:ctxsteptmsmonitor}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:ctxtmsmonitor:typechecks} $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:ctxtmsmonitor:ctxstep} $\execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
+    \item\label[ass]{asm:ctxtmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+  \end{assumptions}
+  Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+  \begin{goals}
+    \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+    \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{\event}}{\absevent}$
+    \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+    \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:ctxtmsmonitor:ctxstep}.
+  \begin{description}
+    \case{tr:w-e-ectx}
+      Analogous to next case.
+    \case{tr:w-e-ectx-stuck}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typ0} $\src{e\gamma}=\src{K[e_{0}]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typ1} $\src{e'\gamma'}=\src{K[e_{0}']}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:exec} $\exprevals{\configs}{e_{0}}{\configs'}{e_{0}'}{\event}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{\event}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+    Rewrite \Cref{asm:ctxtmsmonitor:ctxstep:case0:typs} using \Cref{asm:ctxtmsmonitor:ctxstep:case0:typ0}:
+    \begin{passumptions}{H}
+      \setcounter{enumi}{5}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:typsrw} $\typechecks{}{\Omega\triangleright K[e_{0}]}{\type}$
+    \end{passumptions}
+    Apply \Thmref{lem:rtctxtyping:plugged} on \Cref{asm:ctxtmsmonitor:ctxstep:case0:typsrw}:
+    \begin{passumptions}{H}
+      \setcounter{enumi}{6}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:Krttyps} $\typechecks{}{\Omega\triangleright K}{\type_{e}\to\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:e0rttyps} $\typechecks{}{\Omega\triangleright e_{0}}{\type_{e}}$
+    \end{passumptions}
+
+    Apply \Thmref{lem:basetmsmonitor} on \Cref{asm:ctxtmsmonitor:ctxstep:case0:monrel,asm:ctxtmsmonitor:ctxstep:case0:exec,asm:ctxtmsmonitor:ctxstep:case0:e0rttyps}, giving us exactly the assumptions necessary to prove the goals.
+
+    \case{tr:w-e-ectx-call-main}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:typ0} $\src{e\gamma}=\src{K[call\ main\ 0]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:typ1} $\src{\gamma'}=\src{[0/x]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case1:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{Start;\ctx}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{Start;\ctx}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+
+    \case{tr:w-e-ectx-call-same}
+      Mostly similar to next case.
+    \case{tr:w-e-ectx-call-notsame}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typ0} $\src{e\gamma}=\src{K[call\ foo\ \valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typ1} $\src{\gamma'}=\src{[\valueexpr/x]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case2:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{Call\ \comm\ foo\ \valueexpr;\sandboxtag}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{Call\ \comm\ foo\ \valueexpr;\sandboxtag}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ and $\src{\sandboxtag}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+
+    \case{tr:w-e-ectx-ret-main}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:typ0} $\src{e\gamma}=\src{K[return\ \valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:typ1} $\src{e'\gamma'}=\src{v}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case3:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{End\ \valueexpr;\ctx}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{End\ \valueexpr;\ctx}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+
+    \case{tr:w-e-ectx-ret-same}
+    Mostly similar to next case.
+    \case{tr:w-e-ectx-ret-notsame}
+    If
+    \begin{passumptions}{H}
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case4:typ0} $\src{e\gamma}=\src{K'[return\ \valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case4:typ1} $\src{e\gamma'}=\src{K[\valueexpr]}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case4:typs} $\typechecks{}{\Omega\triangleright e\gamma}{\type}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case4:monrel} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+    \end{passumptions}
+    Then $\exists \absevent\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+    \begin{goals}
+      \item $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+      \item $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{Ret\ \comm\ \valueexpr;\sandboxtag}}{\absevent}$
+      \item $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$
+      \item $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+    \end{goals}
+
+    Note that $\tospecificevs[_{\delta_{\text{MS}}}]{Ret\ \comm\ \valueexpr;\sandboxtag}=\specificev{\varepsilon}$ for any $\delta_{\text{MS}}$ and $\src{\sandboxtag}$ whatsoever.
+    So, instantiate $\absevent=\bm{\varepsilon}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+    All goals follow easily.
+  \end{description}
+\end{proof}
+
+\begin{lemma}[Steps \gls{tms} via Monitor]\label{lem:generaltms:monitor}
+  If
+  \begin{assumptions}
+    \item\label[ass]{asm:stepstmsmonitor:typing} $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:stepstmsmonitor:exec} $\execs{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}$
+    \item\label[ass]{asm:stepstmsmonitor:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+  \end{assumptions}
+  Then $\exists \abstrace\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+  \begin{goals}
+    \item\label[goal]{goal:stepstmsmonitor:delta} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+    \item\label[goal]{goal:stepstmsmonitor:traceagree} $\tmstraceagree[^{*}]{\tospecificevs[_{\delta_{\text{MS}}'}]{\trace}}{\abstrace}$
+    \item\label[goal]{goal:stepstmsmonitor:monitorstep} $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
+    \item\label[goal]{goal:stepstmsmonitor:storeagree} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+  \end{goals}.
+\end{lemma}
+\begin{proof}
+  Induction on \Cref{asm:stepstmsmonitor:exec}.
+  \begin{description}
+    \item[$\src{\configs'}=\configs$, $\src{e'}=\src{e}$, and $\src{\trace}=\src{\hole{\cdot}}$:]
+          This case is easy, since nothing did change.
+          Instantiate $\abstrace=\hole{\cdot}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
+          Then, \Cref{goal:stepstmsmonitor:delta,goal:stepstmsmonitor:traceagree,goal:stepstmsmonitor:monitorstep} follow immediately by reflexivity and \Cref{goal:stepstmsmonitor:storeagree} by \Cref{asm:stepstmsmonitor:storeagree}.
+
+    \item[Induction step:]
+          The inductive hypothesis is as follows.
+          If
+          \begin{passumptions}{A}
+            \item $\typechecks{}{\src{\Omega_{\IH}}\triangleright e_{\IH}\gamma_{\IH}}{\src{\type}}$
+            \item $\storeagreetms[\delta^{0}_{\text{MS}}]{\tmsmonitor[_{\IH}]}{\src{\Omega_{\IH}}.\src{\Delta}}$
+          \end{passumptions}
+          then $\exists \abstrace_{\IH}\ \delta_{\text{MS}}^{\IH}\ \tmsmonitor[_{\IH}'],$
+          \begin{passumptions}{\IH}
+            \item $\delta_{\text{MS}}^{0}\subseteq\delta_{\text{MS}}^{\IH}$
+            \item $\tmstraceagree{\tospecificevs[_{\delta^{\IH}_{\text{MS}}}]{\trace}}{\abstrace_{\IH}}$
+            \item $\monitorcheck{\tmsmonitor_{\IH}}{\tmsmonitor[_{\IH}']}{\abstrace_{\IH}}$
+            \item $\storeagreetms[\delta^{\IH}_{\text{MS}}]{\tmsmonitor[_{\IH}']}{\src{\Omega'}.\src{\Delta}}$
+          \end{passumptions}
+          Note that above, anything not bound by $\exists$ is universally quantified, besides $\src{\type}$ and $\src{\Omega'}$.
+          While our remaining context (excluding the inductive hypothesis) is:
+          If
+          \begin{passumptions}{H}
+            \item\label[ass]{asm:stepstmsmonitor:case0:step} $\execs[]{\configs}{e\gamma}{\configs_{0}}{e_{0}\gamma_{0}}{\event[_0]}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:steps} $\execs{\configs_{0}}{e_{0}\gamma_{0}}{\configs'}{e'\gamma'}{\trace}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:checks} $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree} $\storeagreetms{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+          \end{passumptions}
+          Then $\exists \abstrace\ \delta_{\text{MS}}'\ \tmsmonitor['],$
+          \begin{goals}
+            \item\label[goal]{goal:stepstmsmonitor:final:delta} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}'$
+            \item\label[goal]{goal:stepstmsmonitor:final:traceagree} $\tmstraceagree{\tospecificevs[_{\delta_{\text{MS}}'}]{\event[_{0}]\cdot\trace}}{\abstrace}$
+            \item\label[goal]{goal:stepstmsmonitor:final:monitorstep} $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$
+            \item\label[goal]{goal:stepstmsmonitor:final:storeagree} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor[']}{\src{\Omega'}.\src{\Delta}}$
+          \end{goals}
+          Use \Thmref{lem:ctxsteptmsmonitor} with \Cref{asm:stepstmsmonitor:case0:step,asm:stepstmsmonitor:case0:checks,asm:stepstmsmonitor:case0:storeagree}, obtaining:
+          \begin{passumptions}{F}
+            \item\label[ass]{asm:stepstmsmonitor:deltasubset0} $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}^{0}$
+            \item\label[ass]{asm:stepstmsmonitor:traceagree0} $\tmstraceagree{\tospecificevs[_{\delta^{0}_{\text{MS}}}]{\event[_{0}]}}{\absevent_{0}}$
+            \item\label[ass]{asm:stepstmsmonitor:monitorcheck0} $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[_{0}]}{\absevent_{0}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree1} $\storeagreetms[\delta^{0}_{\text{MS}}]{\tmsmonitor[_{0}]}{\src{\Omega_{0}}.\src{\Delta}}$
+          \end{passumptions}
+          Discharge the inductive hypothesis with \Cref{asm:stepstmsmonitor:case0:storeagree1} and the result of applying \Thmref{lem:ctx-preservation} using \Cref{asm:stepstmsmonitor:case0:step,asm:stepstmsmonitor:case0:checks}:
+          \begin{passumptions}{G}
+            \item\label[ass]{asm:stepstmsmonitor:deltasubset1} $\delta_{\text{MS}}^{0}\subseteq\delta_{\text{MS}}^{\IH}$
+            \item\label[ass]{asm:stepstmsmonitor:traceagree1} $\tmstraceagree{\tospecificevs[_{\delta^{\IH}_{\text{MS}}}]{\trace}}{\abstrace_{\IH}}$
+            \item\label[ass]{asm:stepstmsmonitor:monitorcheck1} $\monitorcheck{\tmsmonitor_{0}}{\tmsmonitor[^{\IH}]}{\abstrace_{\IH}}$
+            \item\label[ass]{asm:stepstmsmonitor:case0:storeagree2} $\storeagreetms[\delta^{\IH}]{\tmsmonitor[^{\IH}]}{\src{\Omega'}.\src{\Delta}}$
+          \end{passumptions}
+
+          We solve our goals by instantiating $\abstrace=\absevent\cdot\abstrace_{\IH}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}^{\IH}$, and $\tmsmonitor[']=\tmsmonitor[^{\IH}]$.
+          \Cref{goal:stepstmsmonitor:final:delta} follows by transitivity using \Cref{asm:stepstmsmonitor:deltasubset0,asm:stepstmsmonitor:deltasubset1}.
+
+          Similarily for \Cref{goal:stepstmsmonitor:final:traceagree} using \Cref{asm:stepstmsmonitor:traceagree0,asm:stepstmsmonitor:traceagree1} and \Thmref{lem:filter-weaken}.
+
+          \Cref{goal:stepstmsmonitor:final:monitorstep} also by transitivity using \Cref{asm:stepstmsmonitor:monitorcheck0,asm:stepstmsmonitor:monitorcheck1}.
+
+          \Cref{goal:stepstmsmonitor:final:storeagree}, again, by transitivity using \Cref{asm:stepstmsmonitor:case0:storeagree1,asm:stepstmsmonitor:case0:storeagree2}, making use of \Thmref{lem:store-agree-weaken}.
+  \end{description}
+\end{proof}
+
+\realthm{thm:mmlAs:tmssafe}{1}{$\mmlAs$ is \gls{tms} via Monitor}
+\begin{proof}
+  Apply \Thmref{lem:tmssafe-tracetms} on the goal, what is left to show is:
+  \begin{goals}
+    \item $\texttt{TMS}(\theta_{\delta_{ms}}(\src{\trace}))$
+  \end{goals}
+
+  Inverting \Cref{asm:mmlatmsviamonitor:run} and omitting the spurious cases, we get
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:mmlatmsviamonitor:progtyps} $\typechecks{}{prog\ \library_{ctx}\ \library_{comp}}{\commlib,\library}$
+    \item\label[ass]{asm:mmlatmsviamonitor:exec} $\execs{\commlib;\library;\comp;\hole{\cdot};\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}$
+  \end{passumptions}
+  Invert \Cref{asm:mmlatmsviamonitor:progtyps}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:mmlatmsviamonitor:librarylink} $\src{\library}=\src{\library_{\ctx}\linker\library_{\comp}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:libgamma} $\src{\library}\downarrow=\src{\Gamma_{0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:mainindom} $\src{main}\in\src{\Gamma_{0}}$
+    \item\label[ass]{asm:mmlatmsviamonitor:libok} $\src{\Gamma_{0}}\vdash\src{\library}\operatorname{ok}$
+    \item\label[ass]{asm:mmlatmsviamonitor:mainchecks} $\typechecks{\Gamma_{0}}{call\ main\ 0}{\nat}$
+  \end{passumptions}
+
+  Apply \Thmref{lem:static-implies-runtime:toplevel} on \Cref{asm:mmlatmsviamonitor:mainchecks,asm:mmlatmsviamonitor:libgamma}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{7}
+    \item\label[ass]{asm:mmlatmsviamonitor:rttypes} $\typechecks{}{\commlib;\library;\hole{\cdot};\comp;\hole{\cdot}^{\ctx};\hole{\cdot}^{\comp};\hole{\cdot}\triangleright call\ main\ 0}{\nat}$
+  \end{passumptions}
+
+  Note that by definition, we have:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{8}
+    \item\label[ass]{asm:mmlatmsviamonitor:emptystart} $\storeagreetms[\delta_{ms}]{\emptyset}{\src{\hole{\cdot}}}$
+  \end{passumptions}
+  With \Cref{asm:mmlatmsviamonitor:rttypes,asm:mmlatmsviamonitor:emptystart,asm:mmlatmsviamonitor:exec} apply \Thmref{lem:generaltms:monitor}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{9}
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:deltasubset} $\delta_{\text{ms}}\subseteq\delta_{\text{ms}}'$
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:traceagree} $\tmstraceagree[^{*}]{\tospecificevs[_{\delta_{\text{MS}}'}]{\trace}}{\abstrace}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:monitorstep} $\monitorcheck{\emptyset}{\tmsmonitor}{\abstrace}$
+    \item\label[ass]{asm:mmlatmsviamonitor:m1:storeagree} $\storeagreetms[\delta_{\text{MS}}']{\tmsmonitor}{\src{\Omega}.\src{\Delta}}$
+  \end{passumptions}
+
+  Immediately, we instantiate our goal with $\delta_{\text{ms}}', \abstrace$, and $\tmsmonitor$.
+  Make use of \Thmref{lem:filter-weaken} on the first part, and \Thmref{lem:store-agree-weaken} on the second part, noting that \Cref{asm:mmlatmsviamonitor:m1:deltasubset}.
+  Now, \Cref{asm:mmlatmsviamonitor:m1:traceagree,asm:mmlatmsviamonitor:m1:monitorstep} are precisely what is required in \Thmref{def:src:trace:tms}.
+\end{proof}
+

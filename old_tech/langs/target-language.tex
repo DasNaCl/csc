@@ -1,0 +1,483 @@
+\subsection{Target Language}
+\subsubsection{Syntax}
+
+%%%%
+%% TARGET
+
+\myfig{
+	\vspace{-1em}
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Final\ Result}\ \trg{\finalexprnoerr} \bnfdef&\ \trg{\valueexpr} \mid \trg{x}\hspace{0.5cm}
+  \mi{May\ be\ a\ Result}\ \trg{\finalexpr} \bnfdef\ \trg{\finalexprnoerr} \mid \trg{stuck} \\
+  \mi{Expressions}~\trg{e} \bnfdef&\ \trg{\finalexpr} \mid \trg{e_{1} \oplus e_{2}} \mid \trg{x[e]} \mid \trg{let\ x = e_{1}\ in\ e_{2}}\mid \trg{x[e_{1}]\leftarrow e_{2}} \\
+    & \mid \trg{let\ x=new\ e_{1}\ in\ e_{2}} \mid \trg{delete\ x} \mid \trg{return\ e} \mid \trg{call\ foo\ e} \\
+    & \mid \trg{ifz\ e_1\ then\ e_2\ else\ e_3} \mid \trg{abort()} \mid \trg{x\ is\ \poisoned} \\
+    & \mid \trg{\langle e_1;e_2\rangle} \mid \trg{\pi_1\ e} \mid \trg{\pi_2\ e}\mid \trg{e\ has\ \type}
+  \hspace{0.5cm} \text{where } \trg{\oplus}\in\{\trg{+},\trg{-},\trg{\times},\trg{<}\}\\
+  \mi{Functions}~\trg{\asymbol} \bnfdef&\ \trg{let\ foo\ x:=e}\hspace{0.5cm}
+  \mi{Types}~\trg{\type} \bnfdef\ \trg{\nat}\mid\trg{\nat\times\nat} \\
+  %
+  \mi{Values}~\trg{v} \bnfdef&\ \trg{\langle n_{1}, n_{2}\rangle} \mid \trg{n}\in\trg{\nat} \hspace{0.5cm}
+  \mi{References}~\trg{\loc}\in\trg{\nat} \\
+  \mi{Eval.Ctx.}~\trg{K}\bnfdef &\ \trg{\hole{\cdot}}\mid \trg{K\oplus e}\mid \trg{v\oplus E}\mid \trg{x[K]}\mid \trg{let\ x=K\ in\ e} \\
+                 &\mid \trg{x[K]\leftarrow e}\mid \trg{x[v]\leftarrow K}\mid \trg{let\ x=new\ K\ in\ e} \\
+                 &\mid \trg{\langle K; e\rangle} \mid \trg{\langle n; K\rangle} \mid \trg{ifz\ K\ then\ e_1\ else\ e_2} \mid \trg{\pi_{1}\ K} \mid \trg{\pi_{2}\ K} \\
+                 &\mid \trg{K\ has\ \type}\mid\trg{call\ foo\ K}\mid\trg{return\ K} \\
+  %
+  \mi{Variables}~\ \trg{x} &\mid \trg{y} \mid \trg{foo} \mid \dots \hspace{0.35cm}
+  %
+  \mi{Poison}~\ \trg{\poison}~\bnfdef\ \trg{\poisonless} \mid \trg{\poisoned}\\
+  \mi{Sandbox\ Tag}~&\ \trg{\sandboxtag}~\bnfdef\ \trg{\ctx} \mid \trg{\comp}\\
+  %
+  \mi{Store}~\trg{\Delta} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{x\mapsto(\loc;\sandboxtag;\poison;n)},\Deltat\hspace{0.35cm}
+  \mi{Communication}~\trg{\comm} \bnfdef\ \trg{\ctxtocomp} \mid \trg{\comptoctx} \mid \trg{\nocomm}\\
+  \mi{Cont.\ Stack}~\trg{\kontstack} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{(K;foo)},\trg{\kontstack} \hspace{0.5cm}
+  \mi{Library}~\trg{\library} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{\asymbol},\trg{\library}\\
+  %
+  \mi{Relevant}~\trg{\commlib} \bnfdef&\ \trg{\hole{\cdot}} \mid \trg{foo},\trg{\commlib}\hspace{0.35cm}
+  \mi{Heaps}~\trg{H} \bnfdef\ \trg{\hole{\cdot}} \mid \trg{H}::\trg{n} \hspace{0.35cm}
+  \mi{State}\ \configt \bnfdef\ \trg{\cfstate;\sandboxtag;\memstate} \\
+  %
+  \mi{Flow\ State}\ \trg{\cfstate} \bnfdef&\ \trg{\commlib;\library;\kontstack}\hspace{0.35cm}
+  \mi{Memory\ State}\ \trg{\memstate} \bnfdef \trg{H^{\ctx};H^{\comp};\Delta}\\
+  %
+  \mi{Programs}\ &\trg{prog\ \library_{ctx}\ \library_{comp}} \hspace{0.35cm}
+  \mi{Substitutions}~\trg{\gamma} \bnfdef \trg{[\valueexpr/x],\gamma}\ \vert\ \trg{\hole{\cdot}} \\
+  \end{aligned}
+  \end{gather*}
+}{mmlat-syntax}{Syntax of $\mmlAt$}
+
+The target language is very similar to the source language presented in the previous section.
+However, it does contain simple, non-nested pairs and dynamic type checks.
+
+\subsubsection{Dynamic Semantics}
+
+\myfig{
+  \judgbox{\operatorname{dom}\ \trg{\library}=\trg{foo},\dots,\trg{bar}}{,,Collect function names.''}$\;$\\
+  \begin{center}
+    \typerule{$\trg{\library}$-dom-$\trg{\hole{\cdot}}$}{
+    }{
+      \operatorname{dom}\ \trg{\hole{\cdot}} = \trg{\hole{\cdot}}
+    }{wt-lib-dom-empty}
+    %
+    \typerule{$\trg{\library}$-dom-cons}{
+      \operatorname{dom}\ \trg{\library} = \trg{D}
+    }{
+      \operatorname{dom}\ (\trg{let\ foo\ x : \type}_\lambda\trg{:= e})\trg{,\library} = \trg{foo},\trg{D}
+    }{wt-lib-dom-cons}
+  \end{center}
+  \begin{center}
+    \judgbox{\trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}}{,,Merging $\mmlAt$ libraries.''}$\;$\\
+    \typerule{lib-merge-empty}{
+      \trg{\library}=\trg{\library_1}
+    }{
+      \trg{\library}\equiv\trg{\library_1}\cup\trg{\hole{\cdot}}
+    }{trg-lib-merge-empty}
+    %
+    \typerule{lib-merge-cons}{
+      \trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}
+    }{
+      \trg{\asymbol,\library}\equiv\trg{\library_1}\cup\trg{\asymbol,\library_2}
+    }{trg-lib-merge-cons}
+
+    \judgbox{\trg{\library_1\linker\library_2}=\trg{\library}}{,,Syntactically linking $\mmlAt$ libraries.''}$\;$\\
+    \typerule{syntactic-plugging}{
+      \operatorname{dom}\trg{\library_1}\cap\operatorname{dom}\trg{\library_2} = \emptyset &
+      \trg{\library}\equiv\trg{\library_1}\cup\trg{\library_2}
+    }{
+      \trg{\library_1\linker\library_2} = \trg{\library}
+    }{trg-plugging}
+  \end{center}
+}{w-plugging-t}{$\mmlAt$ plugging of libraries and collecting of function names.}
+
+
+\myfig{
+  \begin{gather*}
+  \begin{aligned}
+  \mi{Base~Events}~\trg{\event_{b}} \bnfdef&\ \trg{Alloc\ \loc\ \valueexpr} \mid \trg{Dealloc\ \loc} \mid \trg{Get\ \loc\ \valueexpr} \mid \trg{Set\ \loc\ \valueexpr\ \valueexpr'} \mid \trg{\lightning}\\
+                                                     & \mid \trg{Call\ \comm\ foo\ \valueexpr} \mid \trg{Ret\ \comm\ \valueexpr} \mid \trg{Start} \mid \trg{End\ \valueexpr} \\
+  \mi{Events}~\trg{\event} \bnfdef&\ \trg{\emptyevent} \mid \trg{\event_{b};\sandboxtag}
+  \end{aligned}
+  \end{gather*}
+}{tw-events}{Events of $\mmlAt$.}
+
+\myfig{
+  \judgbox{\exprevalt{\configt}{e}{\configt'}{e'}{\event}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting event $\trg{\event}$.''}
+  %
+  \typerule{$e-\trg{\oplus}$}{
+    \trg{n_1}\oplus\trg{n_2}=\trg{n_3}
+  }{
+    \exprevalt{\configt}{n_1\oplus n_2}{\configt}{n_3}{\emptyevent}
+  }{tw-e-oplus}
+  %
+  \typerule{$e-\trg{get}-\in$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \trg{\loc}+\trg{n}\in\text{dom }\trg{H^{\sandboxtag}}
+  }{
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{H^{\sandboxtag}(\loc+n)}{Get\ \loc\ n;\sandboxtag}
+  }{tw-e-get-in}
+  %
+  \typerule{$e-\trg{get}-\notin$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_2} &
+    \trg{\loc}\notin\text{dom }\trg{H^{\sandboxtag}}
+  }{
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x[n]}{\cfstate;\sandboxtag';\memstate}{1729}{Get\ \loc\ n;\sandboxtag}
+  }{tw-e-get-notin}
+  %
+  \typerule{$e-\trg{set}-\ctx$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2} &
+    \trg{H^{\ctx'}} = \trg{H^{\ctx}}(\trg{\loc+n}\mapsto \trg{v}) \\
+    \trg{\memstate'}=\trg{H^{\ctx'};H^{\comp};\Delta_1,x\mapsto(\loc;\ctx;\poison;n),\Delta_2}
+  }{
+    \exprevalt{\cfstate;\ctx;\memstate}{x[n]\leftarrow v}{\cfstate;\ctx;\memstate'}{v}{Set\ \loc\ n\ v;\ctx}
+  }{tw-e-set-ctx}
+  %
+  \typerule{$e-\trg{set}-\comp$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2} &
+    \trg{H^{\comp'}} = \trg{H^{\comp}}(\trg{\loc+n}\mapsto \trg{v}) \\
+    \trg{\memstate'}=\trg{H^{\ctx};H^{\comp'};\Delta_1,x\mapsto(\loc;\comp;\poison;n),\Delta_2}
+  }{
+    \exprevalt{\cfstate;\comp;\memstate}{x[n]\leftarrow v}{\cfstate;\comp;\memstate'}{v}{Set\ \loc\ n\ v;\comp}
+  }{tw-e-set-comp}
+  %
+  \typerule{$e-\trg{let}-\trg{\finalexprnoerr}$}{
+  }{
+    \exprevalt{\Omega}{let\ x=\finalexprnoerr\ in\ e}{\Omega}{e[\finalexprnoerr/x]}{\emptyevent}
+  }{tw-e-let-f}
+  %
+  \typerule{$e-\trg{delete}$}{
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2} \\
+    \trg{\memstate}=\trg{H^{\ctx};H^{\comp};\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
+  }{
+    \exprevalt{\cfstate;\sandboxtag;\memstate}{delete\ x}{\cfstate;\sandboxtag;\memstate'}{0}{Dealloc\ \loc;\sandboxtag}
+  }{tw-e-delete}
+  %
+  \typerule{$e-\trg{new}-ctx$}{
+    \fresh{\trg{\Delta}}{\trg{\loc}} &
+    \fresh{\trg{\Delta}}{\trg{z}} &
+    \trg{H^{\ctx'}} = \trg{H^{\ctx}} \ll \trg{n} \\
+    \trg{\memstate} = \trg{H^{\ctx'};H^{\comp};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+  }{
+    \exprevalt{\cfstate;\ctx;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\ctx;\memstate}{e[z/x]}{Alloc\ \loc\ n;\ctx}
+  }{tw-e-let-new-ctx}
+  %
+  \typerule{$e-\trg{new}-comp$}{
+    \fresh{\trg{\Delta}}{\trg{\loc}} &
+    \fresh{\trg{\Delta}}{\trg{z}} &
+    \trg{H^{\comp'}} = \trg{H^{\comp}} \ll \trg{n} \\
+    \trg{\memstate} = \trg{H^{\ctx};H^{\comp'};z\mapsto (\loc;\ctx;\poisonless;n),\Delta}
+  }{
+    \exprevalt{\cfstate;\comp;H^{\ctx};H^{\comp};\Delta}{let\ x=new\ n\ in\ e}{\cfstate;\comp;\memstate}{e[z/x]}{Alloc\ \loc\ n;\comp}
+  }{tw-e-let-new-comp}
+  %
+  \typerule{$e-\trg{ifz}-$true}{
+  }{
+    \exprevalt{\configt}{ifz\ 0\ then\ e_1\ else\ e_2}{\configt}{e_1}{\emptyevent}
+  }{tw-e-if-true}
+  %
+  \typerule{$e-\trg{ifz}-$false}{
+    \trg{n} \not= \trg{0}
+  }{
+    \exprevalt{\configt}{ifz\ n\ then\ e_1\ else\ e_2}{\configt}{e_2}{\emptyevent}
+  }{tw-e-if-false}
+  %
+  \typerule{$e-\trg{abort}$}{
+  }{
+    \exprevalt{\configt}{abort()}{\configt}{stuck}{\lightning}
+  }{tw-e-abort}
+  %
+}{tw-expr-eval}{Evaluation of $\mmlAt$ expressions.}
+
+\myfig{
+  \typerule{$e-\trg{\pi_1}$}{
+  }{
+    \exprevalt{\configt}{\pi_1\langle n_1;n_2\rangle}{\configt}{n_1}{\emptyevent}
+  }{tw-e-proj1}
+  %
+  \typerule{$e-\trg{\pi_2}$}{
+  }{
+    \exprevalt{\configt}{\pi_2\langle n_1;n_2\rangle}{\configt}{n_2}{\emptyevent}
+  }{tw-e-proj2}
+  %
+  \typerule{$e-\trg{x\ is\ \poisoned}-$yes}{
+    \trg{\memstate}=\trg{H;\Delta} &
+    \trg{\Delta}=\trg{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisoned;n),\Delta_2}
+  }{
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{0}{\emptyevent}
+  }{tw-e-x-is-poisoned-yes}
+  %
+  \typerule{$e-\trg{x\ is\ \poisoned}-$no}{
+    \trg{\memstate}=\trg{H;\Delta} &
+    \trg{\Delta}=\trg{\Delta_1,x\mapsto(\loc;\sandboxtag;\poisonless;n),\Delta_2}
+  }{
+    \exprevalt{\cfstate;\sandboxtag';\memstate}{x\ is\ \poisoned}{\cfstate;\sandboxtag';\memstate}{1}{\emptyevent}
+  }{tw-e-x-is-poisoned-no}
+  %
+  \typerule{$e-\trg{n\ has\ \nat}$}{
+  }{
+    \exprevalt{\configt}{n\ has\ \nat}{\configt}{0}{\emptyevent}
+  }{tw-e-n-hasnat}
+  %
+  \typerule{$e-pair-\trg{has\ \nat}$}{
+  }{
+    \exprevalt{\configt}{\langle n_1,n_2\rangle\ has\ \nat}{\configt}{1}{\emptyevent}
+  }{tw-e-pair-hasnat}
+  %
+  \typerule{$e-\trg{x\ has\ \nat}$}{
+  }{
+    \exprevalt{\configt}{x\ has\ \nat}{\configt}{1}{\emptyevent}
+  }{tw-e-x-hasnat}
+  %
+  \typerule{$e-\trg{n\ has\ \nat\times\nat}$}{
+  }{
+    \exprevalt{\configt}{n\ has\ \nat\times\nat}{\configt}{1}{\emptyevent}
+  }{tw-e-n-haspair}
+  %
+  \typerule{$e-pair-\trg{has\ \nat\times\nat}$}{
+  }{
+    \exprevalt{\configt}{\langle n_1,n_2\rangle\ has\ \nat\times\nat}{\configt}{0}{\emptyevent}
+  }{tw-e-pair-haspair}
+  %
+  \typerule{$e-\trg{x\ has\ \nat\times\nat}$}{
+  }{
+    \exprevalt{\configt}{x\ has\ \nat\times\nat}{\configt}{1}{\emptyevent}
+  }{tw-e-x-haspair}
+}{tw-expr-eval-continued}{Evaluation of $\mmlAt$ expressions, continued.}
+
+$\trg{\gamma}$ acts as postfix and binds anything before it up to $\triangleright$, so $\trg{let\ x=e_{1}\ in\ e_{2}\gamma}$ is $\trg{(let\ x=e_{1}\ in\ e_{2})\gamma}$.
+
+
+\myfig{
+  \begin{center}
+    \judgbox{\exect[]{\configt}{K[e]}{\configt'}{K[e']}{\event}}{,,Given an evaluation context $\trg{K}$ and an expression\\ $\trg{e}$, it evaluates under configuration $\configt$ to $\trg{e'}$ and new\\configuration $\trg{\configt'}$ in context $\trg{K}$, emitting event $\trg{\event}$.''}
+    %
+    \typerule{$e-\text{ctx}$}{
+      \exprevalt{\Omega}{e}{\Omega'}{e'}{\event}
+    }{
+      \exect[]{\Omega}{K[e]}{\Omega'}{K[e']}{\event}
+    }{tw-e-ectx}
+    %
+    \typerule{$e-\text{ctx}-\trg{stuck}$}{
+      \exprevalt{\Omega}{e}{\Omega'}{stuck}{\lightning}
+    }{
+      \exect[]{\Omega}{K[e]}{\Omega'}{stuck}{\lightning}
+    }{tw-e-ectx-stuck}
+    %
+    \typerule{$e-\text{ctx}-\trg{call}-$main}{
+      \trg{\Omega}=\trg{\commlib;\library;\hole{\cdot};\comp;\memstate} &
+      \trg{\library}=\trg{\library_1,}(\trg{let\ main\ x:\type}_\lambda\trg{:=e})\trg{,\library_2}\\
+      \trg{\Omega'}=\trg{\commlib;\library;\ctx;K^{main},\hole{\cdot};\memstate}
+    }{
+      \exect[]{\Omega}{K[call\ main\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Start;\comp}
+    }{tw-e-ectx-call-main}
+    %
+    \typerule{$e-\text{ctx}-\trg{call}-\text{notsame}$}{
+      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
+      \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x:\type}_\lambda\trg{:=e})\trg{,\library_2} \\
+      %\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{v}) = \trg{\event},\trg{\comm} &
+      \trg{foo}\in_{\trg{\neg\sandboxtag}}\trg{\commlib} &
+      \rho\left(\trg{\neg\sandboxtag}\right) = \trg{\comm} &
+      \trg{\Omega'}=\trg{\commlib;\library;K^{foo},\kontstack;\neg\sandboxtag;\memstate} \\
+    }{
+      \exect[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \comm\ foo\ \valueexpr;\sandboxtag}
+    }{tw-e-ectx-call-notsame}
+    %
+    \typerule{$e-\text{ctx}-\trg{call}-\text{same}$}{
+      \trg{\Omega}=\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate} &
+      \trg{\library}=\trg{\library_1,}(\trg{let\ foo\ x:\type}_\lambda\trg{:=e})\trg{,\library_2} \\
+      %\rho_{\tiny call}(\trg{\commlib},\trg{foo},\trg{\kontstack},\trg{v}) = \trg{\event},\trg{\comm} &
+      \trg{foo}\in_{\trg{\sandboxtag}}\trg{\commlib} &
+      \trg{\Omega'}=\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate} \\
+    }{
+      \exect[]{\Omega}{K[call\ foo\ \valueexpr]}{\Omega'}{e[x/\valueexpr]}{Call\ \nocomm\ foo\ \valueexpr;\sandboxtag}
+    }{tw-e-ectx-call-same}
+    %
+    \typerule{$e-\text{ctx}-\trg{return}-$main}{
+    }{
+      \exec[]{\trg{\commlib;\library;\hole{\cdot}^{main},\hole{\cdot};\ctx;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\hole{\cdot};\comp;\memstate}}{\trg{\valueexpr}}{\trg{End\ \valueexpr;\sandboxtag}}
+    }{tw-e-ectx-ret-main}
+    %
+    \typerule{$e-\text{ctx}-\trg{return}-\text{notsame}$}{
+      \trg{foo}\in_{\trg{\neg\sandboxtag}}\trg{\commlib} &
+      \rho\left(\trg{\neg\sandboxtag}\right) = \trg{\comm;\sandboxtag}
+    }{
+      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\kontstack;\neg\sandboxtag;\memstate}}{\trg{K[\valueexpr]}}{\trg{Ret\ \comm\ \valueexpr;\sandboxtag}}
+    }{tw-e-ectx-ret-notsame}
+    %
+    \typerule{$e-\text{ctx}-\trg{return}-\text{same}$}{
+      \trg{foo}\in_{\trg{\sandboxtag}}\trg{\commlib}
+    }{
+      \exec[]{\trg{\commlib;\library;K^{foo},\kontstack;\sandboxtag;\memstate}}{\trg{K'[return\ \valueexpr]}}{\trg{\commlib;\library;\kontstack;\sandboxtag;\memstate}}{\trg{K[\valueexpr]}}{\trg{Ret\ \nocomm\ \valueexpr;\sandboxtag}}
+    }{tw-e-ectx-ret-same}
+    %
+    \judgbox{\rho(\trg{\sandboxtag})=\trg{\comm}}{,,Returns either $\trg{\ctxtocomp}$ or $\trg{\comptoctx}$ depending on $\trg{\sandboxtag}$.''}\\
+    %
+    \typerule{comm-ctxtocomp}{
+    }{
+      \rho(\trg{\ctx})=\trg{\ctxtocomp}
+    }{tw-comm-ctxtocomp}
+    %
+    \typerule{comm-comptoctx}{
+    }{
+      \rho(\trg{\comp})=\trg{\comptoctx}
+    }{tw-comm-comptoctx}\\[0.33cm]
+    %
+    \judgbox{\trg{\neg\sandboxtag}=\trg{\sandboxtag'}}{,,Negation of $\trg{\sandboxtag}$.''}\\
+    %
+    \typerule{neg-ctx}{
+    }{
+      \trg{\neg\ctx}=\trg{\comp}
+    }{tw-neg-ctx}
+    %
+    \typerule{neg-comp}{
+    }{
+      \trg{\neg\comp}=\trg{\ctx}
+    }{tw-neg-comp}
+  \end{center}
+}{w-t-expr-ctx-eval}{Contextual Evaluation of $\mmlAt$ expressions.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\exect{\configt}{e}{\configt'}{e'}{\trace}}{,,Expression $\trg{e}$ evaluates under configuration $\configt$ to $\trg{e'}$ and\\new configuration $\trg{\configt'}$, emitting list of events $\trg{\trace}$.''}
+    %
+    \typerule{$et-\text{refl}$}{
+    }{
+      \exect{\configt}{\finalexpr}{\configt}{\finalexpr}{\hole{\cdot}}
+    }{wt-e-refl}
+    \typerule{$et-\text{trans}-$important}{
+      \exect[]{\configt}{e}{\configt'}{e'}{\event}&
+      \exect{\configt'}{e'}{\configt''}{e''}{\trace}&
+      \trg{a}\not=\trg{\emptyevent}
+    }{
+      \exect{\configt}{e}{\configt''}{e''}{\event \cdot \trace}
+    }{wt-e-trans-important}
+    \typerule{$et-\text{trans}-$unimportant}{
+      \exect[]{\configt}{e}{\configt'}{e'}{\emptyevent}&
+      \exect{\configt'}{e'}{\configt''}{e''}{\trace}&
+    }{
+      \exect{\configt}{e}{\configt''}{e''}{\trace}
+    }{wt-e-trans-unimportant}
+    %
+    %
+    \judgbox{\exectN{\configt}{e}{\configt'}{e'}{\trace}}{,,Expression $\trg{e}$ evaluates in $n$ steps under configuration $\configt$ to\\$\trg{e'}$ and new configuration $\trg{\configt'}$, emitting list of events $\trg{\trace}$.''}
+    %
+    \typerule{$en-\text{refl}$}{
+    }{
+      \exectN[^0]{\configt}{e}{\configt}{e}{\emptyevent}
+    }{wtn-e-refl}
+    %
+    \typerule{$en-\text{trans}-$important}{
+      \exect[]{\configt}{e}{\configt'}{e'}{\event} &
+      \exectN[^n]{\configt'}{e'}{\configt''}{e''}{\trace} &
+      \trg{\event}\not=\trg{\emptyevent}
+    }{
+      \exectN[^{(n+1)}]{\configt}{e}{\configt''}{e''}{\event\cdot\trace}
+    }{wtn-e-trans-important}
+    %
+    \typerule{$en-\text{trans}-$unimportant}{
+      \exect[]{\configt}{e}{\configt'}{e'}{\emptyevent} &
+      \exectN[^n]{\configt'}{e'}{\configt''}{e''}{\trace} &
+    }{
+      \exectN[^{(n+1)}]{\configt}{e}{\configt''}{e''}{\trace}
+    }{wtn-e-trans-unimportant}
+  \end{center}
+}{wt-steps}{Trace prefix generation given a $\mmlAt$ program using the reflexive-transitive closure.}
+
+\myfig{
+  \begin{center}
+    \judgbox{\wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexprnoerr}{\trace}}{,,Run $\mmlAt$ program $\trg{prog\ \library_{ctx}\ \library_{comp}}$, giving\\dynamic state $\configt$ and emitting trace $\trg{\trace}$.''}
+    \typerule{$e-\text{wprog}$}{
+      \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
+      \trg{main}\notin\trg{\commlib} &
+      \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
+      \exect{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace}
+    }{
+      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace}
+    }{wt-e-prog}
+    %
+    \typerule{$e-\text{wprog}-\lightning$}{
+      \trg{\library}=\trg{\library_{ctx}\linker\library_{comp}} &
+      \trg{main}\notin\trg{\commlib} &
+      \trg{\commlib}=\operatorname{dom}\ \trg{\library_{comp}} \\
+      \exect{\commlib;\library;\hole{\cdot};\sandboxtag;\hole{\cdot};\hole{\cdot}}{call\ main\ 0}{\Omega}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+    }{
+      \wexect{prog\ \library_{ctx}\ \library_{comp}}{\configt}{\finalexpr}{\trace\cdot\lightning;\sandboxtag}
+    }{wt-e-prog-crash}
+  \end{center}
+}{twprog-run}{Running a whole $\mmlAt$ program.}
+
+\subsubsection{Proofs and Auxiliary Lemmas}
+
+\begin{lemma}[Determinism of Step]\label{lem:determ:step}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:determ:step:a} $\exprevalt{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\event_{1}}$
+  \item $\exprevalt{\Omega}{e\gamma}{\Omega''}{e_2\gamma''}{\event_{2}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{e_{1}}=\trg{e_{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\event_{1}}=\trg{\event_{2}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  By induction on \Cref{asm:determ:step:a}.
+\end{proof}
+
+\begin{lemma}[Determinism of Ctx-Step]\label{lem:determ:ctxstep}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:determ:ctxstep:a} $\exect[]{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\event_{2}}$
+  \item $\exect[]{\Omega}{e\gamma}{\Omega''}{e_2\gamma''}{\event_{1}}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{e_{1}}=\trg{e_{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\event_{1}}=\trg{\event_{2}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  By induction on \Cref{asm:determ:ctxstep:a} making use of \Thmref{lem:determ:step}.
+\end{proof}
+
+\begin{lemma}[Determinism of $n$-Steps]\label{lem:determ:nsteps}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:determ:nsteps:a} $\exectN{\Omega}{e\gamma}{\Omega'}{e_1\gamma'}{\trace[_{1}]}$
+  \item $\exectN{\Omega}{e\gamma}{\Omega''}{e_2\gamma''}{\trace[_{2}]}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{e_{1}}=\trg{e_{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\trace[_{1}]}=\trg{\trace[_{2}]}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  By induction on \Cref{asm:determ:nsteps:a} making use of \Thmref{lem:determ:ctxstep}.
+\end{proof}
+
+\begin{lemma}[Determinism of Steps]\label{lem:determ:steps}
+  If
+  \begin{assumptions}
+  \item\label[ass]{asm:determ:steps:a} $\exect{\Omega}{e\gamma}{\Omega'}{\finalexpr^1\gamma'}{\trace[_{1}]}$
+  \item $\exect{\Omega}{e\gamma}{\Omega''}{\finalexpr^2\gamma''}{\trace[_{2}]}$
+  \end{assumptions}
+  Then
+  \begin{goals}
+  \item $\trg{\finalexpr^{1}}=\trg{\finalexpr^{2}}$
+  \item $\trg{\gamma'}=\trg{\gamma''}$
+  \item $\trg{\Omega'}=\trg{\Omega''}$
+  \item $\trg{\trace[_{1}]}=\trg{\trace[_{2}]}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  By induction on \Cref{asm:determ:steps:a} making use of \Thmref{lem:determ:ctxstep}.
+\end{proof}
+

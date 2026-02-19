@@ -33,7 +33,7 @@ Also note the `iff` in the hyperproperty-cases. (see Abate et al., 2021)
 ## ...and are relevant
 1.	composition is relevant for specific properties (which are singletons or subsets)
 
-
+ 
 
 ## ...and are "irrelevant"
 This section sketches results that are "irrelevant".

@@ -1,0 +1,84 @@
+\section{Composition of Previous Results}
+
+\begin{lemma}[Sequential Composition with RTP$\tau$]\label{lem:seqcompo:tau}
+  Given $\wfctau{\sim_1}{\src{\cC_2}}$, $\rtptau[\sim_1]{\sicomp{\bullet}}{\src{\cC_{1}}}$, and $\rtptau[\sim_2]{\itcomp{\bullet}}{\tau_{\sim_1}(\src{\cC_{2}})}$, then $\rtptau[\sim_1\circ\sim_2]{\sitcomp{\bullet}}{\src{\cC_{1}}\cap\src{\cC_{2}}}$.
+\end{lemma}
+\begin{proof} 
+  We need to show $\rtptau[\sim_1\circ\sim_2]{\sitcomp{\bullet}}{\src{\cC_{1}}\cap\src{\cC_{2}}}$.
+  By definition, assume $\src{\pi}\in\src{\cC_{1}}\cap\src{\cC_{2}}$ and $\src{p}\in\src{\partials}$ such that $\rsat{\src{p}}{\src{\pi}}$.
+  What is left to show is $\rsat{\sitcomp{\src{p}}}{\tau_{\sim_1\circ\sim_2}(\src{\pi})}$.
+  Note that $\src{\pi}\in\src{\cC_{1}}$ as well as $\src{\pi}\in\src{\cC_2}$. 
+  Also, $\sicomp{\src{p}}\in\irl{\partials}$ and $\tau_{\sim_1\circ\sim_2}(\src{\pi})=\tau_{\sim_2}(\tau_{\sim_1}(\src{\pi}))$. 
+  Since $\sim_1$ is well-formed with respect to $\src{\cC_2}$, we can apply $\rtptau[\sim_2]{\itcomp{\bullet}}{\tau_{\sim_1}(\src{\cC_{2}})}$, changing our goal to $\rsat{\sicomp{\src{p}}}{\tau_{\sim_1}(\src{\pi})}$.
+  Since $\src{\pi}\in\src{\cC_{1}}$ also holds, we can this time apply $\rtptau[\sim_1]{\stcomp{\bullet}}{\src{\cC_{1}}}$.
+  What is left to show is $\rsat{\src{p}}{\src{\pi}}$, which is an assumption of ours.
+\end{proof}
+\begin{lemma}[Sequential Composition with RTP$\sigma$]\label{lem:seqcompo:sigma}
+  Given $\wfcsig{\sim_2}{\trg{\cC_1}}$, $\rtpsigma[\sim_1]{\sicomp{\bullet}}{\sigma_{\sim_2}(\trg{\cC_{1}})}$, and $\rtpsigma[\sim_2]{\itcomp{\bullet}}{\trg{\cC_{2}}}$, then $\rtpsigma[\sim_1\circ\sim_2]{\sitcomp{\bullet}}{\trg{\cC_{1}}\cap\trg{\cC_{2}}}$.
+\end{lemma}
+\begin{proof} 
+  Dual to \Cref{lem:seqcompo:tau}.
+\end{proof}
+
+\begin{lemma}[Sequential Composition with RTP]\label{lem:seqcompo}
+  Given $\rtp{\sicomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\sitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Simple consequence from either \Cref{lem:seqcompo:tau} or \Cref{lem:seqcompo:sigma} by setting the cross-language trace relations to =.
+\end{proof}
+
+\begin{definition}[Upper Composition]
+  Given two compilers $\stcomp{\bullet}$ and $\itcomp{\bullet}$, their upper composition is
+
+  $$\uhcsitcomp{\bullet}=\lambda p.\begin{cases}\stcomp{p} &\text{if }p\in\src{\partials}\\
+                                                \itcomp{p} &\text{if }p\in\irl{\partials}\end{cases}$$.
+\end{definition}
+
+\begin{lemma}[Upper Composition with RTP]
+  Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\itcomp{\bullet}}{\cC_{2}}$, then $\rtp{\uhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Analogous argument as in \Thmref{lem:seqcompo}, but with a case distinction on whether the source program is element of $\S$ or $\I$.
+\end{proof}
+% S = while,    I = while with exceptions           => modularization
+
+% another idea: certified nugget -> minimal RSP compiler
+
+\begin{definition}[Lower Composition]
+  Given two compilers $\stcomp{\bullet}$ and $\sicomp{\bullet}$, their lower composition is $\lhcsitcomp{\bullet}$.
+\end{definition}
+
+\begin{lemma}[Lower Composition with RTP]
+  Given $\rtp{\stcomp{\bullet}}{\cC_{1}}$ and $\rtp{\sicomp{\bullet}}{\cC_{2}}$, then $\rtp{\lhcsitcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Analogous argument as in \Thmref{lem:seqcompo}, but with a case distinction on whether the compiled source program is element of $\I$ or $\T$.
+\end{proof}
+
+\begin{lemma}[Diamond]\label{lem:diamond}
+  Given $\rtp{\lhcsiocomp{\bullet}}{\cC_{1}}$ and $\rtp{\uhciotcomp{\bullet}}{\cC_{2}}$ with $\stcomp{\bullet} = \lambda\src{p}.\uhciotcomp{\lhcsiocomp{p}}$, then $\rtp{\stcomp{\bullet}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Straightforward using \Thmref{lem:seqcompo}.
+\end{proof}
+
+\begin{lemma}[Swappable]\label{lem:swappable}
+  Given $\rtp{\ttcomp{\bullet}_{(1)}}{\cC_{1}}$ and $\rtp{\ttcomp{\bullet}_{(2)}}{\cC_{2}}$, then $\rtp{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{2}\cap\cC_{1}}$ and $\rtp{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Both follow from \Thmref{lem:seqcompo}.
+\end{proof}
+
+\begin{lemma}[Swappable$\sigma$]\label{lem:swappable:sigma}
+  Given $\wfcsig{\sim_2}{\trg{\cC_1}}$, $\wfcsig{\sim_1}{\trg{\cC_2}}$, $\rtpsigma[\sim_1]{\ttcomp{\bullet}_{(1)}}{\trg{\cC_{1}}}$, $\rtpsigma[\sim_1]{\ttcomp{\bullet}_{(1)}}{\sigma_{\sim_2}(\trg{\cC_1})}$, $\rtpsigma[\sim_2]{\ttcomp{\bullet}_{(2)}}{\sigma_{\sim_1}(\trg{\cC_{2}})}$, and $\rtpsigma[\sim_2]{\ttcomp{\bullet}_{(2)}}{\trg{\cC_{2}}}$, then $\rtpsigma[\sim_1\circ\sim_2]{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{2}\cap\cC_{1}}$ and $\rtpsigma[\sim_2\circ\sim_1]{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Easy from \Thmref{lem:seqcompo:sigma}.
+\end{proof}
+\begin{lemma}[Swappable$\tau$]\label{lem:swappable:tau}
+  Given $\wfctau{\sim_2}{\trg{\cC_1}}$, $\wfctau{\sim_1}{\trg{\cC_2}}$, $\rtptau[\sim_1]{\ttcomp{\bullet}_{(1)}}{\trg{\cC_{1}}}$, $\rtptau[\sim_1]{\ttcomp{\bullet}_{(1)}}{\tau_{\sim_2}(\trg{\cC_1})}$, $\rtptau[\sim_2]{\ttcomp{\bullet}_{(2)}}{\tau_{\sim_1}(\trg{\cC_{2}})}$, and $\rtptau[\sim_2]{\ttcomp{\bullet}_{(2)}}{\trg{\cC_{2}}}$, then $\rtptau[\sim_1\circ\sim_2]{\ttcompN{\ttcomp{\bullet}_{(2)}}_{(1)}}{\cC_{2}\cap\cC_{1}}$ and $\rtptau[\sim_2\circ\sim_1]{\ttcompN{\ttcomp{\bullet}_{(1)}}_{(2)}}{\cC_{1}\cap\cC_{2}}$.
+\end{lemma}
+\begin{proof}
+  Easy from \Thmref{lem:seqcompo:tau}.
+\end{proof}
+

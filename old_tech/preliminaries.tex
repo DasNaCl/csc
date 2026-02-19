@@ -1,0 +1,147 @@
+\section{Preliminaries}
+
+In comparison to the paper, some notation is different. 
+This document should be considered work-in-progress, we want to make sure both the report and the paper use similar notation. 
+A non-exhaustive description of differences is: compilers are not $\gamma$, but $\mmlAmmlAtcomp{\bullet}$.
+Trace relations are written $\xlangtraceeq{}{}$ or $\tospecificevs{\bullet}$.
+
+
+
+
+\begin{definition}[Events]\label{def:events}
+  $\events$ is the set of atomic propositions hereby called events or actions.
+  The internal action is $\emptyevent$.
+  The action $\terminationevent$ is program termination.
+\end{definition}
+
+
+We assume that any programming language can be enriched with a self-composition operator in the style of \cite{barthe11}.
+Furthermore, we also assume the existence of a low-equivalence relation that distinguishes program states only by their public memory.
+Two traces $\trace_{1}$,$\trace_{2}$ are low-equivalent $\loweq{\trace_{1}}{\trace_{2}}$ iff all their public events coincide.
+
+\begin{definition}[Programming Languages]\label{def:pl}
+A programming language is a tuple $\left(\partials,\wellf,\singlestep,\linker\right)$ s.t.:
+
+\begin{itemize}
+  \item[$\partials$] : Set - is a set of admissible, partial programs.
+  \item[$\wellf$] : $\partials$ - a judgement that holds iff a program is not partial.
+  \item[$\singlestep$] : $\wholes\to\events\to\wholes$ - a step relation, where $\wholes=\{w\in\partials\ |\ \wellf w\}$.
+        For $e\in\events$ and $p,p'\in\wholes$ we say for $\estep{p}{e}{p'}$ that program $p$ performs a step with action $e$ to program $p'$.
+        If $e=\emptyevent$, we write $\step{p}{p'}$.
+        In case $e=\terminationevent$, we write $\terminates{p}$.
+  \item[$\linker$] : $\partials\to\partials\to\partials$ - links two partial programs together in some way, resulting in a new partial program.
+\end{itemize}
+\end{definition}
+Let $\src{S},\irl{I},$ and $\trg{T}$ be any programming language.
+
+% if we get τ1 and τ2, then there is aontehr program that does τ3 which does τ1 and τ2 in parallel
+% define self-composition. and then define it with respect to low-equivalent programs
+%
+
+\begin{definition}[Notation for Sequences]
+  For any sequence of events, let $\seqnil$ denote the empty sequence and $\seqcons{e}{\bar{t}}$ the sequence that starts with $e$ and continues with $\bar{t}$.
+  Hereby, it does not matter whether $\bar{t}$ is finite or infinite, it's merely syntactic sugar to work on sequences of events.
+\end{definition}
+
+\begin{definition}[Traces]
+  A trace $\trace$ is an infinite sequence of events that results from the relation $\singlestep$.
+  That is, we obtain the trace $\trace=\seqcons{e_{0}}{\seqcons{e_{1}}{\dots}}$ for the execution sequence $\estep{p}{e_{0}}{\estep{p'}{e_{1}}{\dots}}$ and write $\mktrace{p}{\trace}$.
+  The set of all traces is $\traces$.
+\end{definition}
+\noindent
+We assume $\lightning$ to occur in traces representing terminating programs such that it occurs infinitely often in a one-by-one sequence.
+
+\begin{definition}[Once]
+  Given an event $\event$ and a trace $\trace$, we say $\event$ appears exactly once in the trace, written $\event\in_{!}\trace$, iff
+
+  If $n\in\nat$ such that $\trace{[n]}=\event$, then for any $m\in\nat$ such that $\trace{[m]}=\event$ we have $n = m$.
+\end{definition}
+
+\begin{definition}[Before]
+  Given two events $\event[_0],\event[_1]$ and a trace $\trace$, event $\event[_0]$ occurs before $\event[_1]$ in $\trace$, written
+  $\event{_0}\le_{\trace}\event{_1}$, iff
+
+  If $n\in\nat$ such that $\trace{[n]} = \event[_{0}]$, then $\exists m\in\nat, \trace{[m]} = \event[_1] \wedge n< m$
+\end{definition}
+
+
+\begin{definition}[Finite Trace Prefixes]
+  A finite sequence of events $m$ is a finite trace prefix of $\trace$ iff it satisfies the following judgement.
+
+  $$
+    \inference{}{\cdot\le\trace}\hspace{2em}\inference{m\le\trace}{\seqcons{e}{m}\le \seqcons{e}{\trace}}
+  $$
+\end{definition}
+
+\begin{definition}[Behavior]
+  The behavior of a whole program $p$ is a set of all traces it produces, i.e. $\behav{p}=\{\trace\ |\ \mktrace{p}{\trace}\}$.
+\end{definition}
+
+\begin{definition}[Observation]
+  An observation is a finite set of finite trace prefixes.
+  We say that an observation $o$ is the prefix of a behavior $b$ iff $$\forall m\in o.\exists \trace\in b.m\le t$$.
+\end{definition}
+
+\begin{definition}[Properties]
+  A property $\prop$ is a set of admissible traces. For a program $p$ to satisfy $\prop$ it must not produce a trace that is not part of $\prop$. Thus, $p$ satisfies $\prop$ iff $\behav{p}\subseteq\prop$ and we write $\sat{p}{\prop}$.
+\end{definition}
+
+\begin{definition}[Hyperproperties]
+  A hyperproperty $H$ is a set of admissible sets of traces. Thus, if $p$ satisfies $H$ (also written $\sat{p}{H}$), then $\behav{p}\in H$.
+\end{definition}
+
+\begin{lemma}[Lifting Properties]
+  Given a property $\pi$, there exists a unique hyperproperty $\lift{\pi}$ that satisfies the exact same policy.
+\end{lemma}
+\begin{proof}
+  We want $\forall p \in\partials, \sat{p}{\prop}\equiv\sat{p}{\lift{\prop}}$.
+  Henceforth, given a $p\in\partials$, we have $\behav{p}\subseteq\prop$ iff $\behav{p}\in\lift{\prop}$.
+  Note that if $\behav{p}\subseteq\prop$, we have $\behav{p}\in\left\{\Pi\ |\ \Pi=\behav{p}\subseteq\prop\right\}$.
+  Thus, $\lift{\prop}$ is the set of all possible program behaviors that are a subset of $\prop$.
+  This is exactly the powerset of $\prop$ and we conclude $\lift{\prop}=\powerset{\prop}$.
+\end{proof}
+\noindent
+The lifting of properties to a singleton set does not suffice, since the empty behavior trivially satisfies any property $\emptyset\subseteq\prop=\{\trace\}$, but if we would define $\lift{\trace}=\{\{\trace\}\}$, then $\emptyset\not\in\lift{\trace}$.
+
+\begin{lemma}[Property Satisfaction Refinement]
+  For a property $\prop$ that refines $\prop'$, i.e. $\prop\subseteq\prop'$, if any $p\in\partials$ satisfies $\sat{p}{\prop'}$, then $\sat{p}{\prop}$.
+\end{lemma}
+\begin{proof}
+  Pick any property $\prop'$ and $p\in\partials$ such that $\sat{p}{\prop}$ and assume $\prop\subseteq\prop'$.
+  Simple unfolding reveals $\behav{p}\subseteq\prop\implies\behav{p}\subseteq\prop'$.
+\end{proof}
+\noindent
+For lifted properties, this refinement property also holds on the hyperproperty level.
+However, it does not work for any hyperproperty~\cite{clarkson08}.
+
+\begin{definition}[Robust Property Satisfaction]
+  A program $p$ robustly satisfies a property $\prop$, written $\rsat{p}{\prop}$, iff $\forall C\in\partials,\sat{C\linker p}{\prop}$. The same notation is used for robust hyperproperty satisfaction.
+\end{definition}
+
+\begin{lemma}[Weakening Robust Satisfaction]\label{lem:weaken-rsat}
+  Given classes $\cC_{1}, \cC_{2}$ and any program $p$ such that
+  \begin{assumptions}
+    \item\label{lem:weaken-rsat:ass:a} $\cC_{1}\subseteq\cC_{2}$
+    \item\label{lem:weaken-rsat:ass:b} $\rsat{p}{\cC_{2}}$
+  \end{assumptions}
+  We show
+  \begin{goals}
+    \item\label{lem:weaken-rsat:goal:i} $\rsat{p}{\cC_{1}}$
+  \end{goals}
+\end{lemma}
+\begin{proof}
+  Unfolding \Thmref{lem:weaken-rsat:goal:i}, let $\Pi\in\cC_{2}$ and $p$ be a program, we want to show that $\rsat{p}{\Pi}$.
+  By \Thmref{lem:weaken-rsat:ass:a}, we also know that $\Pi\in\cC_{1}$.
+  Thus, we can use \Thmref{lem:weaken-rsat:ass:b} to conclude.
+\end{proof}
+
+\begin{definition}[Classes]
+  A class of hyperproperties $\cC$ is a set of hyperproperties.
+  Likewise, a class of properties $\cC$ is a set of hyperproperties, where every property is lifted to the hyperproperty level.
+  From now on, we use $\Pi$ for elements of any class $\cC$ in case it does not matter whether it is a lifted property or any hyperproperty.
+\end{definition}
+
+\begin{definition}[Compilers]
+  A compiler between languages $\S$ and $\T$ is a partial function $\stcomp{\bullet}$ from $\src{\partials}$ to $\trg{\partials}$.
+\end{definition}
+

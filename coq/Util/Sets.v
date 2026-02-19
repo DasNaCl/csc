@@ -5,8 +5,7 @@ Require Import Classes.RelationClasses Morphisms Setoid.
 
 (** * Set Theory *)
 Module Type Sig.
-  #[local]
-  Parameter A : Type.
+  Context (A : Type).
   Parameter set : Type.
   Parameter el : forall (x : A) (C : set), Prop.
   Parameter Intersection : forall (C1 C2 : set), set.

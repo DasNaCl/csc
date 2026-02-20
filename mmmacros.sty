@@ -81,7 +81,6 @@
 
 % Basic symbols
 \newcommand{\nat}[0]{\ensuremath{\mb{N}}\xspace}
-\newcommand{\arr}[0]{\ensuremath{\mb{A}}\xspace}
 \newcommand\bnfdef{\ensuremath{\mathrel{::=}}}
 \newcommand{\hole}[1]{\ensuremath{\left[#1\right]}}
 
@@ -158,12 +157,9 @@
 \newcommand{\prop}{\pi}
 \newcommand{\traces}{\text{Traces}}
 \newcommand{\lift}[1]{\left\lceil{#1}\right\rceil}
-\newcommand{\policy}{\text{Policy}}
 
 % 5.7 Specific event filtering
 \newcommand{\specificev}[1]{\underline{#1}}
-\newcommand{\specificevs}[1]{\src{\underline{#1}}}
-\newcommand{\specificevt}[1]{\trg{\underline{#1}}}
 \newcommand{\thetospecificfilter}{\theta}
 \newcommand{\tospecificev}[1]{\thetospecificfilter\left({#1}\right)}
 \newcommand{\tospecificevs}[2][]{\thetospecificfilter#1\left(\src{#2}\right)}
@@ -226,13 +222,11 @@
 \newcommand{\mmlA}[1][]{\ensuremath\mathtt{L}_{\text{#1}}\xspace}
 \newcommand{\mmlAs}{\src{\mmlA[tms]}}
 \newcommand{\mmlAo}{\obj{\mmlA[scct]}}
-\newcommand{\smsmmlAs}{\src{\mmlA[sms]}}
+\newcommand{\mmlAsms}{\src{\mmlA[sms]}}
 \newcommand{\mmlAt}{\trg{\mmlA[ms]}}
 \newcommand{\mmlAtms}{\irl{\mmlA}}
 \newcommand{\mmlAtscct}{\obj{\mmlA[scct]}}
 \newcommand{\mmlAspec}{\ird{\mmlA[$\mathghost$]}}
-\newcommand{\nospecASM}{\irl{ASM_{\not\mathghost}}}
-\newcommand{\ctASM}{\irl{ASM_{sCCT}}}
 
 % 6.8 Misc monitor helpers
 \newcommand{\CRhash}{\texttt{CR}^\#\xspace}
@@ -261,6 +255,8 @@
 \newcommand{\ttcompN}[1]{\llbracket{#1}\rrbracket^{\T\to\T}}
 
 % 7.4 Multi-stage compilers
+% Naming: "uh" = upper half (merged input stages), "lh" = lower half (merged output stages)
+% Example: uhcsitcomp merges S+I as input, lhcsitcomp merges I+T as output
 \newcommand{\sitcomp}[1]{\llbracket\src{#1}\rrbracket^{\S\to\I\to\T}}
 \newcommand{\uhcsitcomp}[1]{\llbracket{#1}\rrbracket^{\S+\I\to\T}}
 \newcommand{\lhcsitcomp}[1]{\llbracket\src{#1}\rrbracket^{\S\to\I+\T}}
@@ -275,6 +271,13 @@
 \newcommand{\mmlAtscctmmlAspeccomp}[1]{\llbracket\obj{#1}\rrbracket^{\mmlAtscct\to\mmlAspec}\xspace}
 \newcommand{\mmlAmmlAtcomp}[1]{\llbracket\src{#1}\rrbracket^{\mmlAs\to\mmlAt}\xspace}
 \newcommand{\mmlAmmlAtcompN}[1]{\llbracket{#1}\rrbracket^{\mmlAs\to\mmlAt}\xspace}
+
+% 7.6 Non-coloring (N) variants for compiler chaining
+\newcommand{\mmlAtmmlAtmscompN}[1]{\llbracket{#1}\rrbracket^{\mmlAt\to\mmlAtms}\xspace}
+\newcommand{\dcecompN}[1]{\llbracket{#1}\rrbracket_{dce}^{\mmlAtms\to\mmlAtms}\xspace}
+\newcommand{\cfcompN}[2][\overline{\rho}]{\llbracket{#2},{#1}\rrbracket_{cf}^{\mmlAtms\to\mmlAtms}\xspace}
+\newcommand{\mmlAtmsmmlAtscctcompN}[1]{\llbracket{#1}\rrbracket^{\mmlAtms\to\mmlAtscct}\xspace}
+\newcommand{\mmlAtscctmmlAspeccompN}[1]{\llbracket{#1}\rrbracket^{\mmlAtscct\to\mmlAspec}\xspace}
 
 %% ------------------------------------------------------------
 %% SECTION 8: BACK-TRANSLATION MACROS
@@ -325,13 +328,7 @@
 %% SECTION 10: EVALUATION & EXECUTION MACROS
 %% ------------------------------------------------------------
 
-% 10.1 Basic evaluation
-\newcommand{\eval}[3]{{#1}\xspace\xrightarrow{#2}\xspace{#3}\xspace}
-\newcommand{\evals}[3]{\src{\eval{#1}{#2}{#3}}}
-\newcommand{\ctxeval}[3]{{#1}\xspace\xrightarrow{#2}_{ctx}\xspace{#3}\xspace}
-\newcommand{\ctxevals}[3]{\src{\ctxeval{#1}{#2}{#3}}}
-
-% 10.2 Expression evaluation - base and variants
+% 10.1 Expression evaluation - base and variants
 \newcommand{\expreval}[5]{{#1}\triangleright\xspace {#2}\xrightarrow{#5}\ {#3}\triangleright\xspace {#4}\xspace}
 \newcommand{\exprevals}[5]{\expreval{\src{#1}}{\src{#2}}{\src{#3}}{\src{#4}}{\src{#5}}}
 \newcommand{\exprevali}[5]{\expreval{\irl{#1}}{\irl{#2}}{\irl{#3}}{\irl{#4}}{\irl{#5}}}
@@ -355,7 +352,7 @@
 \newcommand{\execd}[6][{\kern-11.5pt}^*\ \ ]{\exec[#1]{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}{\ird{#6}}}
 \newcommand{\execdN}[6][{\kern-11.5pt}^n\ \ ]{\execN[#1]{\ird{#2}}{\ird{#3}}{\ird{#4}}{\ird{#5}}{\ird{#6}}}
 \newcommand{\execiN}[6][{\kern-11.5pt}^n\ \ ]{\execN[#1]{\irl{#2}}{\irl{#3}}{\irl{#4}}{\irl{#5}}{\irl{#6}}}
-\newcommand{\exectms}[6][{\kern-11.5pt}^*\ \ ]{\exec[#1]{\irl{#2}}{\irl{#3}}{\irl{#4}}{\irl{#5}}{\irl{#6}}}
+\newcommand{\execms}[6][{\kern-11.5pt}^*\ \ ]{\exec[#1]{\irl{#2}}{\irl{#3}}{\irl{#4}}{\irl{#5}}{\irl{#6}}}
 
 % 10.5 Whole-program execution
 \newcommand{\wexec}[4]{{#1}\xspace\xRightarrow{#4}\xspace{#2}\xspace\triangleright\xspace{#3}\xspace}
@@ -394,8 +391,6 @@
 % 11.2 Type checking
 \newcommand{\typecheck}[3]{{#1}\xspace \vdash\xspace {#2} :\ {#3}\xspace}
 \newcommand{\typechecks}[3]{\typecheck{\src{#1}}{\src{#2}}{\src{#3}}}
-\newcommand{\hasholes}[3]{\xspace\vdash\xspace\src{#2}\xspace\ni_1\src{hole:({#1})\to{#3}}\xspace}
-\newcommand{\hasholet}[2]{\xspace\vdash\xspace\trg{#2}\xspace\ni_1\trg{hole:#1}\xspace}
 
 % 11.3 Compiler robustly preserves
 \newcommand{\rtp}[2]{\vdash{#1}:{#2}}
@@ -412,9 +407,8 @@
 \newcommand{\fresh}[2]{{#1}\vdash {#2}\ \textit{fresh}\xspace}
 \newcommand{\dontcare}[2]{{#1}\vdash {#2}\ \textit{trash}\xspace}
 
-% 11.6 Low equality / self composition
+% 11.6 Low equality
 \newcommand{\loweq}[2]{{#1}=_L{#2}}
-\newcommand{\selfcompo}[2]{{#1}\thicksim{#2}}
 
 %% ------------------------------------------------------------
 %% SECTION 12: CONFIGURATION & STATE MACROS
@@ -423,18 +417,10 @@
 % 12.1 Locations and configurations
 \newcommand{\loc}{\ell}
 \newcommand{\configs}{\src{\Omega}}
-\newcommand{\qconfig}[1][\diamond]{\Omega^{#1}}
-\newcommand{\qconfigs}[1][\diamond]{\src{\Omega^{#1}}}
 \newcommand{\configt}{\trg{\Omega}}
-\newcommand{\qconfigt}[1][\diamond]{\trg{\Omega^{#1}}}
-\newcommand{\config}[2]{{#1};{#2}\xspace}
-\newcommand{\sconfig}[2]{\config{\src{#1}}{\src{#2}}}
-\newcommand{\tconfig}[2]{\config{\trg{#1}}{\trg{#2}}}
 
-% 12.2 Substitution and growth
+% 12.2 Substitution
 \newcommand{\subst}[3]{{#1}[{#2}\hookrightarrow{#3}]\xspace}
-\newcommand{\grow}[2]{{#1}\ll{#2}\xspace}
-\newcommand{\grows}[2]{\grow{\src{#1}}{\src{#2}}}
 
 % 12.3 Pointers and communication
 \newcommand{\noptr}[1]{\text{NoOwnedPtr}\ {#1}}
@@ -445,7 +431,6 @@
 \newcommand{\commlib}{\xspace\xi\xspace}
 
 % 12.4 State components
-\newcommand{\callstack}{\xspace \overline{F^c}\xspace}
 \newcommand{\memstate}{\xspace \Psi \xspace}
 \newcommand{\cfstate}{\xspace \Phi \xspace}
 \newcommand{\ctx}{{ctx}}
@@ -458,44 +443,21 @@
 \newcommand{\kontstack}{\xspace\overline{K}\xspace}
 \newcommand{\library}{\xspace\Xi\xspace}
 
-% 12.6 Plugging
-\newcommand{\plug}[3]{\xspace\operatorname{fill}_{#1} {#2}\xspace\operatorname{in}{#3}\xspace}
-\newcommand{\plugs}[3][Q]{\plug{#1}{\src{#2}}{\src{#3}}}
-\newcommand{\plugt}[3][Q]{\plug{#1}{\trg{#2}}{\trg{#3}}}
-\newcommand{\closed}[2]{\xspace\left\{{#1}\right\}\vdash_\copyright{#2}\xspace}
-
 %% ------------------------------------------------------------
 %% SECTION 13: PROPERTY CLASSES & SATISFACTION
 %% ------------------------------------------------------------
 
 % 13.1 Property classes
-\newcommand{\classcollapse}{\star}
-\newcommand{\collapse}[1]{{#1}^{\classcollapse}}
 \newcommand{\class}[1]{\mathbb{#1}}
 \newcommand{\cC}{\class{C}}
 \newcommand{\cSafety}{\text{Safety}}
 \newcommand{\cHSafety}{\text{HyperSafety}}
-\newcommand{\cTwoHSafety}{\text{2-HyperSafety}}
-\newcommand{\cKHSafety}{\text{K-HyperSafety}}
 \newcommand{\cSS}{\text{SSC}}
-\newcommand{\mutex}{\text{MutEx}}
-\newcommand{\nonterm}{\text{Nontermination}}
-\newcommand{\determ}{\text{Determinism}}
 \renewcommand{\ss}{\text{SS}}
-\newcommand{\rss}{\text{RSS}}
 \newcommand{\Ni}{\text{NI}}
-\newcommand{\RNi}{\text{RNI}}
-\newcommand{\nvOne}{\text{No-v1}}
-\newcommand{\nvFour}{\text{No-v4}}
-\newcommand{\nvOneFour}{\text{No-v1-v4}}
 
-% 13.2 Full-abstraction composition
-\newcommand{\fccomp}[2]{{#1}\overset{\bullet}{\cap}{#2}}
-\newcommand{\fcleq}[2]{{#1}\overset{\bullet}{\subseteq}{#2}}
-
-% 13.3 Satisfaction relations
+% 13.2 Satisfaction relations
 \newcommand{\sat}[2]{{#1}\vDash{#2}}
-\newcommand{\nsat}[2]{{#1}\not\vDash{#2}}
 \newcommand{\rsat}[2]{{#1}\vDash_{\scriptstyle R}{#2}}
 \newcommand{\nrsat}[2]{{#1}\not\vDash_{\scriptstyle R}{#2}}
 

@@ -2183,32 +2183,29 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 %  \end{assumptions}
 %  then
   \begin{goals}
-    \item $\vdash\mmlAmmlAtcomp{\bullet}:\lceil\operatorname{tmssafe}\rceil$
-%    \item $\mmlAmmlAtcomp{\library_{\ctx}}\vDash_{R}\pi$
-%    \item\label[goal]{rtmsp:tms} $\tospecificevt[_{\delta_{MS}'}]{\trace}\in\operatorname{tmsafe}$
+    \item $\rtpsigma[\sim]{\mmlAmmlAtcomp{\bullet}}{\operatorname{tmssafe}}$
   \end{goals}
 \end{scontents}
 
 \realthm{thm:rtmsp}{4}{Robust \gls{tms} Preservation}
 \begin{proof}
-  Unfolding the definition:
+  Unfolding the definition of $\rtpsigma[\sim]{\mmlAmmlAtcomp{\bullet}}{\operatorname{tmssafe}}$:
   If
   \begin{assumptions}
-    \item $\pi\in\lceil\operatorname{tmssafe}\rceil$
-    \item $\src{\library_{\comp}}\vDash_{R}\pi$
+    \item\label[ass]{asm:rtmsp:srcsat} $\rsat{\src{\library_{\comp}}}{\sigma_{\sim}(\operatorname{tmssafe})}$
   \end{assumptions}
   then
   \begin{goals}
-    \item\label[ass]{asm:rtmsp:rsatt} $\mmlAmmlAtcomp{\library_{\comp}}\vDash_{R}\pi$
+    \item\label[goal]{asm:rtmsp:rsatt} $\rsat{\mmlAmmlAtcomp{\library_{\comp}}}{\operatorname{tmssafe}}$
   \end{goals}
   Unfold \Cref{asm:rtmsp:rsatt}:
   If
   \begin{passumptions}{F}
-    \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ \library_{\ctx}\ }\mmlAmmlAtcomp{\library_{\comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trace}$
+    \item\label[ass]{asm:rtmsp:trgexec} $\wexec{\trg{prog\ \library_{\ctx}\ }\mmlAmmlAtcomp{\library_{\comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
   \end{passumptions}
   then $\exists \delta_{\text{MS}}$
   \begin{goals}
-    \item $\tospecificevt[_{\delta_{\text{MS}}}]{\trace}\in\pi$
+  \item $\tospecificevt[_{\delta_{\text{MS}}}]{\trace}\in\operatorname{tmssafe}$
   \end{goals}
   Suppose $\trg{\finalexpr}=\trg{\valueexpr}$.%\MK{take care of fail}
   Invert \Cref{asm:rtmsp:trgexec}:
@@ -2224,11 +2221,15 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \setcounter{enumi}{4}
     \item\label[ass]{asm:rtmsp:backtrans} $\mmlAmmlAtback[\emptyset;\emptyset]{\trg{\trace}}=\Game;\delta;\src{let\ main\ z\ := e},\src{\hole{\cdot}}$.
   \end{passumptions}
-  Invert \Cref{asm:rtmsp:backtrans}, so we can decompose $\trg{\trace}$ into\\$\trg{Start\cdot\trace[^{ctx}_{0}]\cdot Call\ \ctxtocomp\ foo\ n\cdot\trace[^{comp}]\cdot Ret\ \comptoctx\ m\cdot\trace[^{ctx}_{1}]\cdot End\ n'}$ such that $\vdash\trg{\trace[^{comp}]}\ \operatorname{non-int-\trg{trace}}$, $\vdash\trg{\trace[^{ctx}_{0}]}\ \operatorname{non-int-\trg{trace}}$, and $\vdash\trg{\trace[^{ctx}_{1}]}\ \operatorname{non-int-\trg{trace}}$.%\MK{use backtrans correctness!!}
+  Invert \Cref{asm:rtmsp:backtrans}, so we can decompose $\trg{\trace}$ into\\$\trg{Start\cdot\trace[^{ctx}_{0}]\cdot Call\ \ctxtocomp\ foo\ n\cdot\trace[^{comp}]\cdot Ret\ \comptoctx\ m\cdot\trace[^{ctx}_{1}]\cdot End\ n'}$ such that $\vdash\trg{\trace[^{comp}]}\ \operatorname{non-int-\trg{trace}}$, $\vdash\trg{\trace[^{ctx}_{0}]}\ \operatorname{non-int-\trg{trace}}$, and $\vdash\trg{\trace[^{ctx}_{1}]}\ \operatorname{non-int-\trg{trace}}$.
 
+  By backtranslation correctness, there is a source execution producing $\src{\trace}$ such that $\xlangtraceeq{\trace}{\trace}$.
 
+  By \Cref{asm:rtmsp:srcsat}, since $\src{\trace}$ comes from linking $\src{\library_{\comp}}$ with the backtranslated context, we have $\src{\trace}\in\sigma_{\sim}(\operatorname{tmssafe})$.
 
-  By \Thmref{lem:mslocgen} using $\operatorname{dom}\delta$, there is a $\delta_{MS}:\src{\bullet}\to\specificev{\bullet}$ injective.
+  By \Cref{def:sigma}, since $\xlangtraceeq{\trace}{\trace}$, we conclude $\trg{\trace}\in\operatorname{tmssafe}$.
+
+  What remains is to show the filtered trace satisfies the property. By \Thmref{lem:mslocgen} using $\operatorname{dom}\delta$, there is a $\delta_{MS}:\src{\bullet}\to\specificev{\bullet}$ injective.
 
   Instantiate the goal:
   \begin{passumptions}{H}

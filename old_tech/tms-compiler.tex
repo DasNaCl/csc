@@ -1319,6 +1319,41 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   Induction on \Cref{asm:msfiltereq:eq}.
 \end{proof}
 
+\begin{lemma}[Cross-Language Relation Preserves SMS]\label{lem:xlangtraceeq:smsafe:preserve}
+  The cross-language trace relation $\sim$ defined by $\xlangtraceeq{\trace}{\trace}$
+  is well-formed with respect to $\operatorname{smsafe}$, i.e., $\wf{\sim}{\operatorname{smsafe}}$.
+
+  Equivalently: if $\xlangtraceeq{\trace}{\trace}$ and the filtered source trace
+  $\tospecificevs[^*_{\delta_{MS}}]{\src{\trace}} \in \operatorname{smsafe}$, then
+  $\tospecificevt[^*_{\delta_{MS}'}]{\trg{\trace}} \in \operatorname{smsafe}$.
+\end{lemma}
+\begin{proof}
+  By induction on $\xlangtraceeq{\trace}{\trace}$.
+
+  The key cases are the memory events:
+
+  \textbf{Case \Cref{tr:alloc-event-eq}:}
+  From $\xlangeventeq{Alloc\ \loc\ n}{Alloc\ \loc\ n}$, we have $\mmlAmmlAtcomp{n} = \trg{n}$.
+  Since compilation preserves numeric values, the allocation size is identical.
+  The SMS monitor records $(\delta_{MS}(\src{\loc}), \src{n})$ for source and
+  $(\delta_{MS}'(\trg{\loc}), \trg{n})$ for target.
+  By the location correspondence $\delta$, these represent the same abstract allocation.
+
+  \textbf{Case \Cref{tr:get-event-eq}:}
+  From $\xlangeventeq{Get\ \loc\ n}{Get\ \loc\ n}$, we have $\mmlAmmlAtcomp{n} = \trg{n}$.
+  The access offset is identical in source and target.
+  If the source access is in-bounds (satisfies smsafe), then the target access
+  at the same offset into an allocation of the same size is also in-bounds.
+
+  \textbf{Case \Cref{tr:set-event-eq}:}
+  Analogous to Get case.
+
+  \textbf{Case \Cref{tr:dealloc-event-eq}:}
+  Deallocation events are related by location correspondence.
+  The SMS monitor removes the same abstract allocation from both monitors.
+
+  By induction, the entire trace preserves smsafe.
+\end{proof}
 
 \begin{lemma}[Backtranslation for Non-Interacting Traces is Well-Typed]\label{lem:expr:backtranslation:welltyped}
   If
@@ -2183,21 +2218,36 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 %  \end{assumptions}
 %  then
   \begin{goals}
-    \item $\rtpsigma[\sim]{\mmlAmmlAtcomp{\bullet}}{\operatorname{tmssafe}}$
+    \item $\rtpsigma[\sim]{\mmlAmmlAtcomp{\bullet}}{\operatorname{msafe}}$
   \end{goals}
 \end{scontents}
 
-\realthm{thm:rtmsp}{4}{Robust \gls{tms} Preservation}
+\realthm{thm:rtmsp}{4}{Robust Memory Safety Preservation (S$\to$T)}
 \begin{proof}
-  Unfolding the definition of $\rtpsigma[\sim]{\mmlAmmlAtcomp{\bullet}}{\operatorname{tmssafe}}$:
+  Unfolding the definition of $\rtpsigma[\sim]{\mmlAmmlAtcomp{\bullet}}{\operatorname{msafe}}$:
   If
   \begin{assumptions}
-    \item\label[ass]{asm:rtmsp:srcsat} $\rsat{\src{\library_{\comp}}}{\sigma_{\sim}(\operatorname{tmssafe})}$
+    \item\label[ass]{asm:rtmsp:srcsat} $\rsat{\src{\library_{\comp}}}{\sigma_{\sim}(\operatorname{msafe})}$
   \end{assumptions}
   then
   \begin{goals}
-    \item\label[goal]{asm:rtmsp:rsatt} $\rsat{\mmlAmmlAtcomp{\library_{\comp}}}{\operatorname{tmssafe}}$
+    \item\label[goal]{asm:rtmsp:rsatt} $\rsat{\mmlAmmlAtcomp{\library_{\comp}}}{\operatorname{msafe}}$
   \end{goals}
+
+  By \Cref{def:memsafe}, $\operatorname{msafe} = \operatorname{tmssafe} \cap \operatorname{smsafe}$.
+
+  By distributivity of $\sigma$ over intersection:
+  \begin{passumptions}{H}
+    \item $\sigma_{\sim}(\operatorname{msafe}) = \sigma_{\sim}(\operatorname{tmssafe}) \cap \sigma_{\sim}(\operatorname{smsafe})$
+  \end{passumptions}
+
+  So \Cref{asm:rtmsp:srcsat} gives us:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{1}
+    \item\label[ass]{asm:rtmsp:srctms} $\rsat{\src{\library_{\comp}}}{\sigma_{\sim}(\operatorname{tmssafe})}$
+    \item\label[ass]{asm:rtmsp:srcsms} $\rsat{\src{\library_{\comp}}}{\sigma_{\sim}(\operatorname{smsafe})}$
+  \end{passumptions}
+
   Unfold \Cref{asm:rtmsp:rsatt}:
   If
   \begin{passumptions}{F}
@@ -2205,11 +2255,15 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{passumptions}
   then $\exists \delta_{\text{MS}}$
   \begin{goals}
-  \item $\tospecificevt[_{\delta_{\text{MS}}}]{\trace}\in\operatorname{tmssafe}$
+  \item $\tospecificevt[_{\delta_{\text{MS}}}]{\trace}\in\operatorname{msafe}$
   \end{goals}
+
+  We must show $\trg{\trace} \in \operatorname{tmssafe} \cap \operatorname{smsafe}$, i.e., two sub-goals.
+
   Suppose $\trg{\finalexpr}=\trg{\valueexpr}$.%\MK{take care of fail}
   Invert \Cref{asm:rtmsp:trgexec}:
   \begin{passumptions}{H}
+    \setcounter{enumi}{3}
     \item\label[ass]{asm:rtmsp:liblink} $\trg{\library}=\trg{\library_{ctx}\linker}\mmlAmmlAtcomp{\library_{comp}}$
     \item $\trg{main}\notin\trg{\commlib}$
     \item $\trg{\commlib}=\operatorname{dom}\ \mmlAmmlAtcomp{\library_{comp}}$
@@ -2218,22 +2272,34 @@ For example, by adding the dynamic type check we prevent contexts from binding $
 
   We backtranslate:
   \begin{passumptions}{H}
-    \setcounter{enumi}{4}
+    \setcounter{enumi}{7}
     \item\label[ass]{asm:rtmsp:backtrans} $\mmlAmmlAtback[\emptyset;\emptyset]{\trg{\trace}}=\Game;\delta;\src{let\ main\ z\ := e},\src{\hole{\cdot}}$.
   \end{passumptions}
   Invert \Cref{asm:rtmsp:backtrans}, so we can decompose $\trg{\trace}$ into\\$\trg{Start\cdot\trace[^{ctx}_{0}]\cdot Call\ \ctxtocomp\ foo\ n\cdot\trace[^{comp}]\cdot Ret\ \comptoctx\ m\cdot\trace[^{ctx}_{1}]\cdot End\ n'}$ such that $\vdash\trg{\trace[^{comp}]}\ \operatorname{non-int-\trg{trace}}$, $\vdash\trg{\trace[^{ctx}_{0}]}\ \operatorname{non-int-\trg{trace}}$, and $\vdash\trg{\trace[^{ctx}_{1}]}\ \operatorname{non-int-\trg{trace}}$.
 
   By backtranslation correctness, there is a source execution producing $\src{\trace}$ such that $\xlangtraceeq{\trace}{\trace}$.
 
-  By \Cref{asm:rtmsp:srcsat}, since $\src{\trace}$ comes from linking $\src{\library_{\comp}}$ with the backtranslated context, we have $\src{\trace}\in\sigma_{\sim}(\operatorname{tmssafe})$.
+  \textbf{Sub-goal 1: $\trg{\trace} \in \operatorname{tmssafe}$}
+
+  By \Cref{asm:rtmsp:srctms}, since $\src{\trace}$ comes from linking $\src{\library_{\comp}}$ with the backtranslated context, we have $\src{\trace}\in\sigma_{\sim}(\operatorname{tmssafe})$.
 
   By \Cref{def:sigma}, since $\xlangtraceeq{\trace}{\trace}$, we conclude $\trg{\trace}\in\operatorname{tmssafe}$.
+
+  \textbf{Sub-goal 2: $\trg{\trace} \in \operatorname{smsafe}$}
+
+  By \Cref{asm:rtmsp:srcsms}, $\src{\trace} \in \sigma_{\sim}(\operatorname{smsafe})$.
+
+  By \Thmref{lem:xlangtraceeq:smsafe:preserve}, the cross-language trace relation $\sim$ is well-formed with respect to $\operatorname{smsafe}$.
+
+  By \Cref{def:sigma}, since $\xlangtraceeq{\trace}{\trace}$, we conclude $\trg{\trace}\in\operatorname{smsafe}$.
+
+  \textbf{Conclusion:} Combining sub-goals 1 and 2, $\trg{\trace} \in \operatorname{tmssafe} \cap \operatorname{smsafe} = \operatorname{msafe}$.
 
   What remains is to show the filtered trace satisfies the property. By \Thmref{lem:mslocgen} using $\operatorname{dom}\delta$, there is a $\delta_{MS}:\src{\bullet}\to\specificev{\bullet}$ injective.
 
   Instantiate the goal:
   \begin{passumptions}{H}
-    \setcounter{enumi}{5}
+    \setcounter{enumi}{8}
     \item $\delta_{MS}' : \trg{\bullet}\to\specificev{\bullet}, \trg{\loc}:\trg{L}\mapsto \delta_{MS}(\delta^{-1}(\trg{\loc}))$
   \end{passumptions}
 

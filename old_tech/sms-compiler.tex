@@ -931,99 +931,79 @@ The syntax and semantics are entirely identical.
 % \end{assumptions}
 % then $\exists \delta_{MS}',$
   \begin{goals}
-%    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{smsafe}$
-    \item\label[ass]{asm:rsmsp:comp} $\vdash\mmlAtmmlAtmscomp{\bullet}:\lceil\operatorname{smsafe}\rceil$
+    \item $\rtp{\mmlAtmmlAtmscomp{\bullet}}{\operatorname{msafe}}$
   \end{goals}
 \end{scontents}
 
-\realthm{thm:rsmsp}{5}{Robust \gls{sms} Preservation}
+\realthm{thm:rsmsp}{5}{Robust Memory Safety Preservation (T$\to$MS)}
 \begin{proof}
-  Unfold \Cref{asm:rsmsp:comp}, so if:
+  Unfolding the definition of $\rtp{\mmlAtmmlAtmscomp{\bullet}}{\operatorname{msafe}}$:
+  If
   \begin{passumptions}{H}
-    \item $\pi\in\lceil\operatorname{smsafe}\rceil$
-    \item\label[ass]{asm:rsmsp:srcsms} $\trg{\library_{\comp}}\vDash_{R}\pi$
+    \item\label[ass]{asm:rsmsp:srcms} $\rsat{\trg{\library_{\comp}}}{\operatorname{msafe}}$
   \end{passumptions}
   then
   \begin{goals}
-    \item\label[ass]{asm:rsmsp:rsatt} $\mmlAtmmlAtmscomp{\library_{\comp}}\vDash_{R}\pi$
+    \item\label[ass]{asm:rsmsp:rsatt} $\rsat{\mmlAtmmlAtmscomp{\library_{\comp}}}{\operatorname{msafe}}$
   \end{goals}
+
+  By \Cref{def:memsafe}, $\operatorname{msafe} = \operatorname{tmssafe} \cap \operatorname{smsafe}$.
+
+  So \Cref{asm:rsmsp:srcms} gives us:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{1}
+    \item\label[ass]{asm:rsmsp:srctms} $\rsat{\trg{\library_{\comp}}}{\operatorname{tmssafe}}$
+    \item\label[ass]{asm:rsmsp:srcsms} $\rsat{\trg{\library_{\comp}}}{\operatorname{smsafe}}$
+  \end{passumptions}
+
   Unfold \Cref{asm:rsmsp:rsatt}:
   If
   \begin{passumptions}{H}
-    \setcounter{enumi}{2}
+    \setcounter{enumi}{3}
     \item\label[ass]{asm:rsmsp:wexecirl} $\wexec{\irl{prog\ \library_{\ctx}\ }\mmlAtmmlAtmscompN{\trg{\library_{\comp}}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
   \end{passumptions}
   then $\exists \delta_{MS}$
   \begin{goals}
-    \item $\tospecificevt[_{\delta_{MS}}]{\irl{\trace}}\in\pi$
+    \item $\tospecificevt[_{\delta_{MS}}]{\irl{\trace}}\in\operatorname{msafe}$
   \end{goals}
+
+  We must show $\irl{\trace} \in \operatorname{tmssafe} \cap \operatorname{smsafe}$, i.e., two sub-goals.
+
   Use \Thmref{lem:backwardsim:toplevel} on \Cref{asm:rsmsp:wexecirl}: (remember that $\irl{\trace}=\trg{\trace}$, since $\mmlAtms=\mmlAt$)
   \begin{passumptions}{H}
-    \setcounter{enumi}{3}
+    \setcounter{enumi}{4}
     \item\label[ass]{asm:rsmsp:twprog} $\wexec{\trg{prog\ \library_{ctx}\ \library_{comp}}}{\trg{\Omega}}{\trg{\finalexpr}}{\trg{\trace}}$
   \end{passumptions}
-  Apply \Cref{asm:rsmsp:srcsms} to our goal.
 
-  Conclude with \Cref{asm:rsmsp:twprog}.
+  \textbf{Sub-goal 1: $\irl{\trace} \in \operatorname{smsafe}$}
+
+  By \Cref{asm:rsmsp:srcsms}, $\trg{\trace} \in \operatorname{smsafe}$.
+  Since $\irl{\trace} = \trg{\trace}$, we have $\irl{\trace} \in \operatorname{smsafe}$.
+
+  \textbf{Sub-goal 2: $\irl{\trace} \in \operatorname{tmssafe}$}
+
+  By \Cref{asm:rsmsp:srctms}, $\trg{\trace} \in \operatorname{tmssafe}$.
+  Since $\irl{\trace} = \trg{\trace}$, we have $\irl{\trace} \in \operatorname{tmssafe}$.
+
+  \textbf{Conclusion:} Combining sub-goals 1 and 2, $\irl{\trace} \in \operatorname{tmssafe} \cap \operatorname{smsafe} = \operatorname{msafe}$.
 \end{proof}
 
 \begin{scontents}[store-env=buffer]
   $\;$\\
-%  If
-%  \begin{assumptions}
-%  \item\label[ass]{asm:rsmsp:srcsms} $\forall \delta_{MS}\ \src{\library_{ctx}}\ \src{\library_{comp}}\ \src{\trace}\ \src{\Omega}\ \src{v}, \wexecs{prog\ \library_{ctx}\ \library_{comp}}{\configs}{\finalexpr}{\trace}\rightarrow\tospecificevs[_{\delta_{MS}}]{\trace}\in\operatorname{msafe}$
-%  \item\label[ass]{asm:rsmsp:irlexec} $\wexec{\irl{prog\ \library_{ctx}\ }\mmlAtmmlAtmscompN{\mmlAmmlAtcomp{\library_{comp}}}}{\irl{\Omega}}{\irl{\finalexpr}}{\irl{\trace}}$
-%  \end{assumptions}
   \begin{goals}
-%    \item\label[goal]{rsmsp:sms} $\tospecificevi[_{\delta_{MS}'}]{\trace}\in\operatorname{msafe}$
-    \item $\vdash\mmlAtmmlAtmscompN{\mmlAmmlAtcomp{\bullet}}:\lceil\operatorname{msafe}\rceil$
+    \item $\rtpsigma[\sim]{\mmlAtmmlAtmscompN{\mmlAmmlAtcomp{\bullet}}}{\operatorname{msafe}}$
   \end{goals}
 \end{scontents}
-\realthm{thm:rmsp}{6}{Robust Memory Safety Preservation}
+\realthm{thm:rmsp}{6}{Robust Memory Safety Preservation (Composed)}
 \begin{proof}
-  Note from \Thmref{thm:rtmsp} and \Thmref{thm:rsmsp}:
-  \begin{passumptions}{H}
-    \item\label[ass]{ass:msmsp:tms} $\rtp{\mmlAmmlAtcomp{\bullet}}{\lceil\operatorname{tmsafe}\rceil}$
-    \item\label[ass]{ass:msmsp:sms} $\rtp{\mmlAtmmlAtmscomp{\bullet}}{\lceil\operatorname{smsafe}\rceil}$
-  \end{passumptions}
-  By \Thmref{lem:seqcompo} using \Cref{ass:msmsp:tms,ass:msmsp:sms}, we have:
-  \begin{passumptions}{H}
-    \item $\rtp{\mmlAtmmlAtmscompN{\mmlAmmlAtcomp{\bullet}}}{\lceil\operatorname{tmsafe}\rceil\cap\lceil\operatorname{smsafe}\rceil}$
-  \end{passumptions}
-  This is exactly what we want to prove here, since by \Cref{def:memsafe}, $\operatorname{msafe}=\operatorname{tmsafe}\cap\operatorname{smsafe}$, noting that the powerset is closed under intersection.
-\end{proof}
-\begin{proof}[Proof (Alternative)]
-  By definition, if
-  \begin{passumptions}{H}
-    \item\label[ass]{asm:rmtsp:pi:msafe} $\pi\in\lceil\operatorname{msafe}\rceil$
-    \item\label[ass]{asm:rmtsp:srcrsat} $\src{\library_{\ctx}}\vDash_{R}\pi$
-  \end{passumptions}
-  Then
-  \begin{goals}
-    \item\label[goal]{goal:rmtsp:rsat} $\mmlAtmmlAtmscompN{\mmlAmmlAtcomp{\library_{\ctx}}}\vDash_{R}\pi$
-  \end{goals}
+  By \Thmref{thm:rtmsp}, we have $\rtpsigma[\sim]{\mmlAmmlAtcomp{\bullet}}{\operatorname{msafe}}$.
 
-  By \Cref{def:memsafe}, we have $\operatorname{msafe}=\operatorname{tmsafe}\cap\operatorname{smsafe}$.
+  By \Thmref{thm:rsmsp}, we have $\rtp{\mmlAtmmlAtmscomp{\bullet}}{\operatorname{msafe}}$.
 
-  So, since powerset is closed under intersection, we can split \Cref{asm:rmtsp:pi:msafe} into:
-  \begin{passumptions}{H}
-    \setcounter{enumi}{2}
-    \item\label[ass]{asm:rmtsp:pi:tmsafe} $\pi\in\lceil\operatorname{tmsafe}\rceil$
-    \item\label[ass]{asm:rmtsp:pi:smsafe} $\pi\in\lceil\operatorname{smsafe}\rceil$
-  \end{passumptions}
+  Since $\mmlAtms=\mmlAt$, the trace relation for the second compiler is identity.
 
-  With \Cref{asm:rmtsp:pi:tmsafe,asm:rmtsp:srcrsat} we use \Thmref{thm:rtmsp}:
-  \begin{passumptions}{H}
-    \setcounter{enumi}{4}
-    \item\label[ass]{asm:rmtsp:trgrsat} $\mmlAmmlAtcomp{\library_{\ctx}}\vDash_{R}\pi$
-  \end{passumptions}
-
-  With \Cref{asm:rmtsp:pi:smsafe,asm:rmtsp:trgrsat} we use \Thmref{thm:rsmsp}:
-  \begin{passumptions}{H}
-    \setcounter{enumi}{5}
-    \item\label[ass]{asm:rmtsp:smsrsat} $\mmlAtmmlAtmscompN{\mmlAmmlAtcomp{\library_{\ctx}}}\vDash_{R}\pi$
-  \end{passumptions}
-  This solves \Cref{goal:rmtsp:rsat}.
+  By \Thmref{lem:seqcompo:sigma}, composing the two compilers:
+  $\rtpsigma[\sim]{\mmlAtmmlAtmscompN{\mmlAmmlAtcomp{\bullet}}}{\operatorname{msafe}}$.
 \end{proof}
 
 \begin{theorem}[TMS Relation Correctness for $\mmlAmmlAtcomp{\bullet}$]\label{thm:tms-rel-corr:ltmslsms}

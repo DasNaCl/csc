@@ -242,81 +242,83 @@ Intuitively, an owned pointer is useless upto getting a non-owned version from c
 This is inspired by linear logic.
 
 \myfig{
-  \judgbox{\typechecks{\Gamma}{K}{\types^{(1)}\to\types^{(2)}}}{,,Under environment $\Gammas$ the evaluation context $\src{K}$ requires an\\object of type $\src{\type^{(1)}}$ and yields one of type $\src{\type^{(2)}}$.''}
+  \judgbox{\ctxtypechecks{\Gamma}{K}{\types^{(1)}\to\types^{(2)}}{\Gamma_{\hole{\cdot}}}}{,,Under total environment $\Gammas$ the evaluation context $\src{K}$ requires an\\object of type $\src{\type^{(1)}}$ and yields one of type $\src{\type^{(2)}}$.''}
   \begin{center}
     \typerule{et-$\src{\hole{\cdot}}$}{
     }{
-      \typechecks{\Gamma}{\hole{\cdot}}{\type\to\type}
+      \ctxtypechecks{\Gamma}{\hole{\cdot}}{\type\to\type}{\Gamma}
     }{w-te-hole}
     %
     \typerule{et-$\src{\oplus}$R}{
-      \typechecks{\Gamma}{\valueexpr}{\nat} &
-      \typechecks{\Gamma}{K}{\type\to\nat}
+      \typechecks{\Gamma_1}{\valueexpr}{\nat} &
+      \ctxtypechecks{\Gamma_2}{K}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{
-      \typechecks{\Gamma}{\valueexpr\oplus K}{\type\to\nat}
+      \ctxtypechecks{\Gamma_1\circ\Gamma_2}{\valueexpr\oplus K}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{w-te-bionpR}
     %
     \typerule{et-$\src{\oplus}$L}{
-      \typechecks{\Gamma}{K}{\type\to\nat} &
-      \typechecks{\Gamma}{e}{\nat}
+      \ctxtypechecks{\Gamma_1}{K}{\type\to\nat}{\Gamma_{\hole{\cdot}}} &
+      \typechecks{\Gamma_2}{e}{\nat}
     }{
-      \typechecks{\Gamma}{K\oplus e}{\type\to\nat}
+      \ctxtypechecks{\Gamma_1\circ\Gamma_2}{K\oplus e}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{w-te-bionpL}
     %
     \typerule{et-get}{
-      \typechecks{\Gamma}{x}{\wptr} &
-      \typechecks{\Gamma}{K}{\type\to\nat}
+      \typechecks{\Gamma_1}{x}{\wptr} &
+      \ctxtypechecks{\Gamma_2}{K}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{
-      \typechecks{\Gamma}{x[K]}{\type\to\nat}
+      \ctxtypechecks{\Gamma_1\circ\Gamma_2}{x[K]}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{w-te-get}
     %
     \typerule{et-setR}{
-      \typechecks{\Gamma}{v}{\nat} &
-      \typechecks{\Gamma}{K}{\type\to\nat}
+      \typechecks{\Gamma_1}{x}{\wptr} &
+      \typechecks{\Gamma_2}{\valueexpr}{\nat} &
+      \ctxtypechecks{\Gamma_3}{K}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{
-      \typechecks{\Gamma}{x[\valueexpr]\leftarrow K}{\type\to\nat}
+      \ctxtypechecks{(\Gamma_1\circ\Gamma_2)\circ\Gamma_3}{x[\valueexpr]\leftarrow K}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{w-te-setR}
     %
     \typerule{et-setL}{
-      \typechecks{\Gamma}{K}{\type\to\nat} &
-      \typechecks{\Gamma}{e}{\nat}
+      \typechecks{\Gamma_1}{x}{\wptr} &
+      \ctxtypechecks{\Gamma_2}{K}{\type\to\nat}{\Gamma_{\hole{\cdot}}} &
+      \typechecks{\Gamma_3}{e}{\nat}
     }{
-      \typechecks{\Gamma}{x[K]\leftarrow e}{\type\to\nat}
+      \ctxtypechecks{(\Gamma_1\circ\Gamma_2)\circ\Gamma_3}{x[K]\leftarrow e}{\type\to\nat}{\Gamma_{\hole{\cdot}}}
     }{w-te-setL}
     %
     \typerule{et-let}{
-      \typechecks{\Gamma}{K}{\type^{(1)}\to\type_{e}'} &
-      \typechecks{x:\type_{e}',\Gamma}{e}{\type^{(2)}}
+      \ctxtypechecks{\Gamma_1}{K}{\type^{(1)}\to\type_{e}'}{\Gamma_{\hole{\cdot}}} &
+      \typechecks{x:\type_{e}',\Gamma_2}{e}{\type^{(2)}}
     }{
-      \typechecks{\Gamma}{let\ x=K\ in\ e}{\type^{(1)}\to\type^{(2)}}
+      \ctxtypechecks{\Gamma_1\circ\Gamma_2}{let\ x=K\ in\ e}{\type^{(1)}\to\type^{(2)}}{\Gamma_{\hole{\cdot}}}
     }{w-te-let}
     %
     \typerule{et-new}{
-      \typechecks{\Gamma}{K}{\type^{(1)}\to\nat} &
-      \typechecks{x:\ptr,\Gamma}{e}{\type^{(2)}}
+      \ctxtypechecks{\Gamma_1}{K}{\type^{(1)}\to\nat}{\Gamma_{\hole{\cdot}}} &
+      \typechecks{x:\ptr,\Gamma_2}{e}{\type^{(2)}}
     }{
-      \typechecks{\Gamma}{let\ x=new\ K\ in\ e}{\type^{(1)}\to\type^{(2)}}
+      \ctxtypechecks{\Gamma_1\circ\Gamma_2}{let\ x=new\ K\ in\ e}{\type^{(1)}\to\type^{(2)}}{\Gamma_{\hole{\cdot}}}
     }{w-te-new}
     %
     \typerule{et-ifz}{
-      \typechecks{\Gamma}{K}{\type^{(1)}\to\nat} &
-      \typechecks{\Gamma}{e_2}{\type^{(2)}}&
-      \typechecks{\Gamma}{e_3}{\type^{(2)}}&
+      \ctxtypechecks{\Gamma_1}{K}{\type^{(1)}\to\nat}{\Gamma_{\hole{\cdot}}} &
+      \typechecks{\Gamma_2}{e_2}{\type^{(2)}}&
+      \typechecks{\Gamma_2}{e_3}{\type^{(2)}}&
     }{
-      \typechecks{\Gamma}{ifz\ K\ then\ e_2\ else\ e_3}{\type^{(1)}\to\type^{(2)}}
+      \ctxtypechecks{\Gamma_1\circ\Gamma_2}{ifz\ K\ then\ e_2\ else\ e_3}{\type^{(1)}\to\type^{(2)}}{\Gamma_{\hole{\cdot}}}
     }{w-te-ifz}
     %
     \typerule{et-call}{
-      \typechecks{\Gamma}{K}{\type^{(1)}\to\type'} &
+      \ctxtypechecks{\Gamma}{K}{\type^{(1)}\to\type'}{\Gamma_{\hole{\cdot}}} &
       \typechecks{\Gamma}{foo}{\type'\to\type^{(2)}}
     }{
-      \typechecks{\Gamma}{call\ foo\ K}{\type^{(1)}\to\type^{(2)}}
+      \ctxtypechecks{\Gamma}{call\ foo\ K}{\type^{(1)}\to\type^{(2)}}{\Gamma_{\hole{\cdot}}}
     }{w-te-call}
     %
     \typerule{et-ret}{
-      \typechecks{\Gamma}{K}{\type^{(1)}\to\type^{(2)}}
+      \ctxtypechecks{\Gamma}{K}{\type^{(1)}\to\type^{(2)}}{\Gamma_{\hole{\cdot}}}
     }{
-      \typechecks{\Gamma}{return\ K}{\type^{(1)}\to(\type^{(2)}\to\bot)}
+      \ctxtypechecks{\Gamma}{return\ K}{\type^{(1)}\to(\type^{(2)}\to\bot)}{\Gamma_{\hole{\cdot}}}
     }{w-te-ret}
   \end{center}
 }{w-ectx-ty}{Checking of $\mmlAs$ evaluation contexts.}
@@ -1012,20 +1014,38 @@ We also use it to project the call/return events onto it.
   \begin{assumptions}
     \item $\typechecks{\Gamma}{K[e]}{\type}$
   \end{assumptions}
-  Then $\exists \src{\type_{e}}$,
+  Then $\exists \src{\type_{e}}, \src{\Gamma_{\hole{\cdot}}}$,
   \begin{goals}
-    \item $\typechecks{\Gamma}{K}{\type_{e}\to\type}$
-    \item $\typechecks{\Gamma}{e}{\type_{e}}$
+    \item $\ctxtypechecks{\Gamma}{K}{\type_{e}\to\type}{\Gamma_{\hole{\cdot}}}$
+    \item $\typechecks{\Gamma_{\hole{\cdot}}}{e}{\type_{e}}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on $\src{K}$.
+  By induction on $\src{K}$.
+
+  \case{tr:w-te-hole}
+    $\src{K} = \src{\hole{\cdot}}$, so $\src{K[e]} = \src{e}$.
+    We have $\typechecks{\Gamma}{e}{\type}$.
+    By \Cref{tr:w-te-hole}, $\ctxtypechecks{\Gamma}{\hole{\cdot}}{\type\to\type}{\Gamma}$.
+    Take $\src{\Gamma_{\hole{\cdot}}} = \Gammas$ and $\types_e = \types$.
+
+  \case{tr:w-te-let}
+    $\src{K} = \src{let\ x = K'\ in\ e'}$, so $\src{K[e]} = \src{let\ x = K'[e]\ in\ e'}$.
+    By inversion of \Cref{tr:t-let}, $\Gammas \equiv \src{\Gamma_1} \circ \src{\Gamma_2}$ with:
+    \begin{itemize}
+      \item $\typechecks{\Gamma_1}{K'[e]}{\type_e'}$
+      \item $\typechecks{x:\type_e', \Gamma_2}{e'}{\type}$
+    \end{itemize}
+    By IH on $\src{K'}$: $\ctxtypechecks{\Gamma_1}{K'}{\type_e\to\type_e'}{\Gamma_{\hole{\cdot}}}$ and $\typechecks{\Gamma_{\hole{\cdot}}}{e}{\type_e}$.
+    By \Cref{tr:w-te-let}: $\ctxtypechecks{\Gamma_1\circ\Gamma_2}{let\ x=K'\ in\ e'}{\type_e\to\type}{\Gamma_{\hole{\cdot}}}$.
+
+  Other cases follow similarly, propagating $\src{\Gamma_{\hole{\cdot}}}$ through the recursive structure.
 \end{proof}
 \begin{lemma}[Typing Composition]\label{lem:ctxtyping:compos}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:ctxtyping:compos:K} $\typechecks{\Gamma}{K}{\type_{e}\to\type}$
-    \item $\typechecks{\Gamma}{e}{\type_{e}}$
+    \item\label[ass]{asm:ctxtyping:compos:K} $\ctxtypechecks{\Gamma}{K}{\type_{e}\to\type}{\Gamma_{\hole{\cdot}}}$
+    \item $\typechecks{\Gamma_{\hole{\cdot}}}{e}{\type_{e}}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1033,27 +1053,47 @@ We also use it to project the call/return events onto it.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Induction on \Cref{asm:ctxtyping:compos:K}.
+  By induction on \Cref{asm:ctxtyping:compos:K}.
+
+  \case{tr:w-te-hole}
+    $\src{K} = \src{\hole{\cdot}}$ with $\ctxtypechecks{\Gamma}{\hole{\cdot}}{\type\to\type}{\Gamma}$.
+    So $\src{\Gamma_{\hole{\cdot}}} = \Gammas$ and $\types_e = \types$.
+    We have $\typechecks{\Gamma}{e}{\type}$, and $\src{K[e]} = \src{e}$. Done.
+
+  \case{tr:w-te-let}
+    $\src{K} = \src{let\ x = K'\ in\ e'}$ with $\ctxtypechecks{\Gamma_1\circ\Gamma_2}{K}{\type_e\to\type}{\Gamma_{\hole{\cdot}}}$.
+    By inversion:
+    \begin{itemize}
+      \item $\ctxtypechecks{\Gamma_1}{K'}{\type_e\to\type_e'}{\Gamma_{\hole{\cdot}}}$
+      \item $\typechecks{x:\type_e', \Gamma_2}{e'}{\type}$
+    \end{itemize}
+    By assumption, $\typechecks{\Gamma_{\hole{\cdot}}}{e}{\type_e}$.
+    By IH: $\typechecks{\Gamma_1}{K'[e]}{\type_e'}$.
+    By \Cref{tr:t-let} with split $\src{\Gamma_1} \circ \src{\Gamma_2}$:
+    $\typechecks{\Gamma_1\circ\Gamma_2}{let\ x = K'[e]\ in\ e'}{\type}$.
+
+  Other cases follow similarly.
 \end{proof}
 \begin{lemma}[Runtime Typing Decomposition]\label{lem:rtctxtyping:plugged}
   If
   \begin{assumptions}
     \item $\typechecks{}{\Omega \triangleright K[e]}{\type}$
   \end{assumptions}
-  Then $\exists \src{\type_{e}}$,
+  Then $\exists \src{\type_{e}}, \src{\Gamma_{\hole{\cdot}}}$,
   \begin{goals}
-    \item $\typechecks{}{\Omega \triangleright K}{\type_{e}\to\type}$
-    \item $\typechecks{}{\Omega \triangleright e}{\type_{e}}$
+    \item $\ctxtypechecks{}{\Omega \triangleright K}{\type_{e}\to\type}{\Gamma_{\hole{\cdot}}}$
+    \item $\typechecks{\Gamma_{\hole{\cdot}}}{e}{\type_{e}}$
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Use \Cref{lem:ctxtyping:plugged}.
+  By \Cref{tr:w-t-prog-runtime}, extract context $\Gammas$ from $\src{\Omega}$.
+  Apply \Cref{lem:ctxtyping:plugged} to get $\src{\Gamma_{\hole{\cdot}}}$ and $\types_e$.
 \end{proof}
 \begin{lemma}[Runtime Typing Composition]\label{lem:rtctxtyping:compos}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\Omega \triangleright K}{\type_{e}\to\type}$
-    \item $\typechecks{}{\Omega \triangleright e}{\type_{e}}$
+    \item $\ctxtypechecks{}{\Omega \triangleright K}{\type_{e}\to\type}{\Gamma_{\hole{\cdot}}}$
+    \item $\typechecks{\Gamma_{\hole{\cdot}}}{e}{\type_{e}}$
   \end{assumptions}
   Then
   \begin{goals}
@@ -1185,86 +1225,383 @@ We also use it to project the call/return events onto it.
 \begin{lemma}[Base Preservation]\label{lem:base-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
-    \item\label[ass]{asm:basepres:step} $\exprevals{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
-    \item $\configs'\not=\src{\lightning}$
+    \item\label[ass]{asm:basepres:typs} $\typechecks{}{\src{\Omega}\triangleright \expr\gamma}{\src{\type}}$
+    \item\label[ass]{asm:basepres:step} $\exprevals{\configs}{\expr\gamma}{\configs'}{\expr'\gamma'}{\event}$
+    \item\label[ass]{asm:basepres:nocrash} $\configs'\not=\src{\lightning}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright \expr'\gamma'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
-  Induction on \Cref{asm:basepres:step}.
+  By induction on \Cref{asm:basepres:step}.
+  In each case, we extract the typing context $\Gammas$ from $\src{\Omega}$ via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-oplus}
+    $\src{\expr} = \src{n_1 \oplus n_2}$ and $\src{\expr'} = \src{n_3}$ where $\src{n_1} \oplus \src{n_2} = \src{n_3}$.
+    Configuration unchanged: $\src{\Omega'} = \src{\Omega}$.
+    By inversion of \Cref{asm:basepres:typs}, $\typechecks{\Gamma}{n_1 \oplus n_2}{\nat}$, so $\types = \nat$.
+    By \Cref{tr:t-nat}, $\typechecks{\Gamma}{n_3}{\nat}$.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-get-in}
+    $\src{\expr} = \src{x[n]}$ and $\src{\expr'} = \src{H^{\sandboxtag}(\loc+n)}$.
+    Configuration unchanged: $\src{\Omega'} = \src{\Omega}$.
+    By inversion, $\typechecks{\Gamma_1}{x}{\wptr}$ and $\typechecks{\Gamma_2}{n}{\nat}$ with $\Gammas = \src{\Gamma_1} \circ \src{\Gamma_2}$.
+    Since heap values are natural numbers, $\typechecks{\Gamma}{H^{\sandboxtag}(\loc+n)}{\nat}$ by \Cref{tr:t-nat}.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-get-notin}
+    Similar to above; result is $\src{1729}$ which has type $\nat$.
+
+  \case{tr:w-e-set-in}
+    $\src{\expr} = \src{x[n] \leftarrow \valueexpr}$ and $\src{\expr'} = \src{\valueexpr}$.
+    By inversion, $\typechecks{\Gamma}{\valueexpr}{\nat}$.
+    The heap is updated but the store $\Deltas$ is unchanged, so the typing context $\Gammas$ remains valid.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-set-notin}
+    Similar to above.
+
+  \case{tr:w-e-let-f}
+    $\src{\expr} = \src{let\ x = \finalexprnoerr\ in\ \expr[_0]}$ and $\src{\expr'} = \src{\expr[_0][\finalexprnoerr/x]}$.
+    By inversion of \Cref{tr:t-let}, $\Gammas = \src{\Gamma_1} \circ \src{\Gamma_2}$ with:
+    \begin{itemize}
+      \item $\typechecks{\Gamma_1}{\finalexprnoerr}{\type'}$
+      \item $\typechecks{x:\type', \Gamma_2}{\expr[_0]}{\type}$
+    \end{itemize}
+    By \Cref{lem:substitution} with $\src{\Gamma_3} = \src{\Gamma_1} \circ \src{\Gamma_2}$:
+    $\typechecks{\Gamma_1 \circ \Gamma_2}{\expr[_0][\finalexprnoerr/x]}{\type}$.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-delete}
+    $\src{\expr} = \src{delete\ x}$ and $\src{\expr'} = \src{0}$.
+    The store is updated to mark $\src{x}$ as poisoned.
+    By \Cref{tr:t-poison-store}, poisoned locations do not contribute to $\Gammas$.
+    Hence the new typing context $\src{\Gamma'}$ from the updated store satisfies $\typechecks{\Gamma'}{0}{\nat}$.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-let-new}
+    $\src{\expr} = \src{let\ x = new\ n\ in\ \expr[_0]}$ and $\src{\expr'} = \src{\expr[_0][z/x]}$.
+    A fresh location $\src{z}$ is allocated.
+    By inversion of \Cref{tr:w-t-new}, $\Gammas = \src{\Gamma_1} \circ \src{\Gamma_2}$ with:
+    \begin{itemize}
+      \item $\typechecks{\Gamma_1}{n}{\nat}$
+      \item $\typechecks{x:\ptr, \Gamma_2}{\expr[_0]}{\type}$
+    \end{itemize}
+    By \Cref{tr:t-ptr-store}, the new store yields context $\src{z:\ptr, \Gamma'}$.
+    By $\alpha$-conversion (\Cref{lem:alpha-conv-typing}) and \Cref{lem:substitution}:
+    $\typechecks{z:\ptr, \Gamma_1 \circ \Gamma_2}{\expr[_0][z/x]}{\type}$.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-if-true}
+    $\src{\expr} = \src{ifz\ 0\ then\ \expr[_1]\ else\ \expr[_2]}$ and $\src{\expr'} = \src{\expr[_1]}$.
+    By inversion of \Cref{tr:w-t-if}, $\typechecks{\Gamma}{\expr[_1]}{\type}$.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-if-false}
+    Similar; by inversion $\typechecks{\Gamma}{\expr[_2]}{\type}$.
+
+  \case{tr:w-e-abort}
+    Excluded by \Cref{asm:basepres:nocrash} since $\src{\Omega'} = \src{\lightning}$.
 \end{proof}
 
 \begin{lemma}[Ctx Preservation]\label{lem:ctx-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
-    \item\label[ass]{asm:ctxpres:step} $\execs[]{\configs}{e\gamma}{\configs'}{e'\gamma'}{\event}$
+    \item\label[ass]{asm:ctxpres:typs} $\typechecks{}{\src{\Omega}\triangleright \expr\gamma}{\src{\type}}$
+    \item\label[ass]{asm:ctxpres:step} $\execs[]{\configs}{\expr\gamma}{\configs'}{\expr'\gamma'}{\event}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright \expr'\gamma'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
-  Induction on \Cref{asm:ctxpres:step}.
+  By induction on \Cref{asm:ctxpres:step}.
+
+  \case{tr:w-e-ectx}
+    We have $\src{\expr} = \src{K[\expr[_0]]}$, $\src{\expr'} = \src{K[\expr[_0]']}$, and $\exprevals{\Omega}{\expr[_0]}{\Omega'}{\expr[_0]'}{\event}$.
+
+    By \Cref{lem:rtctxtyping:plugged} on \Cref{asm:ctxpres:typs}:
+    \begin{itemize}
+      \item $\ctxtypechecks{}{\Omega \triangleright K}{\type_e \to \type}{\Gamma_{\hole{\cdot}}}$
+      \item $\typechecks{\Gamma_{\hole{\cdot}}}{\expr[_0]}{\type_e}$
+    \end{itemize}
+
+    If $\src{\Omega'} = \src{\lightning}$, then the goal holds vacuously (crashed configurations are well-typed by convention).
+
+    Otherwise, by \Cref{lem:base-preservation}:
+    $\typechecks{}{\Omega' \triangleright \expr[_0]'}{\type_e}$.
+
+    The evaluation context $\src{K}$ is unchanged, and the portion of the context $\src{\Gamma_{\hole{\cdot}}}$ that flows to the hole may be updated according to the store changes in $\src{\Omega'}$.
+    By inspection of the base evaluation rules (\Cref{fig:w-expr-prim-eval}), store updates preserve the typing derivation structure.
+
+    By \Cref{lem:rtctxtyping:compos}:
+    $\typechecks{}{\Omega' \triangleright K[\expr[_0]']}{\type}$.
+
+  \case{tr:w-e-ectx-stuck}
+    We have $\exprevals{\Omega}{\expr[_0]}{\Omega'}{stuck}{\lightning}$.
+    Then $\src{\expr'} = \src{stuck}$ and $\src{\Omega'}$ represents a crashed state.
+    Crashed configurations are well-typed by convention.
+
+  \case{tr:w-e-ectx-call-main}
+    We have $\src{\expr} = \src{K[call\ main\ \valueexpr]}$ and $\src{\expr'} = \src{\expr[_{\text{body}}][\valueexpr/x]}$.
+    The library contains $\src{let\ main\ x:\type_\lambda := \expr[_{\text{body}}]}$.
+
+    By \Cref{lem:rtctxtyping:plugged}:
+    \begin{itemize}
+      \item $\ctxtypechecks{}{\Omega \triangleright K}{\type_e \to \type}{\Gamma_{\hole{\cdot}}}$
+      \item $\typechecks{\Gamma_{\hole{\cdot}}}{call\ main\ \valueexpr}{\type_e}$
+    \end{itemize}
+
+    By inversion of \Cref{tr:t-call}, $\types_e = \types_{\text{ret}}$ where $\src{main} : \src{\type_{\text{arg}} \to \type_{\text{ret}}} \in \src{\Gamma_0}$.
+    By the well-formedness of the library (\Cref{tr:w-t-wprog}): $\typechecks{x:\type_{\text{arg}}, \Gamma_0}{\expr[_{\text{body}}]}{\type_{\text{ret}}}$.
+
+    By \Cref{lem:substitution}: $\typechecks{\Gamma_0}{\expr[_{\text{body}}][\valueexpr/x]}{\type_{\text{ret}}}$.
+    The continuation stack is updated to $(K;main), \src{\hole{\cdot}}$.
+
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-ectx-call-notsame}
+    Similar to above. The function $\src{foo}$ is in a different compartment.
+    By library well-formedness and \Cref{lem:substitution}, the body is well-typed.
+    The continuation stack and sandbox tag are updated accordingly.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-ectx-call-same}
+    Similar to above. The function $\src{foo}$ is in the same compartment.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-ectx-ret-main}
+    We have $\src{\expr} = \src{K'[return\ \valueexpr]}$ with continuation stack $\src{\hole{\cdot}^{main}, \hole{\cdot}}$.
+    The result is $\src{\expr'} = \src{\valueexpr}$.
+    By inversion, $\typechecks{\Gamma}{\valueexpr}{\type_{\text{ret}}}$.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
+
+  \case{tr:w-e-ectx-ret-notsame}
+    We have continuation stack $\src{(K;foo), \kontstack}$ where $\src{foo}$ is in a different compartment.
+    The return restores the context $\src{K}$ with the value $\src{\valueexpr}$ plugged in.
+    By inversion of the call typing, $\src{K}$ expects a value of type $\types_{\text{ret}}$.
+    By \Cref{lem:rtctxtyping:compos}: $\typechecks{}{\Omega' \triangleright K[\valueexpr]}{\type}$.
+
+  \case{tr:w-e-ectx-ret-same}
+    Similar to above; the function is in the same compartment.
+    Reconstruct via \Cref{tr:w-t-prog-runtime}.
 \end{proof}
 
 \begin{lemma}[N-Steps Preservation]\label{lem:nsteps-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
-    \item\label[ass]{asm:npres:step} $\execsn{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}$
+    \item\label[ass]{asm:npres:typs} $\typechecks{}{\src{\Omega}\triangleright \expr\gamma}{\src{\type}}$
+    \item\label[ass]{asm:npres:step} $\execsn{\configs}{\expr\gamma}{\configs'}{\expr'\gamma'}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright \expr'\gamma'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
-  Induction on \Cref{asm:npres:step}.
+  By induction on $n$ in \Cref{asm:npres:step}.
+
+  \case{tr:wsn-e-refl} ($n = 0$)
+    We have $\execsn[^0]{\Omega}{\expr}{\Omega}{\expr}{\emptyevent}$.
+    The configuration and expression are unchanged: $\src{\Omega'} = \src{\Omega}$ and $\src{\expr'} = \src{\expr}$.
+    The goal follows immediately from \Cref{asm:npres:typs}.
+
+  \case{tr:wsn-e-trans-important} ($n = k + 1$)
+    We have:
+    \begin{itemize}
+      \item $\execs[]{\Omega}{\expr}{\Omega_1}{\expr[_1]}{\event}$ with $\src{\event} \neq \src{\emptyevent}$
+      \item $\execsn[^k]{\Omega_1}{\expr[_1]}{\Omega'}{\expr'}{\trace}$
+    \end{itemize}
+
+    By \Cref{lem:ctx-preservation} applied to the first step:
+    $\typechecks{}{\Omega_1 \triangleright \expr[_1]}{\type}$.
+
+    By the induction hypothesis on $k$:
+    $\typechecks{}{\Omega' \triangleright \expr'}{\type}$.
+
+  \case{tr:wsn-e-trans-unimportant} ($n = k + 1$)
+    We have:
+    \begin{itemize}
+      \item $\execs[]{\Omega}{\expr}{\Omega_1}{\expr[_1]}{\emptyevent}$
+      \item $\execsn[^k]{\Omega_1}{\expr[_1]}{\Omega'}{\expr'}{\trace}$
+    \end{itemize}
+
+    By \Cref{lem:ctx-preservation} applied to the first step:
+    $\typechecks{}{\Omega_1 \triangleright \expr[_1]}{\type}$.
+
+    By the induction hypothesis on $k$:
+    $\typechecks{}{\Omega' \triangleright \expr'}{\type}$.
 \end{proof}
 
 \begin{lemma}[Steps Preservation]\label{lem:steps-preservation}
   If
   \begin{assumptions}
-    \item $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
-    \item\label[ass]{asm:starpres:step} $\execs{\configs}{e\gamma}{\configs'}{e'\gamma'}{\trace}$
+    \item\label[ass]{asm:starpres:typs} $\typechecks{}{\src{\Omega}\triangleright \expr\gamma}{\src{\type}}$
+    \item\label[ass]{asm:starpres:step} $\execs{\configs}{\expr\gamma}{\configs'}{\expr'\gamma'}{\trace}$
   \end{assumptions}
   Then
   \begin{goals}
-    \item $\typechecks{}{\src{\Omega'}\triangleright e'\gamma'}{\src{\type}}$
+    \item $\typechecks{}{\src{\Omega'}\triangleright \expr'\gamma'}{\src{\type}}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
-  Induction on \Cref{asm:starpres:step}.
+  By induction on \Cref{asm:starpres:step}.
+
+  \case{tr:ws-e-refl}
+    We have $\execs{\Omega}{\finalexprnoerr}{\Omega}{\finalexprnoerr}{\hole{\cdot}}$.
+    The configuration and expression are unchanged.
+    The goal follows immediately from \Cref{asm:starpres:typs}.
+
+  \case{tr:ws-e-trans-important}
+    We have:
+    \begin{itemize}
+      \item $\execs[]{\Omega}{\expr}{\Omega_1}{\expr[_1]}{\event}$ with $\src{\event} \neq \src{\emptyevent}$
+      \item $\execs{\Omega_1}{\expr[_1]}{\Omega'}{\expr'}{\trace}$
+    \end{itemize}
+
+    By \Cref{lem:ctx-preservation} applied to the first step:
+    $\typechecks{}{\Omega_1 \triangleright \expr[_1]}{\type}$.
+
+    By the induction hypothesis on the remaining steps:
+    $\typechecks{}{\Omega' \triangleright \expr'}{\type}$.
+
+  \case{tr:ws-e-trans-unimportant}
+    We have:
+    \begin{itemize}
+      \item $\execs[]{\Omega}{\expr}{\Omega_1}{\expr[_1]}{\emptyevent}$
+      \item $\execs{\Omega_1}{\expr[_1]}{\Omega'}{\expr'}{\trace}$
+    \end{itemize}
+
+    By \Cref{lem:ctx-preservation} applied to the first step:
+    $\typechecks{}{\Omega_1 \triangleright \expr[_1]}{\type}$.
+
+    By the induction hypothesis on the remaining steps:
+    $\typechecks{}{\Omega' \triangleright \expr'}{\type}$.
 \end{proof}
 
 \begin{lemma}[Progress]\label{lem:progress}
   If
   \begin{assumptions}
-    \item\label[ass]{asm:progress:typs} $\typechecks{}{\src{\Omega}\triangleright e\gamma}{\src{\type}}$
+    \item\label[ass]{asm:progress:typs} $\typechecks{}{\src{\Omega}\triangleright \expr\gamma}{\src{\type}}$
   \end{assumptions}
   Then $\exists \src{\Omega'}\ \src{\finalexpr}\ \src{\trace}$,
   \begin{goals}
-  \item $\execs{\configs}{e}{\configs'}{\finalexpr}{\trace}$
+  \item $\execs{\configs}{\expr}{\configs'}{\finalexpr}{\trace}$
   \end{goals}.
 \end{lemma}
 \begin{proof}
-  Nested induction on \Cref{asm:progress:typs}.
+  By nested induction: outer induction on the structure of $\src{\expr}$, inner induction on evaluation contexts when needed.
+  We extract the typing context $\Gammas$ from $\src{\Omega}$ via \Cref{tr:w-t-prog-runtime}.
+
+  \begin{description}
+  \item[Case $\src{\expr} = \src{\finalexprnoerr}$] (values or variables).
+    The expression is already a final result.
+    By \Cref{tr:ws-e-refl}: $\execs{\Omega}{\finalexprnoerr}{\Omega}{\finalexprnoerr}{\hole{\cdot}}$.
+
+  \item[Case $\src{\expr} = \src{n_1 \oplus n_2}$] (both operands are values).
+    By \Cref{tr:w-e-oplus}: $\exprevals{\Omega}{n_1 \oplus n_2}{\Omega}{n_3}{\emptyevent}$ where $\src{n_3} = \src{n_1} \oplus \src{n_2}$.
+    By \Cref{tr:w-e-ectx} with $\src{K} = \src{\hole{\cdot}}$: $\execs[]{\Omega}{n_1 \oplus n_2}{\Omega}{n_3}{\emptyevent}$.
+    By \Cref{tr:ws-e-refl,tr:ws-e-trans-unimportant}: $\execs{\Omega}{n_1 \oplus n_2}{\Omega}{n_3}{\hole{\cdot}}$.
+
+  \item[Case $\src{\expr} = \src{\expr[_1] \oplus \expr[_2]}$] (at least one non-value).
+    \begin{itemize}
+      \item If $\src{\expr[_1]}$ is not a value:
+        By IH on $\src{\expr[_1]}$: $\execs{\Omega}{\expr[_1]}{\Omega'}{\finalexpr[_1]}{\trace[_1]}$.
+        The evaluation context is $\src{K} = \src{\hole{\cdot} \oplus \expr[_2]}$.
+        By lifting through the context: $\execs{\Omega}{\expr[_1] \oplus \expr[_2]}{\Omega''}{\finalexpr}{\trace}$.
+      \item If $\src{\expr[_1]} = \src{\valueexpr[_1]}$ is a value, $\src{\expr[_2]}$ is not:
+        By IH on $\src{\expr[_2]}$: $\execs{\Omega}{\expr[_2]}{\Omega'}{\finalexpr[_2]}{\trace[_2]}$.
+        The evaluation context is $\src{K} = \src{\valueexpr[_1] \oplus \hole{\cdot}}$.
+        By lifting through the context: $\execs{\Omega}{\valueexpr[_1] \oplus \expr[_2]}{\Omega''}{\finalexpr}{\trace}$.
+    \end{itemize}
+
+  \item[Case $\src{\expr} = \src{x[n]}$] (index is a value).
+    By well-typedness, $\src{x} : \src{\wptr} \in \Gammas$.
+    By \Cref{tr:w-t-prog-runtime}, $\src{x}$ is bound in $\src{\Omega.\Delta}$.
+    Either $\src{\loc + n} \in \operatorname{dom}(\src{H^{\sandboxtag}})$ or not:
+    \begin{itemize}
+      \item If in domain: by \Cref{tr:w-e-get-in}, $\exprevals{\Omega}{x[n]}{\Omega}{H^{\sandboxtag}(\loc+n)}{\ldots}$.
+      \item If not in domain: by \Cref{tr:w-e-get-notin}, $\exprevals{\Omega}{x[n]}{\Omega}{1729}{\ldots}$.
+    \end{itemize}
+    Lift to multi-step via \Cref{tr:w-e-ectx,tr:ws-e-trans-important,tr:ws-e-refl}.
+
+  \item[Case $\src{\expr} = \src{x[\expr[_1]]}$] ($\src{\expr[_1]}$ not a value).
+    By IH on $\src{\expr[_1]}$: $\execs{\Omega}{\expr[_1]}{\Omega'}{\finalexpr[_1]}{\trace[_1]}$.
+    Lift through context $\src{K} = \src{x[\hole{\cdot}]}$.
+
+  \item[Case $\src{\expr} = \src{x[n] \leftarrow \valueexpr}$] (both index and value are values).
+    Similar to get case. By \Cref{tr:w-e-set-in} or \Cref{tr:w-e-set-notin}.
+
+  \item[Case $\src{\expr} = \src{x[\expr[_1]] \leftarrow \expr[_2]}$] (at least one non-value).
+    By IH on the leftmost non-value sub-expression, lift through appropriate context.
+
+  \item[Case $\src{\expr} = \src{let\ x = \finalexprnoerr\ in\ \expr[_0]}$.]
+    By \Cref{tr:w-e-let-f}: $\exprevals{\Omega}{let\ x = \finalexprnoerr\ in\ \expr[_0]}{\Omega}{\expr[_0][\finalexprnoerr/x]}{\emptyevent}$.
+    Lift to multi-step.
+
+  \item[Case $\src{\expr} = \src{let\ x = \expr[_1]\ in\ \expr[_2]}$] ($\src{\expr[_1]}$ not final).
+    By IH on $\src{\expr[_1]}$: $\execs{\Omega}{\expr[_1]}{\Omega'}{\finalexpr[_1]}{\trace[_1]}$.
+    Lift through context $\src{K} = \src{let\ x = \hole{\cdot}\ in\ \expr[_2]}$.
+
+  \item[Case $\src{\expr} = \src{let\ x = new\ n\ in\ \expr[_0]}$.]
+    By \Cref{tr:w-e-let-new}: a fresh location is allocated.
+    $\exprevals{\Omega}{let\ x = new\ n\ in\ \expr[_0]}{\Omega'}{\expr[_0][z/x]}{\ldots}$.
+    Lift to multi-step.
+
+  \item[Case $\src{\expr} = \src{let\ x = new\ \expr[_1]\ in\ \expr[_0]}$] ($\src{\expr[_1]}$ not a value).
+    By IH on $\src{\expr[_1]}$, lift through context $\src{K} = \src{let\ x = new\ \hole{\cdot}\ in\ \expr[_0]}$.
+
+  \item[Case $\src{\expr} = \src{delete\ x}$.]
+    By \Cref{tr:w-e-delete}: $\exprevals{\Omega}{delete\ x}{\Omega'}{0}{\ldots}$.
+    Lift to multi-step.
+
+  \item[Case $\src{\expr} = \src{ifz\ 0\ then\ \expr[_1]\ else\ \expr[_2]}$.]
+    By \Cref{tr:w-e-if-true}: $\exprevals{\Omega}{ifz\ 0\ then\ \expr[_1]\ else\ \expr[_2]}{\Omega}{\expr[_1]}{\emptyevent}$.
+    By IH on $\src{\expr[_1]}$: $\execs{\Omega}{\expr[_1]}{\Omega'}{\finalexpr}{\trace}$.
+    Combine steps.
+
+  \item[Case $\src{\expr} = \src{ifz\ S(n)\ then\ \expr[_1]\ else\ \expr[_2]}$.]
+    By \Cref{tr:w-e-if-false}: step to $\src{\expr[_2]}$.
+    By IH on $\src{\expr[_2]}$: complete evaluation.
+
+  \item[Case $\src{\expr} = \src{ifz\ \expr[_0]\ then\ \expr[_1]\ else\ \expr[_2]}$] ($\src{\expr[_0]}$ not a value).
+    By IH on $\src{\expr[_0]}$, lift through context $\src{K} = \src{ifz\ \hole{\cdot}\ then\ \expr[_1]\ else\ \expr[_2]}$.
+
+  \item[Case $\src{\expr} = \src{call\ foo\ \valueexpr}$.]
+    By well-typedness, $\src{foo}$ is defined in $\src{\Omega.\library}$.
+    By \Cref{tr:w-e-ectx-call-main}, \Cref{tr:w-e-ectx-call-notsame}, or \Cref{tr:w-e-ectx-call-same}:
+    the call steps to the function body with argument substituted.
+    By IH on the function body: complete evaluation.
+
+  \item[Case $\src{\expr} = \src{call\ foo\ \expr[_0]}$] ($\src{\expr[_0]}$ not a value).
+    By IH on $\src{\expr[_0]}$, lift through context $\src{K} = \src{call\ foo\ \hole{\cdot}}$.
+
+  \item[Case $\src{\expr} = \src{return\ \valueexpr}$.]
+    By \Cref{tr:w-e-ectx-ret-main}, \Cref{tr:w-e-ectx-ret-notsame}, or \Cref{tr:w-e-ectx-ret-same}:
+    the return pops the continuation stack and resumes the caller.
+    By IH: complete evaluation of the resumed computation.
+
+  \item[Case $\src{\expr} = \src{return\ \expr[_0]}$] ($\src{\expr[_0]}$ not a value).
+    By IH on $\src{\expr[_0]}$, lift through context $\src{K} = \src{return\ \hole{\cdot}}$.
+
+  \item[Case $\src{\expr} = \src{abort()}$.]
+    By \Cref{tr:w-e-abort}: $\exprevals{\Omega}{abort()}{\lightning}{stuck}{\lightning}$.
+    Lift to multi-step with crash.
+  \end{description}
 \end{proof}
 
 \begin{scontents}[store-env=buffer]
   If
   \begin{assumptions}
-  \item $\typechecks{}{e}{\type}$
+  \item $\typechecks{}{\expr}{\type}$
   \end{assumptions}
   Then $\exists \src{\Omega}\ \src{\trace}\ \src{\finalexpr}$,
   \begin{goals}
-  \item $\execs{\hole{\cdot};\hole{\cdot}}{e}{\Omega}{\finalexpr}{\trace}$
+  \item $\execs{\hole{\cdot};\hole{\cdot}}{\expr}{\Omega}{\finalexpr}{\trace}$
   \item $\typechecks{}{\finalexprnoerr}{\type}$
   \end{goals}.
 \end{scontents}
@@ -1276,7 +1613,7 @@ We also use it to project the call/return events onto it.
 \begin{lemma}[Top-Level Progress]\label{lem:toplevel:progress}
   If
   \begin{assumptions}
-    \item $\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\src{\commlib}$
+    \item\label[ass]{asm:toplevel:typs} $\vdash\src{prog\ \library_{ctx}\ \library_{comp}}\dashv\src{\library},\src{\commlib}$
   \end{assumptions}
   Then $\exists \configs\ \src{\finalexpr}\ \src{\trace}$,
   \begin{goals}
@@ -1286,7 +1623,28 @@ We also use it to project the call/return events onto it.
   \end{goals}.
 \end{lemma}
 \begin{proof}
-  Immediate consequence of \Cref{lem:progress}.
+  By \Cref{asm:toplevel:typs} and inversion of \Cref{tr:w-t-wprog}:
+  \begin{itemize}
+    \item $\src{\library} = \src{\library_{ctx} \linker \library_{comp}}$
+    \item $\src{\library} \downarrow = \src{\Gamma_0}$
+    \item $\src{main} \in \operatorname{dom}(\src{\Gamma_0})$
+    \item $\typechecks{\Gamma_0}{call\ main\ 0}{\nat \to \nat}$
+  \end{itemize}
+
+  Construct the initial configuration:
+  $\src{\Omega_0} = \src{\commlib; \library; \hole{\cdot}; \comp; \hole{\cdot}; \hole{\cdot}; \hole{\cdot}}$.
+
+  By \Cref{tr:t-empty-store}: $\typechecks{\library}{\hole{\cdot}}{\Gamma_0}$.
+  By \Cref{tr:w-t-prog-runtime}: $\typechecks{}{\Omega_0 \triangleright call\ main\ 0}{\nat \to \nat}$.
+
+  By \Cref{lem:progress}: $\exists \src{\Omega'}\ \src{\finalexpr}\ \src{\trace}$ such that
+  $\execs{\Omega_0}{call\ main\ 0}{\Omega'}{\finalexpr}{\trace}$.
+
+  By \Cref{tr:ws-e-prog} or \Cref{tr:ws-e-prog-crash}:
+  $\wexecs{prog\ \library_{ctx}\ \library_{comp}}{\Omega'}{\finalexpr}{\trace'}$.
+
+  The library and component library are preserved throughout execution:
+  $\src{\Omega'.\library} = \src{\library}$ and $\src{\Omega'.\commlib} = \src{\commlib}$.
 \end{proof}
 
 \begin{lemma}[Base \gls{tms} via Monitor]\label{lem:basetmsmonitor}
@@ -1638,8 +1996,8 @@ We also use it to project the call/return events onto it.
     Apply \Thmref{lem:rtctxtyping:plugged} on \Cref{asm:ctxtmsmonitor:ctxstep:case0:typsrw}:
     \begin{passumptions}{H}
       \setcounter{enumi}{6}
-      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:Krttyps} $\typechecks{}{\Omega\triangleright K}{\type_{e}\to\type}$
-      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:e0rttyps} $\typechecks{}{\Omega\triangleright e_{0}}{\type_{e}}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:Krttyps} $\ctxtypechecks{}{\Omega\triangleright K}{\type_{e}\to\type}{\Gamma_{\hole{\cdot}}}$
+      \item\label[ass]{asm:ctxtmsmonitor:ctxstep:case0:e0rttyps} $\typechecks{\Gamma_{\hole{\cdot}}}{e_{0}}{\type_{e}}$
     \end{passumptions}
 
     Apply \Thmref{lem:basetmsmonitor} on \Cref{asm:ctxtmsmonitor:ctxstep:case0:monrel,asm:ctxtmsmonitor:ctxstep:case0:exec,asm:ctxtmsmonitor:ctxstep:case0:e0rttyps}, giving us exactly the assumptions necessary to prove the goals.

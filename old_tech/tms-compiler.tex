@@ -1022,8 +1022,67 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\xlangtraceeq{\trace}{\trace}$
   \end{goals}
 \end{lemma}
-\begin{incompleteproof}
-\end{incompleteproof}
+\begin{proof}
+  We prove this by contradiction.
+  Assume:
+  \begin{passumptions}{I}
+    \item\label[ass]{asm:compcorr:toplevel} $\forall\delta'\ \src{\Omega'}\ \src{\trace},\neg\left(\delta\subseteq\delta'\right)\vee\neg\left(\exectN{\Omega}{e}{\Omega'}{K[return\ \valueexpr]}{\trace}\right)\vee\xlangstateneq[\delta']{\Omega'}{\Omega'}\vee\xlangtraceneq[\delta']{\trace}{\trace}$
+  \end{passumptions}
+  and need to prove $\bot$.
+
+  Apply \Thmref{lem:progress} on the assumption that the expression is well-typed.
+  Since the component expression $\src{e}$ is well-typed and the configuration $\src{\Omega}$ is well-formed, there exist $\src{\Omega'}$, $\src{\finalexpr}$, and $\src{\trace}$ such that:
+  \begin{passumptions}{H}
+    \item\label[ass]{asm:compcorr:srcexec} $\execs{\Omega}{e}{\Omega'}{\finalexpr}{\trace}$
+  \end{passumptions}
+
+  Apply \Thmref{lem:forwardsim} on \Cref{asm:compcorr:srcexec} using the state relation and typing assumptions:
+  \begin{passumptions}{F}
+    \item\label[ass]{asm:compcorr:deltasubset} $\delta\subseteq\delta_{v}$
+    \item\label[ass]{asm:compcorr:trgexec} $\exec{\trg{\Omega}}{\mmlAmmlAtcomp{e}}{\trg{\Omega_{v}'}}{\mmlAmmlAtcomp{\finalexpr}}{\trg{\trace[_{v}]}}$
+    \item\label[ass]{asm:compcorr:stateeqv} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega_{v}'}$
+    \item\label[ass]{asm:compcorr:traceeqv} $\xlangtraceeq[\delta_{v}]{\trace}{\trace[_{v}]}$
+  \end{passumptions}
+
+  Apply \Thmref{lem:determ:steps} on the assumed target execution and \Cref{asm:compcorr:trgexec}:
+  \begin{passumptions}{D}
+    \item\label[ass]{asm:compcorr:finaleq} $\mmlAmmlAtcomp{\finalexpr}=\trg{K[return\ \valueexpr]}$
+    \item\label[ass]{asm:compcorr:stateeq} $\trg{\Omega_{v}'}=\trg{\Omega'}$
+    \item\label[ass]{asm:compcorr:traceeq} $\trg{\trace[_{v}]}=\trg{\trace}$
+  \end{passumptions}
+
+  By \Cref{asm:compcorr:finaleq} and injectivity of compilation (\Thmref{lem:injective:comp}):
+  \begin{passumptions}{H}
+    \setcounter{enumi}{6}
+    \item\label[ass]{asm:compcorr:srcfinaleq} $\src{\finalexpr}=\src{K[return\ \valueexpr]}$
+  \end{passumptions}
+
+  Rewrite using \Cref{asm:compcorr:stateeq} in \Cref{asm:compcorr:stateeqv} and \Cref{asm:compcorr:traceeq} in \Cref{asm:compcorr:traceeqv}:
+  \begin{passumptions}{F'}
+    \setcounter{enumi}{2}
+    \item\label[ass]{asm:compcorr:stateeqfinal} $\xlangstateeq[\delta_{v}]{\Omega'}{\Omega'}$
+    \item\label[ass]{asm:compcorr:traceeqfinal} $\xlangtraceeq[\delta_{v}]{\trace}{\trace}$
+  \end{passumptions}
+
+  Rewrite using \Cref{asm:compcorr:srcfinaleq} in \Cref{asm:compcorr:srcexec}:
+  \begin{passumptions}{H}
+    \setcounter{enumi}{7}
+    \item\label[ass]{asm:compcorr:srcexecfinal} $\execs{\Omega}{e}{\Omega'}{K[return\ \valueexpr]}{\trace}$
+  \end{passumptions}
+
+  Specialize \Cref{asm:compcorr:toplevel} with $\delta'=\delta_{v}$, $\src{\Omega'}=\src{\Omega'}$, and $\src{\trace}=\src{\trace}$.
+  We proceed by case analysis:
+  \begin{description}
+    \item \textbf{Case }$\neg\left(\delta\subseteq\delta_{v}\right)$\textbf{:}
+      Immediate contradiction with \Cref{asm:compcorr:deltasubset}.
+    \item \textbf{Case }$\neg\left(\execs{\Omega}{e}{\Omega'}{K[return\ \valueexpr]}{\trace}\right)$\textbf{:}
+      This contradicts \Cref{asm:compcorr:srcexecfinal}.
+    \item \textbf{Case }$\xlangstateneq[\delta_{v}]{\Omega'}{\Omega'}$\textbf{:}
+      Immediate contradiction with \Cref{asm:compcorr:stateeqfinal}.
+    \item \textbf{Case }$\xlangtraceneq[\delta_{v}]{\trace}{\trace}$\textbf{:}
+      Immediate contradiction with \Cref{asm:compcorr:traceeqfinal}.
+  \end{description}
+\end{proof}
 
 
 \subsubsection{Trace-based Backtranslation}
@@ -1255,7 +1314,11 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy.
+  By definition of $\xlangstateeq{\cdot}{\cdot}$ on control-flow states, we need to show that each component is related.
+  The component library $\commlib$ is trivially equal on both sides.
+  The library relation $\xlangstateeq{\library}{\library}$ holds by assumption.
+  The empty continuation stack $\hole{\cdot}$ is trivially related to itself.
+  Combining these, the goal follows by the constructor for control-flow state equality.
 \end{proof}
 
 \begin{lemma}[if $\src{\loc}\in\src{L}$, then $\src{\poison}$ doesn't matter]\label{lem:locinL:poisondoesntmatter}
@@ -1272,7 +1335,10 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy.
+  The set $\src{L}$ contains locations introduced by the backtranslation wrapper, which are ignored by the state relation $\xlangbackstateeq{\cdot}{\cdot}$.
+  Since $\src{\loc}\in\src{L}$, the binding $\src{x\mapsto(\loc;\sandboxtag;\poison;m)}$ is not compared against any target binding.
+  Therefore, changing $\src{\poison}$ to $\src{\poison'}$ does not affect the relation.
+  All other bindings in $\src{\Delta_{1}}$ and $\src{\Delta_{2}}$, as well as the heap $\src{H}$, remain unchanged, so the goal follows from the assumption $\xlangbackstateeq{\memstate}{\memstate}$.
 \end{proof}
 
 \begin{lemma}[$\src{\loc}\in\operatorname{dom}\delta$ decomposes $\src{\Delta}$]\label{lem:deltadecomposeDelta}
@@ -1287,7 +1353,9 @@ For example, by adding the dynamic type check we prevent contexts from binding $
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy.
+  Since $\src{\loc}\in\operatorname{dom}\delta$, by definition of $\delta$ there exists a corresponding target location $\trg{\loc}$ such that $\delta(\src{\loc})=\trg{\loc}$.
+  The state relation $\xlangstateeq{H^{\ctx};H^{\comp};\Delta}{H^{\ctx};H^{\comp};\Delta}$ requires that for each $\src{\loc}\in\operatorname{dom}\delta$, there is a binding in $\src{\Delta}$ containing that location.
+  Therefore, we can decompose $\src{\Delta}$ into $\src{\Delta_{1},x\mapsto(\loc;\sandboxtag;\poison;m),\Delta_{2}}$ where the binding for $\src{x}$ contains $\src{\loc}$.
 \end{proof}
 
 \begin{lemma}[MS-Location Generator]\label{lem:mslocgen}
@@ -1548,7 +1616,7 @@ For example, by adding the dynamic type check we prevent contexts from binding $
     \item $\src{\trace}=\src{Dealloc\ \loc\cdot Ret\ \comptoctx\ }\mmlAmmlAtbackv{\valueexpr}$
     \item $\src{\memstate'}=\src{H^{\ctx};H^{\comp};\Delta_{1},x\mapsto(\loc;\sandboxtag';\poisoned;m),\Delta_{2}}$
   \end{passumptions}
-  \Cref{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} is easy.
+  \Cref{goal:exprbacktranslation:beg:wrapper:correct:Xsubset} follows immediately by reflexivity, since we instantiated $\src{X'}$ to be exactly $\src{X}\cup\left\{\src{Dealloc\ \loc}\right\}$.
   Let $\src{n}=\mmlAmmlAtbackv[]{\valueexpr}$.
   For \Cref{goal:exprbacktranslation:beg:wrapper:correct:execs}, first note \Cref{asm:exprbacktranslation:beg:wrapper:correct:omegas}, use \Cref{tr:w-e-ectx-ret-notsame} and rewrite $\src{K}$ using \Cref{asm:exprbacktranslation:beg:wrapper:correct:K}:
   \begin{passumptions}{H}

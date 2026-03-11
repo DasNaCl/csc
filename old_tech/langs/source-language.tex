@@ -1006,7 +1006,15 @@ We also use it to project the call/return events onto it.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy.
+  By induction on $\src{\library_{1}}$.
+  \begin{description}
+    \item[Case $\src{\library_{1}}=\src{\hole{\cdot}}$:]
+      Then $\src{\library}=\src{\library_{2}}$, and the goal follows directly from the assumption $\Gammas\vdash\src{\library_{2}}\operatorname{ok}$.
+    \item[Case $\src{\library_{1}}=\src{F,\library_{1}'}$:]
+      By inversion on $\Gammas\vdash\src{F,\library_{1}'}\operatorname{ok}$ using \Cref{tr:w-t-lib-cons}, we obtain $\Gammas\vdash\src{\library_{1}'}\operatorname{ok}$ and typing of the function $\src{F}$.
+      By the inductive hypothesis, $\Gammas\vdash\src{\library_{1}'\linker\library_{2}}\operatorname{ok}$.
+      Applying \Cref{tr:w-t-lib-cons} with the typing of $\src{F}$ yields $\Gammas\vdash\src{F,(\library_{1}'\linker\library_{2})}\operatorname{ok}$, which equals $\Gammas\vdash\src{\library}\operatorname{ok}$ by definition of linking.
+  \end{description}
 \end{proof}
 
 \begin{lemma}[Typing Decomposition]\label{lem:ctxtyping:plugged}
@@ -1161,7 +1169,16 @@ We also use it to project the call/return events onto it.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy using \Cref{tr:tms-trans-auth}.
+  By induction on the structure of $\mstrace[_{1}]$.
+  \begin{description}
+    \item[Case empty trace:]
+      If $\mstrace[_{1}]=\hole{\cdot}$, then $\abstrace_{1}=\hole{\cdot}$ by inversion on $\tmstraceagree[^{*}]{\hole{\cdot}}{\abstrace_{1}}$.
+      The goal $\tmstraceagree[^{*}]{\mstrace[_{2}]}{\abstrace_{2}}$ follows directly from the second assumption.
+    \item[Case non-empty trace:]
+      If $\mstrace[_{1}]=\msevent\cdot\mstrace$, by inversion on $\tmstraceagree[^{*}]{\msevent\cdot\mstrace}{\abstrace_{1}}$ we have $\abstrace_{1}=\absevent\cdot\abstrace$ with $\tmstraceagree{\msevent}{\absevent}$ and $\tmstraceagree[^{*}]{\mstrace}{\abstrace}$.
+      By the inductive hypothesis, $\tmstraceagree[^{*}]{\mstrace\cdot\mstrace[_{2}]}{\abstrace\cdot\abstrace_{2}}$.
+      Applying \Cref{tr:tms-trans-auth} with $\tmstraceagree{\msevent}{\absevent}$ yields $\tmstraceagree[^{*}]{\msevent\cdot(\mstrace\cdot\mstrace[_{2}])}{\absevent\cdot(\abstrace\cdot\abstrace_{2})}$, which equals the goal by associativity of trace concatenation.
+  \end{description}
 \end{proof}
 
 \begin{lemma}[Monitor Step Subset]\label{lem:monitor-step-subset}
@@ -1175,7 +1192,15 @@ We also use it to project the call/return events onto it.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy induction on $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$.
+  By case analysis on the derivation of $\monitorcheck[]{\tmsmonitor}{\tmsmonitor[']}{\absevent}$.
+  \begin{description}
+    \item[Cases \Cref{tr:tms-uninteresting,tr:tms-abort,tr:tms-use}:]
+      In these cases, $\tmsmonitor' = \tmsmonitor$, so $\tmsmonitor.F = \tmsmonitor'.F$ and the goal holds by reflexivity of $\subseteq$.
+    \item[Case \Cref{tr:tms-alloc}:]
+      By definition of $\cup$ on abstract stores (\Cref{fig:tms-monitor}), $\tmsmonitor' = \{(\specificev{\loc};\sandboxtag)\} \cup \tmsmonitor$ only modifies the $A$ component, leaving $\tmsmonitor'.F = \tmsmonitor.F$.
+    \item[Case \Cref{tr:tms-dealloc}:]
+      By definition of $\setminus$ on abstract stores (\Cref{fig:tms-monitor}), $\tmsmonitor' = \tmsmonitor \setminus \{(\specificev{\loc};\sandboxtag)\}$ yields $\tmsmonitor'.F = \tmsmonitor.F \cup \{(\specificev{\loc};\sandboxtag)\}$, so $\tmsmonitor.F \subseteq \tmsmonitor'.F$.
+  \end{description}
 \end{proof}
 
 \begin{lemma}[Monitor Steps Subset]\label{lem:monitor-steps-subset}
@@ -1189,7 +1214,17 @@ We also use it to project the call/return events onto it.
   \end{goals}
 \end{lemma}
 \begin{proof}
-  Easy induction on $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\absevent}$ using \Thmref{lem:monitor-step-subset}.
+  By induction on the derivation of $\monitorcheck{\tmsmonitor}{\tmsmonitor[']}{\abstrace}$.
+  \begin{description}
+    \item[Case \Cref{tr:tms-refl}:]
+      Then $\tmsmonitor' = \tmsmonitor$ and $\abstrace = \hole{\cdot}$.
+      The goal $\tmsmonitor.F \subseteq \tmsmonitor.F$ holds by reflexivity.
+    \item[Case \Cref{tr:tms-trans}:]
+      By inversion, we have $\monitorcheck[]{\tmsmonitor}{\tmsmonitor['']}{\absevent}$ and $\monitorcheck{\tmsmonitor['']}{\tmsmonitor[']}{\abstrace'}$ for some intermediate state $\tmsmonitor['']$.
+      By \Thmref{lem:monitor-step-subset}, $\tmsmonitor.F \subseteq \tmsmonitor[''].F$.
+      By the inductive hypothesis, $\tmsmonitor[''].F \subseteq \tmsmonitor['].F$.
+      By transitivity of $\subseteq$, we conclude $\tmsmonitor.F \subseteq \tmsmonitor['].F$.
+  \end{description}
 \end{proof}
 
 \begin{lemma}[$\alpha$-conv. Typing]\label{lem:alpha-conv-typing}
@@ -2107,9 +2142,12 @@ We also use it to project the call/return events onto it.
   Induction on \Cref{asm:stepstmsmonitor:exec}.
   \begin{description}
     \item[$\src{\configs'}=\configs$, $\src{e'}=\src{e}$, and $\src{\trace}=\src{\hole{\cdot}}$:]
-          This case is easy, since nothing did change.
+          This is the base case where no execution step occurs.
           Instantiate $\abstrace=\hole{\cdot}$, $\delta_{\text{MS}}'=\delta_{\text{MS}}$, and $\tmsmonitor[']=\tmsmonitor$.
-          Then, \Cref{goal:stepstmsmonitor:delta,goal:stepstmsmonitor:traceagree,goal:stepstmsmonitor:monitorstep} follow immediately by reflexivity and \Cref{goal:stepstmsmonitor:storeagree} by \Cref{asm:stepstmsmonitor:storeagree}.
+          \Cref{goal:stepstmsmonitor:delta} holds since $\delta_{\text{MS}}\subseteq\delta_{\text{MS}}$ by reflexivity of subset.
+          \Cref{goal:stepstmsmonitor:traceagree} holds since $\tospecificevs[_{\delta_{\text{MS}}}]{\hole{\cdot}}=\hole{\cdot}$ by definition of trace projection on empty traces, and then $\tmstraceagree[^{*}]{\hole{\cdot}}{\hole{\cdot}}$ follows by \Cref{tr:tms-refl-auth}.
+          \Cref{goal:stepstmsmonitor:monitorstep} holds by \Cref{tr:tms-refl}, noting the monitor state is unchanged.
+          \Cref{goal:stepstmsmonitor:storeagree} follows directly from \Cref{asm:stepstmsmonitor:storeagree}.
 
     \item[Induction step:]
           The inductive hypothesis is as follows.
